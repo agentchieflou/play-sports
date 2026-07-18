@@ -36,4 +36,28 @@ public:
     // Controls if camera currently tracks the target actor
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera")
     bool bIsFollowing;
+
+    // Minimum X bound (stadium back endline A)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera|Bounds")
+    float MinX;
+
+    // Maximum X bound (stadium back endline B)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera|Bounds")
+    float MaxX;
+
+    // Minimum Y bound (sideline A limit)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera|Bounds")
+    float MinY;
+
+    // Maximum Y bound (sideline B limit)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera|Bounds")
+    float MaxY;
+
+    // Minimum Z bound (minimum height to prevent going below field plane)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera|Bounds")
+    float MinZ;
+
+    // Maximum Z bound (maximum height ceiling)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera|Bounds")
+    float MaxZ;
 };
