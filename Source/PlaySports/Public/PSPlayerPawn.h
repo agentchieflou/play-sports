@@ -32,6 +32,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Movement")
     void MoveToLocation(const FVector& TargetLocation);
 
+    // Give the ball to this player pawn
+    UFUNCTION(BlueprintCallable, Category = "Player")
+    void GainPossession();
+
+    // Take the ball away from this player pawn
+    UFUNCTION(BlueprintCallable, Category = "Player")
+    void LosePossession();
+
+    // Transfer the ball from this player pawn to a target player pawn
+    UFUNCTION(BlueprintCallable, Category = "Player")
+    bool TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn);
+
 protected:
     virtual void BeginPlay() override;
 
@@ -46,4 +58,7 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "Player")
     FPlayerAttributes Attributes;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Player")
+    bool bHasPossession;
 };

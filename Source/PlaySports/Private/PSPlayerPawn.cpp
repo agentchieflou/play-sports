@@ -18,6 +18,8 @@ APSPlayerPawn::APSPlayerPawn()
     MeshComponent->SetCollisionProfileName(TEXT("NoCollision"));
 
     MovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MovementComp"));
+
+    bHasPossession = false;
 }
 
 void APSPlayerPawn::BeginPlay()
@@ -28,6 +30,7 @@ void APSPlayerPawn::BeginPlay()
 void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
 {
     Attributes = InAttributes;
+    bHasPossession = false;
 
     // Scale MaxSpeed linearly based on Speed attribute (0-100 rating -> 300 to 900 cm/s max speed)
     float ScaledMaxSpeed = 300.f + (Attributes.Speed * 6.f);
@@ -57,4 +60,51 @@ void APSPlayerPawn::MoveToLocation(const FVector& TargetLocation)
     {
         UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: MoveToLocation failed - Pawn has no AIController."));
     }
+}
+
+void APSPlayerPawn::GainPossession()
+{
+    if (!bHasPossession)
+    {
+        bHasPossession = true;
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) gained ball possession."), 
+            *Attributes.DisplayName, 
+            *Attributes.PlayerId.ToString());
+    }
+}
+
+void APSPlayerPawn::LosePossession()
+{
+    if (bHasPossession)
+    {
+        bHasPossession = false;
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) lost ball possession."), 
+            *Attributes.DisplayName, 
+            *Attributes.PlayerId.ToString());
+    }
+}
+
+bool APSPlayerPawn::TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn)
+{
+    if (!bHasPossession)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: Transfer possession failed - %s does not have the ball."), 
+            *Attributes.DisplayName);
+        return false;
+    }
+
+    if (!TargetPlayerPawn)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: Transfer possession failed - Target player pawn is null."));
+        return false;
+    }
+
+    LosePossession();
+    TargetPlayerPawn->GainPossession();
+
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Transferred ball possession from %s to %s."), 
+        *Attributes.DisplayName, 
+        *TargetPlayerPawn->GetAttributes().DisplayName);
+
+    return true;
 }
