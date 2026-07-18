@@ -23,7 +23,12 @@ which makes **role discipline** and **context hygiene** your two prime duties.
    rules while in it: the Tester really runs its checks (never assumes), the Reviewer really
    challenges the diff (you are reviewing your own work — be adversarial, check the plan's
    criteria one by one), the Git steward really verifies scope and the checkbox before merging.
-3. **Story complete** = merged to `main` with its checkbox ticked. Append one line to the log:
+3. **CI is the build evidence.** After the Coder pushes the story branch and opens its PR,
+   the Tester waits for the `CI` workflow (`gh pr checks <PR> --watch`) — the compile + headless
+   automation results are the core of the test report; quote failures from
+   `gh run view <run-id> --log-failed`. The Git steward merges only on CI green (its checklist).
+   Never invoke UBT or the editor yourself; push and let CI run.
+4. **Story complete** = merged to `main` with its checkbox ticked. Append one line to the log:
    story, verdicts, commit hash. Then **drop all file contents and role artifacts from working
    attention** — carry only the log and the escalation list into the next story.
 4. Repeat until no stories remain, then write the **phase report** and stop.
