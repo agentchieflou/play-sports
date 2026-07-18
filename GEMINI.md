@@ -53,6 +53,11 @@ Failures flow backward, not forward: a failed test report returns to a **fresh**
 with the plan + report; a rejected review returns likewise. The Supervisor only escalates to the
 human when a story fails twice at the same stage or a plan flags a mis-sized story.
 
+**Autonomous loop variant:** when asked to complete a whole phase/Epic range unattended, use the
+`phase-runner` skill — one session plays the roles sequentially per story with role-switch
+discipline, context hygiene between stories, editor-work escalation, and hard stop conditions.
+Two phase-runners may run in parallel only on disjoint Epic ranges with non-overlapping files.
+
 ### Coder specializations (role 3 picks exactly one)
 
 | Specialization | Skill | Works in | Must NOT read |
