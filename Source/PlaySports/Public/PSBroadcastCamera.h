@@ -60,4 +60,8 @@ public:
     // Maximum Z bound (maximum height ceiling)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera|Bounds")
     float MaxZ;
+
+    // Instantly snap the camera to center on a specific yard line (pre-play framing)
+    UFUNCTION(BlueprintCallable, Category = "Broadcast Camera")
+    void SnapToScrimmage(float ScrimmageYardLine);
 };
