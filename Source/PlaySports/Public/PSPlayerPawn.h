@@ -9,6 +9,13 @@ class UCapsuleComponent;
 class UStaticMeshComponent;
 class UFloatingPawnMovement;
 
+UENUM(BlueprintType)
+enum class EPSTeamSide : uint8
+{
+    Offense UMETA(DisplayName = "Offense"),
+    Defense UMETA(DisplayName = "Defense")
+};
+
 /**
  * APSPlayerPawn represents any physical player on the field, initialized from an FPlayerAttributes row.
  */
@@ -43,6 +50,9 @@ public:
     // Transfer the ball from this player pawn to a target player pawn
     UFUNCTION(BlueprintCallable, Category = "Player")
     bool TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
+    EPSTeamSide TeamSide;
 
 protected:
     virtual void BeginPlay() override;

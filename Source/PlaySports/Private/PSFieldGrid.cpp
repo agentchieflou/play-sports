@@ -87,3 +87,42 @@ float APSFieldGrid::GetDistanceToGoalLine(const FVector& WorldPosition, bool bTa
         return YardLine;
     }
 }
+
+FVector APSFieldGrid::GetFormationSpawnLocation(
+    const FPSFormationSpawnPoint& SpawnPoint,
+    float LineOfScrimmageYard,
+    bool bIsOffense,
+    bool bPlayTowardsGoalLineB) const
+{
+    float TargetYardLine = LineOfScrimmageYard;
+    float LateralYard = 26.6667f + SpawnPoint.LateralYardOffset;
+
+    // If play direction is towards B (standard positive X direction):
+    // Offense is lined up behind (less than) the line of scrimmage.
+    // Defense is lined up in front of (greater than) the line of scrimmage.
+    if (bPlayTowardsGoalLineB)
+    {
+        if (bIsOffense)
+        {
+            TargetYardLine += SpawnPoint.ScrimmageYardOffset; // ScrimmageYardOffset is negative for offense behind line
+        }
+        else
+        {
+            TargetYardLine += SpawnPoint.ScrimmageYardOffset; // ScrimmageYardOffset is positive for defense in front of line
+        }
+    }
+    else
+    {
+        // Playing towards Goal Line A (reverse direction)
+        if (bIsOffense)
+        {
+            TargetYardLine -= SpawnPoint.ScrimmageYardOffset;
+        }
+        else
+        {
+            TargetYardLine -= SpawnPoint.ScrimmageYardOffset;
+        }
+    }
+
+    return GetWorldPositionFromFieldCoordinate(TargetYardLine, LateralYard);
+}
