@@ -33,6 +33,26 @@ struct FPlayState
     int32 Distance;
 };
 
+UENUM(BlueprintType)
+enum class EPlayResultType : uint8
+{
+    Incomplete,
+    Tackle,
+    Touchdown
+};
+
+USTRUCT(BlueprintType)
+struct FPlayResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 YardsGained;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EPlayResultType ResultType;
+};
+
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSPlaySimulation : public UObject
 {
@@ -50,8 +70,14 @@ public:
     UFUNCTION(BlueprintCallable)
     FPlayState GetPlayState() const;
 
+    UFUNCTION(BlueprintCallable)
+    FPlayResult GetPlayResult() const;
+
 private:
     FPlayState CurrentState;
     TArray<FPlayerAttributes> OffenseRoster;
     TArray<FPlayerAttributes> DefenseRoster;
+    FPlayResult CurrentPlayResult;
+
+    void ResolvePlayResult();
 };
