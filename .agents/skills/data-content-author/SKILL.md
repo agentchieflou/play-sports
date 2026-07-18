@@ -34,5 +34,6 @@ covering all 8 roles (see ROADMAP Epic 1, story 1).
   their headline stat).
 - Validate the JSON parses before finishing (`python -m json.tool <file>`).
 - If the story adds a *new* content type (teams, playbooks), the schema comes from the Epic's
-  story text in `ROADMAP.md` — read only that Epic's section.
+  story text — in `ROADMAP.md` (Epics 1–25) or its `roadmap/` track file (26–125); read only
+  that Epic's section.
 - Tick the story's checkbox in `ROADMAP.md` in the same change.

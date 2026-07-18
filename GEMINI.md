@@ -47,7 +47,10 @@ load on demand — that is the point, don't preload them all):
 
 - Never re-read what `AGENTS.md` already summarizes (architecture, dependency lists, data
   shapes) — trust the summary; open source files only when the story touches them.
-- Never load `ROADMAP.md` wholesale into working context — read only the active Epic's section.
+- Never load the roadmap wholesale into working context — read only the active Epic's section
+  of `ROADMAP.md` (Epics 1–25) or its single track file under `roadmap/` (Epics 26–125).
+- Match Epic **size/mode labels** (legend in `ROADMAP.md`) to the session: `S`/`M` code-mode
+  Epics suit cheap models; `editor`-mode Epics produce specs and job files only (no local UE).
 - Prefer the cheapest sufficient model for Data/content and Reviewer work (free-tier slots per
   `AGENTS.md` once the Epic 25 router exists; until then, the smallest model in the picker).
 

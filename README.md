@@ -27,5 +27,9 @@ are wired up.
 
 ## Roadmap
 
-Development is tracked in [`ROADMAP.md`](ROADMAP.md): 25 Epics across 5 phases, sequenced
-vertical-slice first (one crude but complete play end-to-end, then deepen each system).
+Development is tracked in [`ROADMAP.md`](ROADMAP.md): a 25-Epic core across 5 phases, sequenced
+vertical-slice first (one crude but complete play end-to-end, then deepen each system), plus 100
+expansion Epics (26–125) in themed track files under [`roadmap/`](roadmap/) — broadcast overlays,
+cameras, stadium atmosphere, animation depth, gameplay nuance, AI, franchise, audio, UX,
+multiplayer, engineering infrastructure, and content generation. Each expansion Epic is sized
+(S/M/L/XL) and moded (code/editor/mixed) for agent scoping.

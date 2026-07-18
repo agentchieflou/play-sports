@@ -1,20 +1,54 @@
 # ROADMAP.md
 
-Development roadmap for `play-sports`. 25 Epics across 5 phases, sequenced **vertical-slice
-first**: Phase 0 produces one crude but complete, watchable play (roster → snap → physics →
-result) as early as possible; every later phase deepens a piece of that slice.
+Development roadmap for `play-sports`: **125 Epics** — a 25-Epic core (this file, Phases 0–4)
+sequenced **vertical-slice first** (Phase 0 produces one crude but complete, watchable play as
+early as possible; later phases deepen it), plus **100 expansion Epics (26–125)** in themed
+track files under `roadmap/` (see the track index below).
 
-Conventions used below:
+Conventions used throughout:
 
 - **Goal** — one-line definition of done for the Epic.
 - **Builds on** — existing code in this repo the Epic extends (see `AGENTS.md` for the map).
 - **Depends on** — Epic IDs that should land first. Epics with no unmet dependencies can be
   worked in parallel (including by different agents/tools).
 - Stories are checkboxes so progress is trackable in-place via PRs that tick them.
+- Agents: read only the section (or track file) for your active Epic — never the whole roadmap.
 
 Status: nothing below is started unless checked. The only implemented code today is what
 `AGENTS.md` describes (`PSPlaySimulation` phase ticker, `PSDataIngestion`, `PSScheduleEngine`,
 `PSFunctionalGym`, `FPlayerAttributes`, and the two stub plugins).
+
+## Sizing & mode (agent-scoping labels)
+
+Every Epic 26+ carries a **Size / Mode** line; use it to match Epics to agent sessions:
+
+- **Size** — `S` (one short agent session, 2–3 stories, single-file-ish scope), `M` (one solid
+  session, 3–4 stories, one system), `L` (multi-session, 4–5 stories, cross-system integration),
+  `XL` (a whole subsystem, 5–6 stories, expect several sessions and design decisions).
+- **Mode** — `code` (pure C++/data/docs, doable by any agent per the no-UE-toolchain rule),
+  `editor` (requires a human- or bridge-driven Unreal Editor session — agents produce specs,
+  data, and code scaffolding only), `mixed` (code now, editor pass later; stories say which).
+
+Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L) 8(L) 9(L) 10(M)
+11(L) 12(M) 13(L) 14(XL) 15(XL) 16(L) 17(XL) 18(M) 19(L) 20(L) 21(M) 22(XL-editor) 23(L-mixed)
+24(L) 25(XL).
+
+## Expansion track index (Epics 26–125)
+
+| Track | File | Epics | Theme |
+|---|---|---|---|
+| A | `roadmap/broadcast-overlays.md` | 26–37 | Broadcast overlay & telemetry: route ribbons, badges, personnel panels, AR paint |
+| B | `roadmap/camera-cinematics.md` | 38–45 | Camera director, skycam, replay, highlights, telestrator |
+| C | `roadmap/stadium-atmosphere.md` | 46–55 | Stadium, night lighting, weather, crowd, field surface, branding |
+| D | `roadmap/player-visuals.md` | 56–65 | Uniforms, likeness, animation depth, refs, gang tackles |
+| E | `roadmap/gameplay-depth.md` | 66–77 | Pre-snap interaction, route/coverage/rush nuance, situational football |
+| F | `roadmap/ai-depth.md` | 78–85 | Adaptive opponents, player DNA, run fits, AI observability |
+| G | `roadmap/franchise-depth.md` | 86–95 | Draft, contracts, trades, morale, stats, narratives |
+| H | `roadmap/audio-depth.md` | 96–100 | Commentary engine, crowd audio, broadcast mix |
+| I | `roadmap/ux-ui.md` | 101–106 | Front end, play-call UI, accessibility, input feel |
+| J | `roadmap/multiplayer.md` | 107–111 | Local H2H, online architecture, spectating, async leagues |
+| K | `roadmap/engineering-infra.md` | 112–120 | CI, determinism, performance, save systems, agentic tooling |
+| L | `roadmap/content-generators.md` | 121–125 | Procedural playbooks, rosters, team identities, stadiums |
 
 ---
 

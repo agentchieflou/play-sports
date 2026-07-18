@@ -138,8 +138,12 @@ Customizations) rather than anything in this repo.
 
 ## Roadmap
 
-All open work is tracked in `ROADMAP.md` (repo root): 25 Epics across 5 phases, vertical-slice
-first, each broken into agent-sized stories with explicit dependencies. When picking up work,
-choose a story from the earliest phase whose Epic dependencies are met, and tick its checkbox in
-`ROADMAP.md` in the same PR that completes it. The agentic-infrastructure track (Epic 25 — making
-`Autonomix`/`AgenticLink` real) has no gameplay dependencies and can proceed in parallel.
+All open work is tracked in `ROADMAP.md` (repo root): a 25-Epic vertical-slice-first core
+(Phases 0–4, inline) plus 100 expansion Epics (26–125) in themed track files under `roadmap/` —
+the index table, size (S/M/L/XL) and mode (code/editor/mixed) legend are at the top of
+`ROADMAP.md`. When picking up work, choose a story from the earliest unblocked Epic (per its
+"Depends on" line), match the Epic's size/mode to the session, and tick its checkbox in the same
+PR that completes it. Read only your active Epic's section or track file — never the whole
+roadmap. The agentic-infrastructure work (core Epic 25 and Track K, `roadmap/engineering-infra.md`)
+has no gameplay dependencies and can proceed in parallel; Track K's Epic 112 (UE build CI) is the
+single highest-leverage unblocker for honest C++ verification.

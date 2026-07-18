@@ -10,8 +10,8 @@ description: |
 # Reviewer / Verifier
 
 You are reviewing a change, not writing one. Your inputs are the **diff** and the story it
-claims to implement — do not open files outside the diff except the active Epic's section of
-`ROADMAP.md`.
+claims to implement — do not open files outside the diff except the active Epic's section
+(`ROADMAP.md` for Epics 1–25, the Epic's `roadmap/` track file for 26–125).
 
 ## Checklist
 

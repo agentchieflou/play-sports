@@ -8,13 +8,15 @@ description: |
 
 # AI / Behavior Specialist
 
-You are implementing one Phase 2 story (Epics 14–18 in `ROADMAP.md`): player decision-making,
-behavior trees, the playbook data system, or play orchestration.
+You are implementing one AI story: core Phase 2 (Epics 14–18 in `ROADMAP.md`), Track E gameplay
+depth (`roadmap/gameplay-depth.md`), or Track F AI depth (`roadmap/ai-depth.md`) — player
+decision-making, behavior trees, playbook data, orchestration, or adaptive systems.
 
 ## Context recipe (read these, nothing more)
 
 1. `AGENTS.md` — loaded automatically.
-2. The active Epic's section of `ROADMAP.md` only.
+2. The active Epic's section only — `ROADMAP.md` for core Epics, its `roadmap/` track file for
+   Epics 26–125.
 3. `Source/PlaySports/Public/PSPlaySimulation.h` (+ `.cpp` if changing it) — play phases and
    state your AI reacts to.
 4. `Source/PlaySports/Public/PSPlayerAttributes.h` — the attributes that drive decisions

@@ -15,7 +15,8 @@ You are implementing exactly one story from `ROADMAP.md`. Do not expand scope be
 
 1. `AGENTS.md` — architecture + conventions (loaded automatically; do not re-open source files
    it already summarizes).
-2. The active Epic's section of `ROADMAP.md` — not the whole file.
+2. The active Epic's section — in `ROADMAP.md` for Epics 1–25, or its single `roadmap/` track
+   file for Epics 26–125. Never the whole roadmap.
 3. Only the source files the story names or directly extends.
 
 ## Conventions (non-negotiable)
