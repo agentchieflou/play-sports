@@ -94,7 +94,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Goal:** The play is watchable from a sensible camera without manual control.
 **Depends on:** Epics 2, 3
 
-- [ ] Broadcast-style side camera that tracks the ball/ball-carrier
+- [x] Broadcast-style side camera that tracks the ball/ball-carrier
 - [ ] Camera bounds so it never leaves the stadium or crosses the field plane
 - [ ] Snap-to-formation framing pre-play, follow mode during the play
 - [ ] Debug free-cam toggle for development
