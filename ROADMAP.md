@@ -63,7 +63,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 - [x] Expand `Data/sample_players.json` to 22 players (11 offense, 11 defense) covering every `EPlayerRole`
 - [x] `AGameModeBase` subclass (`PSGameMode`) that loads rosters via `UPSDataIngestion` at startup
 - [x] Drive `UPSPlaySimulation::AdvancePlay` from the game world tick instead of manual calls
-- [ ] Produce a play result struct (yards gained, tackle/score/incomplete) even if randomly resolved from attributes
+- [x] Produce a play result struct (yards gained, tackle/score/incomplete) even if randomly resolved from attributes
 - [ ] End-to-end PIE test: game starts → roster loads → play runs phases → result logged on screen
 
 ### Epic 2: Field & Stadium Level Scaffolding
