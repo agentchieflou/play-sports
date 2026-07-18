@@ -85,7 +85,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 
 - [x] `APSPlayerPawn`: capsule + placeholder mesh, initialized from an `FPlayerAttributes` row
 - [x] Simple locomotion (move-to-point) with max speed scaled from the `Speed` attribute
-- [ ] Ball possession state: which pawn holds the ball, handoff/transfer API
+- [x] Ball possession state: which pawn holds the ball, handoff/transfer API
 - [ ] Team/side affiliation and formation spawn points (offense vs. defense lineup)
 - [ ] Possessable by either an `AIController` or player controller (input mapping via `InputCore`)
 
