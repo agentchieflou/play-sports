@@ -50,3 +50,24 @@ void APSBroadcastCamera::Tick(float DeltaTime)
     FRotator TargetRotation = (TargetLocation - NewLocation).Rotation();
     SetActorRotation(TargetRotation);
 }
+
+void APSBroadcastCamera::SnapToScrimmage(float ScrimmageYardLine)
+{
+    // Convert yard line to world X coordinate
+    float TargetWorldX = (ScrimmageYardLine - 50.0f) * 91.44f;
+    TargetWorldX = FMath::Clamp(TargetWorldX, MinX, MaxX);
+
+    float ClampedY = FMath::Clamp(SidelineY, MinY, MaxY);
+    float ClampedZ = FMath::Clamp(CameraHeight, MinZ, MaxZ);
+
+    FVector NewLocation(TargetWorldX, ClampedY, ClampedZ);
+    SetActorLocation(NewLocation);
+
+    // Look at the center of the field at the scrimmage line
+    FVector ScrimmageCenter(TargetWorldX, 0.0f, 0.0f);
+    FRotator TargetRotation = (ScrimmageCenter - NewLocation).Rotation();
+    SetActorRotation(TargetRotation);
+
+    // Turn off follow mode until the play starts and it is re-enabled
+    bIsFollowing = false;
+}
