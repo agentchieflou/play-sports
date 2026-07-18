@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build PlaySportsEditor
-        shell: pwsh
+        shell: powershell
         run: |
           if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
           & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$env:GITHUB_WORKSPACE\play-sports.uproject" -WaitMutex
@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run automation tests
-        shell: pwsh
+        shell: powershell
         run: |
           if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
           $ReportDir = "$env:GITHUB_WORKSPACE\Saved\AutomationReport"
