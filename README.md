@@ -25,10 +25,7 @@ GitHub Copilot, and free-tier models like Ollama/Gemini/OpenRouter) with shared 
 [`AGENTS.md`](AGENTS.md) for the architecture map, conventions, and how each tool's connectors
 are wired up.
 
-## Next Steps
+## Roadmap
 
-1. Create actual Unreal asset mappings and plugin implementation.
-2. Build the AI bridge from AgenticLink to the engine's reflection API.
-3. Add T3D import helpers, transaction-safe batch operations, and Python escape hatches.
-4. Develop the 22-agent behavior system and immersive audio pipeline.
-5. Wire the free-tier model slots in `AGENTS.md` into an actual router/bridge once (2) exists.
+Development is tracked in [`ROADMAP.md`](ROADMAP.md): 25 Epics across 5 phases, sequenced
+vertical-slice first (one crude but complete play end-to-end, then deepen each system).

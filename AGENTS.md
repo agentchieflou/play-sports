@@ -136,10 +136,10 @@ Until a real router/bridge exists, the practical way to use these today is each 
 bring-your-own-key model picker (e.g. VS Code Copilot Chat → Manage Models; Antigravity Settings →
 Customizations) rather than anything in this repo.
 
-## Next steps (tracked from README, still open)
+## Roadmap
 
-1. Real Unreal asset mappings and plugin implementation.
-2. `AgenticLink` → engine reflection API bridge (the actual MCP server).
-3. `Autonomix` T3D import helpers, transaction-safe batch operations, Python escape hatches.
-4. 22-agent player behavior system and immersive audio pipeline.
-5. Wire the free-tier model slots above into an actual router/bridge once (2) exists.
+All open work is tracked in `ROADMAP.md` (repo root): 25 Epics across 5 phases, vertical-slice
+first, each broken into agent-sized stories with explicit dependencies. When picking up work,
+choose a story from the earliest phase whose Epic dependencies are met, and tick its checkbox in
+`ROADMAP.md` in the same PR that completes it. The agentic-infrastructure track (Epic 25 — making
+`Autonomix`/`AgenticLink` real) has no gameplay dependencies and can proceed in parallel.
