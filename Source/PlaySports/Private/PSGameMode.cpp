@@ -2,6 +2,7 @@
 #include "PSDataIngestion.h"
 #include "PSPlaySimulation.h"
 #include "Misc/Paths.h"
+#include "PSHUD.h"
 
 APSGameMode::APSGameMode()
 {
@@ -9,6 +10,10 @@ APSGameMode::APSGameMode()
     RosterJsonPath = TEXT("Data/sample_players.json");
     PlayerRosterTable = nullptr;
     PlaySimulation = nullptr;
+
+    HUDClass = APSHUD::StaticClass();
+    HomeScore = 0;
+    AwayScore = 0;
 }
 
 void APSGameMode::StartPlay()
@@ -103,6 +108,16 @@ void APSGameMode::Tick(float DeltaSeconds)
             default: PhaseStr = TEXT("Unknown"); break;
             }
             UE_LOG(LogTemp, Display, TEXT("PSGameMode: Play Phase Transitioned to %s at simulation time %f"), *PhaseStr, PlaySimulation->GetPlayState().GameTimeSeconds);
+
+            if (CurrentPhase == EPlayPhase::Scoring)
+            {
+                FPlayResult PlayResult = PlaySimulation->GetPlayResult();
+                if (PlayResult.ResultType == EPlayResultType::Touchdown)
+                {
+                    HomeScore += 6;
+                    UE_LOG(LogTemp, Display, TEXT("PSGameMode: TOUCHDOWN! Offense scores 6 points. HomeScore: %d, AwayScore: %d"), HomeScore, AwayScore);
+                }
+            }
         }
     }
 }
