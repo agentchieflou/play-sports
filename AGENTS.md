@@ -93,7 +93,7 @@ This repo is set up so multiple AI coding tools can work in it with shared conte
 | Tool | Reads | Notes |
 |---|---|---|
 | Claude Code | `CLAUDE.md` (which imports this file via `@AGENTS.md`) | Project-scoped MCP servers: `.mcp.json` |
-| Antigravity | This file (`AGENTS.md`) directly (v1.20.3+), plus `GEMINI.md` for Antigravity-specific overrides (higher priority) | MCP servers are configured **globally**, not per-repo — see below |
+| Antigravity | This file (`AGENTS.md`) directly (v1.20.3+), plus `GEMINI.md` for Antigravity-specific overrides (higher priority) | MCP servers are configured **globally**, not per-repo — see below. Antigravity work is scoped by the agent playbook in `GEMINI.md` + on-demand skills in `.agents/skills/` |
 | GitHub Copilot | `.github/copilot-instructions.md` (repo-wide) | Doesn't read `AGENTS.md`; VS Code agent mode MCP servers: `.vscode/mcp.json` |
 
 ### MCP servers
