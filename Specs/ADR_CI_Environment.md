@@ -31,6 +31,12 @@ Games Launcher; the same decision moved the project's `EngineAssociation` from 5
 Runner labels: `self-hosted, windows, unreal`. Engine path exposed to workflows as the runner
 environment variable `UE_ROOT` — workflows must not hardcode engine paths.
 
+**Runner machine prerequisites** (discovered empirically — a fresh machine needs all of these):
+Unreal Engine 5.8 via Epic Launcher; Visual Studio 2022 with the MSVC v143 C++ toolset, a
+Windows 10/11 SDK, **and the ".NET Framework 4.8 SDK" component** (`Microsoft.Net.Component.4.8.SDK`
+— its absence fails UBT rules compilation with `Could not find NetFxSDK install dir` via
+SwarmInterface).
+
 Option 1 remains the documented upgrade path if CI availability (PC-off gaps) becomes a real
 constraint; nothing in the workflow design precludes adding a container lane later.
 
