@@ -2,7 +2,25 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "PSPlayerAttributes.h"
 #include "PSFieldGrid.generated.h"
+
+USTRUCT(BlueprintType)
+struct FPSFormationSpawnPoint
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
+    EPlayerRole Role = EPlayerRole::Quarterback;
+
+    // Offset in yards relative to the line of scrimmage (positive values mean in the play direction, negative behind)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
+    float ScrimmageYardOffset = 0.0f;
+
+    // Offset in yards laterally relative to the center of the field width (26.6667 yards)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
+    float LateralYardOffset = 0.0f;
+};
 
 /**
  * Field coordinate helper that handles coordinate transformations between yard-line dimensions and world-space positions.
@@ -34,4 +52,12 @@ public:
     // Gets the distance to the goal line in yards
     UFUNCTION(BlueprintCallable, Category = "Field")
     float GetDistanceToGoalLine(const FVector& WorldPosition, bool bTargetGoalLineB) const;
+
+    // Calculates the world space location for a player in a formation lineup
+    UFUNCTION(BlueprintCallable, Category = "Field|Formation")
+    FVector GetFormationSpawnLocation(
+        const FPSFormationSpawnPoint& SpawnPoint,
+        float LineOfScrimmageYard,
+        bool bIsOffense,
+        bool bPlayTowardsGoalLineB = true) const;
 };

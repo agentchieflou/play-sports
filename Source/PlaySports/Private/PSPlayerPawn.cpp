@@ -20,6 +20,7 @@ APSPlayerPawn::APSPlayerPawn()
     MovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MovementComp"));
 
     bHasPossession = false;
+    TeamSide = EPSTeamSide::Offense;
 }
 
 void APSPlayerPawn::BeginPlay()
