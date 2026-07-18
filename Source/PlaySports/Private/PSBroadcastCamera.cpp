@@ -21,13 +21,15 @@ APSBroadcastCamera::APSBroadcastCamera()
     // Height limit (MinZ >= 100.0f prevents camera from clipping through the ground field plane)
     MinZ = 100.0f;
     MaxZ = 2500.0f;
+
+    bIsFreeCam = false;
 }
 
 void APSBroadcastCamera::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (!bIsFollowing || !TargetActor)
+    if (bIsFreeCam || !bIsFollowing || !TargetActor)
     {
         return;
     }
@@ -70,4 +72,19 @@ void APSBroadcastCamera::SnapToScrimmage(float ScrimmageYardLine)
 
     // Turn off follow mode until the play starts and it is re-enabled
     bIsFollowing = false;
+}
+
+void APSBroadcastCamera::ToggleFreeCam(bool bEnabled)
+{
+    bIsFreeCam = bEnabled;
+    if (bIsFreeCam)
+    {
+        bIsFollowing = false;
+        UE_LOG(LogTemp, Display, TEXT("APSBroadcastCamera: Debug free-cam enabled. Active tracking suspended."));
+    }
+    else
+    {
+        bIsFollowing = true;
+        UE_LOG(LogTemp, Display, TEXT("APSBroadcastCamera: Debug free-cam disabled. Active tracking restored."));
+    }
 }

@@ -64,4 +64,12 @@ public:
     // Instantly snap the camera to center on a specific yard line (pre-play framing)
     UFUNCTION(BlueprintCallable, Category = "Broadcast Camera")
     void SnapToScrimmage(float ScrimmageYardLine);
+
+    // Active state of free cam mode
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera")
+    bool bIsFreeCam;
+
+    // Toggle free cam mode on or off
+    UFUNCTION(BlueprintCallable, Category = "Broadcast Camera")
+    void ToggleFreeCam(bool bEnabled);
 };
