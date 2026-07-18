@@ -54,6 +54,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     EPSTeamSide TeamSide;
 
+    // Called to bind functionality to input
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+    // Input handlers
+    void MoveForward(float Value);
+    void MoveRight(float Value);
+
 protected:
     virtual void BeginPlay() override;
 

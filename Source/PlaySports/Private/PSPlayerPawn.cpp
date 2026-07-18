@@ -21,6 +21,8 @@ APSPlayerPawn::APSPlayerPawn()
 
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;
+
+    AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 }
 
 void APSPlayerPawn::BeginPlay()
@@ -108,4 +110,28 @@ bool APSPlayerPawn::TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn)
         *TargetPlayerPawn->GetAttributes().DisplayName);
 
     return true;
+}
+
+void APSPlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+    PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &APSPlayerPawn::MoveForward);
+    PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &APSPlayerPawn::MoveRight);
+}
+
+void APSPlayerPawn::MoveForward(float Value)
+{
+    if (Value != 0.0f)
+    {
+        AddMovementInput(GetActorForwardVector(), Value);
+    }
+}
+
+void APSPlayerPawn::MoveRight(float Value)
+{
+    if (Value != 0.0f)
+    {
+        AddMovementInput(GetActorRightVector(), Value);
+    }
 }
