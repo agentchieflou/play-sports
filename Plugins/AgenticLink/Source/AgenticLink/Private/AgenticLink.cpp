@@ -14,3 +14,5 @@ void FAgenticLinkModule::ShutdownModule()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+IMPLEMENT_MODULE(FAgenticLinkModule, AgenticLink)

@@ -6,7 +6,7 @@ Copilot doesn't load `AGENTS.md` automatically.
 
 ## What this is
 
-Unreal Engine 5.3 project scaffold for an AI-driven American football game. Early-stage: most
+Unreal Engine 5.8 project scaffold for an AI-driven American football game. Early-stage: most
 systems are thin, deliberate skeletons.
 
 - `Source/PlaySports/` — runtime module. Real, working systems: `PSPlayerAttributes` (DataTable

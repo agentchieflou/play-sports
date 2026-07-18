@@ -4,7 +4,7 @@ This document outlines the visual and log-based verification steps for the end-t
 
 ## Setup Instructions
 
-1. **Open Project**: Open `play-sports.uproject` in Unreal Editor 5.3.
+1. **Open Project**: Open `play-sports.uproject` in Unreal Editor 5.8.
 2. **Create/Verify Map**:
    - Ensure you are on a test level (e.g. `GameMap` or a basic default map).
 3. **Configure GameMode**:

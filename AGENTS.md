@@ -7,14 +7,14 @@ truth both of those point back to.
 
 ## What this project is
 
-`play-sports` is an Unreal Engine 5.3 project scaffold for an AI-driven, physics-based American
-football game (`play-sports.uproject`, engine association `5.3`). It is early-stage: most systems
+`play-sports` is an Unreal Engine 5.8 project scaffold for an AI-driven, physics-based American
+football game (`play-sports.uproject`, engine association `5.8`). It is early-stage: most systems
 are deliberately thin skeletons meant to be built out incrementally, several by agents.
 
 ## Architecture
 
 ```
-play-sports.uproject          UE5.3 project definition, enables the two plugins below
+play-sports.uproject          UE5.8 project definition, enables the two plugins below
 Source/PlaySports/            Runtime game module ("PlaySports")
 Plugins/Autonomix/            Editor-time AI bridge plugin (stub)
 Plugins/AgenticLink/          External agent bridge plugin (stub)

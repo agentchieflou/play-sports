@@ -14,3 +14,5 @@ void FPlaySportsModule::ShutdownModule()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+IMPLEMENT_PRIMARY_GAME_MODULE(FPlaySportsModule, PlaySports, "PlaySports");
