@@ -1,0 +1,28 @@
+{
+  "Players": [
+    {
+      "PlayerId": "QB_001",
+      "DisplayName": "A. Signal",
+      "Role": "Quarterback",
+      "WeightKg": 102.5,
+      "HeightCm": 193.0,
+      "Speed": 88.2,
+      "Agility": 85.4,
+      "Strength": 78.1,
+      "Acceleration": 86.0,
+      "Awareness": 90.5
+    },
+    {
+      "PlayerId": "OL_001",
+      "DisplayName": "G. Blocker",
+      "Role": "OffensiveLineman",
+      "WeightKg": 145.0,
+      "HeightCm": 198.0,
+      "Speed": 62.4,
+      "Agility": 66.7,
+      "Strength": 95.3,
+      "Acceleration": 58.8,
+      "Awareness": 72.0
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.3",
+  "Category": "Game",
+  "Description": "AI-driven, physics-based football game project scaffold.",
+  "Modules": [
+    {
+      "Name": "PlaySports",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "Autonomix",
+      "Enabled": true
+    },
+    {
+      "Name": "AgenticLink",
+      "Enabled": true
+    }
+  ]
+}

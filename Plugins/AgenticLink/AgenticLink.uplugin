@@ -1,0 +1,16 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0",
+  "FriendlyName": "AgenticLink",
+  "Description": "External agent bridge plugin for Model Context Protocol and transaction-safe engine access.",
+  "Category": "AI",
+  "Modules": [
+    {
+      "Name": "AgenticLink",
+      "Type": "Developer",
+      "LoadingPhase": "PostEngineInit"
+    }
+  ],
+  "EnabledByDefault": true
+}

@@ -1,0 +1,16 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0",
+  "FriendlyName": "Autonomix",
+  "Description": "Headless AI bridge for T3D injection and Unreal Python operations.",
+  "Category": "AI",
+  "Modules": [
+    {
+      "Name": "Autonomix",
+      "Type": "Developer",
+      "LoadingPhase": "PostEngineInit"
+    }
+  ],
+  "EnabledByDefault": true
+}
