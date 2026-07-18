@@ -21,16 +21,16 @@ struct FPlayState
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EPlayPhase Phase;
+    EPlayPhase Phase = EPlayPhase::PreSnap;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float GameTimeSeconds;
+    float GameTimeSeconds = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 Down;
+    int32 Down = 1;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 Distance;
+    int32 Distance = 10;
 };
 
 UENUM(BlueprintType)
@@ -47,10 +47,10 @@ struct FPlayResult
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 YardsGained;
+    int32 YardsGained = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EPlayResultType ResultType;
+    EPlayResultType ResultType = EPlayResultType::Incomplete;
 };
 
 UCLASS(Blueprintable)

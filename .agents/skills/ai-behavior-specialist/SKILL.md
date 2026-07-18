@@ -2,7 +2,7 @@
 name: ai-behavior-specialist
 description: |
   Use for ROADMAP Phase 2 stories (Epics 14-18): behavior trees, AI controllers, playbook/play
-  data systems, and 22-agent play orchestration in this Unreal Engine 5.3 football project.
+  data systems, and 22-agent play orchestration in this Unreal Engine 5.8 football project.
   Defines the context recipe and boundaries for AI-focused work.
 ---
 

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & Test (Win64 Development Editor)
+    runs-on: [self-hosted, windows, unreal]
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build PlaySportsEditor
+        shell: powershell
+        run: |
+          if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$env:GITHUB_WORKSPACE\play-sports.uproject" -WaitMutex
+          if ($LASTEXITCODE -ne 0) { throw "UnrealBuildTool failed with exit code $LASTEXITCODE" }
+
+      - name: Run automation tests (headless)
+        shell: powershell
+        run: |
+          if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
+          $ReportDir = "$env:GITHUB_WORKSPACE\Saved\AutomationReport"
+          & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$env:GITHUB_WORKSPACE\play-sports.uproject" -ExecCmds="Automation RunTests PlaySports" -TestExit="Automation Test Queue Empty" -ReportOutputPath="$ReportDir" -unattended -nullrhi -nosplash -nop4 -log
+          if ($LASTEXITCODE -ne 0) { throw "Automation run failed with exit code $LASTEXITCODE" }
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-report
+          path: Saved/AutomationReport/
+          if-no-files-found: ignore

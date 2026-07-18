@@ -4,7 +4,7 @@ description: |
   Use when implementing a ROADMAP.md story that adds or changes C++ in Source/PlaySports or the
   plugins (new classes, gameplay systems, physics, state machines). Covers the exact file
   conventions, module boilerplate to copy, context budget, and how to report verification
-  honestly in this Unreal Engine 5.3 project.
+  honestly in this Unreal Engine 5.8 project.
 ---
 
 # Gameplay C++ Story

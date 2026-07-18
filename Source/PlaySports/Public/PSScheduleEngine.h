@@ -10,13 +10,13 @@ struct FSeasonWeek
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 WeekNumber;
+    int32 WeekNumber = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FDateTime StartDate;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    bool bByeWeek;
+    bool bByeWeek = false;
 };
 
 UCLASS(Blueprintable)

@@ -16,7 +16,8 @@ public class PlaySports : ModuleRules
             "AIModule",
             "NavigationSystem",
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
+            "FunctionalTesting"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

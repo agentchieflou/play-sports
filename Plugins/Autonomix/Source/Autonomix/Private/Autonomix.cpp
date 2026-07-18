@@ -14,3 +14,5 @@ void FAutonomixModule::ShutdownModule()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+IMPLEMENT_MODULE(FAutonomixModule, Autonomix)

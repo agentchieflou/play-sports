@@ -6,7 +6,7 @@ This document outlines the required editor verification steps for the default ma
 
 Because Unreal Engine level assets are binary `.umap` files, they are not stored directly in this source repository. A human editor session must create the asset:
 
-1. **Open Unreal Editor**: Open `play-sports.uproject` in Unreal Editor 5.3.
+1. **Open Unreal Editor**: Open `play-sports.uproject` in Unreal Editor 5.8.
 2. **Create Map Folder**: In the Content Browser, create a folder named `Maps` under the root `Content` directory (resulting in `/Game/Maps`).
 3. **Create Map**:
    - Select `File -> New Level...`

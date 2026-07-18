@@ -29,26 +29,26 @@ struct FPlayerAttributes : public FTableRowBase
     FString DisplayName;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EPlayerRole Role;
+    EPlayerRole Role = EPlayerRole::Quarterback;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float WeightKg;
+    float WeightKg = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float HeightCm;
+    float HeightCm = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Speed;
+    float Speed = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Agility;
+    float Agility = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Strength;
+    float Strength = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Acceleration;
+    float Acceleration = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float Awareness;
+    float Awareness = 0.0f;
 };
