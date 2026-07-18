@@ -9,6 +9,18 @@ APSBroadcastCamera::APSBroadcastCamera()
     CameraHeight = 600.0f;  // Elevated to look down on the play
     TrackingSpeed = 5.0f;
     bIsFollowing = true;
+
+    // Field bounds: Endlines are at +/- 5486.4 cm. Expand slightly for padding.
+    MinX = -6000.0f;
+    MaxX = 6000.0f;
+
+    // Sideline limits to keep within the stadium structure
+    MinY = -4000.0f;
+    MaxY = 4000.0f;
+
+    // Height limit (MinZ >= 100.0f prevents camera from clipping through the ground field plane)
+    MinZ = 100.0f;
+    MaxZ = 2500.0f;
 }
 
 void APSBroadcastCamera::Tick(float DeltaTime)
@@ -23,10 +35,15 @@ void APSBroadcastCamera::Tick(float DeltaTime)
     FVector TargetLocation = TargetActor->GetActorLocation();
     FVector CurrentLocation = GetActorLocation();
 
-    // Side camera slides along the X-axis tracking target's X, keeping Y and Z at fixed sideline coordinates
-    float NewX = FMath::FInterpTo(CurrentLocation.X, TargetLocation.X, DeltaTime, TrackingSpeed);
+    // Slide along the X-axis tracking target's X position, keeping it bounded within MinX/MaxX
+    float TargetX = FMath::Clamp(TargetLocation.X, MinX, MaxX);
+    float NewX = FMath::FInterpTo(CurrentLocation.X, TargetX, DeltaTime, TrackingSpeed);
 
-    FVector NewLocation(NewX, SidelineY, CameraHeight);
+    // Enforce sideline and height boundaries
+    float ClampedY = FMath::Clamp(SidelineY, MinY, MaxY);
+    float ClampedZ = FMath::Clamp(CameraHeight, MinZ, MaxZ);
+
+    FVector NewLocation(NewX, ClampedY, ClampedZ);
     SetActorLocation(NewLocation);
 
     // Rotate camera to look directly at the target actor
