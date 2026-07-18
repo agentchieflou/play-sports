@@ -6,6 +6,8 @@
 #include "PSPlayerAttributes.h"
 #include "PSGameMode.generated.h"
 
+class UPSPlaySimulation;
+
 /**
  * GameMode subclass for PlaySports which orchestrates play simulation and roster loading.
  */
@@ -18,10 +20,14 @@ public:
     APSGameMode();
 
     virtual void StartPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Roster")
     UDataTable* PlayerRosterTable;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Roster")
     FString RosterJsonPath;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Simulation")
+    UPSPlaySimulation* PlaySimulation;
 };
