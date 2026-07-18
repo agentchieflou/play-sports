@@ -30,4 +30,10 @@ public:
 
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Simulation")
     UPSPlaySimulation* PlaySimulation;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Score")
+    int32 HomeScore;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Score")
+    int32 AwayScore;
 };
