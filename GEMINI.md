@@ -30,18 +30,36 @@ Antigravity. Read `ROADMAP.md` before starting work and follow the story-picking
 Token efficiency is a project requirement, not a preference. Every agent session follows these
 rules:
 
-**One roadmap story = one agent = one conversation.** Pick the earliest unblocked story per
-`ROADMAP.md`'s dependency rules. Never assign a whole Epic, or multiple stories, to one session.
+**One roadmap story = one pipeline run.** Pick the earliest unblocked story per `ROADMAP.md`'s
+dependency rules. Never assign a whole Epic, or multiple stories, to one pipeline run.
 
-**Pick the matching archetype and load only its skill** (skills live in `.agents/skills/`; they
-load on demand — that is the point, don't preload them all):
+### The six-role pipeline
 
-| Archetype | Skill | Works in | Must NOT read |
+Every story flows through six roles, each a **separate, stateless agent session** with its own
+skill and an explicit handoff artifact. This is what makes the architecture scale: any role can
+be re-run, swapped to a different model, or parallelized across stories without contaminating
+the others' context.
+
+| # | Role | Skill | Produces (handoff artifact) | Model tier |
+|---|---|---|---|---|
+| 1 | Supervisor | `supervisor-orchestrator` | Story assignment: story ID, coder specialization, branch name | Strong |
+| 2 | Planner | `planner-story` | Implementation plan: approach, file list, acceptance criteria | Strong |
+| 3 | Coder | one domain skill (below) | The diff on the story branch | Matched to size/mode |
+| 4 | Tester | `test-verifier` | Test report: what was validated, how, pass/fail | Cheap |
+| 5 | Reviewer | `review-verify` | Verdict + findings against plan and conventions | Mid |
+| 6 | Git | `git-steward` | Clean commit(s), PR, ticked roadmap checkbox, merge | Cheap |
+
+Failures flow backward, not forward: a failed test report returns to a **fresh** Coder session
+with the plan + report; a rejected review returns likewise. The Supervisor only escalates to the
+human when a story fails twice at the same stage or a plan flags a mis-sized story.
+
+### Coder specializations (role 3 picks exactly one)
+
+| Specialization | Skill | Works in | Must NOT read |
 |---|---|---|---|
 | Gameplay C++ engineer | `gameplay-cpp-story` | `Source/PlaySports/`, plugin C++ | `Data/` beyond the story's needs; unrelated systems |
 | Data/content author | `data-content-author` | `Data/` only | `Source/` (the skill carries the full data contract) |
-| AI/behavior specialist | `ai-behavior-specialist` | Phase 2 (Epics 14–18) AI/playbook work | Rendering, audio, meta-game files |
-| Reviewer/verifier | `review-verify` | The diff under review + `ROADMAP.md` | Whole source trees |
+| AI/behavior specialist | `ai-behavior-specialist` | Core Phase 2, Track E/F AI work | Rendering, audio, meta-game files |
 
 **Context budget rules:**
 
@@ -56,8 +74,12 @@ load on demand — that is the point, don't preload them all):
 
 **Agent Manager (parallel agents):**
 
+- Parallelism happens at the **pipeline-run level** (multiple stories in flight), never by
+  splitting one story's roles across concurrent agents — roles within a run are sequential.
 - Parallelize only stories with non-overlapping file scopes; use each Epic's "Depends on" line
-  to find parallel-safe work.
-- The Epic 25 infrastructure track (`Plugins/`) never overlaps gameplay stories — always safe to
-  run alongside.
+  to find parallel-safe work. Each parallel run gets its own branch (git-steward names it).
+- The infrastructure track (core Epic 25, Track K in `roadmap/engineering-infra.md`) never
+  overlaps gameplay stories — always safe to run alongside.
 - One agent per scope: never point two agents at the same files in the same workspace.
+- One Supervisor session owns the board at a time — it dispatches runs; it never competes with
+  another Supervisor.

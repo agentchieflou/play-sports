@@ -10,8 +10,15 @@ description: |
 # Reviewer / Verifier
 
 You are reviewing a change, not writing one. Your inputs are the **diff** and the story it
-claims to implement — do not open files outside the diff except the active Epic's section
-(`ROADMAP.md` for Epics 1–25, the Epic's `roadmap/` track file for 26–125).
+claims to implement — plus, when running as role 5 of the six-role pipeline (`GEMINI.md`), the
+Planner's implementation plan and the Tester's test report. Do not open files outside the diff
+except the active Epic's section (`ROADMAP.md` for Epics 1–25, the Epic's `roadmap/` track file
+for 26–125).
+
+When pipeline artifacts are present, also verify: the diff matches the plan's file list and
+approach; every acceptance criterion is covered by the test report (challenge weak
+NOT-CHECKABLE reasons); and the test report's honesty holds (no build claims without CI
+evidence). A rejected review returns to the Supervisor, never directly to the Coder.
 
 ## Checklist
 
