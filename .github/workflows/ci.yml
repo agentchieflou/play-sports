@@ -40,7 +40,7 @@ jobs:
         run: |
           if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
           $ReportDir = "$env:GITHUB_WORKSPACE\Saved\AutomationReport"
-          & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$env:GITHUB_WORKSPACE\play-sports.uproject" -ExecCmds="Automation RunTests PlaySports; Quit" -TestExit="Automation Test Queue Empty" -ReportOutputPath="$ReportDir" -unattended -nullrhi -nosplash -nop4 -log
+          & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$env:GITHUB_WORKSPACE\play-sports.uproject" -ExecCmds="Automation RunTests PlaySports" -TestExit="Automation Test Queue Empty" -ReportOutputPath="$ReportDir" -unattended -nullrhi -nosplash -nop4 -log
           if ($LASTEXITCODE -ne 0) { throw "Automation run failed with exit code $LASTEXITCODE" }
 
       - name: Upload test report
