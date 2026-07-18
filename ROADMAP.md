@@ -97,7 +97,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 - [x] Broadcast-style side camera that tracks the ball/ball-carrier
 - [x] Camera bounds so it never leaves the stadium or crosses the field plane
 - [x] Snap-to-formation framing pre-play, follow mode during the play
-- [ ] Debug free-cam toggle for development
+- [x] Debug free-cam toggle for development
 
 ### Epic 5: Core HUD
 
