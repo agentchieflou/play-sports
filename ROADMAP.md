@@ -73,7 +73,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 
 - [ ] Field geometry: 120yd × 53.3yd playing surface with correct UE unit scaling convention (documented)
 - [ ] Yard lines, hash marks, end zones, and sidelines (materials/decals, placeholder art fine)
-- [ ] Field coordinate helper (`PSFieldGrid` or similar): yard-line ↔ world-position conversion functions
+- [x] Field coordinate helper (`PSFieldGrid` or similar): yard-line ↔ world-position conversion functions
 - [ ] Out-of-bounds and end-zone trigger volumes
 - [ ] Default `GameMap` set in project settings so PIE opens into the field
 
