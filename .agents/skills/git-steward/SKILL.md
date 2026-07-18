@@ -25,6 +25,8 @@ back to the Supervisor.
 
 1. Test report verdict is PASS and review verdict is approve, both for **this** diff (not a
    stale revision).
+1a. CI is green on the branch's current head (`gh pr checks <PR>` — compile job required).
+   Pending means wait; red means back to the Supervisor, never merge.
 2. The story's checkbox is ticked in its roadmap file — and only that story's box.
 3. Diff scope matches the plan's file list (+ the roadmap tick). Extra files → back to
    Supervisor, don't merge.

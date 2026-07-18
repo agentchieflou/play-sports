@@ -10,11 +10,11 @@ other agent's effectiveness. Sizing/mode legend: see `ROADMAP.md`.
 **Goal:** Every push gets compiled and tested by a real UE toolchain in the cloud — ending the "syntax review only" era.
 **Depends on:** — (unblocks honest verification for every C++ epic)
 
-- [ ] CI environment selection and setup (GitHub Actions with UE container/self-hosted runner — documented tradeoff)
-- [ ] Compile job: `UnrealBuildTool` build of the project + plugins on push/PR
-- [ ] Test job: headless automation-test run (Core 24 suites) with reported results
-- [ ] PR gating + status surfacing agents can read via `gh`
-- [ ] `AGENTS.md` update: verification claims may cite CI results once this lands
+- [x] CI environment selection and setup (self-hosted Windows runner + local UE 5.8 — tradeoff documented in `Specs/ADR_CI_Environment.md`)
+- [x] Compile job: `UnrealBuildTool` build of the project + plugins on push/PR
+- [x] Test job: headless automation-test run (Core 24 suites) with reported results
+- [x] PR gating + status surfacing agents can read via `gh`
+- [x] `AGENTS.md` update: verification claims may cite CI results once this lands
 
 ### Epic 113: Asset & Convention Validation Automation
 

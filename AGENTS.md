@@ -81,10 +81,21 @@ Follow the patterns already established in `Source/PlaySports` and the plugins:
 
 ## Build & verification reality check
 
-**No Unreal Editor or UnrealBuildTool install should be assumed available in an agentic dev
-environment.** Do not claim C++ changes were "built" or "tested" unless you've confirmed a real UE
-toolchain is present and actually ran it. Default to careful syntax/API review instead, and say so
-explicitly when reporting results.
+**CI compiles every PR.** Unreal Engine 5.8 is installed on the dev machine, which also hosts
+the self-hosted GitHub Actions runner (labels `self-hosted, windows, unreal`, engine path in the
+runner's `UE_ROOT`) — see `Specs/ADR_CI_Environment.md`. The `CI` workflow runs a Win64
+Development Editor compile plus a headless automation-test job on every PR and push to `main`.
+
+Verification rules for agents:
+
+- **Cite CI, don't claim builds yourself**: check status with `gh pr checks <PR>` or
+  `gh run list --branch <branch>`; on failure, `gh run view <run-id> --log-failed`. "CI compile
+  green on <sha>" is valid build evidence; "I built it" without a run to cite is not.
+- Agent sessions themselves still have **no direct UE toolchain access** — do not invoke the
+  editor/UBT from an agent session; push and let CI run.
+- The no-unverified-claims rule still applies to everything CI does not exercise: PIE behavior,
+  editor-authored content, visuals, performance. Editor specs in `Specs/` remain the handoff
+  for that work.
 
 ## Agentic workflow / tool connectors
 
