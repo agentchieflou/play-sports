@@ -42,6 +42,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Movement")
     class UFloatingPawnMovement* GetFloatingMovementComponent() const { return MovementComponent; }
 
+    UFUNCTION(BlueprintCallable, Category = "Player")
+    void SetStartingLocation(const FVector& NewLoc) { StartingLocation = NewLoc; }
+
     // Give the ball to this player pawn
     UFUNCTION(BlueprintCallable, Category = "Player")
     void GainPossession();

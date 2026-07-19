@@ -59,5 +59,8 @@ public:
     FVector GetLargestRunLaneGap() const;
 
     UFUNCTION(BlueprintCallable, Category = "Gameplay")
+    void ResetPawnPositions();
+
+    UFUNCTION(BlueprintCallable, Category = "Gameplay")
     class APSPlayerPawn* FindPlayerPawnByRole(EPlayerRole PlayerRole) const;
 };

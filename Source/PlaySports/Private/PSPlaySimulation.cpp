@@ -1,4 +1,10 @@
 #include "PSPlaySimulation.h"
+#include "PSGameMode.h"
+#include "PSPlayerPawn.h"
+#include "PSBall.h"
+#include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/FloatingPawnMovement.h"
 
 UPSPlaySimulation::UPSPlaySimulation()
 {
@@ -6,6 +12,14 @@ UPSPlaySimulation::UPSPlaySimulation()
     CurrentState.GameTimeSeconds = 0.0f;
     CurrentState.Down = 1;
     CurrentState.Distance = 10;
+    CurrentState.YardLine = 20;
+    CurrentState.YardLineToGain = 30;
+    CurrentState.Quarter = 1;
+    CurrentState.GameClockSeconds = 900.f;
+    CurrentState.PlayClockSeconds = 40.f;
+    CurrentState.bHomeHasPossession = true;
+    CurrentState.HomeScore = 0;
+    CurrentState.AwayScore = 0;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
     PhaseTimer = 0.f;
@@ -19,6 +33,14 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     CurrentState.GameTimeSeconds = 0.0f;
     CurrentState.Down = 1;
     CurrentState.Distance = 10;
+    CurrentState.YardLine = 20;
+    CurrentState.YardLineToGain = 30;
+    CurrentState.Quarter = 1;
+    CurrentState.GameClockSeconds = 900.f;
+    CurrentState.PlayClockSeconds = 40.f;
+    CurrentState.bHomeHasPossession = true;
+    CurrentState.HomeScore = 0;
+    CurrentState.AwayScore = 0;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
     PhaseTimer = 0.f;
@@ -54,31 +76,66 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     CurrentState.GameTimeSeconds += DeltaSeconds;
     PhaseTimer += DeltaSeconds;
 
+    if (CurrentState.Phase == EPlayPhase::PreSnap)
+    {
+        CurrentState.PlayClockSeconds -= DeltaSeconds;
+        if (CurrentState.PlayClockSeconds <= 0.f)
+        {
+            CurrentState.PlayClockSeconds = 40.f;
+            CurrentState.YardLine = FMath::Max(1, CurrentState.YardLine - 5);
+            CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: DELAY OF GAME penalty! 5 yards loss."));
+        }
+    }
+    else
+    {
+        CurrentState.GameClockSeconds -= DeltaSeconds;
+        if (CurrentState.GameClockSeconds <= 0.f)
+        {
+            CurrentState.GameClockSeconds = 900.f;
+            CurrentState.Quarter++;
+            if (CurrentState.Quarter > 4)
+            {
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: GAME OVER! Final Score: Home %d - Away %d"), 
+                    CurrentState.HomeScore, CurrentState.AwayScore);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: End of Quarter. Transitioning to Quarter %d"), CurrentState.Quarter);
+            }
+        }
+    }
+
     switch (CurrentState.Phase)
     {
     case EPlayPhase::PreSnap:
-        // Do not advance automatically; wait for TriggerSnap()
         break;
     case EPlayPhase::Snap:
-        if (PhaseTimer >= 0.5f) // Snap phase lasts 0.5 seconds
+        if (PhaseTimer >= 0.5f)
         {
             CurrentState.Phase = EPlayPhase::PassRush;
             PhaseTimer = 0.f;
         }
         break;
     case EPlayPhase::PassRush:
-        if (PhaseTimer >= 2.0f) // PassRush phase lasts 2.0 seconds
+        if (PhaseTimer >= 2.0f)
         {
             CurrentState.Phase = EPlayPhase::BallCarrierMovement;
             PhaseTimer = 0.f;
         }
         break;
     case EPlayPhase::BallCarrierMovement:
-        if (PhaseTimer >= 3.0f) // BallCarrierMovement phase lasts 3.0 seconds
+        if (PhaseTimer >= 3.0f)
         {
             ResolvePlayResult();
             CurrentState.Phase = EPlayPhase::Scoring;
             PhaseTimer = 0.f;
+        }
+        break;
+    case EPlayPhase::Scoring:
+        if (PhaseTimer >= 5.0f)
+        {
+            EndPlayAndPrepareNext();
         }
         break;
     default:
@@ -162,5 +219,129 @@ void UPSPlaySimulation::ResolvePlayResult()
         {
             CurrentPlayResult.ResultType = EPlayResultType::Tackle;
         }
+    }
+}
+
+void UPSPlaySimulation::EndPlayAndPrepareNext()
+{
+    // Update drive summary tracking
+    CurrentDriveSummary.Plays++;
+    CurrentDriveSummary.Yards += CurrentPlayResult.YardsGained;
+
+    // Runoff play game clock
+    if (CurrentPlayResult.ResultType == EPlayResultType::Tackle)
+    {
+        CurrentState.GameClockSeconds -= 30.f; // Runoff 30 seconds on tackled plays
+    }
+    
+    // Play clock resets to 40
+    CurrentState.PlayClockSeconds = 40.f;
+
+    // Update yard line
+    CurrentState.YardLine += CurrentPlayResult.YardsGained;
+
+    if (CurrentState.YardLine >= 100)
+    {
+        CurrentState.YardLine = 100;
+        CurrentPlayResult.ResultType = EPlayResultType::Touchdown;
+    }
+    else if (CurrentState.YardLine <= 0)
+    {
+        CurrentState.YardLine = 1;
+    }
+
+    bool bTurnover = false;
+
+    // Touchdown Score Tracking
+    if (CurrentPlayResult.ResultType == EPlayResultType::Touchdown)
+    {
+        if (CurrentState.bHomeHasPossession)
+        {
+            CurrentState.HomeScore += 7; // Touchdown + PAT
+        }
+        else
+        {
+            CurrentState.AwayScore += 7;
+        }
+
+        CurrentDriveSummary.Result = TEXT("Touchdown");
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Drive resets."), 
+            CurrentState.HomeScore, CurrentState.AwayScore);
+
+        CurrentState.YardLine = 20;
+        CurrentState.Down = 1;
+        CurrentState.Distance = 10;
+        CurrentState.YardLineToGain = 30;
+        bTurnover = true;
+    }
+    else
+    {
+        // First down calculations
+        if (CurrentState.YardLine >= CurrentState.YardLineToGain)
+        {
+            UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: FIRST DOWN! YardLine: %d, GainTarget: %d"), CurrentState.YardLine, CurrentState.YardLineToGain);
+            CurrentState.Down = 1;
+            CurrentState.Distance = 10;
+            CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+        }
+        else
+        {
+            CurrentState.Down++;
+            if (CurrentState.Down > 4)
+            {
+                CurrentDriveSummary.Result = TEXT("Turnover on Downs");
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TURNOVER ON DOWNS!"));
+                bTurnover = true;
+            }
+            else
+            {
+                CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
+            }
+        }
+    }
+
+    if (bTurnover)
+    {
+        // Log final drive summary before reset
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Drive complete. Plays: %d, Yards: %d, Result: %s"), 
+            CurrentDriveSummary.Plays, CurrentDriveSummary.Yards, *CurrentDriveSummary.Result);
+            
+        // Reset drive summary for next drive
+        CurrentDriveSummary.Plays = 0;
+        CurrentDriveSummary.Yards = 0;
+        CurrentDriveSummary.Result = TEXT("");
+
+        TArray<FPlayerAttributes> Temp = OffenseRoster;
+        OffenseRoster = DefenseRoster;
+        DefenseRoster = Temp;
+
+        CurrentState.bHomeHasPossession = !CurrentState.bHomeHasPossession;
+
+        CurrentState.YardLine = 100 - CurrentState.YardLine;
+        CurrentState.YardLine = FMath::Clamp(CurrentState.YardLine, 1, 99);
+        CurrentState.Down = 1;
+        CurrentState.Distance = 10;
+        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+    }
+
+    CurrentState.YardLineToGain = FMath::Min(CurrentState.YardLineToGain, 100);
+    CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
+
+    SetPlayPhase(EPlayPhase::PreSnap);
+    CurrentPlayResult.YardsGained = 0;
+    CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
+
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play resolved. New State: Down %d, Distance %d, YardLine %d, YardToGain %d"), 
+        CurrentState.Down, CurrentState.Distance, CurrentState.YardLine, CurrentState.YardLineToGain);
+
+    // Notify GameMode to reset physical pawns at new line of scrimmage
+    APSGameMode* GM = Cast<APSGameMode>(GetOuter());
+    if (!GM)
+    {
+        GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
+    }
+    if (GM)
+    {
+        GM->ResetPawnPositions();
     }
 }
