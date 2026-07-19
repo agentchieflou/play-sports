@@ -4,6 +4,12 @@ Human-vs-human play, from couch to online. Deliberately later-stage: online netc
 physics game is a major architectural commitment — Epic 108 is the decision gate the rest of
 the track hangs on. Sizing/mode legend: see `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** Epic 108's determinism audit now has concrete inputs:
+C1's timestamped event history, C2's single outcome authority, and Epic 115's serialization
+format are the replication substrate — the audit reviews those, not abstract principles. The
+review flagged tick-order races (ball vs sim vs GameMode writes) as an existing hazard the
+audit must resolve; C2 removes the largest one.
+
 ### Epic 107: Local Head-to-Head
 
 **Size/Mode:** M / code

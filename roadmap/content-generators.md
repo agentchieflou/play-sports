@@ -5,6 +5,11 @@ beyond hand-authoring. Pure code + data, highly parallelizable, and the natural 
 free-tier model delegation (cheap models generating content validated by contracts).
 Sizing/mode legend: see `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** `tools/validate_data.py` exists and CI-gates all
+`Data/` JSON — Epic 125 extends it (players contract is done; teams/playbooks/league configs
+are the open half) rather than starting fresh. Generators route through `UPSDataIngestion`
+(AGENTS.md rule 4 — the review caught an ad-hoc second JSON parser; don't add a third).
+
 ### Epic 121: Procedural Playbook Generator
 
 **Size/Mode:** M / code

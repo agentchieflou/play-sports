@@ -4,6 +4,12 @@ Deepens core Epic 22 (base animation) into full player presentation: uniforms, l
 diversity, cloth, contact animation, and the officiating crew. Sizing/mode legend: see
 `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** tackle/pursuit/blocking logic from Epics 8–9 currently
+lives inside `APSPlayerPawn`/`UPSPlaySimulation` and is **extracted into components by Phase 1.5
+C3/C4** — Epic 61 (gang tackling) and the animation epics extend those extracted systems, not
+the pawn. Rule 1 applies hard here: every new visual/contact mechanic is its own component with
+tests.
+
 ### Epic 56: Uniform & Equipment System
 
 **Size/Mode:** L / mixed
@@ -63,7 +69,8 @@ diversity, cloth, contact animation, and the officiating crew. Sizing/mode legen
 
 **Size/Mode:** XL / mixed
 **Goal:** Two-plus defenders resolve simultaneous contact on one carrier — pile physics, drag-downs, goal-line surges.
-**Depends on:** Core 8, Core 22
+**Builds on:** the contact/tackle component extracted in Phase 1.5 C3 (extends it — never `APSPlayerPawn` directly)
+**Depends on:** C3, Core 8, Core 22
 
 - [ ] Multi-participant contact resolution extending Epic 8's one-on-one model
 - [ ] Assist mechanics: second tackler adds force, changes fall direction

@@ -4,6 +4,12 @@ Everything between the player and the field: menus, play calling, accessibility,
 feel, and onboarding. UMG-heavy but largely code-driveable. Sizing/mode legend: see
 `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** `APSHUD` exists as a bare widget host and Epic 5's
+scoreboard stories are still open (UMG assets are editor-mode work per the Specs/ pattern);
+Epic 101's shell absorbs and replaces it. Input mapping exists on `APSPlayerPawn` (Epic 3);
+Epic 104 extends via Enhanced Input contexts, not new pawn code. UI reads game state from C1
+bus subscriptions and the C2 single authority — never direct sim/GameMode reads.
+
 ### Epic 101: Front-End Shell
 
 **Size/Mode:** L / code

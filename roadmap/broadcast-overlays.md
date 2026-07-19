@@ -5,17 +5,25 @@ with endpoint rings, floating position badges (X/Y/A/B, RB), personnel-package p
 (RB 1 | TE 3 | WR 1 vs DL 3 | LB 4 | DB 4), zone-assignment stars, the selection reticle, and
 the telemetry plumbing all of it feeds on. Sizing/mode legend: see `ROADMAP.md`.
 
-### Epic 26: Real-Time Telemetry Capture Bus
+**Reality note (2026-07-19 review):** the event/telemetry foundation this track assumed was
+promoted into core **Phase 1.5 as Epic C1** (`UPSTelemetryBus`) — Epic 26 below is re-scoped to
+the overlay-grade *sampling* layer on top of it. `APSHUD` exists on `main` but is a bare widget
+host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.md`
+"Architecture rules", every epic here ships automation tests and communicates via the bus —
+`Cast<APSGameMode>` reach-through is rejected in review.
 
-**Size/Mode:** L / code
-**Goal:** Every overlay consumes one structured stream of per-player position/velocity/state — no overlay reads pawns directly.
-**Depends on:** Core 3, 6
+### Epic 26: Telemetry Sampling Layer (re-scoped 2026-07-19)
 
-- [ ] `UPSTelemetryBus` subsystem: per-tick snapshots (position, velocity, acceleration, facing, possession, phase)
-- [ ] Ring-buffer history so consumers can query "last N seconds" (replay/trail features build on this)
-- [ ] Event stream alongside samples: snap, throw, catch, tackle, score, whistle
-- [ ] Subscription API (`BlueprintCallable`) so UMG/Niagara/debug consumers attach without coupling
-- [ ] Headless test in the functional gym asserting stream integrity across a scripted play
+**Size/Mode:** M / code
+**Goal:** Overlay-grade continuous sampling on top of Phase 1.5 C1's event bus — per-tick spatial snapshots the discrete event stream doesn't carry.
+**Builds on:** `UPSTelemetryBus` (Phase 1.5 C1 — the bus itself, event stream, ring buffer, and subscription API live there)
+**Depends on:** C1, Core 3, 6
+
+- [ ] Per-tick snapshot channel (position, velocity, acceleration, facing per pawn) with sampling-rate control
+- [ ] Snapshot history windows aligned to C1's event ring buffer (trail/replay queries join both)
+- [ ] Snapshot-vs-event correlation API (e.g. "positions of all 22 at the moment of the catch event")
+- [ ] Performance budget: sampling cost measured under Epic 114's counters, degradable rate
+- [ ] Automation test: scripted movement produces expected snapshot stream, correlation query correctness
 
 ### Epic 27: Pre-Snap Route Visualization Overlay
 

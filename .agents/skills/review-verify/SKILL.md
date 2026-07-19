@@ -38,6 +38,12 @@ evidence). A rejected review returns to the Supervisor, never directly to the Co
 5. **Data changes**: any JSON parses cleanly and matches the contract in the
    `data-content-author` skill (exact `FPlayerAttributes` field names, valid `Role` enum values).
 
+6. **Architecture rules** (AGENTS.md "Architecture rules" - each is rejection grounds):
+   new mechanics get their own class (no unjustified >~50-line growth of GameMode/PlayerPawn/
+   PlaySimulation); story ships an automation test or the plan justifies its absence; no new
+   hardcoded tuning numbers; no new Cast<APSGameMode> reach-through once the telemetry bus
+   exists; no duplicated state copies.
+
 ## Output format
 
 Verdict first (approve / request changes), then numbered findings, each with file:line and a

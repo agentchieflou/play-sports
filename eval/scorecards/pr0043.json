@@ -1,0 +1,22 @@
+{
+  "pr": 43,
+  "title": "Implement Special Teams kickoff, punt, and field goal simulation",
+  "branch": "epic-13/special-teams",
+  "agent": "antigravity",
+  "model": "gemini-3-pro",
+  "archetype": "gameplay-cpp-story",
+  "task": "cpp-system-story",
+  "scored_at": "2026-07-19T12:29:07.355541+00:00",
+  "merged_at": "2026-07-19T11:50:13Z",
+  "scores": {
+    "ci_green": true,
+    "in_scope": true,
+    "tests_ok": false,
+    "lint_ok": true,
+    "data_ok": true,
+    "roadmap_tick": true,
+    "commits": 1,
+    "efficiency": 10
+  },
+  "composite": 90
+}

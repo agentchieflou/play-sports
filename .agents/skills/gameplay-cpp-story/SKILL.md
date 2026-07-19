@@ -32,6 +32,15 @@ You are implementing exactly one story from `ROADMAP.md`. Do not expand scope be
 - New module dependencies go in `PlaySports.Build.cs` `PublicDependencyModuleNames` — check
   whether the module is already listed before adding.
 
+## Architecture rules (mandatory - AGENTS.md "Architecture rules")
+
+- New mechanic = new named class/component; do not grow APSGameMode/APSPlayerPawn/
+  UPSPlaySimulation by more than ~50 lines without the plan justifying it.
+- Ship a headless automation test with the story (Tests/ dir; save-system tests are the pattern).
+- Tuning values go in DataTables (FMovementTuningRow pattern), never inline magic numbers;
+  JSON goes through UPSDataIngestion.
+- Once UPSTelemetryBus exists, publish/subscribe instead of Cast<APSGameMode> reach-through.
+
 ## Verification & reporting
 
 - **No UE toolchain is assumed present.** Never claim the change was built or tested. Report:

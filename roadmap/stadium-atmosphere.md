@@ -5,6 +5,12 @@ field surface, and venue identity. Heavier on editor work than most tracks — a
 specs, data, and runtime code; visual authoring needs editor sessions. Sizing/mode legend: see
 `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** `APSFieldGrid` becomes the single owner of field
+geometry/constants after Phase 1.5 C3 (it was orphaned; GameMode hardcoded a spawn grid) —
+Epics 51/53 read coordinates from it, never re-derive 91.44cm math. The editor-work pattern is
+established: `Specs/` job specs + escalation, code-side never stalls. Architecture rules apply
+(tests per epic; tuning in DataTables).
+
 ### Epic 46: Night Lighting Rig
 
 **Size/Mode:** L / editor

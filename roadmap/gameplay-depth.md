@@ -4,6 +4,14 @@ Deepens the Phase 1/2 core into real football nuance: the pre-snap chess match, 
 rush technique, situational play, and the psychological layer. Mostly pure code — the meatiest
 track for C++ gameplay agents. Sizing/mode legend: see `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** the systems this track deepens are now real on `main`:
+`APSBall` (throw/catch/handoff/pitch/fumble), attribute-scaled movement with
+`FMovementTuningRow`, tackle/blocking logic (being componentized in Phase 1.5 C3). Epics 68–70
+**extract and extend those components** — growing the pawn/sim further is review-rejected.
+Epic 73's penalty detection subscribes to C1 bus events. Catch/contest probability formulas are
+currently hardcoded in `APSBall::OnBallOverlap` — C4 extracts them to testable, DataTable-tuned
+functions this track then builds on. Tests per epic, tuning in DataTables.
+
 ### Epic 66: Offensive Pre-Snap Interaction
 
 **Size/Mode:** L / code
@@ -31,7 +39,7 @@ track for C++ gameplay agents. Sizing/mode legend: see `ROADMAP.md`.
 
 **Size/Mode:** L / code
 **Goal:** Routes are contested skills, not spline-following — releases, stems, breaks, and double moves resolved by attributes.
-**Depends on:** Core 14, Core 16
+**Depends on:** C3, C4, Core 14, Core 16
 
 - [ ] Release contest vs. press coverage at the line (win/delay/reroute outcomes)
 - [ ] Stem/break sharpness derived from `Agility` (round vs. sharp cuts, separation math)
@@ -43,7 +51,7 @@ track for C++ gameplay agents. Sizing/mode legend: see `ROADMAP.md`.
 
 **Size/Mode:** L / code
 **Goal:** DB-vs-WR is a continuous contest — press, leverage, cushion, zone handoffs, help rules.
-**Depends on:** Core 15, 68
+**Depends on:** C3, C4, Core 15, 68
 
 - [ ] Leverage model (inside/outside positioning as persistent state both AIs play against)
 - [ ] Press/jam contest at snap paired with 68's release system
@@ -55,7 +63,7 @@ track for C++ gameplay agents. Sizing/mode legend: see `ROADMAP.md`.
 
 **Size/Mode:** M / code
 **Goal:** Rushers win with technique, not just stats — swim, rip, bull, spin, and counters against blocker responses.
-**Depends on:** Core 9
+**Depends on:** C3, C4, Core 9
 
 - [ ] Move library with attribute-gated success curves (swim/rip/bull/spin/club)
 - [ ] Counter-move chains (blocker anchors bull → rusher spins off)
