@@ -54,6 +54,55 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
             // Deceleration is also physically scaled with base acceleration (e.g. 1.5x base)
             MovementComponent->Deceleration = BaseAcceleration * 1.5f;
         }
+
+        // Turning / change-of-direction mechanics
+        if (!MovementComponent->Velocity.IsNearlyZero())
+        {
+            // 1. Smooth rotation alignment with movement direction on Yaw axis
+            FRotator CurrentRotation = GetActorRotation();
+            FRotator TargetRotation = MovementComponent->Velocity.Rotation();
+            TargetRotation.Pitch = 0.f;
+            TargetRotation.Roll = 0.f;
+
+            // Base turn rate of 180 deg/s + Agility scaling (up to +600 deg/s), scaled down by Weight penalty
+            float BaseTurnRate = 180.f + (Attributes.Agility * 6.f);
+            float WeightFactor = 100.f / FMath::Max(50.f, Attributes.WeightKg);
+            float TurnSpeed = BaseTurnRate * WeightFactor;
+
+            // Interpolate rotation (TurnSpeed / 50.f maps TurnSpeed in deg/s to RInterpTo speed constant)
+            FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaSeconds, TurnSpeed / 50.f);
+            SetActorRotation(NewRotation);
+
+            // 2. Change of direction velocity cost (cutting penalty)
+            FVector DesiredDir = MovementComponent->GetPendingInputVector();
+            if (!DesiredDir.IsNearlyZero())
+            {
+                DesiredDir.Normalize();
+                FVector CurrentDir = MovementComponent->Velocity;
+                CurrentDir.Normalize();
+
+                float DotProduct = FVector::DotProduct(CurrentDir, DesiredDir);
+                if (DotProduct < 0.8f) // Diverging angle greater than ~36 degrees
+                {
+                    // Calculate a minimum speed multiplier (high agility/low weight preserves more speed)
+                    float MinSpeedMultiplier = 0.4f + (Attributes.Agility * 0.003f) - (Attributes.WeightKg * 0.001f);
+                    MinSpeedMultiplier = FMath::Clamp(MinSpeedMultiplier, 0.2f, 0.95f);
+
+                    // Interpolate speed penalty based on sharpness of the cut (DotProduct range [0.8, -1.0])
+                    float Sharpness = FMath::Clamp((DotProduct - 0.8f) / -1.8f, 0.f, 1.f);
+                    float PenaltyFactor = FMath::Lerp(1.0f, MinSpeedMultiplier, Sharpness);
+
+                    // Apply the cutting deceleration directly to current velocity
+                    MovementComponent->Velocity *= PenaltyFactor;
+
+                    // Log cutting events (e.g. for significant cuts)
+                    if (DotProduct < 0.0f)
+                    {
+                        UE_LOG(LogTemp, Verbose, TEXT("APSPlayerPawn: Cut detected (Dot: %.2f, Speed penalty factor: %.2f)"), DotProduct, PenaltyFactor);
+                    }
+                }
+            }
+        }
     }
 }
 
