@@ -22,8 +22,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Save")
     void SaveToSlotAsync(UPSSaveGame* SaveObject, const FString& SlotName, FPSSaveOpComplete OnComplete);
 
+    // Returns a request ID; fetch the result via GetAsyncLoadResult(RequestId) once
+    // OnComplete fires. Per-request (not single-slot) so two loads in flight at once
+    // can't race and overwrite each other's result (Epic C4).
     UFUNCTION(BlueprintCallable, Category = "Save")
-    void LoadFromSlotAsync(const FString& SlotName, FPSSaveOpComplete OnComplete);
+    int32 LoadFromSlotAsync(const FString& SlotName, FPSSaveOpComplete OnComplete);
 
     UFUNCTION(BlueprintCallable, Category = "Save")
     bool DoesSlotExist(const FString& SlotName) const;
@@ -31,18 +34,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Save")
     static FString MakeSlotName(EPSSaveCategory Category, const FString& Id);
 
-    // Loaded object for async callers to fetch after a successful LoadFromSlotAsync.
+    // Fetches and consumes the result for RequestId (returned by LoadFromSlotAsync).
+    // Returns nullptr if the request is unknown, still pending, or failed.
     UFUNCTION(BlueprintCallable, Category = "Save")
-    UPSSaveGame* GetLastAsyncLoadResult() const
-    {
-        return LastAsyncLoadResult;
-    }
+    UPSSaveGame* GetAsyncLoadResult(int32 RequestId);
 
     static FString GetSlotPath(const FString& SlotName);
 
 private:
     UPROPERTY(Transient)
-    UPSSaveGame* LastAsyncLoadResult = nullptr;
+    TMap<int32, UPSSaveGame*> PendingLoadResults;
+
+    int32 NextAsyncLoadRequestId = 1;
 
     bool SerializeToFileData(UPSSaveGame* SaveObject, TArray<uint8>& OutFileData) const;
     UPSSaveGame* DeserializeFileData(const TArray<uint8>& FileData);

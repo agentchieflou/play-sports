@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "PSBallResolutionHelpers.h"
 #include "PSBall.generated.h"
 
 class USphereComponent;
@@ -50,6 +51,19 @@ public:
     // Fumble the ball and launch it with a specific velocity
     UFUNCTION(BlueprintCallable, Category = "Ball")
     void Fumble(const FVector& LaunchVelocity);
+
+    /** Catch/interception/fumble-recovery probability tuning (Epic C4: extracted
+     *  out of OnBallOverlap's inline formulas per AGENTS.md rule 4). DataTable
+     *  takes priority; falls back to CatchTuningJsonPath; falls back to the
+     *  struct's built-in defaults (which match the original hardcoded values). */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Tuning")
+    UDataTable* CatchTuningTable;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Tuning")
+    FString CatchTuningJsonPath;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Tuning")
+    FCatchTuningRow CatchTuningSettings;
 
 protected:
     virtual void BeginPlay() override;

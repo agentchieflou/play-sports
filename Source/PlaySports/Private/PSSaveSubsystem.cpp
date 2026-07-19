@@ -188,18 +188,19 @@ void UPSSaveSubsystem::SaveToSlotAsync(UPSSaveGame* SaveObject, const FString& S
     });
 }
 
-void UPSSaveSubsystem::LoadFromSlotAsync(const FString& SlotName, FPSSaveOpComplete OnComplete)
+int32 UPSSaveSubsystem::LoadFromSlotAsync(const FString& SlotName, FPSSaveOpComplete OnComplete)
 {
+    const int32 RequestId = NextAsyncLoadRequestId++;
     const FString Path = GetSlotPath(SlotName);
     TWeakObjectPtr<UPSSaveSubsystem> WeakThis(this);
 
-    Async(EAsyncExecution::ThreadPool, [WeakThis, Path, SlotName, OnComplete]()
+    Async(EAsyncExecution::ThreadPool, [WeakThis, Path, SlotName, OnComplete, RequestId]()
     {
         TArray<uint8> FileData;
         TArray<uint8> Payload;
         const bool bRead = ReadFileWithFallback(Path, FileData, Payload);
 
-        AsyncTask(ENamedThreads::GameThread, [WeakThis, Payload = MoveTemp(Payload), SlotName, OnComplete, bRead]()
+        AsyncTask(ENamedThreads::GameThread, [WeakThis, Payload = MoveTemp(Payload), SlotName, OnComplete, bRead, RequestId]()
         {
             UPSSaveSubsystem* Self = WeakThis.Get();
             if (!Self)
@@ -207,8 +208,22 @@ void UPSSaveSubsystem::LoadFromSlotAsync(const FString& SlotName, FPSSaveOpCompl
                 return;
             }
             // UObject deserialization stays on the game thread by design.
-            Self->LastAsyncLoadResult = bRead ? Self->LoadAndMigrate(Payload) : nullptr;
-            OnComplete.ExecuteIfBound(SlotName, Self->LastAsyncLoadResult != nullptr);
+            UPSSaveGame* Result = bRead ? Self->LoadAndMigrate(Payload) : nullptr;
+            Self->PendingLoadResults.Add(RequestId, Result);
+            OnComplete.ExecuteIfBound(SlotName, Result != nullptr);
         });
     });
+
+    return RequestId;
+}
+
+UPSSaveGame* UPSSaveSubsystem::GetAsyncLoadResult(int32 RequestId)
+{
+    if (UPSSaveGame** Found = PendingLoadResults.Find(RequestId))
+    {
+        UPSSaveGame* Result = *Found;
+        PendingLoadResults.Remove(RequestId);
+        return Result;
+    }
+    return nullptr;
 }
