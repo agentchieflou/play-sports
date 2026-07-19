@@ -6,6 +6,34 @@
 #include "PSGameMode.h"
 #include "PSPlaySimulation.h"
 #include "PSTelemetryBus.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+#include "JsonObjectConverter.h"
+
+static bool LoadCatchTuningFromJson(const FString& JsonFilePath, FCatchTuningRow& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TArray<TSharedPtr<FJsonValue>> ParsedArray;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedArray) || ParsedArray.Num() == 0)
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> RowObject = ParsedArray[0]->AsObject();
+    if (RowObject.IsValid())
+    {
+        return FJsonObjectConverter::JsonObjectToUStruct(RowObject.ToSharedRef(), &OutTuning, 0, 0);
+    }
+    return false;
+}
 
 APSBall::APSBall()
 {
@@ -35,6 +63,10 @@ APSBall::APSBall()
     SpiralSpinRate = 720.f;
     CurrentRollSpin = 0.f;
     bIsFumbled = false;
+
+    CatchTuningTable = nullptr;
+    CatchTuningJsonPath = TEXT("Data/catch_tuning.json");
+    CatchTuningSettings = FCatchTuningRow();
 }
 
 void APSBall::BeginPlay()
@@ -49,6 +81,32 @@ void APSBall::BeginPlay()
     if (ProjectileMovement)
     {
         ProjectileMovement->OnProjectileBounce.AddDynamic(this, &APSBall::OnBallBounce);
+    }
+
+    if (CatchTuningTable)
+    {
+        static const FString ContextString(TEXT("CatchTuningContext"));
+        TArray<FCatchTuningRow*> TuningRows;
+        CatchTuningTable->GetAllRows<FCatchTuningRow>(ContextString, TuningRows);
+        if (TuningRows.Num() > 0)
+        {
+            CatchTuningSettings = *TuningRows[0];
+            UE_LOG(LogTemp, Display, TEXT("APSBall: Loaded catch tuning settings from DataTable."));
+        }
+    }
+    else
+    {
+        FString FullTuningPath = FPaths::ProjectDir() + CatchTuningJsonPath;
+        FPaths::CollapseRelativeDirectories(FullTuningPath);
+        if (FPaths::FileExists(FullTuningPath))
+        {
+            FCatchTuningRow LoadedTuning;
+            if (LoadCatchTuningFromJson(FullTuningPath, LoadedTuning))
+            {
+                CatchTuningSettings = LoadedTuning;
+                UE_LOG(LogTemp, Display, TEXT("APSBall: Loaded catch tuning settings from JSON (%s)."), *FullTuningPath);
+            }
+        }
     }
 }
 
@@ -159,8 +217,7 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
         if (bIsFumbled)
         {
             FPlayerAttributes Attr = PlayerPawn->GetAttributes();
-            float RecoveryChance = 0.60f + (Attr.Agility + Attr.Awareness) * 0.002f;
-            RecoveryChance = FMath::Clamp(RecoveryChance, 0.20f, 0.98f);
+            float RecoveryChance = PSBallResolutionHelpers::ComputeFumbleRecoveryChance(Attr, CatchTuningSettings);
 
             float Roll = FMath::FRand();
             if (Roll <= RecoveryChance)
@@ -197,11 +254,10 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
         if (PlayerPawn->TeamSide == EPSTeamSide::Offense)
         {
             FPlayerAttributes Attr = PlayerPawn->GetAttributes();
-            float CatchChance = 0.50f + (Attr.Agility + Attr.Awareness) * 0.0025f;
-            CatchChance = FMath::Clamp(CatchChance, 0.10f, 0.95f);
+            float CatchChance = PSBallResolutionHelpers::ComputeCatchChance(Attr, CatchTuningSettings);
 
             float Roll = FMath::FRand();
-            if (Roll <= CatchChance)
+            if (PSBallResolutionHelpers::ResolveCatch(Attr, Roll, CatchTuningSettings))
             {
                 AttachToCarrier(PlayerPawn, TEXT("HandSocket"));
                 PlayerPawn->GainPossession();
@@ -232,8 +288,7 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
         else if (PlayerPawn->TeamSide == EPSTeamSide::Defense)
         {
             FPlayerAttributes Attr = PlayerPawn->GetAttributes();
-            float InterceptChance = 0.05f + (Attr.Agility + Attr.Awareness) * 0.001f;
-            InterceptChance = FMath::Clamp(InterceptChance, 0.01f, 0.40f);
+            float InterceptChance = PSBallResolutionHelpers::ComputeInterceptionChance(Attr, CatchTuningSettings);
 
             float Roll = FMath::FRand();
             if (Roll <= InterceptChance)

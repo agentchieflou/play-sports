@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "DefaultCatchTuning",
+    "CatchBaseChance": 0.50,
+    "CatchAttributeScalar": 0.0025,
+    "CatchChanceMin": 0.10,
+    "CatchChanceMax": 0.95,
+    "InterceptionBaseChance": 0.05,
+    "InterceptionAttributeScalar": 0.001,
+    "InterceptionChanceMin": 0.01,
+    "InterceptionChanceMax": 0.40,
+    "FumbleRecoveryBaseChance": 0.60,
+    "FumbleRecoveryAttributeScalar": 0.002,
+    "FumbleRecoveryChanceMin": 0.20,
+    "FumbleRecoveryChanceMax": 0.98
+  }
+]
