@@ -18,6 +18,7 @@ APSOffenseController::APSOffenseController()
 
 void APSOffenseController::OnPossess(APawn* InPawn)
 {
+    UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnPossess: Controller=%p Possessing Pawn=%p"), this, InPawn);
     Super::OnPossess(InPawn);
 
     if (BehaviorTreeAsset)
@@ -31,6 +32,7 @@ void APSOffenseController::OnPossess(APawn* InPawn)
     if (GetWorld())
     {
         UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>();
+        UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnPossess: World=%p, Bus=%p"), GetWorld(), Bus);
         if (Bus)
         {
             Bus->OnPhaseChangeMC.AddUObject(this, &APSOffenseController::OnPhaseChanged);
@@ -39,12 +41,14 @@ void APSOffenseController::OnPossess(APawn* InPawn)
             Bus->OnCatchMC.AddUObject(this, &APSOffenseController::OnCatchEvent);
             Bus->OnFumbleMC.AddUObject(this, &APSOffenseController::OnFumbleEvent);
             Bus->OnTackleMC.AddUObject(this, &APSOffenseController::OnTackleEvent);
+            UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnPossess: Subscribed to telemetry bus MC delegates successfully."));
         }
     }
 }
 
 void APSOffenseController::OnUnPossess()
 {
+    UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnUnPossess: Controller=%p"), this);
     // Unsubscribe from telemetry events
     if (GetWorld())
     {
@@ -106,9 +110,11 @@ void APSOffenseController::InitializeBlackboardState()
 
 void APSOffenseController::OnPhaseChanged(const FPSTelemetryPhaseChangeEvent& Event)
 {
+    UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnPhaseChanged: Controller=%p, NewPhase=%s"), this, *Event.NewPhase);
     UBlackboardComponent* BB = GetBlackboardComponent();
     if (!BB)
     {
+        UE_LOG(LogTemp, Warning, TEXT("APSOffenseController::OnPhaseChanged: Blackboard is null!"));
         return;
     }
 
@@ -123,10 +129,12 @@ void APSOffenseController::OnPhaseChanged(const FPSTelemetryPhaseChangeEvent& Ev
     else if (Event.NewPhase == TEXT("FieldGoal")) PhaseVal = 7;
 
     BB->SetValueAsInt(TEXT("PlayPhase"), PhaseVal);
+    UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnPhaseChanged: Updated PlayPhase key to %d"), PhaseVal);
 }
 
 void APSOffenseController::OnSnapEvent(const FPSTelemetrySnapEvent& Event)
 {
+    UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnSnapEvent: Controller=%p"), this);
     UBlackboardComponent* BB = GetBlackboardComponent();
     if (!BB)
     {
