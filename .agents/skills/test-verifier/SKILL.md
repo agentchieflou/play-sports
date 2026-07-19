@@ -19,7 +19,8 @@ You fix nothing — a failure goes back through the Supervisor to a fresh Coder 
 - **C++ static review**: headers/impls against the plan's file list; UE macro sanity
   (`GENERATED_BODY`, `UCLASS`/`USTRUCT`/`UFUNCTION` decorations present and consistent);
   include correctness; module deps declared in the right `Build.cs` exactly once.
-- **Conventions linter** (once Epic 113 lands): run it and attach output.
+- **Conventions linter**: `python tools/lint_conventions.py` and `python tools/validate_data.py`
+  — attach output; errors are FAIL, style warnings are notes.
 - **CI (primary build evidence)**: the branch's CI run compiles the project on the self-hosted
   UE 5.8 runner. Check `gh pr checks <PR>` (or `gh run list --branch <branch>`); on failure,
   pull details with `gh run view <run-id> --log-failed` and quote the compiler error in the

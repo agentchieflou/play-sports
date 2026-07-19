@@ -22,9 +22,9 @@ other agent's effectiveness. Sizing/mode legend: see `ROADMAP.md`.
 **Goal:** Naming/structure conventions are enforced by tooling, not reviewer vigilance.
 **Depends on:** —
 
-- [ ] Convention linter script (PS* prefixes, Public/Private placement, Allman/indent checks) runnable locally and in CI (112)
-- [ ] Data validation runner: all `Data/` JSON against contracts (extends Core 21's validation as a CLI)
-- [ ] Hook into review flow: `review-verify` skill delegates mechanical checks to the linter
+- [x] Convention linter script (PS* prefixes, Public/Private placement, Allman/indent checks) runnable locally and in CI (112)
+- [x] Data validation runner: all `Data/` JSON against contracts (extends Core 21's validation as a CLI)
+- [x] Hook into review flow: `review-verify` skill delegates mechanical checks to the linter
 
 ### Epic 114: Performance Budget & Profiling Harness
 
