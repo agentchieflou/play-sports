@@ -70,10 +70,12 @@ void APSOffenseController::OnUnPossess()
 void APSOffenseController::InitializeBlackboardState()
 {
     UBlackboardComponent* BB = GetBlackboardComponent();
+    UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: BB=%p, HasAsset=%d"), BB, BB ? (BB->GetBlackboardAsset() != nullptr) : 0);
     // Programmatically create BlackboardData fallback if Blackboard or its asset is not initialized
     if (!BB || !BB->GetBlackboardAsset())
     {
         UBlackboardData* TemporaryBBData = NewObject<UBlackboardData>(this);
+        UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: Created TemporaryBBData=%p"), TemporaryBBData);
         if (TemporaryBBData)
         {
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Int>(TEXT("PlayPhase"));
@@ -83,12 +85,15 @@ void APSOffenseController::InitializeBlackboardState()
 
             if (BB)
             {
-                BB->InitializeBlackboard(*TemporaryBBData);
+                bool bInitResult = BB->InitializeBlackboard(*TemporaryBBData);
+                UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: BB->InitializeBlackboard result=%d, BBAsset=%p"), bInitResult, BB->GetBlackboardAsset());
             }
             else
             {
                 UBlackboardComponent* RawBB = nullptr;
-                if (UseBlackboard(TemporaryBBData, RawBB))
+                bool bUseBBResult = UseBlackboard(TemporaryBBData, RawBB);
+                UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: UseBlackboard result=%d, RawBB=%p"), bUseBBResult, RawBB);
+                if (bUseBBResult)
                 {
                     Blackboard = RawBB;
                 }
