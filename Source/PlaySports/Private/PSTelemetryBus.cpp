@@ -40,6 +40,7 @@ void UPSTelemetryBus::PublishSnap(const FPSTelemetrySnapEvent& Event)
     {
         OnSnap.Broadcast(Event);
     }
+    OnSnapMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishThrow(const FPSTelemetryThrowEvent& Event)
@@ -54,6 +55,7 @@ void UPSTelemetryBus::PublishThrow(const FPSTelemetryThrowEvent& Event)
     {
         OnThrow.Broadcast(Event);
     }
+    OnThrowMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishCatch(const FPSTelemetryCatchEvent& Event)
@@ -69,6 +71,7 @@ void UPSTelemetryBus::PublishCatch(const FPSTelemetryCatchEvent& Event)
     {
         OnCatch.Broadcast(Event);
     }
+    OnCatchMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishTackle(const FPSTelemetryTackleEvent& Event)
@@ -84,6 +87,7 @@ void UPSTelemetryBus::PublishTackle(const FPSTelemetryTackleEvent& Event)
     {
         OnTackle.Broadcast(Event);
     }
+    OnTackleMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishFumble(const FPSTelemetryFumbleEvent& Event)
@@ -99,6 +103,7 @@ void UPSTelemetryBus::PublishFumble(const FPSTelemetryFumbleEvent& Event)
     {
         OnFumble.Broadcast(Event);
     }
+    OnFumbleMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishScore(const FPSTelemetryScoreEvent& Event)
@@ -114,6 +119,7 @@ void UPSTelemetryBus::PublishScore(const FPSTelemetryScoreEvent& Event)
     {
         OnScore.Broadcast(Event);
     }
+    OnScoreMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishPhaseChange(const FPSTelemetryPhaseChangeEvent& Event)
@@ -128,4 +134,5 @@ void UPSTelemetryBus::PublishPhaseChange(const FPSTelemetryPhaseChangeEvent& Eve
     {
         OnPhaseChange.Broadcast(Event);
     }
+    OnPhaseChangeMC.Broadcast(Event);
 }

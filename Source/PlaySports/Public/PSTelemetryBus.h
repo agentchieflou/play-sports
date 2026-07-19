@@ -171,6 +171,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryFumbleSignature, const F
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryScoreSignature, const FPSTelemetryScoreEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPhaseChangeSignature, const FPSTelemetryPhaseChangeEvent&, Event);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCatchMC, const FPSTelemetryCatchEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTackleMC, const FPSTelemetryTackleEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryFumbleMC, const FPSTelemetryFumbleEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryScoreMC, const FPSTelemetryScoreEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPhaseChangeMC, const FPSTelemetryPhaseChangeEvent&);
+
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
 {
@@ -226,6 +234,14 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPhaseChangeSignature OnPhaseChange;
+
+    FPSTelemetrySnapMC OnSnapMC;
+    FPSTelemetryThrowMC OnThrowMC;
+    FPSTelemetryCatchMC OnCatchMC;
+    FPSTelemetryTackleMC OnTackleMC;
+    FPSTelemetryFumbleMC OnFumbleMC;
+    FPSTelemetryScoreMC OnScoreMC;
+    FPSTelemetryPhaseChangeMC OnPhaseChangeMC;
 
 private:
     UPROPERTY(Transient)

@@ -29,7 +29,7 @@ bool FPSTelemetryBusRoundTripTest::RunTest(const FString& Parameters)
     bool bReceived = false;
     FPSTelemetrySnapEvent ReceivedEvent;
     
-    Bus->OnSnap.AddStatic(&FHelper::HandleSnap, bReceived, ReceivedEvent);
+    Bus->OnSnapMC.AddStatic(&FHelper::HandleSnap, bReceived, ReceivedEvent);
 
     FPSTelemetrySnapEvent PublishEvent;
     PublishEvent.YardLine = 42;
