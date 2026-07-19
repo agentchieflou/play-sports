@@ -152,9 +152,9 @@ TArray<APSPlayerPawn*> APSFieldGrid::SpawnPlayersFromRoster(
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
         // Position logic mirrors original GameMode spawn loop
-        float SpawnX = (Player->Role == EPlayerRole::Quarterback) ? ScrimmageX - 300.f : ScrimmageX;
+        float SpawnX = (Player->Role == EPlayerRole::Quarterback) ? ScrimmageX - QBDropbackDistance : ScrimmageX;
         FVector SpawnLocation(SpawnX, XOffset, 100.f);
-        XOffset += 150.f;
+        XOffset += FormationLateralSpacing;
 
         APSPlayerPawn* NewPawn = World->SpawnActor<APSPlayerPawn>(
             APSPlayerPawn::StaticClass(), SpawnLocation, FRotator::ZeroRotator, SpawnParams);

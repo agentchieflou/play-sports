@@ -9,6 +9,7 @@
 class UCapsuleComponent;
 class UStaticMeshComponent;
 class UFloatingPawnMovement;
+class APSGameMode;
 
 UENUM(BlueprintType)
 enum class EPSTeamSide : uint8
@@ -165,6 +166,12 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "Player|Movement")
     float BaseAcceleration;
+
+    /** Cached once in BeginPlay so Tick/InitializePlayer don't re-Cast<APSGameMode>
+     *  and copy FMovementTuningRow by value every call (Epic C3: no per-frame
+     *  tuning copies). */
+    UPROPERTY(Transient)
+    APSGameMode* CachedGameMode;
 
 public:
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Player|Blocking")

@@ -441,7 +441,7 @@ void APSGameMode::ResetPawnPositions()
             {
                 if (PawnRole == EPlayerRole::Quarterback)
                 {
-                    TargetLoc = FVector(ScrimmageX - 300.f, 0.f, 100.f);
+                    TargetLoc = FVector(ScrimmageX - APSFieldGrid::QBDropbackDistance, 0.f, 100.f);
                 }
                 else if (PawnRole == EPlayerRole::OffensiveLineman)
                 {
@@ -450,7 +450,7 @@ void APSGameMode::ResetPawnPositions()
                 else
                 {
                     TargetLoc = FVector(ScrimmageX - 100.f, OffenseY, 100.f);
-                    OffenseY += 150.f;
+                    OffenseY += APSFieldGrid::FormationLateralSpacing;
                 }
             }
             else
@@ -462,7 +462,7 @@ void APSGameMode::ResetPawnPositions()
                 else
                 {
                     TargetLoc = FVector(ScrimmageX + 250.f, DefenseY, 100.f);
-                    DefenseY += 150.f;
+                    DefenseY += APSFieldGrid::FormationLateralSpacing;
                 }
             }
 

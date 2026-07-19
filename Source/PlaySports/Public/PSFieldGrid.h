@@ -77,5 +77,14 @@ public:
         const TArray<FPlayerAttributes*>& Roster,
         float ScrimmageX,
         UWorld* World);
+
+    /** How far behind the scrimmage line a QB lines up (world units). Shared by
+     *  SpawnPlayersFromRoster and GameMode::ResetPawnPositions so the two formation
+     *  call sites don't each hardcode their own copy (Epic C3: "field constants
+     *  live in one place"). */
+    static constexpr float QBDropbackDistance = 300.f;
+
+    /** Lateral spacing between formation-mates who aren't on the scrimmage line. */
+    static constexpr float FormationLateralSpacing = 150.f;
 };
 

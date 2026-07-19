@@ -38,6 +38,7 @@ APSPlayerPawn::APSPlayerPawn()
     EngagedOpponent = nullptr;
     bIsEngaged = false;
     EngagementTime = 0.f;
+    CachedGameMode = nullptr;
 }
 
 void APSPlayerPawn::BeginPlay()
@@ -49,6 +50,11 @@ void APSPlayerPawn::BeginPlay()
     if (CapsuleComponent)
     {
         CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &APSPlayerPawn::OnPawnOverlap);
+    }
+
+    if (GetWorld())
+    {
+        CachedGameMode = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
     }
 }
 
@@ -182,14 +188,8 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
         float CurrentSpeed = MovementComponent->Velocity.Size();
         float MaxSpeed = MovementComponent->MaxSpeed;
 
-        FMovementTuningRow Tuning;
-        if (GetWorld())
-        {
-            if (APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode()))
-            {
-                Tuning = GM->MovementTuningSettings;
-            }
-        }
+        static const FMovementTuningRow DefaultTuning;
+        const FMovementTuningRow& Tuning = CachedGameMode ? CachedGameMode->MovementTuningSettings : DefaultTuning;
 
         if (MaxSpeed > 0.f)
         {
@@ -265,14 +265,13 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
     Attributes = InAttributes;
     bHasPossession = false;
 
-    FMovementTuningRow Tuning;
-    if (GetWorld())
+    if (!CachedGameMode && GetWorld())
     {
-        if (APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode()))
-        {
-            Tuning = GM->MovementTuningSettings;
-        }
+        CachedGameMode = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
     }
+
+    static const FMovementTuningRow DefaultTuning;
+    const FMovementTuningRow& Tuning = CachedGameMode ? CachedGameMode->MovementTuningSettings : DefaultTuning;
 
     // Scale MaxSpeed linearly based on Speed attribute
     float SpeedRange = Tuning.BaseMaxSpeedMax - Tuning.BaseMaxSpeedMin;
