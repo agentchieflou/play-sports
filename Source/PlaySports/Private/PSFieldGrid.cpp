@@ -1,10 +1,83 @@
 #include "PSFieldGrid.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
+#include "PSEndZoneVolume.h"
+#include "PSOutOfBoundsVolume.h"
+#include "Components/BoxComponent.h"
 
 APSFieldGrid::APSFieldGrid()
 {
     PrimaryActorTick.bCanEverTick = false;
+}
+
+void APSFieldGrid::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    // 1. Home End Zone (End Zone A)
+    FVector LocEZA = GetActorTransform().TransformPosition(FVector(-5029.2f, 0.0f, 250.0f));
+    APSEndZoneVolume* EZA = World->SpawnActor<APSEndZoneVolume>(APSEndZoneVolume::StaticClass(), LocEZA, GetActorRotation(), SpawnParams);
+    if (EZA && EZA->CollisionBox)
+    {
+        EZA->bIsEndZoneA = true;
+        EZA->CollisionBox->SetBoxExtent(FVector(457.2f, 2438.4f, 250.0f));
+        EZA->Tags.Add(TEXT("EndZoneA"));
+    }
+
+    // 2. Away End Zone (End Zone B)
+    FVector LocEZB = GetActorTransform().TransformPosition(FVector(5029.2f, 0.0f, 250.0f));
+    APSEndZoneVolume* EZB = World->SpawnActor<APSEndZoneVolume>(APSEndZoneVolume::StaticClass(), LocEZB, GetActorRotation(), SpawnParams);
+    if (EZB && EZB->CollisionBox)
+    {
+        EZB->bIsEndZoneA = false;
+        EZB->CollisionBox->SetBoxExtent(FVector(457.2f, 2438.4f, 250.0f));
+        EZB->Tags.Add(TEXT("EndZoneB"));
+    }
+
+    // 3. Left Sideline Boundary
+    FVector LocOOB_L = GetActorTransform().TransformPosition(FVector(0.0f, -3719.2f, 250.0f));
+    APSOutOfBoundsVolume* OOB_L = World->SpawnActor<APSOutOfBoundsVolume>(APSOutOfBoundsVolume::StaticClass(), LocOOB_L, GetActorRotation(), SpawnParams);
+    if (OOB_L && OOB_L->CollisionBox)
+    {
+        OOB_L->CollisionBox->SetBoxExtent(FVector(6000.0f, 1280.8f, 250.0f));
+        OOB_L->Tags.Add(TEXT("OutOfBounds"));
+    }
+
+    // 4. Right Sideline Boundary
+    FVector LocOOB_R = GetActorTransform().TransformPosition(FVector(0.0f, 3719.2f, 250.0f));
+    APSOutOfBoundsVolume* OOB_R = World->SpawnActor<APSOutOfBoundsVolume>(APSOutOfBoundsVolume::StaticClass(), LocOOB_R, GetActorRotation(), SpawnParams);
+    if (OOB_R && OOB_R->CollisionBox)
+    {
+        OOB_R->CollisionBox->SetBoxExtent(FVector(6000.0f, 1280.8f, 250.0f));
+        OOB_R->Tags.Add(TEXT("OutOfBounds"));
+    }
+
+    // 5. Back Endline A Boundary (Home Side)
+    FVector LocOOB_BA = GetActorTransform().TransformPosition(FVector(-7986.4f, 0.0f, 250.0f));
+    APSOutOfBoundsVolume* OOB_BA = World->SpawnActor<APSOutOfBoundsVolume>(APSOutOfBoundsVolume::StaticClass(), LocOOB_BA, GetActorRotation(), SpawnParams);
+    if (OOB_BA && OOB_BA->CollisionBox)
+    {
+        OOB_BA->CollisionBox->SetBoxExtent(FVector(2500.0f, 5000.0f, 250.0f));
+        OOB_BA->Tags.Add(TEXT("OutOfBounds"));
+    }
+
+    // 6. Back Endline B Boundary (Away Side)
+    FVector LocOOB_BB = GetActorTransform().TransformPosition(FVector(7986.4f, 0.0f, 250.0f));
+    APSOutOfBoundsVolume* OOB_BB = World->SpawnActor<APSOutOfBoundsVolume>(APSOutOfBoundsVolume::StaticClass(), LocOOB_BB, GetActorRotation(), SpawnParams);
+    if (OOB_BB && OOB_BB->CollisionBox)
+    {
+        OOB_BB->CollisionBox->SetBoxExtent(FVector(2500.0f, 5000.0f, 250.0f));
+        OOB_BB->Tags.Add(TEXT("OutOfBounds"));
+    }
 }
 
 FVector APSFieldGrid::GetWorldPositionFromFieldCoordinate(float YardLine, float LateralYard) const
@@ -130,7 +203,7 @@ FVector APSFieldGrid::GetFormationSpawnLocation(
 }
 
 TArray<APSPlayerPawn*> APSFieldGrid::SpawnPlayersFromRoster(
-    const TArray<FPlayerAttributes*>& Roster,
+    const TArray<const FPlayerAttributes*>& Roster,
     float ScrimmageX,
     UWorld* World)
 {
@@ -141,7 +214,7 @@ TArray<APSPlayerPawn*> APSFieldGrid::SpawnPlayersFromRoster(
     }
 
     float XOffset = 0.f;
-    for (FPlayerAttributes* Player : Roster)
+    for (const FPlayerAttributes* Player : Roster)
     {
         if (!Player)
         {
@@ -160,7 +233,7 @@ TArray<APSPlayerPawn*> APSFieldGrid::SpawnPlayersFromRoster(
             APSPlayerPawn::StaticClass(), SpawnLocation, FRotator::ZeroRotator, SpawnParams);
         if (NewPawn)
         {
-            NewPawn->InitializePlayer(*Player);
+            NewPawn->InitializePlayerPointer(Player);
             SpawnedPawns.Add(NewPawn);
         }
     }

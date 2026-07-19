@@ -198,6 +198,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|Config")
     class UPSRulesConfig* RulesConfig = nullptr;
 
+    const TArray<FPlayerAttributes>& GetOffenseRoster() const { return OffenseRoster; }
+    const TArray<FPlayerAttributes>& GetDefenseRoster() const { return DefenseRoster; }
+
 private:
     FPlayState CurrentState;
     TArray<FPlayerAttributes> OffenseRoster;
