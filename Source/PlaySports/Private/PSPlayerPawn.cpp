@@ -5,6 +5,8 @@
 #include "AIController.h"
 #include "PSGameMode.h"
 #include "Engine/World.h"
+#include "PSBall.h"
+#include "Kismet/GameplayStatics.h"
 
 APSPlayerPawn::APSPlayerPawn()
 {
@@ -281,4 +283,64 @@ void APSPlayerPawn::ResetFatigue()
 {
     CurrentStamina = MaxStamina;
     UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Reset fatigue for %s. CurrentStamina: %.1f/%.1f"), *Attributes.DisplayName, CurrentStamina, MaxStamina);
+}
+
+bool APSPlayerPawn::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc)
+{
+    if (!Ball)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ThrowPass failed - Ball is null."));
+        return false;
+    }
+
+    if (!bHasPossession)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ThrowPass failed - Player %s does not have the ball."), *Attributes.DisplayName);
+        return false;
+    }
+
+    // LaunchSpeed is scaled by Strength (0-100 rating -> 1500 to 3000 cm/s launch speed)
+    float LaunchSpeed = 1500.f + (Attributes.Strength * 15.f);
+
+    // Apply accuracy scatter to the target point based on Awareness (lower awareness = more error)
+    FVector ScatterTarget = TargetLocation;
+    if (Attributes.Awareness < 100.f)
+    {
+        float AccuracyError = (100.f - Attributes.Awareness) * 2.f; // Max error up to 200cm
+        FVector ErrorOffset = FMath::VRand() * FMath::FRandRange(0.f, AccuracyError);
+        ErrorOffset.Z = 0.f; // Keep error on 2D plane
+        ScatterTarget += ErrorOffset;
+    }
+
+    FVector OutVelocity = FVector::ZeroVector;
+    FVector StartLocation = GetActorLocation() + FVector(0.f, 0.f, 50.f); // Throw from hand/chest height
+
+    bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(
+        this,
+        OutVelocity,
+        StartLocation,
+        ScatterTarget,
+        LaunchSpeed,
+        bHighArc,
+        0.f,
+        0.f,
+        ESuggestProjVelocityTraceOption::DoNotTrace
+    );
+
+    if (bSuccess)
+    {
+        Ball->Launch(OutVelocity);
+        LosePossession();
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) threw a pass to %s. Launch velocity: %s"), 
+            *Attributes.DisplayName, 
+            *Attributes.PlayerId.ToString(), 
+            *TargetLocation.ToString(), 
+            *OutVelocity.ToString());
+        return true;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ThrowPass failed - Target is out of range for launch speed %.1f."), LaunchSpeed);
+        return false;
+    }
 }

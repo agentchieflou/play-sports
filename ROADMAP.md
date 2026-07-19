@@ -133,7 +133,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 
 - [x] `APSBall` actor with projectile physics (spiral trajectory, gravity, bounce)
 - [x] Snap: ball transfer from center to QB triggering `EPlayPhase::Snap`
-- [ ] Pass: throw with velocity/arc computed from target point and thrower attributes
+- [x] Pass: throw with velocity/arc computed from target point and thrower attributes
 - [ ] Catch resolution: receiver radius + attribute check; drop/incompletion on failure
 - [ ] Handoff and pitch (lateral) transfers
 - [ ] Fumble state: live ball on ground, recoverable by either team
