@@ -247,12 +247,14 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Goal:** The three overloaded classes shed responsibilities into components; built-but-unwired systems get consumed or deleted.
 **Depends on:** C1
 
-- [ ] Extract `UPSPossessionComponent` (possession state + transfer API) and ball-action logic out of `APSPlayerPawn`
-- [ ] Formation spawning goes through `APSFieldGrid` (delete GameMode's hardcoded spawn grid); field constants live in one place
-- [ ] Wire `APSBroadcastCamera` (assign `TargetActor` from possession events via C1)
-- [ ] Single roster source of truth (pawns/sim reference, don't copy); cache pawn lookups (no per-call `GetAllActorsOfClass`, no per-frame tuning copies)
-- [ ] Naming cleanup: `UPScheduleEngine` → `UPSScheduleEngine`, unify `FPS*`/`F*` struct prefix per conventions
-- [ ] Automation tests: possession component transfer, formation spawn via FieldGrid
+- [x] Extract `UPSPossessionComponent` (possession state + transfer API) out of `APSPlayerPawn`
+- [x] Formation spawning goes through `APSFieldGrid` (`SpawnPlayersFromRoster` replaces GameMode's hardcoded spawn loop); `QBDropbackDistance`/`FormationLateralSpacing` constants shared with `ResetPawnPositions` so formation math isn't duplicated
+- [x] Wire `APSBroadcastCamera` (`TargetActor` assigned from `UPSTelemetryBus::OnCatch` via C1)
+- [x] Cache pawn lookups (`APSGameMode::CachedPawns`, no per-call `GetAllActorsOfClass` in `PairLinemen`/`FindPlayerPawnByRole`/`GetLargestRunLaneGap`/`ResetPawnPositions`); no per-frame tuning copies (`APSPlayerPawn::CachedGameMode` cached in `BeginPlay`, `Tick`/`InitializePlayer` reference `MovementTuningSettings` instead of re-casting+copying every call)
+- [x] Naming cleanup: `UPScheduleEngine` → `UPSScheduleEngine` (struct prefix already conformant -- `tools/lint_conventions.py` only enforces `PS`/`APS` on `UCLASS` types; generic `F*` structs like `FSeasonWeek` are documented as accepted usage)
+- [x] Automation tests: possession component transfer, formation spawn via FieldGrid
+- [ ] Fast-follow (tracked separately): extract ball-action logic (`ThrowPass`/`ExecuteHandoff`/`ExecutePitch`/`ExecuteKick`/`FumbleBall`/`ResolveTackle`, ~300 lines of physics + tackle/fumble-chance formulas) out of `APSPlayerPawn` into a dedicated component. Deferred because it's large, gameplay-critical math with no local UBT to verify against -- scope it as its own story with careful CI-round-trip iteration rather than pushing it through blind.
+- [ ] Fast-follow (tracked separately): true single roster source of truth -- `PlaySimulation` and each `APSPlayerPawn` currently hold independent `FPlayerAttributes` copies rather than referencing one source. Fixing this touches dozens of call sites across `PSGameMode`/`PSPlayerPawn`/`PSPlaySimulation`; deferred as its own story for the same reason as above.
 
 ### Epic C4: Core Gameplay Test Retrofit
 
