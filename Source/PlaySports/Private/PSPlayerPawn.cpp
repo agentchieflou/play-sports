@@ -36,11 +36,48 @@ APSPlayerPawn::APSPlayerPawn()
 void APSPlayerPawn::BeginPlay()
 {
     Super::BeginPlay();
+
+    if (CapsuleComponent)
+    {
+        CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &APSPlayerPawn::OnPawnOverlap);
+    }
 }
 
 void APSPlayerPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+
+    // Defender pursuit steering behavior
+    if (TeamSide == EPSTeamSide::Defense && !IsPlayerControlled())
+    {
+        APSPlayerPawn* BallCarrier = nullptr;
+        APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
+        if (GM && GM->ActiveBall)
+        {
+            BallCarrier = Cast<APSPlayerPawn>(GM->ActiveBall->GetAttachParentActor());
+        }
+
+        if (BallCarrier)
+        {
+            FVector TargetLoc = BallCarrier->GetActorLocation();
+            FVector TargetVel = BallCarrier->GetVelocity();
+
+            FVector SeekDir = TargetLoc - GetActorLocation();
+            float Distance = SeekDir.Size();
+            float MaxSpeed = MovementComponent ? MovementComponent->MaxSpeed : 600.f;
+            float PredictionTime = (MaxSpeed > 0.f) ? (Distance / MaxSpeed) : 0.f;
+            PredictionTime = FMath::Min(PredictionTime, 1.0f);
+
+            FVector PursueTarget = TargetLoc + TargetVel * PredictionTime;
+            FVector SteerDir = PursueTarget - GetActorLocation();
+            SteerDir.Z = 0.f;
+            if (!SteerDir.IsNearlyZero())
+            {
+                SteerDir.Normalize();
+                AddMovementInput(SteerDir, 1.f);
+            }
+        }
+    }
 
     if (MovementComponent)
     {
@@ -452,5 +489,16 @@ void APSPlayerPawn::FumbleBall()
         GM->ActiveBall->Fumble(FumbleVelocity);
         LosePossession();
         UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) fumbled the ball!"), *Attributes.DisplayName, *Attributes.PlayerId.ToString());
+    }
+}
+
+void APSPlayerPawn::OnPawnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+    if (APSPlayerPawn* OtherPawn = Cast<APSPlayerPawn>(OtherActor))
+    {
+        if (bHasPossession && OtherPawn->TeamSide != TeamSide)
+        {
+            UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Contact detected! Ball carrier %s contacted by defender %s."), *Attributes.DisplayName, *OtherPawn->GetAttributes().DisplayName);
+        }
     }
 }
