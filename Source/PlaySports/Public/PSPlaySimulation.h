@@ -12,7 +12,10 @@ enum class EPlayPhase : uint8
     Snap,
     PassRush,
     BallCarrierMovement,
-    Scoring
+    Scoring,
+    Kickoff,
+    Punt,
+    FieldGoal
 };
 
 USTRUCT(BlueprintType)
@@ -89,7 +92,11 @@ enum class EPlayResultType : uint8
     Incomplete,
     Tackle,
     Touchdown,
-    Safety
+    Safety,
+    FieldGoalGood,
+    FieldGoalMissed,
+    KickoffResult,
+    PuntResult
 };
 
 USTRUCT(BlueprintType)

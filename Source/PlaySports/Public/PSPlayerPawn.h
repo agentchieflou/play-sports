@@ -75,6 +75,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Player")
     bool ExecutePitch(APSPlayerPawn* TargetPlayer);
 
+    UFUNCTION(BlueprintCallable, Category = "Player|SpecialTeams")
+    bool ExecuteKick(class APSBall* Ball, float KickPower, float LaunchAngle);
+
     // Fumble the ball, launching it with a pop-out velocity
     UFUNCTION(BlueprintCallable, Category = "Player")
     void FumbleBall();

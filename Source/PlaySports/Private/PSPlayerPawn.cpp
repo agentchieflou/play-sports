@@ -566,6 +566,42 @@ bool APSPlayerPawn::ExecutePitch(APSPlayerPawn* TargetPlayer)
     }
 }
 
+bool APSPlayerPawn::ExecuteKick(APSBall* Ball, float KickPower, float LaunchAngle)
+{
+    if (!Ball)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteKick failed - Ball is null."));
+        return false;
+    }
+
+    if (!bHasPossession)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteKick failed - Player does not have possession."));
+        return false;
+    }
+
+    FVector Direction = GetActorForwardVector();
+    Direction.Z = FMath::Sin(FMath::DegreesToRadians(LaunchAngle));
+    if (!Direction.IsNearlyZero())
+    {
+        Direction.Normalize();
+    }
+    else
+    {
+        Direction = FVector(1.f, 0.f, 0.f);
+    }
+
+    FVector LaunchVelocity = Direction * KickPower;
+
+    Ball->Launch(LaunchVelocity);
+    LosePossession();
+
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Executed kick with power %.1f at angle %.1f degrees. Velocity: %s"), 
+        KickPower, LaunchAngle, *LaunchVelocity.ToString());
+
+    return true;
+}
+
 void APSPlayerPawn::FumbleBall()
 {
     if (!bHasPossession)

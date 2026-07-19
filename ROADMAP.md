@@ -203,11 +203,11 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Goal:** Kickoffs, punts, and field goal attempts are playable.
 **Depends on:** Epics 7, 10, 11
 
-- [ ] Kick physics: power/angle model reusing `APSBall` trajectory work
-- [ ] Kickoff phase: kick, coverage, return, touchback handling
-- [ ] Punt with fair-catch and downed-ball outcomes
-- [ ] Field goal attempt: snap-hold-kick chain, good/no-good detection via upright zone
-- [ ] Special-teams formations added to the formation system (Epic 3)
+- [x] Kick physics: power/angle model reusing `APSBall` trajectory work
+- [x] Kickoff phase: kick, coverage, return, touchback handling
+- [x] Punt with fair-catch and downed-ball outcomes
+- [x] Field goal attempt: snap-hold-kick chain, good/no-good detection via upright zone
+- [x] Special-teams formations added to the formation system (Epic 3)
 
 ---
 
