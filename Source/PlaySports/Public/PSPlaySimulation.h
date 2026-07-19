@@ -79,6 +79,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void SetPlayPhase(EPlayPhase NewPhase);
 
+    UFUNCTION(BlueprintCallable, Category = "Simulation")
+    void RecordTackle(int32 YardsGained);
+
 private:
     FPlayState CurrentState;
     TArray<FPlayerAttributes> OffenseRoster;

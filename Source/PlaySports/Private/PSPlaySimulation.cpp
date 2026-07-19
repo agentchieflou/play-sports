@@ -41,6 +41,14 @@ void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play phase overridden. Transited to: %s"), *UEnum::GetValueAsString(NewPhase));
 }
 
+void UPSPlaySimulation::RecordTackle(int32 YardsGained)
+{
+    CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+    CurrentPlayResult.YardsGained = YardsGained;
+    SetPlayPhase(EPlayPhase::Scoring);
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Tackle recorded. Yards Gained: %d"), YardsGained);
+}
+
 void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
 {
     CurrentState.GameTimeSeconds += DeltaSeconds;

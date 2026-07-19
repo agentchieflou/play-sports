@@ -4,6 +4,7 @@
 #include "GameFramework/FloatingPawnMovement.h"
 #include "AIController.h"
 #include "PSGameMode.h"
+#include "PSPlaySimulation.h"
 #include "Engine/World.h"
 #include "PSBall.h"
 #include "Kismet/GameplayStatics.h"
@@ -36,6 +37,8 @@ APSPlayerPawn::APSPlayerPawn()
 void APSPlayerPawn::BeginPlay()
 {
     Super::BeginPlay();
+
+    StartingLocation = GetActorLocation();
 
     if (CapsuleComponent)
     {
@@ -499,6 +502,91 @@ void APSPlayerPawn::OnPawnOverlap(UPrimitiveComponent* OverlappedComponent, AAct
         if (bHasPossession && OtherPawn->TeamSide != TeamSide)
         {
             UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Contact detected! Ball carrier %s contacted by defender %s."), *Attributes.DisplayName, *OtherPawn->GetAttributes().DisplayName);
+            ResolveTackle(OtherPawn);
         }
+    }
+}
+
+bool APSPlayerPawn::ResolveTackle(APSPlayerPawn* Defender)
+{
+    if (!Defender)
+    {
+        return false;
+    }
+
+    APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
+    if (!GM)
+    {
+        return false;
+    }
+
+    FPlayerAttributes CarrierAttr = GetAttributes();
+    FPlayerAttributes DefenderAttr = Defender->GetAttributes();
+
+    float CarrierSpeed = GetVelocity().Size();
+    float DefenderSpeed = Defender->GetVelocity().Size();
+
+    float DefenderPower = DefenderAttr.Strength * 0.5f + (DefenderSpeed * 0.1f);
+    float CarrierPower = CarrierAttr.Strength * 0.3f + CarrierAttr.Agility * 0.3f + (CarrierSpeed * 0.05f);
+
+    float TackleChance = 0.50f + (DefenderPower - CarrierPower) * 0.005f;
+    TackleChance = FMath::Clamp(TackleChance, 0.10f, 0.95f);
+
+    float Roll = FMath::FRand();
+    if (Roll <= TackleChance)
+    {
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Tackle SUCCESS! Defender %s tackled carrier %s (Roll: %.2f <= Chance: %.2f)"), 
+            *DefenderAttr.DisplayName, *CarrierAttr.DisplayName, Roll, TackleChance);
+
+        // Fumble chance check
+        float FumbleChance = 0.02f + (DefenderSpeed * 0.0001f);
+        FumbleChance = FMath::Clamp(FumbleChance, 0.01f, 0.25f);
+        if (FMath::FRand() <= FumbleChance)
+        {
+            FumbleBall();
+            return true;
+        }
+
+        // Apply physics impulse (knockback)
+        FVector KnockbackDir = GetActorLocation() - Defender->GetActorLocation();
+        KnockbackDir.Z = 0.f;
+        if (!KnockbackDir.IsNearlyZero())
+        {
+            KnockbackDir.Normalize();
+        }
+        else
+        {
+            KnockbackDir = -GetActorForwardVector();
+        }
+
+        if (MovementComponent)
+        {
+            MovementComponent->Velocity = KnockbackDir * 150.f;
+        }
+
+        // Down by contact
+        if (MovementComponent)
+        {
+            MovementComponent->Velocity = FVector::ZeroVector;
+            MovementComponent->StopActiveMovement();
+        }
+
+        int32 YardsGained = FMath::RoundToInt((GetActorLocation().X - StartingLocation.X) / 100.f);
+        if (GM->PlaySimulation)
+        {
+            GM->PlaySimulation->RecordTackle(YardsGained);
+        }
+        return true;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Tackle BROKEN! Carrier %s broke tackle from defender %s (Roll: %.2f > Chance: %.2f)"), 
+            *CarrierAttr.DisplayName, *DefenderAttr.DisplayName, Roll, TackleChance);
+
+        if (MovementComponent)
+        {
+            MovementComponent->Velocity *= 0.5f;
+        }
+        return false;
     }
 }
