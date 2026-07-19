@@ -67,11 +67,11 @@ worker, worktree, branch, attempts, pr, score, events[]}}, duels[], escalations[
 **Goal:** Two workers race the same story in separate worktrees; objective scores plus a supervisor-model judgment pick the branch that proceeds to PR — Epic 120's eval gym, made head-to-head.
 **Depends on:** 136 (extends Epic 120)
 
-- [ ] Refactor `tools/score_agent_run.py`: extract scoring into importable `tools/score_lib.py` (CLI behavior byte-identical) and add a local-diff path — scope/lint/data/tests-added computable pre-PR without `gh`
-- [ ] `duel.py`: same story, two worker configs, two worktrees; both diffs and transcripts captured
-- [ ] Judge pass: the supervisor model compares both diffs against the story's acceptance criteria → structured verdict, combined with objective local scores into a winner (tie → cheaper model wins)
-- [ ] Duel records in `eval/duels/<id>.json`; `tools/eval_report.py` extended to fold duel outcomes into `eval/SCORECARD.md`
-- [ ] Winner flow: winning branch proceeds to PR via the 136 pipeline; loser worktree archived to the transcript store, then removed
+- [x] Refactor `tools/score_agent_run.py`: extract scoring into importable `tools/score_lib.py` (CLI behavior byte-identical) and add a local-diff path — scope/lint/data/tests-added computable pre-PR without `gh`
+- [x] `duel.py`: same story, two worker configs, two worktrees; both diffs and transcripts captured
+- [x] Judge pass: the supervisor model compares both diffs against the story's acceptance criteria → structured verdict, combined with objective local scores into a winner (tie → cheaper model wins)
+- [x] Duel records in `eval/duels/<id>.json`; `tools/eval_report.py` extended to fold duel outcomes into `eval/SCORECARD.md`
+- [x] Winner flow: winning branch proceeds to PR via the 136 pipeline; loser worktree archived to the transcript store, then removed
 
 ### Epic 138: Supervisor Graph Mode
 

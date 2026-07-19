@@ -13,7 +13,6 @@ import sys
 from .config import REPO_ROOT, OrchestratorConfig
 
 PENDING = {
-    "duel": "Epic 137 (benchmark duel mode)",
     "graph": "Epic 138 (supervisor graph mode)",
     "status": "Epic 138 (supervisor graph mode)",
     "resume": "Epic 138 (supervisor graph mode)",
@@ -80,6 +79,30 @@ def cmd_run(config: OrchestratorConfig, args: argparse.Namespace) -> int:
     return 0 if outcome.harness.status == "finished" else 1
 
 
+def cmd_duel(config: OrchestratorConfig, args: argparse.Namespace) -> int:
+    from .duel import run_duel
+    from .models.router import build_client
+
+    worker_specs = config.worker_specs()
+    if len(worker_specs) < 2:
+        print("duel needs two worker specs in the tier table")
+        return 1
+    worker_clients = [build_client(spec) for spec in worker_specs[:2]]
+    judge_client = build_client(config.supervisor_spec())
+
+    result = run_duel(
+        REPO_ROOT, args.story, worker_clients, judge_client,
+        specialization=args.specialization, dry_run=args.dry_run,
+        max_iterations=args.max_iterations,
+    )
+    print(f"duel {result.duel_id}: winner={result.winner}")
+    print(f"decision: {result.judge_reasoning[:500]}")
+    print(f"record: {result.record_path}")
+    if result.pr_url:
+        print(f"PR: {result.pr_url}")
+    return 0 if result.winner in ("a", "b") else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m tools.orchestrator",
@@ -98,6 +121,15 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--dry-run", action="store_true",
                             help="print the diff; no push, no PR")
     run_parser.add_argument("--max-iterations", type=int)
+    duel_parser = subparsers.add_parser("duel")
+    duel_parser.add_argument("--story", required=True,
+                             help="story id like 12.5 (<epic>.<index>)")
+    duel_parser.add_argument("--specialization",
+                             choices=["gameplay-cpp-story", "data-content-author",
+                                      "ai-behavior-specialist"])
+    duel_parser.add_argument("--dry-run", action="store_true",
+                             help="score and record; no push, no PR")
+    duel_parser.add_argument("--max-iterations", type=int)
     for name in PENDING:
         subparsers.add_parser(name)
     args = parser.parse_args(argv)
@@ -111,6 +143,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_models(config)
     if args.command == "run":
         return cmd_run(config, args)
+    if args.command == "duel":
+        return cmd_duel(config, args)
     return cmd_health(config)
 
 

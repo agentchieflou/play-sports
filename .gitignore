@@ -81,3 +81,4 @@ DerivedDataCache/*
 # Orchestrator (Track P): worker worktrees and run transcripts stay local
 .worktrees/
 eval/transcripts/
+__pycache__/
