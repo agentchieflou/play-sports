@@ -72,6 +72,28 @@ public:
     UFUNCTION(BlueprintPure, Category = "Player|Physics")
     float GetMomentumMagnitude() const;
 
+    // Active state of fatigue and burst (stamina system hooks)
+    UPROPERTY(BlueprintReadOnly, Category = "Player|Stamina")
+    float CurrentStamina;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Player|Stamina")
+    float MaxStamina;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Player|Stamina")
+    bool bIsBursted;
+
+    // Use burst speed (toggles bIsBursted)
+    UFUNCTION(BlueprintCallable, Category = "Player|Stamina")
+    void UseBurst(bool bEnable);
+
+    // Apply fatigue (decreases CurrentStamina)
+    UFUNCTION(BlueprintCallable, Category = "Player|Stamina")
+    void ApplyFatigue(float Amount);
+
+    // Reset fatigue (restores CurrentStamina to MaxStamina)
+    UFUNCTION(BlueprintCallable, Category = "Player|Stamina")
+    void ResetFatigue();
+
 protected:
     virtual void BeginPlay() override;
 

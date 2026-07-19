@@ -51,4 +51,7 @@ struct FPlayerAttributes : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float Awareness = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float Stamina = 0.0f;
 };

@@ -24,6 +24,9 @@ APSPlayerPawn::APSPlayerPawn()
 
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
     BaseAcceleration = 2000.f;
+    CurrentStamina = 100.f;
+    MaxStamina = 100.f;
+    bIsBursted = false;
 }
 
 void APSPlayerPawn::BeginPlay()
@@ -121,16 +124,21 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
     // Scale BaseAcceleration from Acceleration attribute (0-100 rating -> 500 to 2000 cm/s^2 base acceleration)
     BaseAcceleration = 500.f + (Attributes.Acceleration * 15.f);
 
+    // Initialize stamina from attributes (Stamina rating 0-100 matches max stamina capacity)
+    MaxStamina = Attributes.Stamina;
+    CurrentStamina = MaxStamina;
+
     // Log player pawn initialization details
     FString RoleName = UEnum::GetValueAsString(Attributes.Role);
-    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Initialized player pawn for %s (ID: %s, Role: %s, Height: %.1f cm, Weight: %.1f kg, MaxSpeed: %.1f cm/s, BaseAccel: %.1f cm/s^2)"), 
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Initialized player pawn for %s (ID: %s, Role: %s, Height: %.1f cm, Weight: %.1f kg, MaxSpeed: %.1f cm/s, BaseAccel: %.1f cm/s^2, Stamina: %.1f)"), 
         *Attributes.DisplayName, 
         *Attributes.PlayerId.ToString(), 
         *RoleName, 
         Attributes.HeightCm, 
         Attributes.WeightKg,
         ScaledMaxSpeed,
-        BaseAcceleration);
+        BaseAcceleration,
+        MaxStamina);
 }
 
 void APSPlayerPawn::MoveToLocation(const FVector& TargetLocation)
@@ -230,4 +238,22 @@ FVector APSPlayerPawn::GetMomentum() const
 float APSPlayerPawn::GetMomentumMagnitude() const
 {
     return GetMomentum().Size();
+}
+
+void APSPlayerPawn::UseBurst(bool bEnable)
+{
+    bIsBursted = bEnable;
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: UseBurst set to %s for %s."), bEnable ? TEXT("true") : TEXT("false"), *Attributes.DisplayName);
+}
+
+void APSPlayerPawn::ApplyFatigue(float Amount)
+{
+    CurrentStamina = FMath::Clamp(CurrentStamina - Amount, 0.f, MaxStamina);
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Applied %.1f fatigue to %s. CurrentStamina: %.1f/%.1f"), Amount, *Attributes.DisplayName, CurrentStamina, MaxStamina);
+}
+
+void APSPlayerPawn::ResetFatigue()
+{
+    CurrentStamina = MaxStamina;
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Reset fatigue for %s. CurrentStamina: %.1f/%.1f"), *Attributes.DisplayName, CurrentStamina, MaxStamina);
 }
