@@ -39,6 +39,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Movement")
     void MoveToLocation(const FVector& TargetLocation);
 
+    UFUNCTION(BlueprintPure, Category = "Movement")
+    class UFloatingPawnMovement* GetFloatingMovementComponent() const { return MovementComponent; }
+
     // Give the ball to this player pawn
     UFUNCTION(BlueprintCallable, Category = "Player")
     void GainPossession();
@@ -131,6 +134,9 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "Player")
     bool bHasPossession;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Player|Blocking")
+    float EngagementTime;
 
     UPROPERTY(BlueprintReadOnly, Category = "Player")
     FVector StartingLocation;

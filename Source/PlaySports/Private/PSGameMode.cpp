@@ -336,3 +336,60 @@ APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole PlayerRole) const
     }
     return nullptr;
 }
+
+FVector APSGameMode::GetLargestRunLaneGap() const
+{
+    if (!GetWorld())
+    {
+        return FVector::ZeroVector;
+    }
+
+    TArray<AActor*> PlayerActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), PlayerActors);
+
+    TArray<APSPlayerPawn*> OffensiveLinemen;
+    for (AActor* Actor : PlayerActors)
+    {
+        if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
+        {
+            if (Pawn->GetAttributes().Role == EPlayerRole::OffensiveLineman)
+            {
+                OffensiveLinemen.Add(Pawn);
+            }
+        }
+    }
+
+    if (OffensiveLinemen.Num() == 0)
+    {
+        return FVector::ZeroVector;
+    }
+
+    if (OffensiveLinemen.Num() == 1)
+    {
+        return OffensiveLinemen[0]->GetActorLocation();
+    }
+
+    OffensiveLinemen.Sort([](const APSPlayerPawn& A, const APSPlayerPawn& B) {
+        return A.GetActorLocation().Y < B.GetActorLocation().Y;
+    });
+
+    float LargestGapSize = 0.f;
+    FVector LargestGapCenter = FVector::ZeroVector;
+
+    for (int32 i = 0; i < OffensiveLinemen.Num() - 1; ++i)
+    {
+        FVector LocA = OffensiveLinemen[i]->GetActorLocation();
+        FVector LocB = OffensiveLinemen[i+1]->GetActorLocation();
+        float GapSize = FVector::Dist(LocA, LocB);
+        if (GapSize > LargestGapSize)
+        {
+            LargestGapSize = GapSize;
+            LargestGapCenter = (LocA + LocB) * 0.5f;
+        }
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Largest run lane gap found at %s with size %.1f cm."), 
+        *LargestGapCenter.ToString(), LargestGapSize);
+
+    return LargestGapCenter;
+}

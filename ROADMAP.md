@@ -157,10 +157,10 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Depends on:** Epics 6, 8
 
 - [x] Engagement pairing: OL matches up against DL/blitzers at snap
-- [ ] Push/leverage contest driven by `Strength`, `WeightKg`, and momentum
-- [ ] Block shedding: DL win condition releases the rusher toward the QB/carrier
-- [ ] Pocket formation: net result of line play shapes where the QB can stand
-- [ ] Run lanes: blocking outcomes open/close gaps that the RB AI (Epic 14) can read
+- [x] Push/leverage contest driven by `Strength`, `WeightKg`, and momentum
+- [x] Block shedding: DL win condition releases the rusher toward the QB/carrier
+- [x] Pocket formation: net result of line play shapes where the QB can stand
+- [x] Run lanes: blocking outcomes open/close gaps that the RB AI (Epic 14) can read
 
 ### Epic 10: Drive & Game State Machine
 

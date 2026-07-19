@@ -34,6 +34,7 @@ APSPlayerPawn::APSPlayerPawn()
     bIsBursted = false;
     EngagedOpponent = nullptr;
     bIsEngaged = false;
+    EngagementTime = 0.f;
 }
 
 void APSPlayerPawn::BeginPlay()
@@ -55,12 +56,90 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
     // Engagement steering override
     if (bIsEngaged && EngagedOpponent)
     {
+        // 1. Increment engagement time
+        EngagementTime += DeltaSeconds;
+
         FVector SteerDir = EngagedOpponent->GetActorLocation() - GetActorLocation();
         SteerDir.Z = 0.f;
         if (!SteerDir.IsNearlyZero())
         {
             SteerDir.Normalize();
             AddMovementInput(SteerDir, 1.f);
+        }
+
+        // 2. Perform contested blocking push & pocket drift & block shedding from OL's tick to avoid duplicates
+        if (TeamSide == EPSTeamSide::Offense)
+        {
+            float Dist = FVector::Dist(GetActorLocation(), EngagedOpponent->GetActorLocation());
+            if (Dist <= 150.f)
+            {
+                FPlayerAttributes OLAttr = Attributes;
+                FPlayerAttributes DLAttr = EngagedOpponent->GetAttributes();
+
+                float OLPower = OLAttr.Strength * 0.4f + OLAttr.WeightKg * 0.4f + (GetVelocity().Size() * 0.2f);
+                float DLPower = DLAttr.Strength * 0.4f + DLAttr.WeightKg * 0.4f + (EngagedOpponent->GetVelocity().Size() * 0.2f);
+
+                float NetForce = OLPower - DLPower;
+
+                FVector PushDir = EngagedOpponent->GetActorLocation() - GetActorLocation();
+                PushDir.Z = 0.f;
+                if (!PushDir.IsNearlyZero())
+                {
+                    PushDir.Normalize();
+                }
+                else
+                {
+                    PushDir = GetActorForwardVector();
+                }
+
+                if (MovementComponent && EngagedOpponent->GetFloatingMovementComponent())
+                {
+                    float ForceScale = DeltaSeconds * 100.f;
+                    if (NetForce > 0.f)
+                    {
+                        // OL pushes DL back
+                        EngagedOpponent->GetFloatingMovementComponent()->Velocity += PushDir * (NetForce * 0.05f * ForceScale);
+                        MovementComponent->Velocity += PushDir * (NetForce * 0.02f * ForceScale);
+                    }
+                    else
+                    {
+                        // DL pushes OL back
+                        MovementComponent->Velocity += (-PushDir) * (-NetForce * 0.05f * ForceScale);
+                        EngagedOpponent->GetFloatingMovementComponent()->Velocity += (-PushDir) * (-NetForce * 0.02f * ForceScale);
+                    }
+
+                    // 3. Pocket formation: add a backward drift to offensive lineman during block
+                    MovementComponent->Velocity += FVector(-60.f, 0.f, 0.f) * DeltaSeconds;
+                }
+            }
+
+            // 4. Block shedding contest: DL tries to break block
+            if (EngagementTime >= 1.0f)
+            {
+                FPlayerAttributes OLAttr = Attributes;
+                FPlayerAttributes DLAttr = EngagedOpponent->GetAttributes();
+
+                float ShedChance = 0.05f + (DLAttr.Strength + DLAttr.Agility - OLAttr.Strength) * 0.002f;
+                ShedChance = FMath::Clamp(ShedChance, 0.01f, 0.20f);
+
+                if (FMath::FRand() <= ShedChance * DeltaSeconds * 10.f)
+                {
+                    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Block SHED! Defender %s broke free from OL %s after %.2fs."), 
+                        *DLAttr.DisplayName, *OLAttr.DisplayName, EngagementTime);
+
+                    // Add forward shed speed boost to defender
+                    if (EngagedOpponent->GetFloatingMovementComponent())
+                    {
+                        EngagedOpponent->GetFloatingMovementComponent()->Velocity += EngagedOpponent->GetActorForwardVector() * 200.f;
+                    }
+
+                    // Clear engagement status
+                    EngagedOpponent->bIsEngaged = false;
+                    EngagedOpponent->EngagedOpponent = nullptr;
+                    bIsEngaged = false;
+                    EngagedOpponent = nullptr;
+                }
+            }
         }
     }
     // Defender pursuit steering behavior

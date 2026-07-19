@@ -55,6 +55,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Gameplay")
     void PairLinemen();
 
+    UFUNCTION(BlueprintCallable, Category = "Gameplay|Blocking")
+    FVector GetLargestRunLaneGap() const;
+
     UFUNCTION(BlueprintCallable, Category = "Gameplay")
     class APSPlayerPawn* FindPlayerPawnByRole(EPlayerRole PlayerRole) const;
 };
