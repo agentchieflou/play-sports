@@ -192,10 +192,10 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Builds on:** `FPlayState.GameTimeSeconds`
 **Depends on:** Epic 10
 
-- [ ] Quarter/half structure with configurable lengths
-- [ ] Clock run/stop rules (incompletions, out of bounds, scores, timeouts)
-- [ ] 40-second play clock with delay-of-game hook into the penalty framework (Epic 11)
-- [ ] Two-minute warning and end-of-half/game handling
+- [x] Quarter/half structure with configurable lengths
+- [x] Clock run/stop rules (incompletions, out of bounds, scores, timeouts)
+- [x] 40-second play clock with delay-of-game hook into the penalty framework (Epic 11)
+- [x] Two-minute warning and end-of-half/game handling
 - [ ] Timeout budget per team
 
 ### Epic 13: Special Teams

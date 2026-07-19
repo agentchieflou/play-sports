@@ -55,6 +55,9 @@ struct FPlayState
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 AwayScore = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bIsClockRunning = false;
 };
 
 USTRUCT(BlueprintType)
@@ -141,6 +144,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void RecordTouchdown();
+
+    UFUNCTION(BlueprintPure, Category = "Simulation|Clock")
+    FString GetFormattedGameClock() const;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
     EPSPenaltyType ActivePenalty;
