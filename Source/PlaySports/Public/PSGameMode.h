@@ -8,6 +8,8 @@
 #include "PSGameMode.generated.h"
 
 class UPSPlaySimulation;
+class APSBroadcastCamera;
+class APSPlayerPawn;
 
 /**
  * GameMode subclass for PlaySports which orchestrates play simulation and roster loading.
@@ -50,6 +52,18 @@ public:
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
     class APSBall* ActiveBall;
 
+    /** Cached BroadcastCamera -- found via GetActorOfClass in StartPlay; SetTargetActor
+     *  called from OnBusCatchEvent to fix the orphan (Epic C3). */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
+    APSBroadcastCamera* BroadcastCamera;
+
+    /** Populated once in StartPlay() so hot paths (PairLinemen, FindPlayerPawnByRole,
+     *  GetLargestRunLaneGap, ResetPawnPositions) don't each re-run GetAllActorsOfClass
+     *  (Epic C3). Pawns are only ever spawned once at StartPlay, so this stays valid
+     *  for the lifetime of the play. */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
+    TArray<APSPlayerPawn*> CachedPawns;
+
     UFUNCTION(BlueprintCallable, Category = "Gameplay")
     void ExecuteSnap();
 
@@ -68,4 +82,8 @@ public:
 private:
     UFUNCTION()
     void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);
+
+    UFUNCTION()
+    void OnBusCatchEvent(const FPSTelemetryCatchEvent& Event);
 };
+

@@ -9,6 +9,8 @@
 #include "Misc/FileHelper.h"
 #include "PSBall.h"
 #include "PSPlayerPawn.h"
+#include "PSFieldGrid.h"
+#include "PSBroadcastCamera.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
 
@@ -47,6 +49,7 @@ APSGameMode::APSGameMode()
     RosterJsonPath = TEXT("Data/sample_players.json");
     PlayerRosterTable = nullptr;
     PlaySimulation = nullptr;
+    BroadcastCamera = nullptr;
 
     HUDClass = APSHUD::StaticClass();
     HomeScore = 0;
@@ -146,37 +149,40 @@ void APSGameMode::StartPlay()
                 if (Bus)
                 {
                     Bus->OnScore.AddDynamic(this, &APSGameMode::OnBusScoreEvent);
-                    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Subscribed scoring handler to TelemetryBus."));
+                    Bus->OnCatch.AddDynamic(this, &APSGameMode::OnBusCatchEvent);
+                    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Subscribed scoring/catch handlers to TelemetryBus."));
                 }
 
                 // Give the simulation its world ref so it can subscribe to bus events (C2)
                 PlaySimulation->InitializeWithWorld(GetWorld());
             }
 
+            // Find the broadcast camera in the level so bus-driven catch events can
+            // retarget it (fixes the orphaned TargetActor, Epic C3).
+            BroadcastCamera = Cast<APSBroadcastCamera>(UGameplayStatics::GetActorOfClass(GetWorld(), APSBroadcastCamera::StaticClass()));
+            if (BroadcastCamera)
+            {
+                UE_LOG(LogTemp, Display, TEXT("PSGameMode: Found BroadcastCamera %s in level."), *BroadcastCamera->GetName());
+            }
+
+            CachedPawns.Reset();
             TArray<AActor*> ExistingPawns;
             UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), ExistingPawns);
             if (ExistingPawns.Num() == 0)
             {
                 TArray<FPlayerAttributes*> RosterPlayers;
                 PlayerRosterTable->GetAllRows<FPlayerAttributes>(TEXT("PSGameMode Spawning"), RosterPlayers);
-                
-                float XOffset = 0.f;
-                for (FPlayerAttributes* Player : RosterPlayers)
+
+                const float ScrimmageX = PlaySimulation ? PlaySimulation->GetPlayState().YardLine * 100.f : 2000.f;
+                CachedPawns = APSFieldGrid::SpawnPlayersFromRoster(RosterPlayers, ScrimmageX, GetWorld());
+            }
+            else
+            {
+                for (AActor* Actor : ExistingPawns)
                 {
-                    if (Player)
+                    if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
                     {
-                        FActorSpawnParameters SpawnParams;
-                        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-                        
-                        float SpawnX = (Player->Role == EPlayerRole::Quarterback) ? 0.f : 100.f;
-                        FVector SpawnLocation(SpawnX, XOffset, 100.f);
-                        XOffset += 150.f;
-                        
-                        APSPlayerPawn* NewPawn = GetWorld()->SpawnActor<APSPlayerPawn>(APSPlayerPawn::StaticClass(), SpawnLocation, FRotator::ZeroRotator, SpawnParams);
-                        if (NewPawn)
-                        {
-                            NewPawn->InitializePlayer(*Player);
-                        }
+                        CachedPawns.Add(Pawn);
                     }
                 }
             }
@@ -286,20 +292,12 @@ void APSGameMode::ExecuteSnap()
 
 void APSGameMode::PairLinemen()
 {
-    if (!GetWorld())
-    {
-        return;
-    }
-
-    TArray<AActor*> PlayerActors;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), PlayerActors);
-
     TArray<APSPlayerPawn*> OffensiveLinemen;
     TArray<APSPlayerPawn*> Defenders;
 
-    for (AActor* Actor : PlayerActors)
+    for (APSPlayerPawn* Pawn : CachedPawns)
     {
-        if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
+        if (Pawn)
         {
             Pawn->EngagedOpponent = nullptr;
             Pawn->bIsEngaged = false;
@@ -308,8 +306,8 @@ void APSGameMode::PairLinemen()
             {
                 OffensiveLinemen.Add(Pawn);
             }
-            else if (Pawn->TeamSide == EPSTeamSide::Defense && 
-                     (Pawn->GetAttributes().Role == EPlayerRole::DefensiveLineman || 
+            else if (Pawn->TeamSide == EPSTeamSide::Defense &&
+                     (Pawn->GetAttributes().Role == EPlayerRole::DefensiveLineman ||
                       Pawn->GetAttributes().Role == EPlayerRole::Linebacker))
             {
                 Defenders.Add(Pawn);
@@ -350,21 +348,11 @@ void APSGameMode::PairLinemen()
 
 APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole PlayerRole) const
 {
-    if (!GetWorld())
+    for (APSPlayerPawn* Pawn : CachedPawns)
     {
-        return nullptr;
-    }
-
-    TArray<AActor*> PlayerActors;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), PlayerActors);
-    for (AActor* Actor : PlayerActors)
-    {
-        if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
+        if (Pawn && Pawn->GetAttributes().Role == PlayerRole)
         {
-            if (Pawn->GetAttributes().Role == PlayerRole)
-            {
-                return Pawn;
-            }
+            return Pawn;
         }
     }
     return nullptr;
@@ -372,23 +360,12 @@ APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole PlayerRole) const
 
 FVector APSGameMode::GetLargestRunLaneGap() const
 {
-    if (!GetWorld())
-    {
-        return FVector::ZeroVector;
-    }
-
-    TArray<AActor*> PlayerActors;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), PlayerActors);
-
     TArray<APSPlayerPawn*> OffensiveLinemen;
-    for (AActor* Actor : PlayerActors)
+    for (APSPlayerPawn* Pawn : CachedPawns)
     {
-        if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
+        if (Pawn && Pawn->GetAttributes().Role == EPlayerRole::OffensiveLineman)
         {
-            if (Pawn->GetAttributes().Role == EPlayerRole::OffensiveLineman)
-            {
-                OffensiveLinemen.Add(Pawn);
-            }
+            OffensiveLinemen.Add(Pawn);
         }
     }
 
@@ -429,7 +406,7 @@ FVector APSGameMode::GetLargestRunLaneGap() const
 
 void APSGameMode::ResetPawnPositions()
 {
-    if (!PlaySimulation || !GetWorld())
+    if (!PlaySimulation)
     {
         return;
     }
@@ -437,15 +414,12 @@ void APSGameMode::ResetPawnPositions()
     int32 YardLine = PlaySimulation->GetPlayState().YardLine;
     float ScrimmageX = YardLine * 100.f;
 
-    TArray<AActor*> PlayerActors;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), PlayerActors);
-
     float OffenseY = -150.f;
     float DefenseY = -150.f;
 
-    for (AActor* Actor : PlayerActors)
+    for (APSPlayerPawn* Pawn : CachedPawns)
     {
-        if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
+        if (Pawn)
         {
             // Reset velocities
             if (Pawn->GetFloatingMovementComponent())
@@ -522,4 +496,22 @@ void APSGameMode::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
     }
     UE_LOG(LogTemp, Display, TEXT("PSGameMode: Score event via bus — %s (%d pts). Home: %d, Away: %d"),
         *Event.ScoreType, Event.Points, HomeScore, AwayScore);
+}
+
+void APSGameMode::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
+{
+    if (!BroadcastCamera)
+    {
+        return;
+    }
+
+    for (APSPlayerPawn* Pawn : CachedPawns)
+    {
+        if (Pawn && Pawn->GetAttributes().DisplayName == Event.ReceiverName)
+        {
+            BroadcastCamera->SetTargetActor(Pawn);
+            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Catch event routed BroadcastCamera to %s."), *Event.ReceiverName);
+            break;
+        }
+    }
 }

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "PSPlayerAttributes.h"
+#include "PSPossessionComponent.h"
 #include "PSPlayerPawn.generated.h"
 
 class UCapsuleComponent;
@@ -140,6 +141,15 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UFloatingPawnMovement* MovementComponent;
+
+    /** Extracted possession state component (Epic C3). Callers continue to use
+     *  GainPossession/LosePossession/HasPossession/TransferPossessionTo on the pawn;
+     *  those methods delegate here. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UPSPossessionComponent* PossessionComponent;
+
+    UFUNCTION(BlueprintPure, Category = "Possession")
+    UPSPossessionComponent* GetPossessionComponent() const { return PossessionComponent; }
 
     UPROPERTY(BlueprintReadOnly, Category = "Player")
     FPlayerAttributes Attributes;

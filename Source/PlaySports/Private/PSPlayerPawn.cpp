@@ -24,6 +24,9 @@ APSPlayerPawn::APSPlayerPawn()
 
     MovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MovementComp"));
 
+    // C3: PossessionComponent owns possession state
+    PossessionComponent = CreateDefaultSubobject<UPSPossessionComponent>(TEXT("PossessionComp"));
+
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;
 
@@ -317,8 +320,12 @@ void APSPlayerPawn::GainPossession()
     if (!bHasPossession)
     {
         bHasPossession = true;
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) gained ball possession."), 
-            *Attributes.DisplayName, 
+        if (PossessionComponent)
+        {
+            PossessionComponent->GainPossession();
+        }
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) gained ball possession."),
+            *Attributes.DisplayName,
             *Attributes.PlayerId.ToString());
     }
 }
@@ -328,8 +335,12 @@ void APSPlayerPawn::LosePossession()
     if (bHasPossession)
     {
         bHasPossession = false;
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) lost ball possession."), 
-            *Attributes.DisplayName, 
+        if (PossessionComponent)
+        {
+            PossessionComponent->LosePossession();
+        }
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) lost ball possession."),
+            *Attributes.DisplayName,
             *Attributes.PlayerId.ToString());
     }
 }
@@ -338,7 +349,7 @@ bool APSPlayerPawn::TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn)
 {
     if (!bHasPossession)
     {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: Transfer possession failed - %s does not have the ball."), 
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: Transfer possession failed - %s does not have the ball."),
             *Attributes.DisplayName);
         return false;
     }
@@ -349,11 +360,20 @@ bool APSPlayerPawn::TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn)
         return false;
     }
 
-    LosePossession();
-    TargetPlayerPawn->GainPossession();
+    // Delegate to component; pawn Gain/LosePossession keeps bHasPossession in sync
+    if (PossessionComponent)
+    {
+        PossessionComponent->TransferPossessionTo(TargetPlayerPawn);
+        bHasPossession = false; // this pawn lost it
+    }
+    else
+    {
+        LosePossession();
+        TargetPlayerPawn->GainPossession();
+    }
 
-    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Transferred ball possession from %s to %s."), 
-        *Attributes.DisplayName, 
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Transferred ball possession from %s to %s."),
+        *Attributes.DisplayName,
         *TargetPlayerPawn->GetAttributes().DisplayName);
 
     return true;

@@ -5,6 +5,8 @@
 #include "PSPlayerAttributes.h"
 #include "PSFieldGrid.generated.h"
 
+class APSPlayerPawn;
+
 USTRUCT(BlueprintType)
 struct FPSFormationSpawnPoint
 {
@@ -60,4 +62,20 @@ public:
         float LineOfScrimmageYard,
         bool bIsOffense,
         bool bPlayTowardsGoalLineB = true) const;
+
+    /**
+     * Spawn pawns from a roster array, positioning them relative to the scrimmage line.
+     * Used by GameMode to replace its inline spawn loop (Epic C3).
+     * Returns the list of spawned pawns so the caller can cache them.
+     *
+     * @param Roster       Player attribute rows to spawn.
+     * @param ScrimmageX   World-space X position of the line of scrimmage (yards * 100).
+     * @param World        UWorld to spawn into.
+     * @return             Array of spawned APSPlayerPawn pointers.
+     */
+    static TArray<APSPlayerPawn*> SpawnPlayersFromRoster(
+        const TArray<FPlayerAttributes*>& Roster,
+        float ScrimmageX,
+        UWorld* World);
 };
+

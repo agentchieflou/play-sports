@@ -88,3 +88,19 @@ void APSBroadcastCamera::ToggleFreeCam(bool bEnabled)
         UE_LOG(LogTemp, Display, TEXT("APSBroadcastCamera: Debug free-cam disabled. Active tracking restored."));
     }
 }
+
+void APSBroadcastCamera::SetTargetActor(AActor* NewTarget)
+{
+    TargetActor = NewTarget;
+    if (NewTarget)
+    {
+        bIsFollowing = true;
+        UE_LOG(LogTemp, Display, TEXT("APSBroadcastCamera: Target set to %s. Following enabled."),
+            *NewTarget->GetName());
+    }
+    else
+    {
+        bIsFollowing = false;
+        UE_LOG(LogTemp, Warning, TEXT("APSBroadcastCamera: Target cleared. Following disabled."));
+    }
+}

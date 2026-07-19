@@ -1,3 +1,5 @@
+// PSScheduleEngine.h - renamed UPScheduleEngine -> UPSScheduleEngine (Epic C3 naming cleanup)
+// Prefix was missing 'PS' per module conventions (AGENTS.md).
 #pragma once
 
 #include "CoreMinimal.h"
@@ -19,8 +21,9 @@ struct FSeasonWeek
     bool bByeWeek = false;
 };
 
+/** Renamed from UPScheduleEngine -> UPSScheduleEngine (Epic C3: prefix fix). */
 UCLASS(Blueprintable)
-class PLAYSPORTS_API UPScheduleEngine : public UObject
+class PLAYSPORTS_API UPSScheduleEngine : public UObject
 {
     GENERATED_BODY()
 
