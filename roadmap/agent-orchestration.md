@@ -55,11 +55,11 @@ worker, worktree, branch, attempts, pr, score, events[]}}, duels[], escalations[
 **Goal:** A cheap model can actually complete one roadmap story: an agentic tool loop jailed to its own git worktree, with the harness (not the model) owning git.
 **Depends on:** 135
 
-- [ ] `worker/workspace.py`: worktree lifecycle — create `.worktrees/<branch>` off `main` (branch named per the `git-steward` convention), diff capture via `git diff main...HEAD`, cleanup; `.worktrees/` gitignored
-- [ ] `worker/tools.py`: model-facing tools — `read_file`, `write_file`, `list_dir`, `grep`, `run_check` (allowlist only: `lint_conventions.py`, `validate_data.py`, `pytest`), `finish(summary)`; all paths resolved and jailed to the worktree root, per-file size caps, per-run write caps
-- [ ] `worker/harness.py`: the loop — system prompt rendered from the matching coder-skill prose plus the story assignment; executes tool calls until `finish` or budget exhaustion (max iterations, token cap); full transcript persisted for scoring
-- [ ] Single-run CLI `python -m tools.orchestrator run --story <epic>.<story>`: worker completes the story; the harness commits, pushes, and opens the PR via `gh` — the model never runs git
-- [ ] Dry-run mode (diff printed, no push/PR) + harness tests driven by a scripted fake model
+- [x] `worker/workspace.py`: worktree lifecycle — create `.worktrees/<branch>` off `main` (branch named per the `git-steward` convention), diff capture via `git diff main...HEAD`, cleanup; `.worktrees/` gitignored
+- [x] `worker/tools.py`: model-facing tools — `read_file`, `write_file`, `list_dir`, `grep`, `run_check` (allowlist only: `lint_conventions.py`, `validate_data.py`, `pytest`), `finish(summary)`; all paths resolved and jailed to the worktree root, per-file size caps, per-run write caps
+- [x] `worker/harness.py`: the loop — system prompt rendered from the matching coder-skill prose plus the story assignment; executes tool calls until `finish` or budget exhaustion (max iterations, token cap); full transcript persisted for scoring
+- [x] Single-run CLI `python -m tools.orchestrator run --story <epic>.<story>`: worker completes the story; the harness commits, pushes, and opens the PR via `gh` — the model never runs git
+- [x] Dry-run mode (diff printed, no push/PR) + harness tests driven by a scripted fake model
 
 ### Epic 137: Benchmark Duel Mode
 

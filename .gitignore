@@ -77,3 +77,7 @@ DerivedDataCache/*
 # Local environment secrets (see .env.example)
 .env
 .env.local
+
+# Orchestrator (Track P): worker worktrees and run transcripts stay local
+.worktrees/
+eval/transcripts/
