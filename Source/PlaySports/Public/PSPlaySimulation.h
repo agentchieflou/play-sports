@@ -76,6 +76,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void TriggerSnap();
 
+    UFUNCTION(BlueprintCallable, Category = "Simulation")
+    void SetPlayPhase(EPlayPhase NewPhase);
+
 private:
     FPlayState CurrentState;
     TArray<FPlayerAttributes> OffenseRoster;
