@@ -224,11 +224,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Goal:** One event layer replaces hard-cast reach-through — the foundation Track A's Epic 26 (now re-scoped as its consumer) was always going to need.
 **Depends on:** —
 
-- [ ] `UPSTelemetryBus` `UWorldSubsystem`: publish/subscribe for gameplay events (snap, throw, catch, tackle, fumble, score, phase-change) with typed payloads
-- [ ] Ring-buffer event history with timestamps (Epic 41 replay and Epic 115 serialization consume this)
+- [x] `UPSTelemetryBus` `UWorldSubsystem`: publish/subscribe for gameplay events (snap, throw, catch, tackle, fumble, score, phase-change) with typed payloads
+- [x] Ring-buffer event history with timestamps (Epic 41 replay and Epic 115 serialization consume this)
 - [ ] Migrate `APSBall::OnBallOverlap` phase-forcing and pawn→GameMode calls onto bus events
 - [ ] Migrate GameMode scoring reads to bus subscription
-- [ ] Automation tests: publish/subscribe round-trip, history query, event ordering
+- [x] Automation tests: publish/subscribe round-trip, history query, event ordering
 
 ### Epic C2: Single Outcome Authority
 
