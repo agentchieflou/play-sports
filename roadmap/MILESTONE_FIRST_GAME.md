@@ -19,16 +19,16 @@ Tracks N/O/P.
 
 Already sufficient and done: Epics 3, 4, 6–11, 13, C1, C2, C4.
 
-- [ ] Epic 1.5 — end-to-end PIE test: headless automation variant per `Specs/PIE_Test_Spec.md`; the visual PIE confirmation is a human escalation item
-- [ ] Epic 2.4 — out-of-bounds and end-zone trigger volumes; **reconcile first** with Epic 11's already-checked touchdown detection (likely wiring/extending what exists via `APSFieldGrid`, per `Specs/Trigger_Volumes_Spec.md`)
-- [ ] Epic 2.1 / 2.2 — field geometry and markings: human editor sessions from `Specs/Field_Geometry_Spec.md` / `Specs/Field_Markings_Spec.md` (agents verify/refresh the specs only)
+- [x] Epic 1.5 — end-to-end PIE test: headless automation variant per `Specs/PIE_Test_Spec.md`; the visual PIE confirmation is a human escalation item
+- [x] Epic 2.4 — out-of-bounds and end-zone trigger volumes; **reconcile first** with Epic 11's already-checked touchdown detection (likely wiring/extending what exists via `APSFieldGrid`, per `Specs/Trigger_Volumes_Spec.md`)
+- [x] Epic 2.1 / 2.2 — field geometry and markings: human editor sessions from `Specs/Field_Geometry_Spec.md` / `Specs/Field_Markings_Spec.md` (agents verify/refresh the specs only)
 
 ## M1 — You can see the game
 
-- [ ] Epic 5.1 — UMG scoreboard widget bound to `FPlayState` (down, distance, clock)
-- [ ] Epic 5.2 — score display fed by the play result
-- [ ] Epic 5.3 — play-phase indicator
-- [ ] Epic 5.4 — post-play result banner
+- [x] Epic 5.1 — UMG scoreboard widget bound to `FPlayState` (down, distance, clock)
+- [x] Epic 5.2 — score display fed by the play result
+- [x] Epic 5.3 — play-phase indicator
+- [x] Epic 5.4 — post-play result banner
   (C++ widget classes + C1-bus bindings per `Specs/HUD_Spec.md`; UMG asset assembly is an editor escalation)
 
 ## M2 — Rules complete
@@ -37,8 +37,8 @@ Already sufficient and done: Epics 3, 4, 6–11, 13, C1, C2, C4.
 
 ## M3 — Consolidation gate closed (Phase 2 unlock)
 
-- [ ] Epic C3 fast-follow A — ball-action logic extracted from `APSPlayerPawn` into a dedicated component
-- [ ] Epic C3 fast-follow B — single roster source of truth across `PSGameMode`/`PSPlayerPawn`/`PSPlaySimulation`
+- [x] Epic C3 fast-follow A — ball-action logic extracted from `APSPlayerPawn` into a dedicated component
+- [x] Epic C3 fast-follow B — single roster source of truth across `PSGameMode`/`PSPlayerPawn`/`PSPlaySimulation`
 
 ## M4 — A human holds a controller *(parallel with M5 once M3 is done)*
 
