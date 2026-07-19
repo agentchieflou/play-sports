@@ -5,6 +5,7 @@
 #include "PSPlayerPawn.h"
 #include "PSGameMode.h"
 #include "PSPlaySimulation.h"
+#include "PSTelemetryBus.h"
 
 APSBall::APSBall()
 {
@@ -153,6 +154,8 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
             return;
         }
 
+        UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>();
+
         if (bIsFumbled)
         {
             FPlayerAttributes Attr = PlayerPawn->GetAttributes();
@@ -166,6 +169,18 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
                 PlayerPawn->GainPossession();
                 bIsFumbled = false;
 
+                // Publish fumble-recovery event on bus
+                if (Bus)
+                {
+                    FPSTelemetryFumbleEvent FumbleEvt;
+                    FumbleEvt.FumblerName  = TEXT("Unknown");
+                    FumbleEvt.RecoveryName = Attr.DisplayName;
+                    FumbleEvt.YardLine     = 0;
+                    FumbleEvt.bIsTurnover  = false;
+                    Bus->PublishFumble(FumbleEvt);
+                }
+
+                // Keep direct phase set until C2 routes control through bus
                 if (GM->PlaySimulation)
                 {
                     GM->PlaySimulation->SetPlayPhase(EPlayPhase::BallCarrierMovement);
@@ -191,6 +206,18 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
                 AttachToCarrier(PlayerPawn, TEXT("HandSocket"));
                 PlayerPawn->GainPossession();
 
+                // Publish catch event on bus
+                if (Bus)
+                {
+                    FPSTelemetryCatchEvent CatchEvt;
+                    CatchEvt.ReceiverName   = Attr.DisplayName;
+                    CatchEvt.CatchLocation  = GetActorLocation();
+                    CatchEvt.YardsGained    = 0; // updated by sim when play ends
+                    CatchEvt.bIsInterception = false;
+                    Bus->PublishCatch(CatchEvt);
+                }
+
+                // Keep direct phase set until C2 routes control through bus
                 if (GM->PlaySimulation)
                 {
                     GM->PlaySimulation->SetPlayPhase(EPlayPhase::BallCarrierMovement);
@@ -214,6 +241,18 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
                 AttachToCarrier(PlayerPawn, TEXT("HandSocket"));
                 PlayerPawn->GainPossession();
 
+                // Publish interception as a catch event on bus (bIsInterception = true)
+                if (Bus)
+                {
+                    FPSTelemetryCatchEvent IntEvt;
+                    IntEvt.ReceiverName    = Attr.DisplayName;
+                    IntEvt.CatchLocation   = GetActorLocation();
+                    IntEvt.YardsGained     = 0;
+                    IntEvt.bIsInterception = true;
+                    Bus->PublishCatch(IntEvt);
+                }
+
+                // Keep direct phase set until C2 routes control through bus
                 if (GM->PlaySimulation)
                 {
                     GM->PlaySimulation->SetPlayPhase(EPlayPhase::BallCarrierMovement);
@@ -242,6 +281,20 @@ void APSBall::OnBallBounce(const FHitResult& ImpactResult, const FVector& Impact
         if (Phase == EPlayPhase::Snap || Phase == EPlayPhase::PassRush)
         {
             UE_LOG(LogTemp, Display, TEXT("APSBall: Ball bounced on the ground before being caught. Pass is Incomplete!"));
+
+            // Publish phase-change (incomplete pass) event on bus
+            UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>();
+            if (Bus)
+            {
+                FPSTelemetryPhaseChangeEvent PhaseEvt;
+                PhaseEvt.OldPhase          = TEXT("PassRush");
+                PhaseEvt.NewPhase          = TEXT("Scoring");
+                PhaseEvt.GameClockSeconds  = GM->PlaySimulation->GetPlayState().GameClockSeconds;
+                PhaseEvt.PlayClockSeconds  = GM->PlaySimulation->GetPlayState().PlayClockSeconds;
+                Bus->PublishPhaseChange(PhaseEvt);
+            }
+
+            // Keep direct phase set until C2 routes control through bus
             GM->PlaySimulation->SetPlayPhase(EPlayPhase::Scoring);
         }
     }

@@ -140,6 +140,14 @@ void APSGameMode::StartPlay()
             {
                 PlaySimulation->InitializePlay(OffenseRoster, DefenseRoster);
                 UE_LOG(LogTemp, Display, TEXT("PSGameMode: Initialized PlaySimulation with %d Offense and %d Defense players."), OffenseRoster.Num(), DefenseRoster.Num());
+
+                // Subscribe GameMode scoring to the telemetry bus
+                UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>();
+                if (Bus)
+                {
+                    Bus->OnScore.AddDynamic(this, &APSGameMode::OnBusScoreEvent);
+                    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Subscribed scoring handler to TelemetryBus."));
+                }
             }
 
             TArray<AActor*> ExistingPawns;
@@ -205,26 +213,35 @@ void APSGameMode::Tick(float DeltaSeconds)
 
         if (PreviousPhase != CurrentPhase)
         {
-            FString PhaseStr;
-            switch (CurrentPhase)
+            FString OldPhaseStr;
+            FString NewPhaseStr;
+            auto PhaseToString = [](EPlayPhase P) -> FString
             {
-            case EPlayPhase::PreSnap: PhaseStr = TEXT("PreSnap"); break;
-            case EPlayPhase::Snap: PhaseStr = TEXT("Snap"); break;
-            case EPlayPhase::PassRush: PhaseStr = TEXT("PassRush"); break;
-            case EPlayPhase::BallCarrierMovement: PhaseStr = TEXT("BallCarrierMovement"); break;
-            case EPlayPhase::Scoring: PhaseStr = TEXT("Scoring"); break;
-            default: PhaseStr = TEXT("Unknown"); break;
-            }
-            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Play Phase Transitioned to %s at simulation time %f"), *PhaseStr, PlaySimulation->GetPlayState().GameTimeSeconds);
-
-            if (CurrentPhase == EPlayPhase::Scoring)
-            {
-                FPlayResult PlayResult = PlaySimulation->GetPlayResult();
-                if (PlayResult.ResultType == EPlayResultType::Touchdown)
+                switch (P)
                 {
-                    HomeScore += 6;
-                    UE_LOG(LogTemp, Display, TEXT("PSGameMode: TOUCHDOWN! Offense scores 6 points. HomeScore: %d, AwayScore: %d"), HomeScore, AwayScore);
+                case EPlayPhase::PreSnap:             return TEXT("PreSnap");
+                case EPlayPhase::Snap:                return TEXT("Snap");
+                case EPlayPhase::PassRush:            return TEXT("PassRush");
+                case EPlayPhase::BallCarrierMovement: return TEXT("BallCarrierMovement");
+                case EPlayPhase::Scoring:             return TEXT("Scoring");
+                default:                              return TEXT("Unknown");
                 }
+            };
+            OldPhaseStr = PhaseToString(PreviousPhase);
+            NewPhaseStr = PhaseToString(CurrentPhase);
+
+            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Play Phase Transitioned to %s at simulation time %f"), *NewPhaseStr, PlaySimulation->GetPlayState().GameTimeSeconds);
+
+            // Publish phase-change event on bus
+            UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>();
+            if (Bus)
+            {
+                FPSTelemetryPhaseChangeEvent PhaseEvt;
+                PhaseEvt.OldPhase         = OldPhaseStr;
+                PhaseEvt.NewPhase         = NewPhaseStr;
+                PhaseEvt.GameClockSeconds = PlaySimulation->GetPlayState().GameClockSeconds;
+                PhaseEvt.PlayClockSeconds = PlaySimulation->GetPlayState().PlayClockSeconds;
+                Bus->PublishPhaseChange(PhaseEvt);
             }
         }
     }
@@ -247,6 +264,18 @@ void APSGameMode::ExecuteSnap()
     if (PlaySimulation)
     {
         PlaySimulation->TriggerSnap();
+    }
+
+    // Publish snap event on bus
+    UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (Bus && PlaySimulation)
+    {
+        FPSTelemetrySnapEvent SnapEvt;
+        SnapEvt.YardLine          = PlaySimulation->GetPlayState().YardLine;
+        SnapEvt.Down              = PlaySimulation->GetPlayState().Down;
+        SnapEvt.Distance          = PlaySimulation->GetPlayState().Distance;
+        SnapEvt.GameClockSeconds  = PlaySimulation->GetPlayState().GameClockSeconds;
+        Bus->PublishSnap(SnapEvt);
     }
 
     PairLinemen();
@@ -476,4 +505,18 @@ void APSGameMode::ResetPawnPositions()
         Center->GainPossession();
         UE_LOG(LogTemp, Display, TEXT("PSGameMode: Reset play cycle. Re-attached ActiveBall to Center at scrimmage line."));
     }
+}
+
+void APSGameMode::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
+{
+    if (Event.bHomeScored)
+    {
+        HomeScore += Event.Points;
+    }
+    else
+    {
+        AwayScore += Event.Points;
+    }
+    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Score event via bus — %s (%d pts). Home: %d, Away: %d"),
+        *Event.ScoreType, Event.Points, HomeScore, AwayScore);
 }
