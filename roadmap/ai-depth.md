@@ -4,6 +4,12 @@ Deepens Phase 2's behavior systems into adaptive, individualized, inspectable AI
 calibration machinery that keeps the simulation statistically honest. Pure code; prime territory
 for the AI/behavior-specialist archetype. Sizing/mode legend: see `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** all AI perception in this track subscribes to the C1
+`UPSTelemetryBus` (never polls or casts); Epic 83's statistical mode is C2's explicit quick-sim
+flag; Epic 85's debug overlay renders C1 event/decision streams; Epic 82 plugs into the live
+eval gym (`tools/score_agent_run.py`, `eval/SCORECARD.md`) for model routing evidence.
+Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
+
 ### Epic 78: Adaptive Opponent Learning
 
 **Size/Mode:** L / code

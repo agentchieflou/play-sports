@@ -4,6 +4,12 @@ Deepens core Epic 4's basic broadcast camera into a full presentation layer: an 
 camera brain, physical rig simulations, replay, auto-highlights, and analysis tooling.
 Sizing/mode legend: see `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** `APSBroadcastCamera` exists on `main` (follow/bounds/
+framing/free-cam from Epic 4) but its `TargetActor` is never assigned — **Phase 1.5 C3 wires it
+via possession events**; Epic 38 starts from that wired camera, not from scratch. Epic 41's
+ring buffer is C1's event history (don't build a second one). Architecture rules apply: new
+camera behaviors are components/classes, each epic ships tests.
+
 ### Epic 38: Camera Director AI
 
 **Size/Mode:** L / code
@@ -39,9 +45,9 @@ Sizing/mode legend: see `ROADMAP.md`.
 
 **Size/Mode:** XL / code
 **Goal:** Any recent play can be re-rendered from any camera with scrubbing and slow motion.
-**Depends on:** 26, 38, Core 17 (determinism hooks)
+**Depends on:** C1, 26, 38, Core 17 (determinism hooks)
 
-- [ ] World-state ring buffer recording (piggybacks the telemetry bus history)
+- [ ] Replay recording joins C1's event ring buffer with Epic 26's snapshot history (no third buffer)
 - [ ] Deterministic re-simulation or state-playback of the buffered play
 - [ ] Scrub/pause/slow-mo/frame-step transport controls
 - [ ] Free camera + all rig cameras available inside replay

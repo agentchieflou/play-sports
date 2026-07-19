@@ -1,0 +1,22 @@
+{
+  "pr": 30,
+  "title": "Implement timed state transitions and snap execution mechanics",
+  "branch": "epic-7/ball-snap",
+  "agent": "antigravity",
+  "model": "gemini-3-pro",
+  "archetype": "gameplay-cpp-story",
+  "task": "cpp-system-story",
+  "scored_at": "2026-07-19T12:29:01.598213+00:00",
+  "merged_at": "2026-07-19T01:53:43Z",
+  "scores": {
+    "ci_green": true,
+    "in_scope": true,
+    "tests_ok": false,
+    "lint_ok": true,
+    "data_ok": true,
+    "roadmap_tick": true,
+    "commits": 3,
+    "efficiency": 6
+  },
+  "composite": 86
+}

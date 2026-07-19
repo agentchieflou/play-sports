@@ -97,6 +97,34 @@ Verification rules for agents:
   editor-authored content, visuals, performance. Editor specs in `Specs/` remain the handoff
   for that work.
 
+## Architecture rules (learned from the Phase 0/1 review, 2026-07-19)
+
+A review of the first ~35 merged story PRs found the pipeline's *process* solid but its
+*architecture* drifting: story-by-story agents optimize locally. These rules are therefore
+mandatory story-level requirements — Planners encode them in plans, Reviewers reject diffs
+that violate them:
+
+1. **New system = new class/component.** A story introducing a mechanic creates a named
+   `UActorComponent`/class (the plan names it). Adding more than ~50 lines to `APSGameMode`,
+   `APSPlayerPawn`, or `UPSPlaySimulation` requires explicit justification — these three
+   absorbed all of Epics 8–9 and are already god-class risks.
+2. **Every C++ story ships a headless automation test** (`Source/PlaySports/Private/Tests/`)
+   unless the plan states why it can't. Core gameplay currently has near-zero coverage; the
+   save system (4 tests) is the pattern to follow.
+3. **Consume what exists.** Before writing new code, check whether an existing system covers
+   the story — wiring an orphan beats writing a twin. Known orphans as of the review:
+   `APSFieldGrid` (unused; GameMode hardcodes a spawn grid) and `APSBroadcastCamera`
+   (`TargetActor` never assigned).
+4. **Tuning lives in DataTables.** `FMovementTuningRow` is the pattern; no new gameplay magic
+   numbers in code (the review found hardcoded throw/catch/interception/completion formulas).
+   JSON loading goes through `UPSDataIngestion` — never a new ad-hoc parser.
+5. **Communicate via events, not casts.** Once Phase 1.5's `UPSTelemetryBus` (C1) lands,
+   cross-system communication subscribes/publishes on the bus; `Cast<APSGameMode>`
+   reach-through is a review-rejection.
+6. **One authority per fact.** The play's outcome, possession, and roster each have exactly
+   one source of truth (Phase 1.5 C2/C3 establish them); duplicating state into copies is a
+   review-rejection.
+
 ## Agentic workflow / tool connectors
 
 This repo is set up so multiple AI coding tools can work in it with shared context:

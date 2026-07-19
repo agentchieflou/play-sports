@@ -3,6 +3,11 @@
 Deepens core Epic 23's audio pipeline into full broadcast sound: commentary, reactive crowd
 audio, on-field detail, and the mix that binds them. Sizing/mode legend: see `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** every audio trigger in this track is a C1
+`UPSTelemetryBus` subscription — the event bus is the audio event bus; Epic 96's commentary
+event model reads C1 history + Epic 92 stats. No audio system polls game state or casts to
+GameMode. Tests per epic where headless-checkable (event→cue mapping logic).
+
 ### Epic 96: Commentary Engine
 
 **Size/Mode:** XL / mixed

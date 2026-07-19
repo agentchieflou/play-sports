@@ -211,7 +211,65 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 
 ---
 
+## Phase 1.5 — Consolidation Checkpoint (clear before Phase 2)
+
+Added after the 2026-07-19 architecture review of the first ~35 merged story PRs (findings in
+`AGENTS.md` → "Architecture rules"). Phase 1 built real systems fast, but coupling, duplicated
+state, and untested core gameplay must be consolidated before 22-agent AI work compounds them.
+**Phase 2 must not start until C1–C4 are complete.** All four are code-mode and test-required.
+
+### Epic C1: Telemetry/Event Bus Foundation
+
+**Size/Mode:** M / code
+**Goal:** One event layer replaces hard-cast reach-through — the foundation Track A's Epic 26 (now re-scoped as its consumer) was always going to need.
+**Depends on:** —
+
+- [ ] `UPSTelemetryBus` `UWorldSubsystem`: publish/subscribe for gameplay events (snap, throw, catch, tackle, fumble, score, phase-change) with typed payloads
+- [ ] Ring-buffer event history with timestamps (Epic 41 replay and Epic 115 serialization consume this)
+- [ ] Migrate `APSBall::OnBallOverlap` phase-forcing and pawn→GameMode calls onto bus events
+- [ ] Migrate GameMode scoring reads to bus subscription
+- [ ] Automation tests: publish/subscribe round-trip, history query, event ordering
+
+### Epic C2: Single Outcome Authority
+
+**Size/Mode:** M / code
+**Goal:** `UPSPlaySimulation` becomes the sole authority on play outcomes, fed by physical events; the competing statistical roll survives only as an explicit headless quick-sim mode.
+**Depends on:** C1
+
+- [ ] Sim consumes C1 events (catch/tackle/score) instead of independent statistical rolls during physical play
+- [ ] `ResolvePlayResult` statistical path preserved behind an explicit quick-sim flag (Epic 20's headless season sim needs it)
+- [ ] Scoring, down/distance, and drive state advance from the single authority — delete the duplicate/desynced paths
+- [ ] Automation tests: physical-event-driven outcome, quick-sim flag equivalence, no dual-write
+
+### Epic C3: De-God-Class & Orphan Wiring
+
+**Size/Mode:** L / code
+**Goal:** The three overloaded classes shed responsibilities into components; built-but-unwired systems get consumed or deleted.
+**Depends on:** C1
+
+- [ ] Extract `UPSPossessionComponent` (possession state + transfer API) and ball-action logic out of `APSPlayerPawn`
+- [ ] Formation spawning goes through `APSFieldGrid` (delete GameMode's hardcoded spawn grid); field constants live in one place
+- [ ] Wire `APSBroadcastCamera` (assign `TargetActor` from possession events via C1)
+- [ ] Single roster source of truth (pawns/sim reference, don't copy); cache pawn lookups (no per-call `GetAllActorsOfClass`, no per-frame tuning copies)
+- [ ] Naming cleanup: `UPScheduleEngine` → `UPSScheduleEngine`, unify `FPS*`/`F*` struct prefix per conventions
+- [ ] Automation tests: possession component transfer, formation spawn via FieldGrid
+
+### Epic C4: Core Gameplay Test Retrofit
+
+**Size/Mode:** M / code
+**Goal:** The untested core loop gets regression coverage; rules logic becomes testable by extraction.
+**Depends on:** C2, C3
+
+- [ ] Extract catch/interception/fumble probability rules from `APSBall::OnBallOverlap` into pure, testable functions (tuning via DataTable per AGENTS.md rule 4)
+- [ ] Automation tests: movement math (accel/turn/momentum), possession transfer, catch resolution, phase progression, down/distance advancement
+- [ ] `APSFunctionalGym` asserts real behavior (scripted play in the gym map) instead of auto-succeeding
+- [ ] Async save `LastAsyncLoadResult` single-slot hazard fixed (per-request results)
+
+---
+
 ## Phase 2 — AI & Playbook
+
+**Depends on: Phase 1.5 (C1–C4) complete.** Behavior trees subscribe to the C1 bus and trust the C2 single authority — building 22-agent AI on the pre-consolidation coupling is explicitly forbidden.
 
 ### Epic 14: Skill-Position Behavior (QB/RB/WR/TE)
 

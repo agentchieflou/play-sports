@@ -24,6 +24,11 @@ code and change no files.
 ```
 Story: <verbatim>
 Approach: <2-6 sentences: what gets built and how it fits existing systems>
+New classes: <named UActorComponent/class this story creates, or "none - justification"
+  (AGENTS.md architecture rule 1: mechanics get their own class, not god-class bolt-ons)>
+Reuses: <existing systems consumed - check the orphan list in AGENTS.md architecture rules
+  before proposing new code>
+Test: <the automation test this story adds (rule 2), or justification for none>
 Files:
   - <path> — <create|edit> — <what changes>
 Acceptance criteria:

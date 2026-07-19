@@ -4,6 +4,13 @@ Deepens core Epic 20's season loop into a living league: player acquisition, eco
 coaching, human stories, and history. Almost entirely pure code + data — excellent territory for
 parallel agent work while gameplay tracks proceed. Sizing/mode legend: see `ROADMAP.md`.
 
+**Reality note (2026-07-19 review):** persistence is ready — `UPSSaveSubsystem` (versioned,
+CRC, backup, async, 4 tests) and `Specs/Save_Architecture.md`'s Franchise category are the
+mandated save path for every epic here. The schedule generator becomes `UPSScheduleEngine`
+after C3's rename. Epic 92's stat pipeline is a C1 bus subscriber (events are already
+timestamped); drive/clock state from core Epics 10/12 exists in the sim. No epic here invents
+its own persistence or event capture.
+
 ### Epic 86: Draft & Scouting System
 
 **Size/Mode:** L / code

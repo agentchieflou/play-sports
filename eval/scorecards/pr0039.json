@@ -1,0 +1,22 @@
+{
+  "pr": 39,
+  "title": "Implement contested push contests and block shedding mechanics",
+  "branch": "epic-9/contested-blocking",
+  "agent": "antigravity",
+  "model": "gemini-3-pro",
+  "archetype": "gameplay-cpp-story",
+  "task": "cpp-system-story",
+  "scored_at": "2026-07-19T12:29:05.983267+00:00",
+  "merged_at": "2026-07-19T11:19:31Z",
+  "scores": {
+    "ci_green": true,
+    "in_scope": true,
+    "tests_ok": false,
+    "lint_ok": true,
+    "data_ok": true,
+    "roadmap_tick": true,
+    "commits": 1,
+    "efficiency": 10
+  },
+  "composite": 90
+}

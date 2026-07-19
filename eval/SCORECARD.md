@@ -6,14 +6,20 @@ Model-assignment guidance in `GEMINI.md` defers to this table.
 | Agent | Model | Archetype | Runs | Mean | Latest | Trend |
 |---|---|---|---|---|---|---|
 | antigravity | gemini-3-pro | data-content-author | 1 | 60 | 60 | → |
-| antigravity | gemini-3-pro | gameplay-cpp-story | 2 | 90 | 90 | → |
+| antigravity | gemini-3-pro | gameplay-cpp-story | 9 | 90 | 90 | → |
 | claude | sonnet-5 | gameplay-cpp-story | 1 | 100 | 100 | → |
 
 ## Recent runs
 
 | PR | Agent | Model | Archetype | Composite | Title |
 |---|---|---|---|---|---|
+| #43 | antigravity | gemini-3-pro | gameplay-cpp-story | 90 | Implement Special Teams kickoff, punt, and field goal simula |
+| #39 | antigravity | gemini-3-pro | gameplay-cpp-story | 90 | Implement contested push contests and block shedding mechani |
+| #36 | antigravity | gemini-3-pro | gameplay-cpp-story | 90 | Implement C++ tackle resolution and down-by-contact mechanic |
+| #30 | antigravity | gemini-3-pro | gameplay-cpp-story | 86 | Implement timed state transitions and snap execution mechani |
+| #29 | antigravity | gemini-3-pro | gameplay-cpp-story | 90 | Create APSBall actor with projectile and bounce physics |
 | #28 | claude | sonnet-5 | gameplay-cpp-story | 100 | Epic 116: Versioned save system architecture |
 | #27 | antigravity | gemini-3-pro | gameplay-cpp-story | 90 | Implement data-driven movement tuning configurations |
 | #22 | antigravity | gemini-3-pro | gameplay-cpp-story | 90 | Implement dynamic acceleration/deceleration curves on APSPla |
-| #1 | antigravity | gemini-3-pro | data-content-author | 60 | Expand sample players JSON to 22 players |
+| #17 | antigravity | gemini-3-pro | gameplay-cpp-story | 90 | Create APSBroadcastCamera tracking sideline actor |
+| #12 | antigravity | gemini-3-pro | gameplay-cpp-story | 90 | Create APSPlayerPawn initialized from attributes |

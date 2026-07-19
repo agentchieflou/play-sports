@@ -1,0 +1,22 @@
+{
+  "pr": 29,
+  "title": "Create APSBall actor with projectile and bounce physics",
+  "branch": "epic-7/ball-actor",
+  "agent": "antigravity",
+  "model": "gemini-3-pro",
+  "archetype": "gameplay-cpp-story",
+  "task": "cpp-system-story",
+  "scored_at": "2026-07-19T12:29:00.315799+00:00",
+  "merged_at": "2026-07-19T01:42:31Z",
+  "scores": {
+    "ci_green": true,
+    "in_scope": true,
+    "tests_ok": false,
+    "lint_ok": true,
+    "data_ok": true,
+    "roadmap_tick": true,
+    "commits": 1,
+    "efficiency": 10
+  },
+  "composite": 90
+}
