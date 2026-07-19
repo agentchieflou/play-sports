@@ -98,7 +98,7 @@ bool FPSC3FieldGridFormationSpawnTest::RunTest(const FString& Parameters)
             else
             {
                 TestEqual(TEXT("Non-QB pawn is spawned on the scrimmage line"),
-                    Pawn->GetActorLocation().X, ScrimmageX);
+                    static_cast<double>(Pawn->GetActorLocation().X), static_cast<double>(ScrimmageX));
             }
         }
     }
