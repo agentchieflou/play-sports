@@ -83,6 +83,12 @@ void APSOffenseController::InitializeBlackboardState()
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Object>(TEXT("BallCarrier"));
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Bool>(TEXT("bHasPossession"));
 
+            UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: TemporaryBBData key count=%d"), TemporaryBBData->Keys.Num());
+            for (int32 i = 0; i < TemporaryBBData->Keys.Num(); ++i)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("  Key %d: Name=%s"), i, *TemporaryBBData->Keys[i].EntryName.ToString());
+            }
+
             if (BB)
             {
                 bool bInitResult = BB->InitializeBlackboard(*TemporaryBBData);
