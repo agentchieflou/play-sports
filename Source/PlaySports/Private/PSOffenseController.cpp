@@ -84,7 +84,11 @@ void APSOffenseController::InitializeBlackboardState()
             AddKey(TemporaryBBData, TEXT("BallCarrier"), UBlackboardKeyType_Object::StaticClass());
             AddKey(TemporaryBBData, TEXT("bHasPossession"), UBlackboardKeyType_Bool::StaticClass());
 
-            UseBlackboard(TemporaryBBData, Blackboard);
+            UBlackboardComponent* RawBB = nullptr;
+            if (UseBlackboard(TemporaryBBData, RawBB))
+            {
+                Blackboard = RawBB;
+            }
         }
     }
 
