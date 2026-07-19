@@ -96,7 +96,7 @@ void APSOffenseController::InitializeBlackboardState()
         }
     }
 
-    UBlackboardComponent* BB = GetBlackboardComponent();
+    BB = GetBlackboardComponent();
     if (!BB)
     {
         return;
