@@ -19,6 +19,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Lint conventions
+        shell: powershell
+        run: |
+          python tools/lint_conventions.py
+          if ($LASTEXITCODE -ne 0) { throw "Convention linter failed" }
+
+      - name: Validate data contracts
+        shell: powershell
+        run: |
+          python tools/validate_data.py
+          if ($LASTEXITCODE -ne 0) { throw "Data validation failed" }
+
       - name: Build PlaySportsEditor
         shell: powershell
         run: |

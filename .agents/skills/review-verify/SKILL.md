@@ -24,10 +24,12 @@ evidence). A rejected review returns to the Supervisor, never directly to the Co
 
 1. **Scope**: the diff touches only the story's files + `ROADMAP.md`. Anything else is scope
    creep — flag it, don't fix it.
-2. **Conventions** (from `AGENTS.md`, loaded automatically): 4-space indent, Allman braces,
-   `U`/`A`/`F`/`E` + `PS*` prefixes, Blueprint-accessible `UCLASS`/`USTRUCT`/`UFUNCTION`
-   decorations, Public/Private header split, module deps added in `PlaySports.Build.cs` and not
-   duplicated.
+2. **Conventions — delegate the mechanical part**: run `python tools/lint_conventions.py` and
+   `python tools/validate_data.py` (CI runs them too; a red lint step is an automatic
+   request-changes). Only review by eye what the linter can't see: Blueprint-accessible
+   `UCLASS`/`USTRUCT`/`UFUNCTION` decorations, module deps added in `PlaySports.Build.cs`
+   exactly once, and sensible naming beyond prefixes. Linter warnings (style tier) are
+   non-blocking context, not rejection grounds.
 3. **Honest verification**: the change report must NOT claim the code was built or tested (no UE
    toolchain is assumed on agent machines). If it claims a build, reject and ask for the honest
    phrasing: "syntax/API reviewed only."
