@@ -157,6 +157,57 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
             PhaseTimer = 0.f;
         }
         break;
+    case EPlayPhase::Kickoff:
+        if (PhaseTimer >= 2.0f)
+        {
+            CurrentPlayResult.ResultType = EPlayResultType::KickoffResult;
+            if (FMath::FRand() < 0.60f)
+            {
+                CurrentPlayResult.YardsGained = 25;
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Kickoff resulted in Touchback."));
+            }
+            else
+            {
+                CurrentPlayResult.YardsGained = FMath::RandRange(15, 30);
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Kickoff returned to own %d yard line."), CurrentPlayResult.YardsGained);
+            }
+            CurrentState.Phase = EPlayPhase::Scoring;
+            PhaseTimer = 0.f;
+        }
+        break;
+    case EPlayPhase::Punt:
+        if (PhaseTimer >= 2.0f)
+        {
+            CurrentPlayResult.ResultType = EPlayResultType::PuntResult;
+            CurrentPlayResult.YardsGained = FMath::RandRange(35, 45);
+            UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Punt net distance: %d yards."), CurrentPlayResult.YardsGained);
+            CurrentState.Phase = EPlayPhase::Scoring;
+            PhaseTimer = 0.f;
+        }
+        break;
+    case EPlayPhase::FieldGoal:
+        if (PhaseTimer >= 2.0f)
+        {
+            float DistToGoal = 100.f - CurrentState.YardLine + 17.f;
+            float SuccessChance = 0.95f;
+            if (DistToGoal > 50.f) SuccessChance = 0.30f;
+            else if (DistToGoal > 40.f) SuccessChance = 0.70f;
+            else if (DistToGoal > 30.f) SuccessChance = 0.85f;
+
+            if (FMath::FRand() < SuccessChance)
+            {
+                CurrentPlayResult.ResultType = EPlayResultType::FieldGoalGood;
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Field Goal is GOOD from %.1f yards!"), DistToGoal);
+            }
+            else
+            {
+                CurrentPlayResult.ResultType = EPlayResultType::FieldGoalMissed;
+                UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: Field Goal is MISSED from %.1f yards!"), DistToGoal);
+            }
+            CurrentState.Phase = EPlayPhase::Scoring;
+            PhaseTimer = 0.f;
+        }
+        break;
     case EPlayPhase::Scoring:
         if (PhaseTimer >= 5.0f)
         {
@@ -310,19 +361,30 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     }
 
     // Update yard line
-    CurrentState.YardLine += CurrentPlayResult.YardsGained;
+    if (CurrentPlayResult.ResultType != EPlayResultType::KickoffResult && 
+        CurrentPlayResult.ResultType != EPlayResultType::PuntResult &&
+        CurrentPlayResult.ResultType != EPlayResultType::FieldGoalGood &&
+        CurrentPlayResult.ResultType != EPlayResultType::FieldGoalMissed)
+    {
+        CurrentState.YardLine += CurrentPlayResult.YardsGained;
+    }
 
-    if (CurrentState.YardLine >= 100)
+    if (CurrentState.YardLine >= 100 && 
+        CurrentPlayResult.ResultType != EPlayResultType::KickoffResult &&
+        CurrentPlayResult.ResultType != EPlayResultType::PuntResult)
     {
         CurrentState.YardLine = 100;
         CurrentPlayResult.ResultType = EPlayResultType::Touchdown;
     }
-    else if (CurrentState.YardLine <= 0)
+    else if (CurrentState.YardLine <= 0 && 
+             CurrentPlayResult.ResultType != EPlayResultType::KickoffResult &&
+             CurrentPlayResult.ResultType != EPlayResultType::PuntResult)
     {
         CurrentState.YardLine = 1;
     }
 
     bool bTurnover = false;
+    EPlayPhase NextPhase = EPlayPhase::PreSnap;
 
     // Touchdown Score Tracking
     if (CurrentPlayResult.ResultType == EPlayResultType::Touchdown)
@@ -352,13 +414,10 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         }
 
         CurrentDriveSummary.Result = TEXT("Touchdown");
-        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Drive resets."), 
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Next play: Kickoff."), 
             CurrentState.HomeScore, CurrentState.AwayScore);
 
-        CurrentState.YardLine = 20;
-        CurrentState.Down = 1;
-        CurrentState.Distance = 10;
-        CurrentState.YardLineToGain = 30;
+        NextPhase = EPlayPhase::Kickoff;
         bTurnover = true;
     }
     // Safety Score Tracking
@@ -374,14 +433,56 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         }
 
         CurrentDriveSummary.Result = TEXT("Safety");
-        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: SAFETY! Score: Home %d - Away %d. Drive resets via kickoff."), 
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: SAFETY! Score: Home %d - Away %d. Next play: Kickoff."), 
             CurrentState.HomeScore, CurrentState.AwayScore);
 
-        CurrentState.YardLine = 20;
+        NextPhase = EPlayPhase::Kickoff;
+        bTurnover = true;
+    }
+    // Kickoff Outcome Resolution
+    else if (CurrentPlayResult.ResultType == EPlayResultType::KickoffResult)
+    {
+        CurrentState.YardLine = CurrentPlayResult.YardsGained;
         CurrentState.Down = 1;
         CurrentState.Distance = 10;
-        CurrentState.YardLineToGain = 30;
+        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+        bTurnover = true; // Swap possession to receiving team
+        NextPhase = EPlayPhase::PreSnap;
+    }
+    // Punt Outcome Resolution
+    else if (CurrentPlayResult.ResultType == EPlayResultType::PuntResult)
+    {
+        CurrentState.YardLine = FMath::Clamp(100 - (CurrentState.YardLine + CurrentPlayResult.YardsGained), 1, 99);
+        CurrentState.Down = 1;
+        CurrentState.Distance = 10;
+        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+        bTurnover = true; // Swap possession to receiving team
+        NextPhase = EPlayPhase::PreSnap;
+    }
+    // Field Goal Good Resolution
+    else if (CurrentPlayResult.ResultType == EPlayResultType::FieldGoalGood)
+    {
+        if (CurrentState.bHomeHasPossession)
+        {
+            CurrentState.HomeScore += 3;
+        }
+        else
+        {
+            CurrentState.AwayScore += 3;
+        }
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Field Goal points recorded. Next play: Kickoff."));
+        NextPhase = EPlayPhase::Kickoff;
         bTurnover = true;
+    }
+    // Field Goal Missed Resolution
+    else if (CurrentPlayResult.ResultType == EPlayResultType::FieldGoalMissed)
+    {
+        CurrentState.YardLine = FMath::Clamp(100 - CurrentState.YardLine, 20, 80);
+        CurrentState.Down = 1;
+        CurrentState.Distance = 10;
+        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+        bTurnover = true;
+        NextPhase = EPlayPhase::PreSnap;
     }
     else
     {
@@ -395,16 +496,32 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         }
         else
         {
-            CurrentState.Down++;
-            if (CurrentState.Down > 4)
+            if (CurrentState.Down == 3) // If next down is 4th down
             {
-                CurrentDriveSummary.Result = TEXT("Turnover on Downs");
-                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TURNOVER ON DOWNS!"));
-                bTurnover = true;
+                CurrentState.Down = 4;
+                if (CurrentState.YardLine >= 60)
+                {
+                    NextPhase = EPlayPhase::FieldGoal;
+                }
+                else
+                {
+                    NextPhase = EPlayPhase::Punt;
+                }
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: 4th Down. Offense chooses Special Teams: %s"), *UEnum::GetValueAsString(NextPhase));
             }
             else
             {
-                CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
+                CurrentState.Down++;
+                if (CurrentState.Down > 4)
+                {
+                    CurrentDriveSummary.Result = TEXT("Turnover on Downs");
+                    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TURNOVER ON DOWNS!"));
+                    bTurnover = true;
+                }
+                else
+                {
+                    CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
+                }
             }
         }
     }
@@ -426,17 +543,26 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
 
         CurrentState.bHomeHasPossession = !CurrentState.bHomeHasPossession;
 
-        CurrentState.YardLine = 100 - CurrentState.YardLine;
-        CurrentState.YardLine = FMath::Clamp(CurrentState.YardLine, 1, 99);
-        CurrentState.Down = 1;
-        CurrentState.Distance = 10;
-        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+        // If it was a normal turnover (not Kickoff/Punt/FG/Touchdown which handled this already), flip perspective
+        if (CurrentPlayResult.ResultType != EPlayResultType::KickoffResult && 
+            CurrentPlayResult.ResultType != EPlayResultType::PuntResult &&
+            CurrentPlayResult.ResultType != EPlayResultType::FieldGoalGood &&
+            CurrentPlayResult.ResultType != EPlayResultType::FieldGoalMissed &&
+            CurrentPlayResult.ResultType != EPlayResultType::Touchdown &&
+            CurrentPlayResult.ResultType != EPlayResultType::Safety)
+        {
+            CurrentState.YardLine = 100 - CurrentState.YardLine;
+            CurrentState.YardLine = FMath::Clamp(CurrentState.YardLine, 1, 99);
+            CurrentState.Down = 1;
+            CurrentState.Distance = 10;
+            CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+        }
     }
 
     CurrentState.YardLineToGain = FMath::Min(CurrentState.YardLineToGain, 100);
     CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
 
-    SetPlayPhase(EPlayPhase::PreSnap);
+    SetPlayPhase(NextPhase);
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
 
