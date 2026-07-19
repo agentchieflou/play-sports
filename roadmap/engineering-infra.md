@@ -49,10 +49,10 @@ Epic 118's job format serves the growing `Specs/` editor backlog.
 **Goal:** One canonical, versioned format for recorded plays — the backbone of replay (41), debugging (85), calibration (83), and online (108).
 **Depends on:** Core 17, 26
 
-- [ ] Deterministic-simulation audit: RNG discipline, float stability, tick-order guarantees (findings doc)
-- [ ] Serialization schema: initial state + input/event stream + version header
+- [x] Deterministic-simulation audit: RNG discipline, float stability, tick-order guarantees (findings doc: `Specs/Determinism_Audit.md`)
+- [x] Serialization schema: initial state + input/event stream + version header (`PSReplayFormat.h`, JSON via `FJsonObjectConverter`)
 - [ ] Record/playback round-trip test: identical outcomes or diagnosed divergence report
-- [ ] Migration policy for format versioning across releases
+- [x] Migration policy for format versioning across releases (policy in `Specs/Determinism_Audit.md`; step-wise version gate implemented + tested)
 - [ ] Divergence bisection tool: find the first tick where two runs differ
 
 ### Epic 116: Save System Architecture
