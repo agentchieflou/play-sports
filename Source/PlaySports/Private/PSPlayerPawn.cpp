@@ -433,3 +433,24 @@ bool APSPlayerPawn::ExecutePitch(APSPlayerPawn* TargetPlayer)
         return false;
     }
 }
+
+void APSPlayerPawn::FumbleBall()
+{
+    if (!bHasPossession)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: FumbleBall failed - Player %s does not have the ball."), *Attributes.DisplayName);
+        return;
+    }
+
+    APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
+    if (GM && GM->ActiveBall)
+    {
+        FVector FumbleVelocity = GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f);
+        FumbleVelocity += FMath::VRand() * 100.f;
+        FumbleVelocity.Z = FMath::Max(50.f, FumbleVelocity.Z);
+
+        GM->ActiveBall->Fumble(FumbleVelocity);
+        LosePossession();
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) fumbled the ball!"), *Attributes.DisplayName, *Attributes.PlayerId.ToString());
+    }
+}

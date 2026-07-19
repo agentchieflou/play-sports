@@ -136,7 +136,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 - [x] Pass: throw with velocity/arc computed from target point and thrower attributes
 - [x] Catch resolution: receiver radius + attribute check; drop/incompletion on failure
 - [x] Handoff and pitch (lateral) transfers
-- [ ] Fumble state: live ball on ground, recoverable by either team
+- [x] Fumble state: live ball on ground, recoverable by either team
 
 ### Epic 8: Tackling & Collision Resolution
 
