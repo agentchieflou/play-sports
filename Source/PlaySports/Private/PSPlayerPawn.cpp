@@ -344,3 +344,92 @@ bool APSPlayerPawn::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool
         return false;
     }
 }
+
+bool APSPlayerPawn::ExecuteHandoff(APSPlayerPawn* TargetPlayer)
+{
+    if (!TargetPlayer)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteHandoff failed - TargetPlayer is null."));
+        return false;
+    }
+
+    if (!bHasPossession)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteHandoff failed - Player %s does not have the ball."), *Attributes.DisplayName);
+        return false;
+    }
+
+    float Distance = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
+    if (Distance > 200.f)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteHandoff failed - TargetPlayer %s is out of range (%.1f > 200 cm)."), *TargetPlayer->GetAttributes().DisplayName, Distance);
+        return false;
+    }
+
+    APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
+    if (GM && GM->ActiveBall)
+    {
+        if (TransferPossessionTo(TargetPlayer))
+        {
+            GM->ActiveBall->AttachToCarrier(TargetPlayer, TEXT("HandSocket"));
+            UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Executed handoff from %s to %s."), *Attributes.DisplayName, *TargetPlayer->GetAttributes().DisplayName);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool APSPlayerPawn::ExecutePitch(APSPlayerPawn* TargetPlayer)
+{
+    if (!TargetPlayer)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecutePitch failed - TargetPlayer is null."));
+        return false;
+    }
+
+    if (!bHasPossession)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecutePitch failed - Player %s does not have the ball."), *Attributes.DisplayName);
+        return false;
+    }
+
+    APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
+    if (!GM || !GM->ActiveBall)
+    {
+        return false;
+    }
+
+    FVector OutVelocity = FVector::ZeroVector;
+    FVector StartLocation = GetActorLocation() + FVector(0.f, 0.f, 50.f);
+    FVector TargetLocation = TargetPlayer->GetActorLocation() + FVector(0.f, 0.f, 50.f);
+
+    float PitchSpeed = 1000.f;
+
+    bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(
+        this,
+        OutVelocity,
+        StartLocation,
+        TargetLocation,
+        PitchSpeed,
+        false,
+        0.f,
+        0.f,
+        ESuggestProjVelocityTraceOption::DoNotTrace
+    );
+
+    if (bSuccess)
+    {
+        GM->ActiveBall->Launch(OutVelocity);
+        LosePossession();
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Executed lateral pitch from %s to %s. Launch velocity: %s"), 
+            *Attributes.DisplayName, 
+            *TargetPlayer->GetAttributes().DisplayName, 
+            *OutVelocity.ToString());
+        return true;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecutePitch failed - Target is out of range for pitch speed %.1f."), PitchSpeed);
+        return false;
+    }
+}
