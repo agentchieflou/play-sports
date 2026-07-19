@@ -43,11 +43,11 @@ worker, worktree, branch, attempts, pr, score, events[]}}, duels[], escalations[
 **Goal:** One importable Python layer turns the `.env` contract into working model calls with tiers, retries, and fallback.
 **Depends on:** — (seed of Epic 119; Core 25's router story consumes this)
 
-- [ ] `tools/orchestrator/` scaffold + `config.py`: `.env` parsing (stdlib only), model-tier table — supervisor = Gemini 3.5 Flash high (`GEMINI_API_KEY`); worker = GPT-OSS-120B (`OPENROUTER_API_KEY`); worker fallback = Gemini 3.5 Flash low (same Gemini key); `OLLAMA_HOST` slot documented as reserved, unimplemented
-- [ ] `models/base.py`: `ModelClient` protocol — chat completion with tool/function-calling, usage accounting, retry with rate-limit backoff
-- [ ] Concrete clients `models/gemini.py` and `models/openrouter.py` (stdlib HTTP, no SDK dependencies)
-- [ ] `models/router.py`: tier→client resolution with health checks and the worker fallback chain (openrouter → gemini-flash-low) — documented as the layer Epic 119's MCP service will wrap
-- [ ] Unit tests with mocked HTTP for both clients and the fallback chain
+- [x] `tools/orchestrator/` scaffold + `config.py`: `.env` parsing (stdlib only), model-tier table — supervisor = Gemini 3.5 Flash high (`GEMINI_API_KEY`); worker = GPT-OSS-120B (`OPENROUTER_API_KEY`); worker fallback = Gemini 3.5 Flash low (same Gemini key); `OLLAMA_HOST` slot documented as reserved, unimplemented
+- [x] `models/base.py`: `ModelClient` protocol — chat completion with tool/function-calling, usage accounting, retry with rate-limit backoff
+- [x] Concrete clients `models/gemini.py` and `models/openrouter.py` (stdlib HTTP, no SDK dependencies)
+- [x] `models/router.py`: tier→client resolution with health checks and the worker fallback chain (openrouter → gemini-flash-low) — documented as the layer Epic 119's MCP service will wrap
+- [x] Unit tests with mocked HTTP for both clients and the fallback chain
 
 ### Epic 136: Worker Harness & Isolated Worktrees
 
