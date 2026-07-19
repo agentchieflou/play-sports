@@ -180,11 +180,11 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Builds on:** `EPlayPhase::Scoring`, end-zone volumes (Epic 2)
 **Depends on:** Epics 2, 10
 
-- [ ] Touchdown detection via end-zone volume + possession check (6 pts)
-- [ ] Field goal / extra point / two-point conversion outcomes (kick physics from Epic 13 can stub as probability first)
-- [ ] Safety detection (2 pts, possession change)
-- [ ] Penalty framework: flag, yardage, replay/loss-of-down semantics — start with offsides + holding
-- [ ] Rules config data asset so rule variants are data-driven, not hardcoded
+- [x] Touchdown detection via end-zone volume + possession check (6 pts)
+- [x] Field goal / extra point / two-point conversion outcomes (kick physics from Epic 13 can stub as probability first)
+- [x] Safety detection (2 pts, possession change)
+- [x] Penalty framework: flag, yardage, replay/loss-of-down semantics — start with offsides + holding
+- [x] Rules config data asset so rule variants are data-driven, not hardcoded
 
 ### Epic 12: Game & Play Clock Management
 
