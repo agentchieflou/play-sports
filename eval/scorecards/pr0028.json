@@ -1,0 +1,22 @@
+{
+  "pr": 28,
+  "title": "Epic 116: Versioned save system architecture",
+  "branch": "epic-116/save-architecture",
+  "agent": "claude",
+  "model": "sonnet-5",
+  "archetype": "gameplay-cpp-story",
+  "task": "cpp-system-story",
+  "scored_at": "2026-07-19T02:28:25.428174+00:00",
+  "merged_at": "2026-07-19T01:39:05Z",
+  "scores": {
+    "ci_green": true,
+    "in_scope": true,
+    "tests_ok": true,
+    "lint_ok": true,
+    "data_ok": true,
+    "roadmap_tick": true,
+    "commits": 1,
+    "efficiency": 10
+  },
+  "composite": 100
+}

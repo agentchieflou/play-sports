@@ -1,0 +1,22 @@
+{
+  "pr": 22,
+  "title": "Implement dynamic acceleration/deceleration curves on APSPlayerPawn",
+  "branch": "epic-6/player-acceleration",
+  "agent": "antigravity",
+  "model": "gemini-3-pro",
+  "archetype": "gameplay-cpp-story",
+  "task": "cpp-system-story",
+  "scored_at": "2026-07-19T02:28:21.711737+00:00",
+  "merged_at": "2026-07-19T01:01:54Z",
+  "scores": {
+    "ci_green": true,
+    "in_scope": true,
+    "tests_ok": false,
+    "lint_ok": true,
+    "data_ok": true,
+    "roadmap_tick": true,
+    "commits": 1,
+    "efficiency": 10
+  },
+  "composite": 90
+}
