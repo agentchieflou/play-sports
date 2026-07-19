@@ -249,7 +249,7 @@ void APSGameMode::ExecuteSnap()
     }
 }
 
-APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole Role) const
+APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole PlayerRole) const
 {
     if (!GetWorld())
     {
@@ -262,7 +262,7 @@ APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole Role) const
     {
         if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
         {
-            if (Pawn->GetAttributes().Role == Role)
+            if (Pawn->GetAttributes().Role == PlayerRole)
             {
                 return Pawn;
             }

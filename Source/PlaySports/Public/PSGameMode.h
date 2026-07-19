@@ -53,5 +53,5 @@ public:
     void ExecuteSnap();
 
     UFUNCTION(BlueprintCallable, Category = "Gameplay")
-    class APSPlayerPawn* FindPlayerPawnByRole(EPlayerRole Role) const;
+    class APSPlayerPawn* FindPlayerPawnByRole(EPlayerRole PlayerRole) const;
 };
