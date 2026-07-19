@@ -94,10 +94,31 @@ void APSOffenseController::InitializeBlackboardState()
 
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Bool>(TEXT("bHasPossession"));
 
+            for (int32 i = 0; i < TemporaryBBData->Keys.Num(); ++i)
+            {
+                UBlackboardKeyType_Object* ObjKeyType = Cast<UBlackboardKeyType_Object>(TemporaryBBData->Keys[i].KeyType);
+                if (ObjKeyType && !ObjKeyType->BaseClass)
+                {
+                    if (TemporaryBBData->Keys[i].EntryName == TEXT("SelfActor"))
+                    {
+                        ObjKeyType->BaseClass = AActor::StaticClass();
+                    }
+                    else
+                    {
+                        ObjKeyType->BaseClass = UObject::StaticClass();
+                    }
+                }
+            }
+
             UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: TemporaryBBData key count=%d"), TemporaryBBData->Keys.Num());
             for (int32 i = 0; i < TemporaryBBData->Keys.Num(); ++i)
             {
-                UE_LOG(LogTemp, Warning, TEXT("  Key %d: Name=%s"), i, *TemporaryBBData->Keys[i].EntryName.ToString());
+                UBlackboardKeyType_Object* ObjKeyType = Cast<UBlackboardKeyType_Object>(TemporaryBBData->Keys[i].KeyType);
+                UE_LOG(LogTemp, Warning, TEXT("  Key %d: Name=%s, Type=%s, BaseClass=%s"), 
+                    i, 
+                    *TemporaryBBData->Keys[i].EntryName.ToString(), 
+                    TemporaryBBData->Keys[i].KeyType ? *TemporaryBBData->Keys[i].KeyType->GetName() : TEXT("null"),
+                    ObjKeyType && ObjKeyType->BaseClass ? *ObjKeyType->BaseClass->GetName() : TEXT("none"));
             }
 
             if (BB)
