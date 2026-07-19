@@ -148,6 +148,9 @@ void APSGameMode::StartPlay()
                     Bus->OnScore.AddDynamic(this, &APSGameMode::OnBusScoreEvent);
                     UE_LOG(LogTemp, Display, TEXT("PSGameMode: Subscribed scoring handler to TelemetryBus."));
                 }
+
+                // Give the simulation its world ref so it can subscribe to bus events (C2)
+                PlaySimulation->InitializeWithWorld(GetWorld());
             }
 
             TArray<AActor*> ExistingPawns;

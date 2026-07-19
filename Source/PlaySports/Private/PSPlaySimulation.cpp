@@ -26,6 +26,8 @@ UPSPlaySimulation::UPSPlaySimulation()
     ActivePenalty = EPSPenaltyType::None;
     bPenaltyDeclined = false;
     PhaseTimer = 0.f;
+    bQuickSimMode = false;
+    CachedWorld = nullptr;
 }
 
 void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense, const TArray<FPlayerAttributes>& Defense)
@@ -152,7 +154,12 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     case EPlayPhase::BallCarrierMovement:
         if (PhaseTimer >= 3.0f)
         {
-            ResolvePlayResult();
+            // In quick-sim mode the statistical resolver drives the outcome;
+            // in physical-play mode outcomes arrive via bus events (OnBusCatch/OnBusTackle).
+            if (bQuickSimMode)
+            {
+                ResolvePlayResult();
+            }
             CurrentState.Phase = EPlayPhase::Scoring;
             PhaseTimer = 0.f;
         }
@@ -570,15 +577,82 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         CurrentState.Down, CurrentState.Distance, CurrentState.YardLine, CurrentState.YardLineToGain);
 
     // Notify GameMode to reset physical pawns at new line of scrimmage
-    APSGameMode* GM = Cast<APSGameMode>(GetOuter());
+    UWorld* World = CachedWorld ? CachedWorld : GetWorld();
+    APSGameMode* GM = nullptr;
+    if (World)
+    {
+        GM = Cast<APSGameMode>(World->GetAuthGameMode());
+    }
     if (!GM)
     {
-        GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
+        GM = Cast<APSGameMode>(GetOuter());
     }
     if (GM)
     {
         GM->ResetPawnPositions();
     }
+}
+
+void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
+{
+    CachedWorld = InWorld;
+    if (!InWorld)
+    {
+        return;
+    }
+
+    UPSTelemetryBus* Bus = InWorld->GetSubsystem<UPSTelemetryBus>();
+    if (!Bus)
+    {
+        return;
+    }
+
+    // Subscribe to physical play events so bus-driven outcomes advance state
+    Bus->OnCatch.AddDynamic(this, &UPSPlaySimulation::OnBusCatchEvent);
+    Bus->OnTackle.AddDynamic(this, &UPSPlaySimulation::OnBusTackleEvent);
+    Bus->OnScore.AddDynamic(this, &UPSPlaySimulation::OnBusScoreEvent);
+
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Subscribed to TelemetryBus (C2)."));
+}
+
+void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
+{
+    // A physical catch (or interception) occurred — transition to ball-carrier movement
+    // unless we are already past that phase or in quick-sim mode.
+    if (bQuickSimMode)
+    {
+        return;
+    }
+
+    if (CurrentState.Phase == EPlayPhase::PassRush || CurrentState.Phase == EPlayPhase::Snap)
+    {
+        SetPlayPhase(EPlayPhase::BallCarrierMovement);
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusCatch — transitioning to BallCarrierMovement (interception=%d)."), (int32)Event.bIsInterception);
+    }
+}
+
+void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
+{
+    if (bQuickSimMode)
+    {
+        return;
+    }
+
+    // Physical tackle resolves the play
+    CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+    CurrentPlayResult.YardsGained = Event.YardsGained;
+    SetPlayPhase(EPlayPhase::Scoring);
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusTackle — %s tackled by %s for %d yards."),
+        *Event.BallCarrierName, *Event.TacklerName, Event.YardsGained);
+}
+
+void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
+{
+    // Keep the FPlayState score fields in sync with bus-driven score events
+    // (GameMode maintains its own HomeScore/AwayScore; this keeps the sim's
+    // FPlayState in agreement so GetPlayState() callers see the right values).
+    CurrentState.HomeScore = Event.HomeScore;
+    CurrentState.AwayScore = Event.AwayScore;
 }
 
 void UPSPlaySimulation::RecordTouchdown()
