@@ -7,6 +7,9 @@
 #include "Serialization/JsonSerializer.h"
 #include "JsonObjectConverter.h"
 #include "Misc/FileHelper.h"
+#include "PSBall.h"
+#include "PSPlayerPawn.h"
+#include "Kismet/GameplayStatics.h"
 
 static bool LoadMovementTuningFromJson(const FString& JsonFilePath, FMovementTuningRow& OutTuning)
 {
@@ -137,6 +140,46 @@ void APSGameMode::StartPlay()
                 PlaySimulation->InitializePlay(OffenseRoster, DefenseRoster);
                 UE_LOG(LogTemp, Display, TEXT("PSGameMode: Initialized PlaySimulation with %d Offense and %d Defense players."), OffenseRoster.Num(), DefenseRoster.Num());
             }
+
+            TArray<AActor*> ExistingPawns;
+            UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), ExistingPawns);
+            if (ExistingPawns.Num() == 0)
+            {
+                TArray<FPlayerAttributes*> RosterPlayers;
+                PlayerRosterTable->GetAllRows<FPlayerAttributes>(TEXT("PSGameMode Spawning"), RosterPlayers);
+                
+                float XOffset = 0.f;
+                for (FPlayerAttributes* Player : RosterPlayers)
+                {
+                    if (Player)
+                    {
+                        FActorSpawnParameters SpawnParams;
+                        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+                        
+                        float SpawnX = (Player->Role == EPlayerRole::Quarterback) ? 0.f : 100.f;
+                        FVector SpawnLocation(SpawnX, XOffset, 100.f);
+                        XOffset += 150.f;
+                        
+                        APSPlayerPawn* NewPawn = GetWorld()->SpawnActor<APSPlayerPawn>(APSPlayerPawn::StaticClass(), SpawnLocation, FRotator::ZeroRotator, SpawnParams);
+                        if (NewPawn)
+                        {
+                            NewPawn->InitializePlayer(*Player);
+                        }
+                    }
+                }
+            }
+
+            FActorSpawnParameters BallSpawnParams;
+            BallSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            ActiveBall = GetWorld()->SpawnActor<APSBall>(APSBall::StaticClass(), FVector(100.f, 0.f, 100.f), FRotator::ZeroRotator, BallSpawnParams);
+
+            APSPlayerPawn* Center = FindPlayerPawnByRole(EPlayerRole::OffensiveLineman);
+            if (ActiveBall && Center)
+            {
+                ActiveBall->AttachToCarrier(Center, TEXT("HandSocket"));
+                Center->GainPossession();
+                UE_LOG(LogTemp, Display, TEXT("PSGameMode: Spawned ActiveBall and attached it to Center (%s) pre-snap."), *Center->GetName());
+            }
         }
         else
         {
@@ -184,4 +227,46 @@ void APSGameMode::Tick(float DeltaSeconds)
             }
         }
     }
+}
+
+void APSGameMode::ExecuteSnap()
+{
+    APSPlayerPawn* Center = FindPlayerPawnByRole(EPlayerRole::OffensiveLineman);
+    APSPlayerPawn* QB = FindPlayerPawnByRole(EPlayerRole::Quarterback);
+
+    if (Center && QB && ActiveBall)
+    {
+        if (Center->TransferPossessionTo(QB))
+        {
+            ActiveBall->AttachToCarrier(QB, TEXT("HandSocket"));
+            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Executed snap. Transferred ball from Center to QB."));
+        }
+    }
+
+    if (PlaySimulation)
+    {
+        PlaySimulation->TriggerSnap();
+    }
+}
+
+APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole PlayerRole) const
+{
+    if (!GetWorld())
+    {
+        return nullptr;
+    }
+
+    TArray<AActor*> PlayerActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), PlayerActors);
+    for (AActor* Actor : PlayerActors)
+    {
+        if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
+        {
+            if (Pawn->GetAttributes().Role == PlayerRole)
+            {
+                return Pawn;
+            }
+        }
+    }
+    return nullptr;
 }

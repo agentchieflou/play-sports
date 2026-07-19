@@ -73,11 +73,15 @@ public:
     UFUNCTION(BlueprintCallable)
     FPlayResult GetPlayResult() const;
 
+    UFUNCTION(BlueprintCallable, Category = "Simulation")
+    void TriggerSnap();
+
 private:
     FPlayState CurrentState;
     TArray<FPlayerAttributes> OffenseRoster;
     TArray<FPlayerAttributes> DefenseRoster;
     FPlayResult CurrentPlayResult;
+    float PhaseTimer;
 
     void ResolvePlayResult();
 };
