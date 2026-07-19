@@ -74,13 +74,24 @@ void APSOffenseController::InitializeBlackboardState()
     // Programmatically create BlackboardData fallback if Blackboard or its asset is not initialized
     if (!BB || !BB->GetBlackboardAsset())
     {
-        UBlackboardData* TemporaryBBData = NewObject<UBlackboardData>(this);
+        UBlackboardData* TemporaryBBData = NewObject<UBlackboardData>();
         UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: Created TemporaryBBData=%p"), TemporaryBBData);
         if (TemporaryBBData)
         {
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Int>(TEXT("PlayPhase"));
-            TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Object>(TEXT("Ball"));
-            TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Object>(TEXT("BallCarrier"));
+            
+            UBlackboardKeyType_Object* BallKeyType = TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Object>(TEXT("Ball"));
+            if (BallKeyType)
+            {
+                BallKeyType->BaseClass = UObject::StaticClass();
+            }
+
+            UBlackboardKeyType_Object* BallCarrierKeyType = TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Object>(TEXT("BallCarrier"));
+            if (BallCarrierKeyType)
+            {
+                BallCarrierKeyType->BaseClass = UObject::StaticClass();
+            }
+
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Bool>(TEXT("bHasPossession"));
 
             UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: TemporaryBBData key count=%d"), TemporaryBBData->Keys.Num());
