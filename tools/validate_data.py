@@ -32,6 +32,7 @@ PLAYER_FIELDS = {
     "Strength": (int, float),
     "Acceleration": (int, float),
     "Awareness": (int, float),
+    "Stamina": (int, float),
 }
 
 errors = []
