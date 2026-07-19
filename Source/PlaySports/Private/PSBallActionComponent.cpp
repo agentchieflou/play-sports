@@ -10,7 +10,7 @@
 
 UPSBallActionComponent::UPSBallActionComponent()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryComponentTick.bCanEverTick = false;
 }
 
 bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc)
