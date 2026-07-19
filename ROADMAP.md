@@ -144,7 +144,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Builds on:** `UPSPlaySimulation` (replaces the placeholder `BallCarrierMovement → Scoring` transition)
 **Depends on:** Epics 6, 7
 
-- [ ] Contact detection between defender and ball-carrier pawns
+- [x] Contact detection between defender and ball-carrier pawns
 - [ ] Tackle resolution: momentum + `Strength` vs. `Strength`/`Agility` contest with physics impulse
 - [ ] Broken-tackle branch: carrier continues with speed penalty
 - [ ] Down-by-contact: play-end signal into the play state machine with final ball spot

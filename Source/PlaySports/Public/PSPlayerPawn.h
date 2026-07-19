@@ -130,4 +130,8 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "Player|Movement")
     float BaseAcceleration;
+
+private:
+    UFUNCTION()
+    void OnPawnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 };
