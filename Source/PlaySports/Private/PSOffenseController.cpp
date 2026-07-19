@@ -75,20 +75,10 @@ void APSOffenseController::InitializeBlackboardState()
         UBlackboardData* TemporaryBBData = NewObject<UBlackboardData>(this);
         if (TemporaryBBData)
         {
-            auto AddKey = [](UBlackboardData* Data, FName Name, UClass* TypeClass)
-            {
-                FBlackboardEntry Entry;
-                Entry.EntryName = Name;
-                Entry.KeyType = NewObject<UBlackboardKeyType>(Data, TypeClass);
-                Data->Keys.Add(Entry);
-            };
-
-            AddKey(TemporaryBBData, TEXT("PlayPhase"), UBlackboardKeyType_Int::StaticClass());
-            AddKey(TemporaryBBData, TEXT("Ball"), UBlackboardKeyType_Object::StaticClass());
-            AddKey(TemporaryBBData, TEXT("BallCarrier"), UBlackboardKeyType_Object::StaticClass());
-            AddKey(TemporaryBBData, TEXT("bHasPossession"), UBlackboardKeyType_Bool::StaticClass());
-
-            TemporaryBBData->UpdateAssetInfo();
+            TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Int>(TEXT("PlayPhase"));
+            TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Object>(TEXT("Ball"));
+            TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Object>(TEXT("BallCarrier"));
+            TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Bool>(TEXT("bHasPossession"));
 
             UBlackboardComponent* RawBB = nullptr;
             if (UseBlackboard(TemporaryBBData, RawBB))
