@@ -226,8 +226,8 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 
 - [x] `UPSTelemetryBus` `UWorldSubsystem`: publish/subscribe for gameplay events (snap, throw, catch, tackle, fumble, score, phase-change) with typed payloads
 - [x] Ring-buffer event history with timestamps (Epic 41 replay and Epic 115 serialization consume this)
-- [ ] Migrate `APSBall::OnBallOverlap` phase-forcing and pawn→GameMode calls onto bus events
-- [ ] Migrate GameMode scoring reads to bus subscription
+- [x] Migrate `APSBall::OnBallOverlap` phase-forcing and pawn→GameMode calls onto bus events
+- [x] Migrate GameMode scoring reads to bus subscription
 - [x] Automation tests: publish/subscribe round-trip, history query, event ordering
 
 ### Epic C2: Single Outcome Authority

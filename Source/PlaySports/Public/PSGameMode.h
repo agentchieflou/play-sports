@@ -4,6 +4,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "Engine/DataTable.h"
 #include "PSPlayerAttributes.h"
+#include "PSTelemetryBus.h"
 #include "PSGameMode.generated.h"
 
 class UPSPlaySimulation;
@@ -63,4 +64,8 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Gameplay")
     class APSPlayerPawn* FindPlayerPawnByRole(EPlayerRole PlayerRole) const;
+
+private:
+    UFUNCTION()
+    void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);
 };
