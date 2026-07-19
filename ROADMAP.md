@@ -168,11 +168,11 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Builds on:** `UPSPlaySimulation` / `FPlayState` (`Down`, `Distance`)
 **Depends on:** Epic 1
 
-- [ ] Ball spot tracking: line of scrimmage, first-down marker, yards-to-go updates from play results
-- [ ] Down progression: 1st–4th, turnover on downs, first-down resets
-- [ ] Possession changes: punts (stub until Epic 13), turnovers, post-score
-- [ ] Drive summary data (plays, yards, result) for HUD and future stats
-- [ ] Between-play reset: pawns re-form at the new line of scrimmage
+- [x] Ball spot tracking: line of scrimmage, first-down marker, yards-to-go updates from play results
+- [x] Down progression: 1st–4th, turnover on downs, first-down resets
+- [x] Possession changes: punts (stub until Epic 13), turnovers, post-score
+- [x] Drive summary data (plays, yards, result) for HUD and future stats
+- [x] Between-play reset: pawns re-form at the new line of scrimmage
 
 ### Epic 11: Scoring, Rules & Penalties Engine
 

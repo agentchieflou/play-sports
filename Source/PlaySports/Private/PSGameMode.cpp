@@ -393,3 +393,86 @@ FVector APSGameMode::GetLargestRunLaneGap() const
 
     return LargestGapCenter;
 }
+
+void APSGameMode::ResetPawnPositions()
+{
+    if (!PlaySimulation || !GetWorld())
+    {
+        return;
+    }
+
+    int32 YardLine = PlaySimulation->GetPlayState().YardLine;
+    float ScrimmageX = YardLine * 100.f;
+
+    TArray<AActor*> PlayerActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), PlayerActors);
+
+    float OffenseY = -150.f;
+    float DefenseY = -150.f;
+
+    for (AActor* Actor : PlayerActors)
+    {
+        if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
+        {
+            // Reset velocities
+            if (Pawn->GetFloatingMovementComponent())
+            {
+                Pawn->GetFloatingMovementComponent()->Velocity = FVector::ZeroVector;
+                Pawn->GetFloatingMovementComponent()->StopActiveMovement();
+            }
+
+            // Clear possession and block engagement
+            Pawn->LosePossession();
+            Pawn->bIsEngaged = false;
+            Pawn->EngagedOpponent = nullptr;
+
+            // Determine role-based position alignment
+            EPlayerRole Role = Pawn->GetAttributes().Role;
+            FVector TargetLoc(0.f);
+
+            if (Pawn->TeamSide == EPSTeamSide::Offense)
+            {
+                if (Role == EPlayerRole::Quarterback)
+                {
+                    TargetLoc = FVector(ScrimmageX - 300.f, 0.f, 100.f);
+                }
+                else if (Role == EPlayerRole::OffensiveLineman)
+                {
+                    TargetLoc = FVector(ScrimmageX, 0.f, 100.f);
+                }
+                else
+                {
+                    TargetLoc = FVector(ScrimmageX - 100.f, OffenseY, 100.f);
+                    OffenseY += 150.f;
+                }
+            }
+            else
+            {
+                if (Role == EPlayerRole::DefensiveLineman)
+                {
+                    TargetLoc = FVector(ScrimmageX + 100.f, 0.f, 100.f);
+                }
+                else
+                {
+                    TargetLoc = FVector(ScrimmageX + 250.f, DefenseY, 100.f);
+                    DefenseY += 150.f;
+                }
+            }
+
+            Pawn->SetActorLocation(TargetLoc, false, nullptr, ETeleportType::TeleportPhysics);
+            Pawn->StartingLocation = TargetLoc;
+        }
+    }
+
+    // Re-attach ball to Center
+    APSPlayerPawn* Center = FindPlayerPawnByRole(EPlayerRole::OffensiveLineman);
+    if (ActiveBall && Center)
+    {
+        ActiveBall->DetachFromCarrier();
+        ActiveBall->bIsFumbled = false;
+        ActiveBall->SetActorLocation(FVector(ScrimmageX, 0.f, 100.f));
+        ActiveBall->AttachToCarrier(Center, TEXT("HandSocket"));
+        Center->GainPossession();
+        UE_LOG(LogTemp, Display, TEXT("PSGameMode: Reset play cycle. Re-attached ActiveBall to Center at scrimmage line."));
+    }
+}

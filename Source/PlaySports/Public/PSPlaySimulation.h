@@ -31,6 +31,45 @@ struct FPlayState
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 Distance = 10;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 YardLine = 20;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 YardLineToGain = 30;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 Quarter = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float GameClockSeconds = 900.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float PlayClockSeconds = 40.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bHomeHasPossession = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 HomeScore = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 AwayScore = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FDriveSummary
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 Plays = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 Yards = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString Result = TEXT("");
 };
 
 UENUM(BlueprintType)
@@ -81,6 +120,15 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void RecordTackle(int32 YardsGained);
+
+    UFUNCTION(BlueprintCallable, Category = "Simulation")
+    void EndPlayAndPrepareNext();
+
+    UPROPERTY(BlueprintReadOnly, Category = "Simulation")
+    FDriveSummary CurrentDriveSummary;
+
+    UFUNCTION(BlueprintCallable, Category = "Simulation")
+    FDriveSummary GetDriveSummary() const { return CurrentDriveSummary; }
 
 private:
     FPlayState CurrentState;
