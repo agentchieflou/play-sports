@@ -51,6 +51,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Player")
     bool TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn);
 
+    // Throw the ball to a target location
+    UFUNCTION(BlueprintCallable, Category = "Player")
+    bool ThrowPass(class APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false);
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     EPSTeamSide TeamSide;
 
