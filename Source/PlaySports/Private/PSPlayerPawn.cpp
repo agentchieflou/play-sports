@@ -4,6 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "AIController.h"
+#include "PSOffenseController.h"
 #include "PSGameMode.h"
 #include "PSPlaySimulation.h"
 #include "Engine/World.h"
@@ -33,6 +34,7 @@ APSPlayerPawn::APSPlayerPawn()
 
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;
+    AIControllerClass = APSOffenseController::StaticClass();
 
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
     BaseAcceleration = 2000.f;
@@ -268,6 +270,18 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
 {
     Attributes = InAttributes;
     bHasPossession = false;
+
+    // Set TeamSide dynamically based on Role
+    if (Attributes.Role == EPlayerRole::DefensiveLineman ||
+        Attributes.Role == EPlayerRole::Linebacker ||
+        Attributes.Role == EPlayerRole::DefensiveBack)
+    {
+        TeamSide = EPSTeamSide::Defense;
+    }
+    else
+    {
+        TeamSide = EPSTeamSide::Offense;
+    }
 
     if (!CachedGameMode && GetWorld())
     {
