@@ -33,12 +33,12 @@ void APSOffenseController::OnPossess(APawn* InPawn)
         UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>();
         if (Bus)
         {
-            Bus->OnPhaseChange.AddDynamic(this, &APSOffenseController::OnPhaseChanged);
-            Bus->OnSnap.AddDynamic(this, &APSOffenseController::OnSnapEvent);
-            Bus->OnThrow.AddDynamic(this, &APSOffenseController::OnThrowEvent);
-            Bus->OnCatch.AddDynamic(this, &APSOffenseController::OnCatchEvent);
-            Bus->OnFumble.AddDynamic(this, &APSOffenseController::OnFumbleEvent);
-            Bus->OnTackle.AddDynamic(this, &APSOffenseController::OnTackleEvent);
+            Bus->OnPhaseChangeMC.AddUObject(this, &APSOffenseController::OnPhaseChanged);
+            Bus->OnSnapMC.AddUObject(this, &APSOffenseController::OnSnapEvent);
+            Bus->OnThrowMC.AddUObject(this, &APSOffenseController::OnThrowEvent);
+            Bus->OnCatchMC.AddUObject(this, &APSOffenseController::OnCatchEvent);
+            Bus->OnFumbleMC.AddUObject(this, &APSOffenseController::OnFumbleEvent);
+            Bus->OnTackleMC.AddUObject(this, &APSOffenseController::OnTackleEvent);
         }
     }
 }
@@ -51,12 +51,12 @@ void APSOffenseController::OnUnPossess()
         UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>();
         if (Bus)
         {
-            Bus->OnPhaseChange.RemoveAll(this);
-            Bus->OnSnap.RemoveAll(this);
-            Bus->OnThrow.RemoveAll(this);
-            Bus->OnCatch.RemoveAll(this);
-            Bus->OnFumble.RemoveAll(this);
-            Bus->OnTackle.RemoveAll(this);
+            Bus->OnPhaseChangeMC.RemoveAll(this);
+            Bus->OnSnapMC.RemoveAll(this);
+            Bus->OnThrowMC.RemoveAll(this);
+            Bus->OnCatchMC.RemoveAll(this);
+            Bus->OnFumbleMC.RemoveAll(this);
+            Bus->OnTackleMC.RemoveAll(this);
         }
     }
 
