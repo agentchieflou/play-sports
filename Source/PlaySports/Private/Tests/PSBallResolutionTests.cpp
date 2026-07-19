@@ -29,11 +29,18 @@ bool FPSC4CatchChanceBoundsTest::RunTest(const FString& Parameters)
 {
     const FCatchTuningRow Tuning;
 
-    const float LowChance = PSBallResolutionHelpers::ComputeCatchChance(MakeAttributes(0.f, 0.f), Tuning);
-    TestEqual(TEXT("Zero-attribute catch chance clamps to CatchChanceMin"), LowChance, Tuning.CatchChanceMin);
+    // Deliberately out-of-range attributes so the formula's raw output falls
+    // outside [Min, Max] and the clamp is what's actually under test -- at
+    // realistic attributes (0-100) the base chance alone can already sit
+    // inside bounds, so 0/100 don't necessarily exercise the clamp.
+    const float LowChance = PSBallResolutionHelpers::ComputeCatchChance(MakeAttributes(-10000.f, -10000.f), Tuning);
+    TestEqual(TEXT("Extreme-low attributes clamp to CatchChanceMin"), LowChance, Tuning.CatchChanceMin);
 
-    const float HighChance = PSBallResolutionHelpers::ComputeCatchChance(MakeAttributes(100.f, 100.f), Tuning);
-    TestEqual(TEXT("Max-attribute catch chance clamps to CatchChanceMax"), HighChance, Tuning.CatchChanceMax);
+    const float HighChance = PSBallResolutionHelpers::ComputeCatchChance(MakeAttributes(10000.f, 10000.f), Tuning);
+    TestEqual(TEXT("Extreme-high attributes clamp to CatchChanceMax"), HighChance, Tuning.CatchChanceMax);
+
+    const float ZeroAttrChance = PSBallResolutionHelpers::ComputeCatchChance(MakeAttributes(0.f, 0.f), Tuning);
+    TestEqual(TEXT("Zero-attribute catch chance is the unclamped base chance"), ZeroAttrChance, Tuning.CatchBaseChance);
 
     const float MidChance = PSBallResolutionHelpers::ComputeCatchChance(MakeAttributes(50.f, 50.f), Tuning);
     TestTrue(TEXT("Mid-attribute catch chance stays within bounds"), MidChance >= Tuning.CatchChanceMin && MidChance <= Tuning.CatchChanceMax);
@@ -71,11 +78,11 @@ bool FPSC4InterceptionChanceBoundsTest::RunTest(const FString& Parameters)
 {
     const FCatchTuningRow Tuning;
 
-    const float LowChance = PSBallResolutionHelpers::ComputeInterceptionChance(MakeAttributes(0.f, 0.f), Tuning);
-    TestEqual(TEXT("Zero-attribute interception chance clamps to InterceptionChanceMin"), LowChance, Tuning.InterceptionChanceMin);
+    const float LowChance = PSBallResolutionHelpers::ComputeInterceptionChance(MakeAttributes(-10000.f, -10000.f), Tuning);
+    TestEqual(TEXT("Extreme-low attributes clamp to InterceptionChanceMin"), LowChance, Tuning.InterceptionChanceMin);
 
-    const float HighChance = PSBallResolutionHelpers::ComputeInterceptionChance(MakeAttributes(100.f, 100.f), Tuning);
-    TestEqual(TEXT("Max-attribute interception chance clamps to InterceptionChanceMax"), HighChance, Tuning.InterceptionChanceMax);
+    const float HighChance = PSBallResolutionHelpers::ComputeInterceptionChance(MakeAttributes(10000.f, 10000.f), Tuning);
+    TestEqual(TEXT("Extreme-high attributes clamp to InterceptionChanceMax"), HighChance, Tuning.InterceptionChanceMax);
 
     return true;
 }
@@ -92,11 +99,11 @@ bool FPSC4FumbleRecoveryChanceBoundsTest::RunTest(const FString& Parameters)
 {
     const FCatchTuningRow Tuning;
 
-    const float LowChance = PSBallResolutionHelpers::ComputeFumbleRecoveryChance(MakeAttributes(0.f, 0.f), Tuning);
-    TestEqual(TEXT("Zero-attribute fumble recovery chance clamps to FumbleRecoveryChanceMin"), LowChance, Tuning.FumbleRecoveryChanceMin);
+    const float LowChance = PSBallResolutionHelpers::ComputeFumbleRecoveryChance(MakeAttributes(-10000.f, -10000.f), Tuning);
+    TestEqual(TEXT("Extreme-low attributes clamp to FumbleRecoveryChanceMin"), LowChance, Tuning.FumbleRecoveryChanceMin);
 
-    const float HighChance = PSBallResolutionHelpers::ComputeFumbleRecoveryChance(MakeAttributes(100.f, 100.f), Tuning);
-    TestEqual(TEXT("Max-attribute fumble recovery chance clamps to FumbleRecoveryChanceMax"), HighChance, Tuning.FumbleRecoveryChanceMax);
+    const float HighChance = PSBallResolutionHelpers::ComputeFumbleRecoveryChance(MakeAttributes(10000.f, 10000.f), Tuning);
+    TestEqual(TEXT("Extreme-high attributes clamp to FumbleRecoveryChanceMax"), HighChance, Tuning.FumbleRecoveryChanceMax);
 
     return true;
 }
