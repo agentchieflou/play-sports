@@ -67,6 +67,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Player")
     void FumbleBall();
 
+    // Resolve a physical tackle collision contest against an incoming defender
+    UFUNCTION(BlueprintCallable, Category = "Player|Tackling")
+    bool ResolveTackle(APSPlayerPawn* Defender);
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     EPSTeamSide TeamSide;
 
@@ -127,6 +131,9 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "Player")
     bool bHasPossession;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Player")
+    FVector StartingLocation;
 
     UPROPERTY(BlueprintReadOnly, Category = "Player|Movement")
     float BaseAcceleration;
