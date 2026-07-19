@@ -262,10 +262,10 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Goal:** The untested core loop gets regression coverage; rules logic becomes testable by extraction.
 **Depends on:** C2, C3
 
-- [ ] Extract catch/interception/fumble probability rules from `APSBall::OnBallOverlap` into pure, testable functions (tuning via DataTable per AGENTS.md rule 4)
-- [ ] Automation tests: movement math (accel/turn/momentum), possession transfer, catch resolution, phase progression, down/distance advancement
-- [ ] `APSFunctionalGym` asserts real behavior (scripted play in the gym map) instead of auto-succeeding
-- [ ] Async save `LastAsyncLoadResult` single-slot hazard fixed (per-request results)
+- [x] Extract catch/interception/fumble probability rules from `APSBall::OnBallOverlap` into pure, testable functions (`PSBallResolutionHelpers`), tuning via `FCatchTuningRow` DataTable/JSON (`Data/catch_tuning.json`) per AGENTS.md rule 4
+- [x] Automation tests: movement math (accel/turn/momentum), possession transfer (C3), catch resolution, phase progression, down/distance advancement
+- [x] `APSFunctionalGym` asserts real behavior (scripted snap -> quick-sim phase progression -> Scoring check) instead of auto-succeeding
+- [x] Async save `LastAsyncLoadResult` single-slot hazard fixed (`LoadFromSlotAsync` returns a per-request ID; `GetAsyncLoadResult(RequestId)`)
 
 ---
 
