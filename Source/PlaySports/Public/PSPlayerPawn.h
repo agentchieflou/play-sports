@@ -45,6 +45,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Player")
     void SetStartingLocation(const FVector& NewLoc) { StartingLocation = NewLoc; }
 
+    UFUNCTION(BlueprintPure, Category = "Player")
+    FVector GetStartingLocation() const { return StartingLocation; }
+
     // Give the ball to this player pawn
     UFUNCTION(BlueprintCallable, Category = "Player")
     void GainPossession();

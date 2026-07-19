@@ -73,11 +73,20 @@ struct FDriveSummary
 };
 
 UENUM(BlueprintType)
+enum class EPSPenaltyType : uint8
+{
+    None,
+    Offsides,
+    Holding
+};
+
+UENUM(BlueprintType)
 enum class EPlayResultType : uint8
 {
     Incomplete,
     Tackle,
-    Touchdown
+    Touchdown,
+    Safety
 };
 
 USTRUCT(BlueprintType)
@@ -129,6 +138,15 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     FDriveSummary GetDriveSummary() const { return CurrentDriveSummary; }
+
+    UFUNCTION(BlueprintCallable, Category = "Simulation")
+    void RecordTouchdown();
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
+    EPSPenaltyType ActivePenalty;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
+    bool bPenaltyDeclined;
 
 private:
     FPlayState CurrentState;

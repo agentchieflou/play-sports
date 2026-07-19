@@ -22,6 +22,8 @@ UPSPlaySimulation::UPSPlaySimulation()
     CurrentState.AwayScore = 0;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
+    ActivePenalty = EPSPenaltyType::None;
+    bPenaltyDeclined = false;
     PhaseTimer = 0.f;
 }
 
@@ -43,6 +45,8 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     CurrentState.AwayScore = 0;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
+    ActivePenalty = EPSPenaltyType::None;
+    bPenaltyDeclined = false;
     PhaseTimer = 0.f;
 }
 
@@ -50,6 +54,13 @@ void UPSPlaySimulation::TriggerSnap()
 {
     if (CurrentState.Phase == EPlayPhase::PreSnap)
     {
+        if (FMath::FRand() < 0.05f)
+        {
+            ActivePenalty = EPSPenaltyType::Offsides;
+            bPenaltyDeclined = false;
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offsides penalty called at the snap!"));
+        }
+
         CurrentState.Phase = EPlayPhase::Snap;
         PhaseTimer = 0.f;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
@@ -89,6 +100,13 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     }
     else
     {
+        if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
+        {
+            ActivePenalty = EPSPenaltyType::Holding;
+            bPenaltyDeclined = false;
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offensive Holding penalty called during play!"));
+        }
+
         CurrentState.GameClockSeconds -= DeltaSeconds;
         if (CurrentState.GameClockSeconds <= 0.f)
         {
@@ -224,6 +242,49 @@ void UPSPlaySimulation::ResolvePlayResult()
 
 void UPSPlaySimulation::EndPlayAndPrepareNext()
 {
+    // 1. Safety detection
+    if (CurrentPlayResult.ResultType == EPlayResultType::Tackle && CurrentState.YardLine + CurrentPlayResult.YardsGained <= 0)
+    {
+        CurrentPlayResult.ResultType = EPlayResultType::Safety;
+        CurrentPlayResult.YardsGained = -CurrentState.YardLine; // Loss to the goal line
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: SAFETY DETECTED in the end zone!"));
+    }
+
+    // 2. Penalty Accept/Decline Resolution
+    if (ActivePenalty != EPSPenaltyType::None)
+    {
+        if (ActivePenalty == EPSPenaltyType::Offsides)
+        {
+            if (CurrentPlayResult.YardsGained < 5)
+            {
+                CurrentPlayResult.YardsGained = 5;
+                CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+                CurrentState.Down = FMath::Max(1, CurrentState.Down - 1);
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Offsides penalty ACCEPTED (5 yards, repeat down)."));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Offsides penalty DECLINED. Result stands."));
+            }
+        }
+        else if (ActivePenalty == EPSPenaltyType::Holding)
+        {
+            if (CurrentPlayResult.YardsGained > 0 || CurrentPlayResult.ResultType == EPlayResultType::Touchdown)
+            {
+                CurrentPlayResult.YardsGained = -10;
+                CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+                CurrentState.Down = FMath::Max(1, CurrentState.Down - 1);
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Holding penalty ACCEPTED (10 yards, repeat down)."));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Holding penalty DECLINED. Result stands."));
+            }
+        }
+
+        ActivePenalty = EPSPenaltyType::None;
+    }
+
     // Update drive summary tracking
     CurrentDriveSummary.Plays++;
     CurrentDriveSummary.Yards += CurrentPlayResult.YardsGained;
@@ -255,17 +316,54 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     // Touchdown Score Tracking
     if (CurrentPlayResult.ResultType == EPlayResultType::Touchdown)
     {
-        if (CurrentState.bHomeHasPossession)
+        int32 TouchdownPoints = 6;
+        int32 PatPoints = 0;
+
+        if (FMath::FRand() < 0.94f)
         {
-            CurrentState.HomeScore += 7; // Touchdown + PAT
+            PatPoints = 1;
+            UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: PAT kick is GOOD!"));
         }
         else
         {
-            CurrentState.AwayScore += 7;
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: PAT kick is MISSED!"));
+        }
+
+        int32 TotalPoints = TouchdownPoints + PatPoints;
+
+        if (CurrentState.bHomeHasPossession)
+        {
+            CurrentState.HomeScore += TotalPoints;
+        }
+        else
+        {
+            CurrentState.AwayScore += TotalPoints;
         }
 
         CurrentDriveSummary.Result = TEXT("Touchdown");
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Drive resets."), 
+            CurrentState.HomeScore, CurrentState.AwayScore);
+
+        CurrentState.YardLine = 20;
+        CurrentState.Down = 1;
+        CurrentState.Distance = 10;
+        CurrentState.YardLineToGain = 30;
+        bTurnover = true;
+    }
+    // Safety Score Tracking
+    else if (CurrentPlayResult.ResultType == EPlayResultType::Safety)
+    {
+        if (CurrentState.bHomeHasPossession)
+        {
+            CurrentState.AwayScore += 2;
+        }
+        else
+        {
+            CurrentState.HomeScore += 2;
+        }
+
+        CurrentDriveSummary.Result = TEXT("Safety");
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: SAFETY! Score: Home %d - Away %d. Drive resets via kickoff."), 
             CurrentState.HomeScore, CurrentState.AwayScore);
 
         CurrentState.YardLine = 20;
@@ -344,4 +442,12 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     {
         GM->ResetPawnPositions();
     }
+}
+
+void UPSPlaySimulation::RecordTouchdown()
+{
+    CurrentPlayResult.ResultType = EPlayResultType::Touchdown;
+    CurrentPlayResult.YardsGained = 100;
+    SetPlayPhase(EPlayPhase::Scoring);
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Touchdown recorded."));
 }
