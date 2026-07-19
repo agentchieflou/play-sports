@@ -12,11 +12,9 @@ Enforces the conventions documented in AGENTS.md over Source/ and Plugins/:
 Two tiers:
   errors   - structural violations (placement, pragma once, type prefixes);
              always fail the run.
-  warnings - style drift (indentation, Allman braces); reported but non-fatal
-             unless --strict is passed. The codebase currently mixes tab
-             (UE-standard, newer files) and 4-space (AGENTS.md, older files)
-             indentation - a pending convention decision; strict mode stays
-             off in CI until it's settled.
+  warnings - style drift (tab indentation, Allman braces); reported but
+             non-fatal unless --strict is passed, so style never blocks a
+             merge without an explicit decision to gate on it.
 
 Exit 0 when no errors (warnings allowed), exit 1 on errors (or, with
 --strict, on warnings too). Run from the repo root:
@@ -78,7 +76,8 @@ def check_file(path):
     pending_macro = None  # UCLASS/USTRUCT/UENUM seen, awaiting the declaration
     tab_lines = 0
     for i, line in enumerate(lines, start=1):
-        if line.strip() and (line.startswith("\t") or line.lstrip("\t") != line.lstrip()):
+        indent = line[: len(line) - len(line.lstrip())]
+        if line.strip() and "\t" in indent:
             tab_lines += 1
 
         if ALLMAN_RE.match(line) and not ALLMAN_EXCLUDE.search(line):
@@ -111,7 +110,7 @@ def check_file(path):
                 pending_macro = None
 
     if tab_lines:
-        warn(path, 1, f"tab indentation on {tab_lines} line(s) - AGENTS.md says 4 spaces (pending convention decision)")
+        warn(path, 1, f"tab indentation on {tab_lines} line(s) - AGENTS.md says 4 spaces")
 
 
 def main():
