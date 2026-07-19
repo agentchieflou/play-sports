@@ -36,7 +36,7 @@ void APSOutOfBoundsVolume::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, A
 
     if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(OtherActor))
     {
-        if (Pawn->bHasPossession)
+        if (Pawn->HasPossession())
         {
             float YardsGained = (Pawn->GetActorLocation().X - Pawn->GetStartingLocation().X) / 100.f;
             GM->PlaySimulation->RecordTackle(FMath::RoundToInt(YardsGained));

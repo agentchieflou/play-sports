@@ -31,7 +31,7 @@ void APSEndZoneVolume::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActo
 {
     if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(OtherActor))
     {
-        if (Pawn->bHasPossession)
+        if (Pawn->HasPossession())
         {
             APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
             if (GM && GM->PlaySimulation)

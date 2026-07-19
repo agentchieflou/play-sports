@@ -48,6 +48,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Player")
     FVector GetStartingLocation() const { return StartingLocation; }
 
+    UFUNCTION(BlueprintPure, Category = "Player")
+    bool HasPossession() const { return bHasPossession; }
+
     // Give the ball to this player pawn
     UFUNCTION(BlueprintCallable, Category = "Player")
     void GainPossession();
