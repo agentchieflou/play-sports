@@ -10,6 +10,7 @@
 #include "PSBall.h"
 #include "PSPlayerPawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/FloatingPawnMovement.h"
 
 static bool LoadMovementTuningFromJson(const FString& JsonFilePath, FMovementTuningRow& OutTuning)
 {
@@ -427,16 +428,16 @@ void APSGameMode::ResetPawnPositions()
             Pawn->EngagedOpponent = nullptr;
 
             // Determine role-based position alignment
-            EPlayerRole Role = Pawn->GetAttributes().Role;
+            EPlayerRole PawnRole = Pawn->GetAttributes().Role;
             FVector TargetLoc(0.f);
 
             if (Pawn->TeamSide == EPSTeamSide::Offense)
             {
-                if (Role == EPlayerRole::Quarterback)
+                if (PawnRole == EPlayerRole::Quarterback)
                 {
                     TargetLoc = FVector(ScrimmageX - 300.f, 0.f, 100.f);
                 }
-                else if (Role == EPlayerRole::OffensiveLineman)
+                else if (PawnRole == EPlayerRole::OffensiveLineman)
                 {
                     TargetLoc = FVector(ScrimmageX, 0.f, 100.f);
                 }
@@ -448,7 +449,7 @@ void APSGameMode::ResetPawnPositions()
             }
             else
             {
-                if (Role == EPlayerRole::DefensiveLineman)
+                if (PawnRole == EPlayerRole::DefensiveLineman)
                 {
                     TargetLoc = FVector(ScrimmageX + 100.f, 0.f, 100.f);
                 }
@@ -460,7 +461,7 @@ void APSGameMode::ResetPawnPositions()
             }
 
             Pawn->SetActorLocation(TargetLoc, false, nullptr, ETeleportType::TeleportPhysics);
-            Pawn->StartingLocation = TargetLoc;
+            Pawn->SetStartingLocation(TargetLoc);
         }
     }
 
