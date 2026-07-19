@@ -63,6 +63,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Player")
     bool ExecutePitch(APSPlayerPawn* TargetPlayer);
 
+    // Fumble the ball, launching it with a pop-out velocity
+    UFUNCTION(BlueprintCallable, Category = "Player")
+    void FumbleBall();
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     EPSTeamSide TeamSide;
 

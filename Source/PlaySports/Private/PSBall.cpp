@@ -33,6 +33,7 @@ APSBall::APSBall()
 
     SpiralSpinRate = 720.f;
     CurrentRollSpin = 0.f;
+    bIsFumbled = false;
 }
 
 void APSBall::BeginPlay()
@@ -121,23 +122,60 @@ void APSBall::DetachFromCarrier()
     UE_LOG(LogTemp, Display, TEXT("APSBall: Detached ball from carrier."));
 }
 
+void APSBall::Fumble(const FVector& LaunchVelocity)
+{
+    DetachFromCarrier();
+    bIsFumbled = true;
+    Launch(LaunchVelocity);
+    UE_LOG(LogTemp, Display, TEXT("APSBall: Fumble executed with velocity %s (speed: %.1f cm/s)"), *LaunchVelocity.ToString(), LaunchVelocity.Size());
+}
+
 void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-    if (!ProjectileMovement || !ProjectileMovement->IsActive() || ProjectileMovement->Velocity.IsNearlyZero())
+    if (GetAttachParentActor() != nullptr)
     {
         return;
     }
 
+    if (!bIsFumbled)
+    {
+        if (!ProjectileMovement || !ProjectileMovement->IsActive() || ProjectileMovement->Velocity.IsNearlyZero())
+        {
+            return;
+        }
+    }
+
     if (APSPlayerPawn* PlayerPawn = Cast<APSPlayerPawn>(OtherActor))
     {
-        if (GetAttachParentActor() != nullptr)
+        APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
+        if (!GM)
         {
             return;
         }
 
-        APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
-        if (!GM)
+        if (bIsFumbled)
         {
+            FPlayerAttributes Attr = PlayerPawn->GetAttributes();
+            float RecoveryChance = 0.60f + (Attr.Agility + Attr.Awareness) * 0.002f;
+            RecoveryChance = FMath::Clamp(RecoveryChance, 0.20f, 0.98f);
+
+            float Roll = FMath::FRand();
+            if (Roll <= RecoveryChance)
+            {
+                AttachToCarrier(PlayerPawn, TEXT("HandSocket"));
+                PlayerPawn->GainPossession();
+                bIsFumbled = false;
+
+                if (GM->PlaySimulation)
+                {
+                    GM->PlaySimulation->SetPlayPhase(EPlayPhase::BallCarrierMovement);
+                }
+                UE_LOG(LogTemp, Display, TEXT("APSBall: Fumble RECOVERED by %s (Roll: %.2f <= Chance: %.2f)"), *Attr.DisplayName, Roll, RecoveryChance);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Display, TEXT("APSBall: %s failed to recover fumble (Roll: %.2f > Chance: %.2f)"), *Attr.DisplayName, Roll, RecoveryChance);
+            }
             return;
         }
 
@@ -192,6 +230,11 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
 
 void APSBall::OnBallBounce(const FHitResult& ImpactResult, const FVector& ImpactVelocity)
 {
+    if (bIsFumbled)
+    {
+        return;
+    }
+
     APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
     if (GM && GM->PlaySimulation)
     {

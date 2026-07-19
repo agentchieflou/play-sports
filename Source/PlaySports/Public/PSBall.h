@@ -43,6 +43,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ball")
     float SpiralSpinRate;
 
+    // Is the ball currently fumbled/live on the ground
+    UPROPERTY(BlueprintReadOnly, Category = "Ball")
+    bool bIsFumbled;
+
+    // Fumble the ball and launch it with a specific velocity
+    UFUNCTION(BlueprintCallable, Category = "Ball")
+    void Fumble(const FVector& LaunchVelocity);
+
 protected:
     virtual void BeginPlay() override;
 
