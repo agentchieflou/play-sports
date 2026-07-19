@@ -247,6 +247,72 @@ void APSGameMode::ExecuteSnap()
     {
         PlaySimulation->TriggerSnap();
     }
+
+    PairLinemen();
+}
+
+void APSGameMode::PairLinemen()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    TArray<AActor*> PlayerActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), PlayerActors);
+
+    TArray<APSPlayerPawn*> OffensiveLinemen;
+    TArray<APSPlayerPawn*> Defenders;
+
+    for (AActor* Actor : PlayerActors)
+    {
+        if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(Actor))
+        {
+            Pawn->EngagedOpponent = nullptr;
+            Pawn->bIsEngaged = false;
+
+            if (Pawn->GetAttributes().Role == EPlayerRole::OffensiveLineman)
+            {
+                OffensiveLinemen.Add(Pawn);
+            }
+            else if (Pawn->TeamSide == EPSTeamSide::Defense && 
+                     (Pawn->GetAttributes().Role == EPlayerRole::DefensiveLineman || 
+                      Pawn->GetAttributes().Role == EPlayerRole::Linebacker))
+            {
+                Defenders.Add(Pawn);
+            }
+        }
+    }
+
+    for (APSPlayerPawn* OL : OffensiveLinemen)
+    {
+        APSPlayerPawn* BestDefender = nullptr;
+        float MinDistance = FLT_MAX;
+
+        for (APSPlayerPawn* Def : Defenders)
+        {
+            if (!Def->bIsEngaged)
+            {
+                float Dist = FVector::Dist(OL->GetActorLocation(), Def->GetActorLocation());
+                if (Dist < MinDistance)
+                {
+                    MinDistance = Dist;
+                    BestDefender = Def;
+                }
+            }
+        }
+
+        if (BestDefender)
+        {
+            OL->EngagedOpponent = BestDefender;
+            OL->bIsEngaged = true;
+            BestDefender->EngagedOpponent = OL;
+            BestDefender->bIsEngaged = true;
+
+            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Paired OL %s with Defender %s for engagement."), 
+                *OL->GetAttributes().DisplayName, *BestDefender->GetAttributes().DisplayName);
+        }
+    }
 }
 
 APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole PlayerRole) const

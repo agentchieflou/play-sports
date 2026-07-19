@@ -32,6 +32,8 @@ APSPlayerPawn::APSPlayerPawn()
     CurrentStamina = 100.f;
     MaxStamina = 100.f;
     bIsBursted = false;
+    EngagedOpponent = nullptr;
+    bIsEngaged = false;
 }
 
 void APSPlayerPawn::BeginPlay()
@@ -50,8 +52,19 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
+    // Engagement steering override
+    if (bIsEngaged && EngagedOpponent)
+    {
+        FVector SteerDir = EngagedOpponent->GetActorLocation() - GetActorLocation();
+        SteerDir.Z = 0.f;
+        if (!SteerDir.IsNearlyZero())
+        {
+            SteerDir.Normalize();
+            AddMovementInput(SteerDir, 1.f);
+        }
+    }
     // Defender pursuit steering behavior
-    if (TeamSide == EPSTeamSide::Defense && !IsPlayerControlled())
+    else if (TeamSide == EPSTeamSide::Defense && !IsPlayerControlled())
     {
         APSPlayerPawn* BallCarrier = nullptr;
         APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());

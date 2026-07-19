@@ -138,6 +138,13 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Player|Movement")
     float BaseAcceleration;
 
+public:
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Player|Blocking")
+    APSPlayerPawn* EngagedOpponent;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Player|Blocking")
+    bool bIsEngaged;
+
 private:
     UFUNCTION()
     void OnPawnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);

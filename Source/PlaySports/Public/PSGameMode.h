@@ -53,5 +53,8 @@ public:
     void ExecuteSnap();
 
     UFUNCTION(BlueprintCallable, Category = "Gameplay")
+    void PairLinemen();
+
+    UFUNCTION(BlueprintCallable, Category = "Gameplay")
     class APSPlayerPawn* FindPlayerPawnByRole(EPlayerRole PlayerRole) const;
 };
