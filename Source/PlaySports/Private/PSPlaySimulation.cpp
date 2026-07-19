@@ -34,6 +34,13 @@ void UPSPlaySimulation::TriggerSnap()
     }
 }
 
+void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
+{
+    CurrentState.Phase = NewPhase;
+    PhaseTimer = 0.f;
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play phase overridden. Transited to: %s"), *UEnum::GetValueAsString(NewPhase));
+}
+
 void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
 {
     CurrentState.GameTimeSeconds += DeltaSeconds;
