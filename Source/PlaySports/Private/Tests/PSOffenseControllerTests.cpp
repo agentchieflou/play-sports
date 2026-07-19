@@ -45,7 +45,7 @@ bool FOffenseControllerPossessionTest::RunTest(const FString& Parameters)
         Controller->Possess(Pawn);
 
         TestEqual(TEXT("Controller possesses Pawn"), Controller->GetPawn(), Pawn);
-        TestEqual(TEXT("Pawn is possessed by Controller"), Pawn->GetController(), Controller);
+        TestEqual(TEXT("Pawn is possessed by Controller"), Pawn->GetController(), Cast<AController>(Controller));
 
         UBlackboardComponent* BB = Controller->GetBlackboardComponent();
         if (TestNotNull(TEXT("Blackboard component is initialized"), BB))
