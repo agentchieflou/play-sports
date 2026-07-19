@@ -55,6 +55,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Player")
     bool ThrowPass(class APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false);
 
+    // Perform an instant handoff of the ball to a target player pawn
+    UFUNCTION(BlueprintCallable, Category = "Player")
+    bool ExecuteHandoff(APSPlayerPawn* TargetPlayer);
+
+    // Perform a lateral/pitch toss of the ball to a target player pawn
+    UFUNCTION(BlueprintCallable, Category = "Player")
+    bool ExecutePitch(APSPlayerPawn* TargetPlayer);
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     EPSTeamSide TeamSide;
 
