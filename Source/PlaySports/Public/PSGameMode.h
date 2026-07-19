@@ -36,4 +36,13 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Score")
     int32 AwayScore;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movement")
+    UDataTable* MovementTuningTable;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movement")
+    FString MovementTuningJsonPath;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Movement")
+    FMovementTuningRow MovementTuningSettings;
 };

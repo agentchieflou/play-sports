@@ -3,6 +3,39 @@
 #include "PSPlaySimulation.h"
 #include "Misc/Paths.h"
 #include "PSHUD.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+#include "JsonObjectConverter.h"
+#include "Misc/FileHelper.h"
+
+static bool LoadMovementTuningFromJson(const FString& JsonFilePath, FMovementTuningRow& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TArray<TSharedPtr<FJsonValue>> ParsedArray;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedArray) || ParsedArray.Num() == 0)
+    {
+        TSharedPtr<FJsonObject> ParsedObject;
+        TSharedRef<TJsonReader<>> ReaderObj = TJsonReaderFactory<>::Create(JsonString);
+        if (FJsonSerializer::Deserialize(ReaderObj, ParsedObject) && ParsedObject.IsValid())
+        {
+            return FJsonObjectConverter::JsonObjectToUStruct(ParsedObject.ToSharedRef(), &OutTuning, 0, 0);
+        }
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> RowObject = ParsedArray[0]->AsObject();
+    if (RowObject.IsValid())
+    {
+        return FJsonObjectConverter::JsonObjectToUStruct(RowObject.ToSharedRef(), &OutTuning, 0, 0);
+    }
+    return false;
+}
 
 APSGameMode::APSGameMode()
 {
@@ -14,11 +47,42 @@ APSGameMode::APSGameMode()
     HUDClass = APSHUD::StaticClass();
     HomeScore = 0;
     AwayScore = 0;
+
+    MovementTuningTable = nullptr;
+    MovementTuningJsonPath = TEXT("Data/movement_tuning.json");
+    MovementTuningSettings = FMovementTuningRow();
 }
 
 void APSGameMode::StartPlay()
 {
     Super::StartPlay();
+
+    // Load movement tuning from DataTable or JSON
+    if (MovementTuningTable)
+    {
+        static const FString ContextString(TEXT("MovementTuningContext"));
+        TArray<FMovementTuningRow*> TuningRows;
+        MovementTuningTable->GetAllRows<FMovementTuningRow>(ContextString, TuningRows);
+        if (TuningRows.Num() > 0)
+        {
+            MovementTuningSettings = *TuningRows[0];
+            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Loaded movement tuning settings from DataTable."));
+        }
+    }
+    else
+    {
+        FString FullTuningPath = FPaths::ProjectDir() + MovementTuningJsonPath;
+        FPaths::CollapseRelativeDirectories(FullTuningPath);
+        if (FPaths::FileExists(FullTuningPath))
+        {
+            FMovementTuningRow LoadedTuning;
+            if (LoadMovementTuningFromJson(FullTuningPath, LoadedTuning))
+            {
+                MovementTuningSettings = LoadedTuning;
+                UE_LOG(LogTemp, Display, TEXT("PSGameMode: Loaded movement tuning settings from JSON (%s)."), *FullTuningPath);
+            }
+        }
+    }
 
     // Instantiate transient DataTable if none configured
     if (!PlayerRosterTable)
