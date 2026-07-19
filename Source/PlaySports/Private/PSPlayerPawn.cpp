@@ -481,3 +481,15 @@ bool APSPlayerPawn::ResolveTackle(APSPlayerPawn* Defender)
 {
     return BallActionComponent ? BallActionComponent->ResolveTackle(Defender) : false;
 }
+
+void APSPlayerPawn::OnPawnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+    if (APSPlayerPawn* OtherPawn = Cast<APSPlayerPawn>(OtherActor))
+    {
+        if (HasPossession() && OtherPawn->TeamSide != TeamSide)
+        {
+            UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Contact detected! Ball carrier %s contacted by defender %s."), *GetAttributes().DisplayName, *OtherPawn->GetAttributes().DisplayName);
+            ResolveTackle(OtherPawn);
+        }
+    }
+}
