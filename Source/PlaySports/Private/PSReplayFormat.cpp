@@ -60,11 +60,7 @@ bool UPSReplayFormat::DeserializeFromJson(const FString& Json, FPSReplayRecordin
 
 bool UPSReplayFormat::MigrateStep(FPSReplayRecording& Recording, int32 FromVersion)
 {
-    switch (FromVersion)
-    {
-    // Future breaking changes add one case per step, e.g.:
-    // case 1: /* transform v1 -> v2 */ Recording.Header.FormatVersion = 2; return true;
-    default:
-        return false;
-    }
+    // Future breaking changes add one branch per step, e.g.:
+    // if (FromVersion == 1) { /* transform v1 -> v2 */ Recording.Header.FormatVersion = 2; return true; }
+    return false;
 }
