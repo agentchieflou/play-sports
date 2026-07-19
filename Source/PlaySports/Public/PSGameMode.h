@@ -45,4 +45,13 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     FMovementTuningRow MovementTuningSettings;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
+    class APSBall* ActiveBall;
+
+    UFUNCTION(BlueprintCallable, Category = "Gameplay")
+    void ExecuteSnap();
+
+    UFUNCTION(BlueprintCallable, Category = "Gameplay")
+    class APSPlayerPawn* FindPlayerPawnByRole(EPlayerRole Role) const;
 };

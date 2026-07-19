@@ -8,6 +8,7 @@ UPSPlaySimulation::UPSPlaySimulation()
     CurrentState.Distance = 10;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
+    PhaseTimer = 0.f;
 }
 
 void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense, const TArray<FPlayerAttributes>& Defense)
@@ -20,26 +21,50 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     CurrentState.Distance = 10;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
+    PhaseTimer = 0.f;
+}
+
+void UPSPlaySimulation::TriggerSnap()
+{
+    if (CurrentState.Phase == EPlayPhase::PreSnap)
+    {
+        CurrentState.Phase = EPlayPhase::Snap;
+        PhaseTimer = 0.f;
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
+    }
 }
 
 void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
 {
     CurrentState.GameTimeSeconds += DeltaSeconds;
+    PhaseTimer += DeltaSeconds;
 
     switch (CurrentState.Phase)
     {
     case EPlayPhase::PreSnap:
-        CurrentState.Phase = EPlayPhase::Snap;
+        // Do not advance automatically; wait for TriggerSnap()
         break;
     case EPlayPhase::Snap:
-        CurrentState.Phase = EPlayPhase::PassRush;
+        if (PhaseTimer >= 0.5f) // Snap phase lasts 0.5 seconds
+        {
+            CurrentState.Phase = EPlayPhase::PassRush;
+            PhaseTimer = 0.f;
+        }
         break;
     case EPlayPhase::PassRush:
-        CurrentState.Phase = EPlayPhase::BallCarrierMovement;
+        if (PhaseTimer >= 2.0f) // PassRush phase lasts 2.0 seconds
+        {
+            CurrentState.Phase = EPlayPhase::BallCarrierMovement;
+            PhaseTimer = 0.f;
+        }
         break;
     case EPlayPhase::BallCarrierMovement:
-        ResolvePlayResult();
-        CurrentState.Phase = EPlayPhase::Scoring;
+        if (PhaseTimer >= 3.0f) // BallCarrierMovement phase lasts 3.0 seconds
+        {
+            ResolvePlayResult();
+            CurrentState.Phase = EPlayPhase::Scoring;
+            PhaseTimer = 0.f;
+        }
         break;
     default:
         break;
