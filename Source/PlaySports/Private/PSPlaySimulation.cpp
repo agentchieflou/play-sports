@@ -20,6 +20,7 @@ UPSPlaySimulation::UPSPlaySimulation()
     CurrentState.bHomeHasPossession = true;
     CurrentState.HomeScore = 0;
     CurrentState.AwayScore = 0;
+    CurrentState.bIsClockRunning = false;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
     ActivePenalty = EPSPenaltyType::None;
@@ -43,6 +44,7 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     CurrentState.bHomeHasPossession = true;
     CurrentState.HomeScore = 0;
     CurrentState.AwayScore = 0;
+    CurrentState.bIsClockRunning = false;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
     ActivePenalty = EPSPenaltyType::None;
@@ -62,6 +64,7 @@ void UPSPlaySimulation::TriggerSnap()
         }
 
         CurrentState.Phase = EPlayPhase::Snap;
+        CurrentState.bIsClockRunning = true;
         PhaseTimer = 0.f;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
     }
@@ -87,26 +90,9 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     CurrentState.GameTimeSeconds += DeltaSeconds;
     PhaseTimer += DeltaSeconds;
 
-    if (CurrentState.Phase == EPlayPhase::PreSnap)
+    bool bShouldTickGameClock = (CurrentState.Phase != EPlayPhase::PreSnap) || CurrentState.bIsClockRunning;
+    if (bShouldTickGameClock && CurrentState.Phase != EPlayPhase::Scoring)
     {
-        CurrentState.PlayClockSeconds -= DeltaSeconds;
-        if (CurrentState.PlayClockSeconds <= 0.f)
-        {
-            CurrentState.PlayClockSeconds = 40.f;
-            CurrentState.YardLine = FMath::Max(1, CurrentState.YardLine - 5);
-            CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
-            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: DELAY OF GAME penalty! 5 yards loss."));
-        }
-    }
-    else
-    {
-        if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
-        {
-            ActivePenalty = EPSPenaltyType::Holding;
-            bPenaltyDeclined = false;
-            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offensive Holding penalty called during play!"));
-        }
-
         CurrentState.GameClockSeconds -= DeltaSeconds;
         if (CurrentState.GameClockSeconds <= 0.f)
         {
@@ -121,6 +107,27 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
             {
                 UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: End of Quarter. Transitioning to Quarter %d"), CurrentState.Quarter);
             }
+        }
+    }
+
+    if (CurrentState.Phase == EPlayPhase::PreSnap)
+    {
+        CurrentState.PlayClockSeconds -= DeltaSeconds;
+        if (CurrentState.PlayClockSeconds <= 0.f)
+        {
+            CurrentState.PlayClockSeconds = 25.f;
+            CurrentState.YardLine = FMath::Max(1, CurrentState.YardLine - 5);
+            CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: DELAY OF GAME penalty! 5 yards loss."));
+        }
+    }
+    else
+    {
+        if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
+        {
+            ActivePenalty = EPSPenaltyType::Holding;
+            bPenaltyDeclined = false;
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offensive Holding penalty called during play!"));
         }
     }
 
@@ -289,14 +296,18 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     CurrentDriveSummary.Plays++;
     CurrentDriveSummary.Yards += CurrentPlayResult.YardsGained;
 
-    // Runoff play game clock
+    // Game clock and play clock status update based on play type
     if (CurrentPlayResult.ResultType == EPlayResultType::Tackle)
     {
         CurrentState.GameClockSeconds -= 30.f; // Runoff 30 seconds on tackled plays
+        CurrentState.PlayClockSeconds = 40.f;
+        CurrentState.bIsClockRunning = true;
     }
-    
-    // Play clock resets to 40
-    CurrentState.PlayClockSeconds = 40.f;
+    else
+    {
+        CurrentState.PlayClockSeconds = 25.f;
+        CurrentState.bIsClockRunning = false;
+    }
 
     // Update yard line
     CurrentState.YardLine += CurrentPlayResult.YardsGained;
@@ -450,4 +461,12 @@ void UPSPlaySimulation::RecordTouchdown()
     CurrentPlayResult.YardsGained = 100;
     SetPlayPhase(EPlayPhase::Scoring);
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Touchdown recorded."));
+}
+
+FString UPSPlaySimulation::GetFormattedGameClock() const
+{
+    int32 TotalSeconds = FMath::Max(0, FMath::RoundToInt(CurrentState.GameClockSeconds));
+    int32 Minutes = TotalSeconds / 60;
+    int32 Seconds = TotalSeconds % 60;
+    return FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
 }
