@@ -65,6 +65,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Broadcast Camera")
     void SnapToScrimmage(float ScrimmageYardLine);
 
+    /**
+     * Set the actor to track. Wires the orphan TargetActor that was always null
+     * (architecture review Epic C3 finding). GameMode calls this after snap so the
+     * camera follows the ball carrier.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Broadcast Camera")
+    void SetTargetActor(AActor* NewTarget);
+
     // Active state of free cam mode
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera")
     bool bIsFreeCam;

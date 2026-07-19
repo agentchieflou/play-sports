@@ -10,7 +10,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSScheduleEngineGeneratesWeeksTest,
 
 bool FPSScheduleEngineGeneratesWeeksTest::RunTest(const FString& Parameters)
 {
-    UPScheduleEngine* Engine = NewObject<UPScheduleEngine>();
+    UPSScheduleEngine* Engine = NewObject<UPSScheduleEngine>();
     const FDateTime SeasonStart(2026, 9, 10);
     TArray<int32> ByeWeeks;
     ByeWeeks.Add(5);

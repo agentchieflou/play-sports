@@ -1,4 +1,6 @@
 #include "PSFieldGrid.h"
+#include "PSPlayerPawn.h"
+#include "Engine/World.h"
 
 APSFieldGrid::APSFieldGrid()
 {
@@ -125,4 +127,44 @@ FVector APSFieldGrid::GetFormationSpawnLocation(
     }
 
     return GetWorldPositionFromFieldCoordinate(TargetYardLine, LateralYard);
+}
+
+TArray<APSPlayerPawn*> APSFieldGrid::SpawnPlayersFromRoster(
+    const TArray<FPlayerAttributes*>& Roster,
+    float ScrimmageX,
+    UWorld* World)
+{
+    TArray<APSPlayerPawn*> SpawnedPawns;
+    if (!World || Roster.Num() == 0)
+    {
+        return SpawnedPawns;
+    }
+
+    float XOffset = 0.f;
+    for (FPlayerAttributes* Player : Roster)
+    {
+        if (!Player)
+        {
+            continue;
+        }
+
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+        // Position logic mirrors original GameMode spawn loop
+        float SpawnX = (Player->Role == EPlayerRole::Quarterback) ? ScrimmageX - QBDropbackDistance : ScrimmageX;
+        FVector SpawnLocation(SpawnX, XOffset, 100.f);
+        XOffset += FormationLateralSpacing;
+
+        APSPlayerPawn* NewPawn = World->SpawnActor<APSPlayerPawn>(
+            APSPlayerPawn::StaticClass(), SpawnLocation, FRotator::ZeroRotator, SpawnParams);
+        if (NewPawn)
+        {
+            NewPawn->InitializePlayer(*Player);
+            SpawnedPawns.Add(NewPawn);
+        }
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("APSFieldGrid::SpawnPlayersFromRoster: Spawned %d pawns."), SpawnedPawns.Num());
+    return SpawnedPawns;
 }

@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "PSPlayerAttributes.h"
+#include "PSPossessionComponent.h"
 #include "PSPlayerPawn.generated.h"
 
 class UCapsuleComponent;
 class UStaticMeshComponent;
 class UFloatingPawnMovement;
+class APSGameMode;
 
 UENUM(BlueprintType)
 enum class EPSTeamSide : uint8
@@ -141,6 +143,15 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UFloatingPawnMovement* MovementComponent;
 
+    /** Extracted possession state component (Epic C3). Callers continue to use
+     *  GainPossession/LosePossession/HasPossession/TransferPossessionTo on the pawn;
+     *  those methods delegate here. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UPSPossessionComponent* PossessionComponent;
+
+    UFUNCTION(BlueprintPure, Category = "Possession")
+    UPSPossessionComponent* GetPossessionComponent() const { return PossessionComponent; }
+
     UPROPERTY(BlueprintReadOnly, Category = "Player")
     FPlayerAttributes Attributes;
 
@@ -155,6 +166,12 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "Player|Movement")
     float BaseAcceleration;
+
+    /** Cached once in BeginPlay so Tick/InitializePlayer don't re-Cast<APSGameMode>
+     *  and copy FMovementTuningRow by value every call (Epic C3: no per-frame
+     *  tuning copies). */
+    UPROPERTY(Transient)
+    APSGameMode* CachedGameMode;
 
 public:
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Player|Blocking")

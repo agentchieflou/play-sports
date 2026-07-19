@@ -5,6 +5,8 @@
 #include "PSPlayerAttributes.h"
 #include "PSFieldGrid.generated.h"
 
+class APSPlayerPawn;
+
 USTRUCT(BlueprintType)
 struct FPSFormationSpawnPoint
 {
@@ -60,4 +62,29 @@ public:
         float LineOfScrimmageYard,
         bool bIsOffense,
         bool bPlayTowardsGoalLineB = true) const;
+
+    /**
+     * Spawn pawns from a roster array, positioning them relative to the scrimmage line.
+     * Used by GameMode to replace its inline spawn loop (Epic C3).
+     * Returns the list of spawned pawns so the caller can cache them.
+     *
+     * @param Roster       Player attribute rows to spawn.
+     * @param ScrimmageX   World-space X position of the line of scrimmage (yards * 100).
+     * @param World        UWorld to spawn into.
+     * @return             Array of spawned APSPlayerPawn pointers.
+     */
+    static TArray<APSPlayerPawn*> SpawnPlayersFromRoster(
+        const TArray<FPlayerAttributes*>& Roster,
+        float ScrimmageX,
+        UWorld* World);
+
+    /** How far behind the scrimmage line a QB lines up (world units). Shared by
+     *  SpawnPlayersFromRoster and GameMode::ResetPawnPositions so the two formation
+     *  call sites don't each hardcode their own copy (Epic C3: "field constants
+     *  live in one place"). */
+    static constexpr float QBDropbackDistance = 300.f;
+
+    /** Lateral spacing between formation-mates who aren't on the scrimmage line. */
+    static constexpr float FormationLateralSpacing = 150.f;
 };
+

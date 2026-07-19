@@ -24,6 +24,9 @@ APSPlayerPawn::APSPlayerPawn()
 
     MovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MovementComp"));
 
+    // C3: PossessionComponent owns possession state
+    PossessionComponent = CreateDefaultSubobject<UPSPossessionComponent>(TEXT("PossessionComp"));
+
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;
 
@@ -35,6 +38,7 @@ APSPlayerPawn::APSPlayerPawn()
     EngagedOpponent = nullptr;
     bIsEngaged = false;
     EngagementTime = 0.f;
+    CachedGameMode = nullptr;
 }
 
 void APSPlayerPawn::BeginPlay()
@@ -46,6 +50,11 @@ void APSPlayerPawn::BeginPlay()
     if (CapsuleComponent)
     {
         CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &APSPlayerPawn::OnPawnOverlap);
+    }
+
+    if (GetWorld())
+    {
+        CachedGameMode = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
     }
 }
 
@@ -179,14 +188,8 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
         float CurrentSpeed = MovementComponent->Velocity.Size();
         float MaxSpeed = MovementComponent->MaxSpeed;
 
-        FMovementTuningRow Tuning;
-        if (GetWorld())
-        {
-            if (APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode()))
-            {
-                Tuning = GM->MovementTuningSettings;
-            }
-        }
+        static const FMovementTuningRow DefaultTuning;
+        const FMovementTuningRow& Tuning = CachedGameMode ? CachedGameMode->MovementTuningSettings : DefaultTuning;
 
         if (MaxSpeed > 0.f)
         {
@@ -262,14 +265,13 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
     Attributes = InAttributes;
     bHasPossession = false;
 
-    FMovementTuningRow Tuning;
-    if (GetWorld())
+    if (!CachedGameMode && GetWorld())
     {
-        if (APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode()))
-        {
-            Tuning = GM->MovementTuningSettings;
-        }
+        CachedGameMode = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
     }
+
+    static const FMovementTuningRow DefaultTuning;
+    const FMovementTuningRow& Tuning = CachedGameMode ? CachedGameMode->MovementTuningSettings : DefaultTuning;
 
     // Scale MaxSpeed linearly based on Speed attribute
     float SpeedRange = Tuning.BaseMaxSpeedMax - Tuning.BaseMaxSpeedMin;
@@ -317,8 +319,12 @@ void APSPlayerPawn::GainPossession()
     if (!bHasPossession)
     {
         bHasPossession = true;
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) gained ball possession."), 
-            *Attributes.DisplayName, 
+        if (PossessionComponent)
+        {
+            PossessionComponent->GainPossession();
+        }
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) gained ball possession."),
+            *Attributes.DisplayName,
             *Attributes.PlayerId.ToString());
     }
 }
@@ -328,8 +334,12 @@ void APSPlayerPawn::LosePossession()
     if (bHasPossession)
     {
         bHasPossession = false;
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) lost ball possession."), 
-            *Attributes.DisplayName, 
+        if (PossessionComponent)
+        {
+            PossessionComponent->LosePossession();
+        }
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) lost ball possession."),
+            *Attributes.DisplayName,
             *Attributes.PlayerId.ToString());
     }
 }
@@ -338,7 +348,7 @@ bool APSPlayerPawn::TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn)
 {
     if (!bHasPossession)
     {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: Transfer possession failed - %s does not have the ball."), 
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: Transfer possession failed - %s does not have the ball."),
             *Attributes.DisplayName);
         return false;
     }
@@ -349,11 +359,20 @@ bool APSPlayerPawn::TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn)
         return false;
     }
 
-    LosePossession();
-    TargetPlayerPawn->GainPossession();
+    // Delegate to component; pawn Gain/LosePossession keeps bHasPossession in sync
+    if (PossessionComponent)
+    {
+        PossessionComponent->TransferPossessionTo(TargetPlayerPawn);
+        bHasPossession = false; // this pawn lost it
+    }
+    else
+    {
+        LosePossession();
+        TargetPlayerPawn->GainPossession();
+    }
 
-    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Transferred ball possession from %s to %s."), 
-        *Attributes.DisplayName, 
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Transferred ball possession from %s to %s."),
+        *Attributes.DisplayName,
         *TargetPlayerPawn->GetAttributes().DisplayName);
 
     return true;
