@@ -145,11 +145,11 @@ void APSGameMode::StartPlay()
             UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), ExistingPawns);
             if (ExistingPawns.Num() == 0)
             {
-                TArray<FPlayerAttributes*> AllPlayers;
-                PlayerRosterTable->GetAllRows<FPlayerAttributes>(TEXT("PSGameMode Spawning"), AllPlayers);
+                TArray<FPlayerAttributes*> RosterPlayers;
+                PlayerRosterTable->GetAllRows<FPlayerAttributes>(TEXT("PSGameMode Spawning"), RosterPlayers);
                 
                 float XOffset = 0.f;
-                for (FPlayerAttributes* Player : AllPlayers)
+                for (FPlayerAttributes* Player : RosterPlayers)
                 {
                     if (Player)
                     {
