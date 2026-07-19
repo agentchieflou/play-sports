@@ -33,7 +33,7 @@ Already sufficient and done: Epics 3, 4, 6–11, 13, C1, C2, C4.
 
 ## M2 — Rules complete
 
-- [ ] Epic 12.5 — timeout budget per team (last unchecked rules story in Phase 1)
+- [x] Epic 12.5 — timeout budget per team (last unchecked rules story in Phase 1)
 
 ## M3 — Consolidation gate closed (Phase 2 unlock)
 
