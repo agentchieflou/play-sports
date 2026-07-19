@@ -55,10 +55,10 @@ other agent's effectiveness. Sizing/mode legend: see `ROADMAP.md`.
 **Goal:** One versioned save architecture for franchise state, settings, profiles, and replays — before Track G scatters ad-hoc `SaveGame`s.
 **Depends on:** — (should land before Core 20's save story is implemented)
 
-- [ ] Save architecture design: slots, categories (profile/franchise/replay), versioning + migration
-- [ ] Serialization implementation with corruption detection and backup-on-write
-- [ ] Async save/load with UI states (Track I)
-- [ ] Schema-migration test harness (old saves load forever)
+- [x] Save architecture design: slots, categories (profile/franchise/replay), versioning + migration
+- [x] Serialization implementation with corruption detection and backup-on-write
+- [x] Async save/load with UI states (Track I)
+- [x] Schema-migration test harness (old saves load forever)
 
 ### Epic 117: Crash Reporting & Session Telemetry
 

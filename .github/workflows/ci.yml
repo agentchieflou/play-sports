@@ -45,6 +45,11 @@ jobs:
           $ReportDir = "$env:GITHUB_WORKSPACE\Saved\AutomationReport"
           & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$env:GITHUB_WORKSPACE\play-sports.uproject" -ExecCmds="Automation RunTests PlaySports" -TestExit="Automation Test Queue Empty" -ReportOutputPath="$ReportDir" -unattended -nullrhi -nosplash -nop4 -log
           if ($LASTEXITCODE -ne 0) { throw "Automation run failed with exit code $LASTEXITCODE" }
+          # The editor can exit 0 despite failing tests - the report is the truth.
+          $Index = Join-Path $ReportDir "index.json"
+          if (-not (Test-Path $Index)) { throw "Automation report missing - tests did not run" }
+          $Json = Get-Content $Index -Raw
+          if ($Json -match '"failed"\s*:\s*[1-9]' -or $Json -match '"state"\s*:\s*"fail') { throw "Automation report contains failed test(s)" }
 
       - name: Upload test report
         if: always()
