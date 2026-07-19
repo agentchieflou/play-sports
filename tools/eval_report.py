@@ -6,6 +6,9 @@ agent/model/archetype pairing: runs, mean, latest), and raises regression
 alerts when a pairing's latest composite drops more than THRESHOLD points
 below the mean of its earlier runs (needs >= 2 earlier runs).
 
+Also folds Track P benchmark-duel records (eval/duels/*.json, Epic 137) into
+a duels section with per-model win counts.
+
 Usage:  python tools/eval_report.py [--strict]
   --strict  exit 1 when any regression alert fires (for CI/cron use).
 """
@@ -17,8 +20,38 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SCORECARD_DIR = REPO / "eval" / "scorecards"
+DUEL_DIR = REPO / "eval" / "duels"
 OUT = REPO / "eval" / "SCORECARD.md"
 THRESHOLD = 15
+
+
+def duel_lines():
+    duels = []
+    if DUEL_DIR.is_dir():
+        for path in sorted(DUEL_DIR.glob("*.json")):
+            duels.append(json.loads(path.read_text(encoding="utf-8")))
+    if not duels:
+        return []
+    wins = defaultdict(int)
+    for d in duels:
+        winner_key = d.get("winner")
+        for c in d.get("contestants", []):
+            if c.get("key") == winner_key:
+                wins[c.get("model", "unknown")] += 1
+    lines = ["", "## Benchmark duels", "",
+             "| Duel | Story | Winner model | Basis | PR |", "|---|---|---|---|---|"]
+    for d in duels[-10:][::-1]:
+        winner_model = next(
+            (c.get("model", "?") for c in d.get("contestants", [])
+             if c.get("key") == d.get("winner")), "(none)")
+        basis = (d.get("decision") or "").split(":")[0]
+        lines.append(f"| {d['duel_id']} | {d.get('story', '?')} | {winner_model} "
+                     f"| {basis} | {d.get('pr') or '—'} |")
+    lines += ["", "Win totals: "
+              + (", ".join(f"{model} {count}" for model, count in
+                           sorted(wins.items(), key=lambda kv: -kv[1]))
+                 or "none")]
+    return lines
 
 
 def main():
@@ -68,6 +101,8 @@ def main():
     for c in cards[-10:][::-1]:
         lines.append(
             f"| #{c['pr']} | {c['agent']} | {c['model']} | {c['archetype']} | {c['composite']} | {c['title'][:60]} |")
+
+    lines.extend(duel_lines())
 
     if alerts:
         lines.append("")

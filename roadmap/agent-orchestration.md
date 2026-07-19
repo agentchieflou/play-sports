@@ -43,11 +43,11 @@ worker, worktree, branch, attempts, pr, score, events[]}}, duels[], escalations[
 **Goal:** One importable Python layer turns the `.env` contract into working model calls with tiers, retries, and fallback.
 **Depends on:** — (seed of Epic 119; Core 25's router story consumes this)
 
-- [ ] `tools/orchestrator/` scaffold + `config.py`: `.env` parsing (stdlib only), model-tier table — supervisor = Gemini 3.5 Flash high (`GEMINI_API_KEY`); worker = GPT-OSS-120B (`OPENROUTER_API_KEY`); worker fallback = Gemini 3.5 Flash low (same Gemini key); `OLLAMA_HOST` slot documented as reserved, unimplemented
-- [ ] `models/base.py`: `ModelClient` protocol — chat completion with tool/function-calling, usage accounting, retry with rate-limit backoff
-- [ ] Concrete clients `models/gemini.py` and `models/openrouter.py` (stdlib HTTP, no SDK dependencies)
-- [ ] `models/router.py`: tier→client resolution with health checks and the worker fallback chain (openrouter → gemini-flash-low) — documented as the layer Epic 119's MCP service will wrap
-- [ ] Unit tests with mocked HTTP for both clients and the fallback chain
+- [x] `tools/orchestrator/` scaffold + `config.py`: `.env` parsing (stdlib only), model-tier table — supervisor = Gemini 3.5 Flash high (`GEMINI_API_KEY`); worker = GPT-OSS-120B (`OPENROUTER_API_KEY`); worker fallback = Gemini 3.5 Flash low (same Gemini key); `OLLAMA_HOST` slot documented as reserved, unimplemented
+- [x] `models/base.py`: `ModelClient` protocol — chat completion with tool/function-calling, usage accounting, retry with rate-limit backoff
+- [x] Concrete clients `models/gemini.py` and `models/openrouter.py` (stdlib HTTP, no SDK dependencies)
+- [x] `models/router.py`: tier→client resolution with health checks and the worker fallback chain (openrouter → gemini-flash-low) — documented as the layer Epic 119's MCP service will wrap
+- [x] Unit tests with mocked HTTP for both clients and the fallback chain
 
 ### Epic 136: Worker Harness & Isolated Worktrees
 
@@ -55,11 +55,11 @@ worker, worktree, branch, attempts, pr, score, events[]}}, duels[], escalations[
 **Goal:** A cheap model can actually complete one roadmap story: an agentic tool loop jailed to its own git worktree, with the harness (not the model) owning git.
 **Depends on:** 135
 
-- [ ] `worker/workspace.py`: worktree lifecycle — create `.worktrees/<branch>` off `main` (branch named per the `git-steward` convention), diff capture via `git diff main...HEAD`, cleanup; `.worktrees/` gitignored
-- [ ] `worker/tools.py`: model-facing tools — `read_file`, `write_file`, `list_dir`, `grep`, `run_check` (allowlist only: `lint_conventions.py`, `validate_data.py`, `pytest`), `finish(summary)`; all paths resolved and jailed to the worktree root, per-file size caps, per-run write caps
-- [ ] `worker/harness.py`: the loop — system prompt rendered from the matching coder-skill prose plus the story assignment; executes tool calls until `finish` or budget exhaustion (max iterations, token cap); full transcript persisted for scoring
-- [ ] Single-run CLI `python -m tools.orchestrator run --story <epic>.<story>`: worker completes the story; the harness commits, pushes, and opens the PR via `gh` — the model never runs git
-- [ ] Dry-run mode (diff printed, no push/PR) + harness tests driven by a scripted fake model
+- [x] `worker/workspace.py`: worktree lifecycle — create `.worktrees/<branch>` off `main` (branch named per the `git-steward` convention), diff capture via `git diff main...HEAD`, cleanup; `.worktrees/` gitignored
+- [x] `worker/tools.py`: model-facing tools — `read_file`, `write_file`, `list_dir`, `grep`, `run_check` (allowlist only: `lint_conventions.py`, `validate_data.py`, `pytest`), `finish(summary)`; all paths resolved and jailed to the worktree root, per-file size caps, per-run write caps
+- [x] `worker/harness.py`: the loop — system prompt rendered from the matching coder-skill prose plus the story assignment; executes tool calls until `finish` or budget exhaustion (max iterations, token cap); full transcript persisted for scoring
+- [x] Single-run CLI `python -m tools.orchestrator run --story <epic>.<story>`: worker completes the story; the harness commits, pushes, and opens the PR via `gh` — the model never runs git
+- [x] Dry-run mode (diff printed, no push/PR) + harness tests driven by a scripted fake model
 
 ### Epic 137: Benchmark Duel Mode
 
@@ -67,11 +67,11 @@ worker, worktree, branch, attempts, pr, score, events[]}}, duels[], escalations[
 **Goal:** Two workers race the same story in separate worktrees; objective scores plus a supervisor-model judgment pick the branch that proceeds to PR — Epic 120's eval gym, made head-to-head.
 **Depends on:** 136 (extends Epic 120)
 
-- [ ] Refactor `tools/score_agent_run.py`: extract scoring into importable `tools/score_lib.py` (CLI behavior byte-identical) and add a local-diff path — scope/lint/data/tests-added computable pre-PR without `gh`
-- [ ] `duel.py`: same story, two worker configs, two worktrees; both diffs and transcripts captured
-- [ ] Judge pass: the supervisor model compares both diffs against the story's acceptance criteria → structured verdict, combined with objective local scores into a winner (tie → cheaper model wins)
-- [ ] Duel records in `eval/duels/<id>.json`; `tools/eval_report.py` extended to fold duel outcomes into `eval/SCORECARD.md`
-- [ ] Winner flow: winning branch proceeds to PR via the 136 pipeline; loser worktree archived to the transcript store, then removed
+- [x] Refactor `tools/score_agent_run.py`: extract scoring into importable `tools/score_lib.py` (CLI behavior byte-identical) and add a local-diff path — scope/lint/data/tests-added computable pre-PR without `gh`
+- [x] `duel.py`: same story, two worker configs, two worktrees; both diffs and transcripts captured
+- [x] Judge pass: the supervisor model compares both diffs against the story's acceptance criteria → structured verdict, combined with objective local scores into a winner (tie → cheaper model wins)
+- [x] Duel records in `eval/duels/<id>.json`; `tools/eval_report.py` extended to fold duel outcomes into `eval/SCORECARD.md`
+- [x] Winner flow: winning branch proceeds to PR via the 136 pipeline; loser worktree archived to the transcript store, then removed
 
 ### Epic 138: Supervisor Graph Mode
 
