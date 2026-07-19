@@ -69,8 +69,9 @@ void APSOffenseController::OnUnPossess()
 
 void APSOffenseController::InitializeBlackboardState()
 {
-    // Programmatically create BlackboardData fallback if Blackboard is not initialized
-    if (!GetBlackboardComponent())
+    UBlackboardComponent* BB = GetBlackboardComponent();
+    // Programmatically create BlackboardData fallback if Blackboard or its asset is not initialized
+    if (!BB || !BB->GetBlackboardAsset())
     {
         UBlackboardData* TemporaryBBData = NewObject<UBlackboardData>(this);
         if (TemporaryBBData)
@@ -80,10 +81,17 @@ void APSOffenseController::InitializeBlackboardState()
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Object>(TEXT("BallCarrier"));
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Bool>(TEXT("bHasPossession"));
 
-            UBlackboardComponent* RawBB = nullptr;
-            if (UseBlackboard(TemporaryBBData, RawBB))
+            if (BB)
             {
-                Blackboard = RawBB;
+                BB->InitializeBlackboard(*TemporaryBBData);
+            }
+            else
+            {
+                UBlackboardComponent* RawBB = nullptr;
+                if (UseBlackboard(TemporaryBBData, RawBB))
+                {
+                    Blackboard = RawBB;
+                }
             }
         }
     }
