@@ -156,7 +156,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Builds on:** `EPlayPhase::PassRush` (currently a pass-through phase)
 **Depends on:** Epics 6, 8
 
-- [ ] Engagement pairing: OL matches up against DL/blitzers at snap
+- [x] Engagement pairing: OL matches up against DL/blitzers at snap
 - [ ] Push/leverage contest driven by `Strength`, `WeightKg`, and momentum
 - [ ] Block shedding: DL win condition releases the rusher toward the QB/carrier
 - [ ] Pocket formation: net result of line play shapes where the QB can stand
