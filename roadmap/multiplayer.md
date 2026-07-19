@@ -8,7 +8,8 @@ the track hangs on. Sizing/mode legend: see `ROADMAP.md`.
 C1's timestamped event history, C2's single outcome authority, and Epic 115's serialization
 format are the replication substrate — the audit reviews those, not abstract principles. The
 review flagged tick-order races (ball vs sim vs GameMode writes) as an existing hazard the
-audit must resolve; C2 removes the largest one.
+audit must resolve; C2 removes the largest one. Epic 107 inherits Track M's device detection
+(127) and glyph table (128) for its two-controller session flow.
 
 ### Epic 107: Local Head-to-Head
 

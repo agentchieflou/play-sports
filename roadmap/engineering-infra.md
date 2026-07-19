@@ -8,7 +8,10 @@ other agent's effectiveness. Sizing/mode legend: see `ROADMAP.md`.
 linter/validator + save architecture + eval gym). Epic 115 builds on C1's ring-buffer history;
 Epic 114's counters include bus throughput and per-system tick cost (the review flagged
 per-frame cast/copy patterns ×22 pawns — C3 fixes the known ones, 114 guards regressions).
-Epic 118's job format serves the growing `Specs/` editor backlog.
+Epic 118's job format serves the growing `Specs/` editor backlog. Track P
+(`roadmap/agent-orchestration.md`) seeds Epic 119's client layer (`tools/orchestrator/models/`
+— 119's MCP service wraps it, never twins it) and extends Epic 120's scorer via the
+`tools/score_lib.py` refactor.
 
 ### Epic 112: UE Build CI Pipeline
 

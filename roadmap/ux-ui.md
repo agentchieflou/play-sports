@@ -6,9 +6,11 @@ feel, and onboarding. UMG-heavy but largely code-driveable. Sizing/mode legend: 
 
 **Reality note (2026-07-19 review):** `APSHUD` exists as a bare widget host and Epic 5's
 scoreboard stories are still open (UMG assets are editor-mode work per the Specs/ pattern);
-Epic 101's shell absorbs and replaces it. Input mapping exists on `APSPlayerPawn` (Epic 3);
-Epic 104 extends via Enhanced Input contexts, not new pawn code. UI reads game state from C1
-bus subscriptions and the C2 single authority — never direct sim/GameMode reads.
+Epic 101's shell absorbs and replaces it. Input bring-up (Enhanced Input, the player
+controller, gamepad support) lives in Track M (`roadmap/controller-connectivity.md`); Epic
+104 builds feel on top of that substrate per the `Specs/Input_Architecture.md` contract, not
+new pawn code. UI reads game state from C1 bus subscriptions and the C2 single authority —
+never direct sim/GameMode reads.
 
 ### Epic 101: Front-End Shell
 
@@ -50,9 +52,9 @@ bus subscriptions and the C2 single authority — never direct sim/GameMode read
 
 **Size/Mode:** M / code
 **Goal:** Moment-to-moment input feels responsive and expressive — the skill-move vocabulary and its buffering.
-**Depends on:** Core 3, Core 6
+**Depends on:** Core 3, Core 6, 126, 127
 
-- [ ] Enhanced Input action mapping across contexts (pre-snap, ball-carrier, passing, defense, menus)
+- [ ] Extend the Track M Enhanced Input context stack with gameplay-depth contexts (pre-snap, ball-carrier, passing, defense, menus) — consumes 126's controller/`UPSInputConfig`, does not create them
 - [ ] Ball-carrier move set: juke, spin, truck, stiff-arm, hurdle, slide — attribute-gated, physics-coupled (Core 8)
 - [ ] Passing input model: placement modifiers, touch/bullet, pump fake
 - [ ] Input buffering/queuing tuned against animation commitment windows (Track D)

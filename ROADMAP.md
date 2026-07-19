@@ -1,8 +1,8 @@
 # ROADMAP.md
 
-Development roadmap for `play-sports`: **125 Epics** — a 25-Epic core (this file, Phases 0–4)
+Development roadmap for `play-sports`: **138 Epics** — a 25-Epic core (this file, Phases 0–4)
 sequenced **vertical-slice first** (Phase 0 produces one crude but complete, watchable play as
-early as possible; later phases deepen it), plus **100 expansion Epics (26–125)** in themed
+early as possible; later phases deepen it), plus **113 expansion Epics (26–138)** in themed
 track files under `roadmap/` (see the track index below).
 
 Conventions used throughout:
@@ -33,7 +33,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 11(L) 12(M) 13(L) 14(XL) 15(XL) 16(L) 17(XL) 18(M) 19(L) 20(L) 21(M) 22(XL-editor) 23(L-mixed)
 24(L) 25(XL).
 
-## Expansion track index (Epics 26–125)
+## Expansion track index (Epics 26–138)
 
 | Track | File | Epics | Theme |
 |---|---|---|---|
@@ -49,6 +49,14 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 | J | `roadmap/multiplayer.md` | 107–111 | Local H2H, online architecture, spectating, async leagues |
 | K | `roadmap/engineering-infra.md` | 112–120 | CI, determinism, performance, save systems, agentic tooling |
 | L | `roadmap/content-generators.md` | 121–125 | Procedural playbooks, rosters, team identities, stadiums |
+| M | `roadmap/controller-connectivity.md` | 126–128 | Controller connectivity: Enhanced Input, player controller, Xbox gamepad, human possession, rumble/glyphs |
+| N | `roadmap/platform-ports.md` | 129–131 | Platform ports (iOS first): audit, scalability tiers, touch abstraction, build pipeline |
+| O | `roadmap/playbook-extraction.md` | 132–134 | One-time playbook extraction: compliance gate, polite resumable scraper, normalized play data |
+| P | `roadmap/agent-orchestration.md` | 135–138 | Agent orchestration graph: model clients, worker harness, benchmark duels, supervisor graph |
+
+Cross-cutting planning docs: `roadmap/MILESTONE_FIRST_GAME.md` (the launch-critical path to
+one full playable game) and `roadmap/PARALLEL.md` (which epic groups independent agents can
+work concurrently — consumed by the Track P supervisor).
 
 ---
 
@@ -196,7 +204,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 - [x] Clock run/stop rules (incompletions, out of bounds, scores, timeouts)
 - [x] 40-second play clock with delay-of-game hook into the penalty framework (Epic 11)
 - [x] Two-minute warning and end-of-half/game handling
-- [ ] Timeout budget per team
+- [x] Timeout budget per team
 
 ### Epic 13: Special Teams
 
