@@ -94,6 +94,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     EPSTeamSide TeamSide;
 
+    UFUNCTION(BlueprintPure, Category = "Possession")
+    UPSPossessionComponent* GetPossessionComponent() const { return PossessionComponent; }
+
+    UFUNCTION(BlueprintPure, Category = "BallAction")
+    class UPSBallActionComponent* GetBallActionComponent() const { return BallActionComponent; }
+
     // Called to bind functionality to input
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
@@ -156,11 +162,6 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     class UPSBallActionComponent* BallActionComponent;
 
-    UFUNCTION(BlueprintPure, Category = "Possession")
-    UPSPossessionComponent* GetPossessionComponent() const { return PossessionComponent; }
-
-    UFUNCTION(BlueprintPure, Category = "BallAction")
-    class UPSBallActionComponent* GetBallActionComponent() const { return BallActionComponent; }
 
     const FPlayerAttributes* AttributesPtr = nullptr;
 
