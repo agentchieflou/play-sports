@@ -1,0 +1,18 @@
+[
+  {
+    "Name": "DefaultTuning",
+    "BaseMaxSpeedMin": 300.0,
+    "BaseMaxSpeedMax": 900.0,
+    "BaseAccelerationMin": 500.0,
+    "BaseAccelerationMax": 2000.0,
+    "BaseTurnRateMin": 180.0,
+    "BaseTurnRateMaxMultiplier": 6.0,
+    "WeightMin": 50.0,
+    "WeightTurnRateReference": 100.0,
+    "DecelerationMultiplier": 1.5,
+    "CutDivergenceThreshold": 0.8,
+    "CutSpeedMinMultiplierBase": 0.4,
+    "CutSpeedAgilityMultiplier": 0.003,
+    "CutSpeedWeightMultiplier": 0.001
+  }
+]

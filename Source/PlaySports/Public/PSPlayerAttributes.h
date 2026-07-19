@@ -55,3 +55,48 @@ struct FPlayerAttributes : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float Stamina = 0.0f;
 };
+
+USTRUCT(BlueprintType)
+struct FMovementTuningRow : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BaseMaxSpeedMin = 300.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BaseMaxSpeedMax = 900.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BaseAccelerationMin = 500.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BaseAccelerationMax = 2000.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BaseTurnRateMin = 180.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BaseTurnRateMaxMultiplier = 6.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float WeightMin = 50.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float WeightTurnRateReference = 100.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float DecelerationMultiplier = 1.5f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CutDivergenceThreshold = 0.8f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CutSpeedMinMultiplierBase = 0.4f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CutSpeedAgilityMultiplier = 0.003f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CutSpeedWeightMultiplier = 0.001f;
+};

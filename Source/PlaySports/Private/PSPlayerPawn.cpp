@@ -3,6 +3,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "AIController.h"
+#include "PSGameMode.h"
+#include "Engine/World.h"
 
 APSPlayerPawn::APSPlayerPawn()
 {
@@ -43,6 +45,15 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
         float CurrentSpeed = MovementComponent->Velocity.Size();
         float MaxSpeed = MovementComponent->MaxSpeed;
 
+        FMovementTuningRow Tuning;
+        if (GetWorld())
+        {
+            if (APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode()))
+            {
+                Tuning = GM->MovementTuningSettings;
+            }
+        }
+
         if (MaxSpeed > 0.f)
         {
             float SpeedRatio = FMath::Clamp(CurrentSpeed / MaxSpeed, 0.f, 1.f);
@@ -54,8 +65,8 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
             float ActiveAcceleration = BaseAcceleration * FMath::Max(0.1f, CurveMultiplier);
             MovementComponent->Acceleration = ActiveAcceleration;
 
-            // Deceleration is also physically scaled with base acceleration (e.g. 1.5x base)
-            MovementComponent->Deceleration = BaseAcceleration * 1.5f;
+            // Deceleration is also physically scaled with base acceleration
+            MovementComponent->Deceleration = BaseAcceleration * Tuning.DecelerationMultiplier;
         }
 
         // Turning / change-of-direction mechanics
@@ -67,9 +78,8 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
             TargetRotation.Pitch = 0.f;
             TargetRotation.Roll = 0.f;
 
-            // Base turn rate of 180 deg/s + Agility scaling (up to +600 deg/s), scaled down by Weight penalty
-            float BaseTurnRate = 180.f + (Attributes.Agility * 6.f);
-            float WeightFactor = 100.f / FMath::Max(50.f, Attributes.WeightKg);
+            float BaseTurnRate = Tuning.BaseTurnRateMin + (Attributes.Agility * Tuning.BaseTurnRateMaxMultiplier);
+            float WeightFactor = Tuning.WeightTurnRateReference / FMath::Max(Tuning.WeightMin, Attributes.WeightKg);
             float TurnSpeed = BaseTurnRate * WeightFactor;
 
             // Interpolate rotation (TurnSpeed / 50.f maps TurnSpeed in deg/s to RInterpTo speed constant)
@@ -85,20 +95,24 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
                 CurrentDir.Normalize();
 
                 float DotProduct = FVector::DotProduct(CurrentDir, DesiredDir);
-                if (DotProduct < 0.8f) // Diverging angle greater than ~36 degrees
+                if (DotProduct < Tuning.CutDivergenceThreshold)
                 {
                     // Calculate a minimum speed multiplier (high agility/low weight preserves more speed)
-                    float MinSpeedMultiplier = 0.4f + (Attributes.Agility * 0.003f) - (Attributes.WeightKg * 0.001f);
+                    float MinSpeedMultiplier = Tuning.CutSpeedMinMultiplierBase + (Attributes.Agility * Tuning.CutSpeedAgilityMultiplier) - (Attributes.WeightKg * Tuning.CutSpeedWeightMultiplier);
                     MinSpeedMultiplier = FMath::Clamp(MinSpeedMultiplier, 0.2f, 0.95f);
 
-                    // Interpolate speed penalty based on sharpness of the cut (DotProduct range [0.8, -1.0])
-                    float Sharpness = FMath::Clamp((DotProduct - 0.8f) / -1.8f, 0.f, 1.f);
+                    // Interpolate speed penalty based on sharpness of the cut
+                    float Sharpness = 0.f;
+                    float Range = -1.0f - Tuning.CutDivergenceThreshold;
+                    if (Range != 0.f)
+                    {
+                        Sharpness = FMath::Clamp((DotProduct - Tuning.CutDivergenceThreshold) / Range, 0.f, 1.f);
+                    }
                     float PenaltyFactor = FMath::Lerp(1.0f, MinSpeedMultiplier, Sharpness);
 
                     // Apply the cutting deceleration directly to current velocity
                     MovementComponent->Velocity *= PenaltyFactor;
 
-                    // Log cutting events (e.g. for significant cuts)
                     if (DotProduct < 0.0f)
                     {
                         UE_LOG(LogTemp, Verbose, TEXT("APSPlayerPawn: Cut detected (Dot: %.2f, Speed penalty factor: %.2f)"), DotProduct, PenaltyFactor);
@@ -114,17 +128,28 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
     Attributes = InAttributes;
     bHasPossession = false;
 
-    // Scale MaxSpeed linearly based on Speed attribute (0-100 rating -> 300 to 900 cm/s max speed)
-    float ScaledMaxSpeed = 300.f + (Attributes.Speed * 6.f);
+    FMovementTuningRow Tuning;
+    if (GetWorld())
+    {
+        if (APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode()))
+        {
+            Tuning = GM->MovementTuningSettings;
+        }
+    }
+
+    // Scale MaxSpeed linearly based on Speed attribute
+    float SpeedRange = Tuning.BaseMaxSpeedMax - Tuning.BaseMaxSpeedMin;
+    float ScaledMaxSpeed = Tuning.BaseMaxSpeedMin + (Attributes.Speed * (SpeedRange / 100.f));
     if (MovementComponent)
     {
         MovementComponent->MaxSpeed = ScaledMaxSpeed;
     }
 
-    // Scale BaseAcceleration from Acceleration attribute (0-100 rating -> 500 to 2000 cm/s^2 base acceleration)
-    BaseAcceleration = 500.f + (Attributes.Acceleration * 15.f);
+    // Scale BaseAcceleration from Acceleration attribute
+    float AccelRange = Tuning.BaseAccelerationMax - Tuning.BaseAccelerationMin;
+    BaseAcceleration = Tuning.BaseAccelerationMin + (Attributes.Acceleration * (AccelRange / 100.f));
 
-    // Initialize stamina from attributes (Stamina rating 0-100 matches max stamina capacity)
+    // Initialize stamina from attributes
     MaxStamina = Attributes.Stamina;
     CurrentStamina = MaxStamina;
 
