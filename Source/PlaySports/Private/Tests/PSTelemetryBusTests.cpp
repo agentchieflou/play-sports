@@ -17,19 +17,14 @@ bool FPSTelemetryBusRoundTripTest::RunTest(const FString& Parameters)
         return false;
     }
 
-    struct FHelper
-    {
-        static void HandleSnap(const FPSTelemetrySnapEvent& Event, bool& bOutReceived, FPSTelemetrySnapEvent& OutEvent)
-        {
-            bOutReceived = true;
-            OutEvent = Event;
-        }
-    };
-
     bool bReceived = false;
     FPSTelemetrySnapEvent ReceivedEvent;
     
-    Bus->OnSnapMC.AddStatic(&FHelper::HandleSnap, bReceived, ReceivedEvent);
+    Bus->OnSnapMC.AddLambda([&bReceived, &ReceivedEvent](const FPSTelemetrySnapEvent& Event)
+    {
+        bReceived = true;
+        ReceivedEvent = Event;
+    });
 
     FPSTelemetrySnapEvent PublishEvent;
     PublishEvent.YardLine = 42;
