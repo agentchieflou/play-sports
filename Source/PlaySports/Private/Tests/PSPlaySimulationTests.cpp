@@ -1,4 +1,4 @@
-// PSPlaySimulationTests.cpp — Epic C2: Single Outcome Authority tests
+// PSPlaySimulationTests.cpp -- Epic C2: Single Outcome Authority tests
 //
 // Tests covered:
 //   1. Physical-event-driven outcome: publish a Catch event on the bus ->
@@ -9,7 +9,6 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "Tests/AutomationCommon.h"
 #include "PSPlaySimulation.h"
 #include "PSTelemetryBus.h"
 #include "PSPlayerAttributes.h"
@@ -22,19 +21,20 @@
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FPSSimC2BusCatchDrivesPhase,
     "PlaySports.C2.BusCatchDrivesPhase",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FPSSimC2BusCatchDrivesPhase::RunTest(const FString& Parameters)
 {
     UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
     TestNotNull(TEXT("Sim created"), Sim);
+    if (!Sim) { return false; }
 
     TArray<FPlayerAttributes> Offense, Defense;
     Sim->InitializePlay(Offense, Defense);
-    Sim->TriggerSnap();           // PreSnap -> Snap
-    Sim->SetPlayPhase(EPlayPhase::PassRush);  // Manually advance to PassRush
+    Sim->TriggerSnap();                              // PreSnap -> Snap
+    Sim->SetPlayPhase(EPlayPhase::PassRush);         // Advance to PassRush
 
-    // Simulate a bus catch event via the handler directly (UFUNCTION, accessible)
+    // Invoke the handler directly (public UFUNCTION)
     FPSTelemetryCatchEvent CatchEvt;
     CatchEvt.ReceiverName    = TEXT("TestReceiver");
     CatchEvt.CatchLocation   = FVector::ZeroVector;
@@ -54,12 +54,13 @@ bool FPSSimC2BusCatchDrivesPhase::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FPSSimC2QuickSimResolves,
     "PlaySports.C2.QuickSimResolves",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FPSSimC2QuickSimResolves::RunTest(const FString& Parameters)
 {
     UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
     TestNotNull(TEXT("Sim created"), Sim);
+    if (!Sim) { return false; }
 
     FPlayerAttributes QB;
     QB.Role         = EPlayerRole::Quarterback;
@@ -82,13 +83,13 @@ bool FPSSimC2QuickSimResolves::RunTest(const FString& Parameters)
     Sim->InitializePlay(Offense, Defense);
     Sim->bQuickSimMode = true;
 
-    Sim->TriggerSnap();                                      // PreSnap -> Snap
-    Sim->SetPlayPhase(EPlayPhase::BallCarrierMovement);      // Skip to BCM
+    Sim->TriggerSnap();                                     // PreSnap -> Snap
+    Sim->SetPlayPhase(EPlayPhase::BallCarrierMovement);     // Skip to BCM
 
-    // Advance past the 3.0s BCM timer
+    // Advance past the 3.0s BCM timer -- statistical resolver should fire
     Sim->AdvancePlay(3.5f);
 
-    // Phase should now be Scoring (resolver fired)
+    // Phase must now be Scoring
     TestEqual(TEXT("Quick-sim advances to Scoring phase"), Sim->GetPlayState().Phase, EPlayPhase::Scoring);
 
     return true;
@@ -100,12 +101,13 @@ bool FPSSimC2QuickSimResolves::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FPSSimC2NoDualWrite,
     "PlaySports.C2.NoDualWrite",
-    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 
 bool FPSSimC2NoDualWrite::RunTest(const FString& Parameters)
 {
     UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
     TestNotNull(TEXT("Sim created"), Sim);
+    if (!Sim) { return false; }
 
     TArray<FPlayerAttributes> Offense, Defense;
     Sim->InitializePlay(Offense, Defense);
