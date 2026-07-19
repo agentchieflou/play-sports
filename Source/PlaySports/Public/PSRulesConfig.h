@@ -27,4 +27,7 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Penalties")
     int32 HoldingYardage = 10;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clock")
+    int32 MaxTimeoutsPerHalf = 3;
 };
