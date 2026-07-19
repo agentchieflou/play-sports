@@ -236,10 +236,10 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Goal:** `UPSPlaySimulation` becomes the sole authority on play outcomes, fed by physical events; the competing statistical roll survives only as an explicit headless quick-sim mode.
 **Depends on:** C1
 
-- [ ] Sim consumes C1 events (catch/tackle/score) instead of independent statistical rolls during physical play
-- [ ] `ResolvePlayResult` statistical path preserved behind an explicit quick-sim flag (Epic 20's headless season sim needs it)
-- [ ] Scoring, down/distance, and drive state advance from the single authority — delete the duplicate/desynced paths
-- [ ] Automation tests: physical-event-driven outcome, quick-sim flag equivalence, no dual-write
+- [x] Sim consumes C1 events (catch/tackle/score) instead of independent statistical rolls during physical play
+- [x] `ResolvePlayResult` statistical path preserved behind an explicit quick-sim flag (Epic 20's headless season sim needs it)
+- [x] Scoring, down/distance, and drive state advance from the single authority -- delete the duplicate/desynced paths
+- [x] Automation tests: physical-event-driven outcome, quick-sim flag equivalence, no dual-write
 
 ### Epic C3: De-God-Class & Orphan Wiring
 

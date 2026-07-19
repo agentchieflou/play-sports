@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "PSPlayerAttributes.h"
+#include "PSTelemetryBus.h"
 #include "PSPlaySimulation.generated.h"
 
 UENUM(BlueprintType)
@@ -143,6 +144,20 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void EndPlayAndPrepareNext();
 
+    /**
+     * Call after NewObject<UPSPlaySimulation> so the sim can cache the world
+     * and subscribe to the TelemetryBus. Must be called before AdvancePlay.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Simulation")
+    void InitializeWithWorld(UWorld* InWorld);
+
+    /**
+     * When true, ResolvePlayResult runs its statistical rolls (headless quick-sim).
+     * When false (default), play outcomes are driven by physical bus events (catch/tackle/score).
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
+    bool bQuickSimMode = false;
+
     UPROPERTY(BlueprintReadOnly, Category = "Simulation")
     FDriveSummary CurrentDriveSummary;
 
@@ -161,12 +176,26 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
     bool bPenaltyDeclined;
 
+    // Bus subscriber handlers (C2) -- public so tests can call them directly
+    UFUNCTION()
+    void OnBusCatchEvent(const FPSTelemetryCatchEvent& Event);
+
+    UFUNCTION()
+    void OnBusTackleEvent(const FPSTelemetryTackleEvent& Event);
+
+    UFUNCTION()
+    void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);
+
 private:
     FPlayState CurrentState;
     TArray<FPlayerAttributes> OffenseRoster;
     TArray<FPlayerAttributes> DefenseRoster;
     FPlayResult CurrentPlayResult;
     float PhaseTimer;
+
+    /** Cached world -- set via InitializeWithWorld; never assumed valid in headless tests. */
+    UPROPERTY(Transient)
+    UWorld* CachedWorld = nullptr;
 
     void ResolvePlayResult();
 };
