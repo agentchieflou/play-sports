@@ -102,7 +102,7 @@ void APSOffenseController::InitializeBlackboardState()
 
 void APSOffenseController::OnPhaseChanged(const FPSTelemetryPhaseChangeEvent& Event)
 {
-    UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnPhaseChanged: Controller=%p, NewPhase=%s"), this, *Event.NewPhase);
+    UE_LOG(LogTemp, Warning, TEXT("APSOffenseController::OnPhaseChanged: Controller=%p, NewPhase=%s"), this, *Event.NewPhase);
     UBlackboardComponent* BB = GetBlackboardComponent();
     if (!BB)
     {
@@ -121,12 +121,12 @@ void APSOffenseController::OnPhaseChanged(const FPSTelemetryPhaseChangeEvent& Ev
     else if (Event.NewPhase == TEXT("FieldGoal")) PhaseVal = 7;
 
     BB->SetValueAsInt(TEXT("PlayPhase"), PhaseVal);
-    UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnPhaseChanged: Updated PlayPhase key to %d"), PhaseVal);
+    UE_LOG(LogTemp, Warning, TEXT("APSOffenseController::OnPhaseChanged: Updated PlayPhase key to %d"), PhaseVal);
 }
 
 void APSOffenseController::OnSnapEvent(const FPSTelemetrySnapEvent& Event)
 {
-    UE_LOG(LogTemp, Log, TEXT("APSOffenseController::OnSnapEvent: Controller=%p"), this);
+    UE_LOG(LogTemp, Warning, TEXT("APSOffenseController::OnSnapEvent: Controller=%p"), this);
     UBlackboardComponent* BB = GetBlackboardComponent();
     if (!BB)
     {

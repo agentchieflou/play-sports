@@ -105,6 +105,18 @@ bool FOffenseControllerTelemetrySyncTest::RunTest(const FString& Parameters)
             UBlackboardComponent* BB = Controller->GetBlackboardComponent();
             if (TestNotNull(TEXT("Blackboard is valid"), BB))
             {
+                UBlackboardData* Asset = BB->GetBlackboardAsset();
+                if (Asset)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("Test Blackboard Asset Name: %s"), *Asset->GetName());
+                    for (int32 i = 0; i < Asset->Keys.Num(); ++i)
+                    {
+                        UE_LOG(LogTemp, Warning, TEXT("Key %d: Name=%s, Type=%s"), i, *Asset->Keys[i].EntryName.ToString(), Asset->Keys[i].KeyType ? *Asset->Keys[i].KeyType->GetName() : TEXT("null"));
+                    }
+                }
+                UE_LOG(LogTemp, Warning, TEXT("PlayPhase Key ID: %d"), (int32)BB->GetKeyID(TEXT("PlayPhase")));
+                UE_LOG(LogTemp, Warning, TEXT("bHasPossession Key ID: %d"), (int32)BB->GetKeyID(TEXT("bHasPossession")));
+
                 TestEqual(TEXT("Blackboard updates PlayPhase to PassRush (2)"), BB->GetValueAsInt(TEXT("PlayPhase")), 2);
             }
 
