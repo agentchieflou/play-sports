@@ -49,6 +49,13 @@ the others' context.
 | 5 | Reviewer | `review-verify` | Verdict + findings against plan and conventions | Mid |
 | 6 | Git | `git-steward` | Clean commit(s), PR, ticked roadmap checkbox, merge | Cheap |
 
+**Model assignment is measured, not guessed:** consult `eval/SCORECARD.md` when picking a
+model tier for an archetype. After notable pipeline runs (new model, new archetype, or any
+failure), the Supervisor scores the PR: `python tools/score_agent_run.py --pr <N> --agent <a>
+--model <m> --archetype <arch> --task <benchmark-id>`, then `python tools/eval_report.py` —
+commit both outputs. Regression alerts in the report mean: stop assigning that pairing until a
+human reviews.
+
 Failures flow backward, not forward: a failed test report returns to a **fresh** Coder session
 with the plan + report; a rejected review returns likewise. The Supervisor only escalates to the
 human when a story fails twice at the same stage or a plan flags a mis-sized story.

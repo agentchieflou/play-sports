@@ -1,0 +1,22 @@
+{
+  "pr": 1,
+  "title": "Expand sample players JSON to 22 players",
+  "branch": "epic-1/expand-roster-22",
+  "agent": "antigravity",
+  "model": "gemini-3-pro",
+  "archetype": "data-content-author",
+  "task": "data-authoring-story",
+  "scored_at": "2026-07-19T02:28:24.195831+00:00",
+  "merged_at": "2026-07-18T16:03:36Z",
+  "scores": {
+    "ci_green": false,
+    "in_scope": true,
+    "tests_ok": true,
+    "lint_ok": true,
+    "data_ok": true,
+    "roadmap_tick": true,
+    "commits": 1,
+    "efficiency": 10
+  },
+  "composite": 60
+}

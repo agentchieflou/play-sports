@@ -99,7 +99,7 @@ other agent's effectiveness. Sizing/mode legend: see `ROADMAP.md`.
 **Goal:** Agent contributions are themselves measured — scored tasks that tell us which models/archetypes produce mergeable work.
 **Depends on:** 112, 113
 
-- [ ] Benchmark task set: representative stories (C++ system, data authoring, review) with objective scoring rubrics
-- [ ] Harness: run a task through an agent/model combo, score via CI + linter + review checklist
-- [ ] Scorecard history informing the GEMINI.md playbook's model-assignment guidance
-- [ ] Regression alerts when a model/archetype pairing degrades
+- [x] Benchmark task set: representative stories (C++ system, data authoring, review) with objective scoring rubrics
+- [x] Harness: run a task through an agent/model combo, score via CI + linter + review checklist
+- [x] Scorecard history informing the GEMINI.md playbook's model-assignment guidance
+- [x] Regression alerts when a model/archetype pairing degrades

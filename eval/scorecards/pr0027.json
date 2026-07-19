@@ -1,0 +1,22 @@
+{
+  "pr": 27,
+  "title": "Implement data-driven movement tuning configurations",
+  "branch": "epic-6/movement-tuning",
+  "agent": "antigravity",
+  "model": "gemini-3-pro",
+  "archetype": "gameplay-cpp-story",
+  "task": "cpp-system-story",
+  "scored_at": "2026-07-19T02:28:23.013922+00:00",
+  "merged_at": "2026-07-19T01:35:54Z",
+  "scores": {
+    "ci_green": true,
+    "in_scope": true,
+    "tests_ok": false,
+    "lint_ok": true,
+    "data_ok": true,
+    "roadmap_tick": true,
+    "commits": 1,
+    "efficiency": 10
+  },
+  "composite": 90
+}
