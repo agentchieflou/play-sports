@@ -215,3 +215,19 @@ void APSPlayerPawn::MoveRight(float Value)
         AddMovementInput(GetActorRightVector(), Value);
     }
 }
+
+FVector APSPlayerPawn::GetMomentum() const
+{
+    if (MovementComponent)
+    {
+        // Convert velocity from cm/s to m/s
+        FVector VelocityInMps = MovementComponent->Velocity / 100.f;
+        return Attributes.WeightKg * VelocityInMps;
+    }
+    return FVector::ZeroVector;
+}
+
+float APSPlayerPawn::GetMomentumMagnitude() const
+{
+    return GetMomentum().Size();
+}

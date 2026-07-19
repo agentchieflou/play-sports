@@ -64,6 +64,14 @@ public:
     // Called every frame
     virtual void Tick(float DeltaSeconds) override;
 
+    // Get the player's momentum vector (WeightKg * Velocity in m/s)
+    UFUNCTION(BlueprintPure, Category = "Player|Physics")
+    FVector GetMomentum() const;
+
+    // Get the magnitude of the player's momentum (WeightKg * Speed in m/s)
+    UFUNCTION(BlueprintPure, Category = "Player|Physics")
+    float GetMomentumMagnitude() const;
+
 protected:
     virtual void BeginPlay() override;
 
