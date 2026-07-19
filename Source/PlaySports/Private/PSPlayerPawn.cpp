@@ -6,7 +6,7 @@
 
 APSPlayerPawn::APSPlayerPawn()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
 
     CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComp"));
     CapsuleComponent->InitCapsuleSize(44.f, 88.f);
@@ -23,11 +23,38 @@ APSPlayerPawn::APSPlayerPawn()
     TeamSide = EPSTeamSide::Offense;
 
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+    BaseAcceleration = 2000.f;
 }
 
 void APSPlayerPawn::BeginPlay()
 {
     Super::BeginPlay();
+}
+
+void APSPlayerPawn::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (MovementComponent)
+    {
+        float CurrentSpeed = MovementComponent->Velocity.Size();
+        float MaxSpeed = MovementComponent->MaxSpeed;
+
+        if (MaxSpeed > 0.f)
+        {
+            float SpeedRatio = FMath::Clamp(CurrentSpeed / MaxSpeed, 0.f, 1.f);
+            
+            // Asymptotic acceleration curve: tapers off quadratically as speed reaches max
+            float CurveMultiplier = 1.f - (SpeedRatio * SpeedRatio);
+            
+            // Ensure a minimum acceleration (10% of base) so top speed is always reached
+            float ActiveAcceleration = BaseAcceleration * FMath::Max(0.1f, CurveMultiplier);
+            MovementComponent->Acceleration = ActiveAcceleration;
+
+            // Deceleration is also physically scaled with base acceleration (e.g. 1.5x base)
+            MovementComponent->Deceleration = BaseAcceleration * 1.5f;
+        }
+    }
 }
 
 void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
@@ -42,15 +69,19 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
         MovementComponent->MaxSpeed = ScaledMaxSpeed;
     }
 
+    // Scale BaseAcceleration from Acceleration attribute (0-100 rating -> 500 to 2000 cm/s^2 base acceleration)
+    BaseAcceleration = 500.f + (Attributes.Acceleration * 15.f);
+
     // Log player pawn initialization details
     FString RoleName = UEnum::GetValueAsString(Attributes.Role);
-    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Initialized player pawn for %s (ID: %s, Role: %s, Height: %.1f cm, Weight: %.1f kg, MaxSpeed: %.1f cm/s)"), 
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Initialized player pawn for %s (ID: %s, Role: %s, Height: %.1f cm, Weight: %.1f kg, MaxSpeed: %.1f cm/s, BaseAccel: %.1f cm/s^2)"), 
         *Attributes.DisplayName, 
         *Attributes.PlayerId.ToString(), 
         *RoleName, 
         Attributes.HeightCm, 
         Attributes.WeightKg,
-        ScaledMaxSpeed);
+        ScaledMaxSpeed,
+        BaseAcceleration);
 }
 
 void APSPlayerPawn::MoveToLocation(const FVector& TargetLocation)

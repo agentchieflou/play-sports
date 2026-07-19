@@ -120,7 +120,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 **Builds on:** `APSPlayerPawn` (Epic 3), `FPlayerAttributes` (`Speed`, `Agility`, `Acceleration`, `WeightKg`)
 **Depends on:** Epic 3
 
-- [ ] Acceleration/deceleration curves derived from `Acceleration` and `Speed` attributes
+- [x] Acceleration/deceleration curves derived from `Acceleration` and `Speed` attributes
 - [ ] Turning radius / change-of-direction cost derived from `Agility` and `WeightKg`
 - [ ] Momentum model: mass-scaled velocity that other systems (tackling, blocking) can query
 - [ ] Fatigue/burst hooks (data only — full stamina system deferred to Epic 19)

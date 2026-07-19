@@ -61,6 +61,9 @@ public:
     void MoveForward(float Value);
     void MoveRight(float Value);
 
+    // Called every frame
+    virtual void Tick(float DeltaSeconds) override;
+
 protected:
     virtual void BeginPlay() override;
 
@@ -78,4 +81,7 @@ protected:
 
     UPROPERTY(BlueprintReadOnly, Category = "Player")
     bool bHasPossession;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Player|Movement")
+    float BaseAcceleration;
 };
