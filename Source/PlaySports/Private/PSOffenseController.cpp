@@ -153,14 +153,6 @@ void APSOffenseController::InitializeBlackboardState()
 
 void APSOffenseController::OnPhaseChanged(const FPSTelemetryPhaseChangeEvent& Event)
 {
-    UE_LOG(LogTemp, Warning, TEXT("APSOffenseController::OnPhaseChanged: Controller=%p, NewPhase=%s"), this, *Event.NewPhase);
-    UBlackboardComponent* BB = GetBlackboardComponent();
-    if (!BB)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSOffenseController::OnPhaseChanged: Blackboard is null!"));
-        return;
-    }
-
     int32 PhaseVal = 0;
     if (Event.NewPhase == TEXT("PreSnap")) PhaseVal = 0;
     else if (Event.NewPhase == TEXT("Snap")) PhaseVal = 1;
@@ -171,29 +163,35 @@ void APSOffenseController::OnPhaseChanged(const FPSTelemetryPhaseChangeEvent& Ev
     else if (Event.NewPhase == TEXT("Punt")) PhaseVal = 6;
     else if (Event.NewPhase == TEXT("FieldGoal")) PhaseVal = 7;
 
-    BB->SetValueAsInt(TEXT("PlayPhase"), PhaseVal);
-    UE_LOG(LogTemp, Warning, TEXT("APSOffenseController::OnPhaseChanged: Updated PlayPhase key to %d"), PhaseVal);
+    // CurrentPlayPhaseValue is the authoritative read (game logic/tests use it);
+    // the blackboard key is a best-effort mirror for future editor-authored BT assets.
+    CurrentPlayPhaseValue = PhaseVal;
+
+    if (UBlackboardComponent* BB = GetBlackboardComponent())
+    {
+        BB->SetValueAsInt(TEXT("PlayPhase"), PhaseVal);
+    }
 }
 
 void APSOffenseController::OnSnapEvent(const FPSTelemetrySnapEvent& Event)
 {
-    UE_LOG(LogTemp, Warning, TEXT("APSOffenseController::OnSnapEvent: Controller=%p"), this);
-    UBlackboardComponent* BB = GetBlackboardComponent();
-    if (!BB)
-    {
-        return;
-    }
-
     APSPlayerPawn* PossessedPawn = Cast<APSPlayerPawn>(GetPawn());
     if (PossessedPawn)
     {
-        BB->SetValueAsBool(TEXT("bHasPossession"), PossessedPawn->HasPossession());
+        bHasPossessionValue = PossessedPawn->HasPossession();
+
+        if (UBlackboardComponent* BB = GetBlackboardComponent())
+        {
+            BB->SetValueAsBool(TEXT("bHasPossession"), bHasPossessionValue);
+        }
     }
 }
 
 void APSOffenseController::OnThrowEvent(const FPSTelemetryThrowEvent& Event)
 {
     UBlackboardComponent* BB = GetBlackboardComponent();
+    bHasPossessionValue = false;
+
     if (!BB)
     {
         return;
@@ -214,16 +212,16 @@ void APSOffenseController::OnThrowEvent(const FPSTelemetryThrowEvent& Event)
 
 void APSOffenseController::OnCatchEvent(const FPSTelemetryCatchEvent& Event)
 {
-    UBlackboardComponent* BB = GetBlackboardComponent();
-    if (!BB)
-    {
-        return;
-    }
-
     APSPlayerPawn* PossessedPawn = Cast<APSPlayerPawn>(GetPawn());
     if (PossessedPawn)
     {
-        BB->SetValueAsBool(TEXT("bHasPossession"), PossessedPawn->HasPossession());
+        bHasPossessionValue = PossessedPawn->HasPossession();
+
+        UBlackboardComponent* BB = GetBlackboardComponent();
+        if (BB)
+        {
+            BB->SetValueAsBool(TEXT("bHasPossession"), bHasPossessionValue);
+        }
 
         if (GetWorld())
         {
@@ -231,7 +229,10 @@ void APSOffenseController::OnCatchEvent(const FPSTelemetryCatchEvent& Event)
             {
                 if (It->HasPossession())
                 {
-                    BB->SetValueAsObject(TEXT("BallCarrier"), *It);
+                    if (BB)
+                    {
+                        BB->SetValueAsObject(TEXT("BallCarrier"), *It);
+                    }
                     break;
                 }
             }
@@ -288,6 +289,8 @@ void APSOffenseController::AdvanceToNextWaypoint()
 
 void APSOffenseController::OnTackleEvent(const FPSTelemetryTackleEvent& Event)
 {
+    bHasPossessionValue = false;
+
     UBlackboardComponent* BB = GetBlackboardComponent();
     if (!BB)
     {

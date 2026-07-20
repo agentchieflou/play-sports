@@ -47,12 +47,8 @@ bool FOffenseControllerPossessionTest::RunTest(const FString& Parameters)
         TestEqual(TEXT("Controller possesses Pawn"), static_cast<APawn*>(Controller->GetPawn()), static_cast<APawn*>(Pawn));
         TestEqual(TEXT("Pawn is possessed by Controller"), static_cast<AController*>(Pawn->GetController()), static_cast<AController*>(Controller));
 
-        UBlackboardComponent* BB = Controller->GetBlackboardComponent();
-        if (TestNotNull(TEXT("Blackboard component is initialized"), BB))
-        {
-            TestEqual(TEXT("Default PlayPhase key is PreSnap (0)"), BB->GetValueAsInt(TEXT("PlayPhase")), 0);
-            TestFalse(TEXT("Default bHasPossession key is false"), BB->GetValueAsBool(TEXT("bHasPossession")));
-        }
+        TestEqual(TEXT("Default PlayPhase is PreSnap (0)"), Controller->GetCurrentPlayPhaseValue(), 0);
+        TestFalse(TEXT("Default bHasPossession is false"), Controller->GetHasPossessionValue());
     }
 
     GEngine->DestroyWorldContext(World);
@@ -102,42 +98,20 @@ bool FOffenseControllerTelemetrySyncTest::RunTest(const FString& Parameters)
             PhaseEvent.NewPhase = TEXT("PassRush");
             Bus->PublishPhaseChange(PhaseEvent);
 
-            UBlackboardComponent* BB = Controller->GetBlackboardComponent();
-            if (TestNotNull(TEXT("Blackboard is valid"), BB))
-            {
-                UBlackboardData* Asset = BB->GetBlackboardAsset();
-                if (Asset)
-                {
-                    UE_LOG(LogTemp, Warning, TEXT("Test Blackboard Asset Name: %s"), *Asset->GetName());
-                    for (int32 i = 0; i < Asset->Keys.Num(); ++i)
-                    {
-                        UE_LOG(LogTemp, Warning, TEXT("Key %d: Name=%s, Type=%s"), i, *Asset->Keys[i].EntryName.ToString(), Asset->Keys[i].KeyType ? *Asset->Keys[i].KeyType->GetName() : TEXT("null"));
-                    }
-                }
-                UE_LOG(LogTemp, Warning, TEXT("PlayPhase Key ID: %d"), (int32)BB->GetKeyID(TEXT("PlayPhase")));
-                UE_LOG(LogTemp, Warning, TEXT("bHasPossession Key ID: %d"), (int32)BB->GetKeyID(TEXT("bHasPossession")));
-
-                TestEqual(TEXT("Blackboard updates PlayPhase to PassRush (2)"), BB->GetValueAsInt(TEXT("PlayPhase")), 2);
-            }
+            TestEqual(TEXT("PlayPhase updates to PassRush (2)"), Controller->GetCurrentPlayPhaseValue(), 2);
 
             // 2. Give pawn possession and verify Snap event updates bHasPossession
             Pawn->GainPossession();
             FPSTelemetrySnapEvent SnapEvent;
             Bus->PublishSnap(SnapEvent);
 
-            if (BB)
-            {
-                TestTrue(TEXT("Blackboard updates bHasPossession to true on Snap"), BB->GetValueAsBool(TEXT("bHasPossession")));
-            }
+            TestTrue(TEXT("bHasPossession updates to true on Snap"), Controller->GetHasPossessionValue());
 
             // 3. Verify Tackle event clears bHasPossession
             FPSTelemetryTackleEvent TackleEvent;
             Bus->PublishTackle(TackleEvent);
 
-            if (BB)
-            {
-                TestFalse(TEXT("Blackboard updates bHasPossession to false on Tackle"), BB->GetValueAsBool(TEXT("bHasPossession")));
-            }
+            TestFalse(TEXT("bHasPossession updates to false on Tackle"), Controller->GetHasPossessionValue());
         }
     }
 

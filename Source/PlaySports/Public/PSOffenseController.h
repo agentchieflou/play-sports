@@ -29,6 +29,21 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AI|Offense")
     void AdvanceToNextWaypoint();
 
+    /** In-memory mirror of the "PlayPhase" blackboard key (0=PreSnap..7=FieldGoal, see
+     *  OnPhaseChanged). This is the authoritative read for game logic/tests; the
+     *  Blackboard is a best-effort mirror kept for future editor-authored BT assets. */
+    UFUNCTION(BlueprintPure, Category = "AI|Offense")
+    int32 GetCurrentPlayPhaseValue() const { return CurrentPlayPhaseValue; }
+
+    UFUNCTION(BlueprintPure, Category = "AI|Offense")
+    bool GetHasPossessionValue() const { return bHasPossessionValue; }
+
+    UFUNCTION(BlueprintPure, Category = "AI|Offense")
+    FVector GetCurrentTargetLocation() const { return RouteWaypoints.IsValidIndex(CurrentWaypointIndex) ? RouteWaypoints[CurrentWaypointIndex] : FVector::ZeroVector; }
+
+    UFUNCTION(BlueprintPure, Category = "AI|Offense")
+    int32 GetRouteWaypointIndex() const { return CurrentWaypointIndex; }
+
 protected:
     virtual void OnPossess(APawn* InPawn) override;
     virtual void OnUnPossess() override;
@@ -64,4 +79,10 @@ private:
     TArray<FVector> RouteWaypoints;
 
     int32 CurrentWaypointIndex = 0;
+
+    UPROPERTY(Transient)
+    int32 CurrentPlayPhaseValue = 0;
+
+    UPROPERTY(Transient)
+    bool bHasPossessionValue = false;
 };

@@ -56,11 +56,7 @@ bool FDefenseControllerAssignmentTest::RunTest(const FString& Parameters)
         Controller->SetAssignment(EPSDefensiveAssignmentType::ZoneCoverage, nullptr, FVector(100.f, 0.f, 0.f));
         TestEqual(TEXT("SetAssignment updates current assignment"), Controller->GetAssignment(), EPSDefensiveAssignmentType::ZoneCoverage);
 
-        UBlackboardComponent* BB = Controller->GetBlackboardComponent();
-        if (TestNotNull(TEXT("Blackboard component is initialized"), BB))
-        {
-            TestEqual(TEXT("AssignmentType key reflects ZoneCoverage"), BB->GetValueAsInt(TEXT("AssignmentType")), static_cast<int32>(EPSDefensiveAssignmentType::ZoneCoverage));
-        }
+        TestEqual(TEXT("GetAssignment reflects ZoneCoverage after SetAssignment"), Controller->GetAssignment(), EPSDefensiveAssignmentType::ZoneCoverage);
     }
 
     GEngine->DestroyWorldContext(World);

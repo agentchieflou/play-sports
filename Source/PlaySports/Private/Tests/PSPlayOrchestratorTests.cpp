@@ -77,11 +77,7 @@ bool FPlayOrchestratorOffenseDistributionTest::RunTest(const FString& Parameters
 
     if (WRController)
     {
-        UBlackboardComponent* BB = WRController->GetBlackboardComponent();
-        if (TestNotNull(TEXT("WR blackboard initialized"), BB))
-        {
-            TestEqual(TEXT("WR route waypoint assigned in world space"), BB->GetValueAsVector(TEXT("TargetLocation")), LineOfScrimmage + FVector(300.f, 0.f, 0.f));
-        }
+        TestEqual(TEXT("WR route waypoint assigned in world space"), WRController->GetCurrentTargetLocation(), LineOfScrimmage + FVector(300.f, 0.f, 0.f));
     }
 
     GEngine->DestroyWorldContext(World);

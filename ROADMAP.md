@@ -359,11 +359,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `UPScheduleEngine::GenerateSeasonSchedule` (complete, unused)
 **Depends on:** Epics 12, 19
 
-- [ ] League model: teams, divisions, standings
-- [ ] Season loop: `PSScheduleEngine` schedule → play/sim each week → standings update
-- [ ] Quick-sim: resolve non-played games headlessly via the play simulation (no rendering)
-- [ ] Save/load season state (`SaveGame` objects)
-- [ ] Playoff bracket generation from final standings
+- [x] League model: teams, divisions, standings
+- [x] Season loop: `PSScheduleEngine` schedule → play/sim each week → standings update
+- [x] Quick-sim: resolve non-played games headlessly via the play simulation (no rendering)
+- [x] Save/load season state (`SaveGame` objects)
+- [x] Playoff bracket generation from final standings
 
 ### Epic 21: Data & Content Pipeline Expansion
 
