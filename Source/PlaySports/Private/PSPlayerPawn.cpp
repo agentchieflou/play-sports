@@ -1,4 +1,5 @@
 #include "PSPlayerPawn.h"
+#include "PSBallActionComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -26,6 +27,9 @@ APSPlayerPawn::APSPlayerPawn()
 
     // C3: PossessionComponent owns possession state
     PossessionComponent = CreateDefaultSubobject<UPSPossessionComponent>(TEXT("PossessionComp"));
+
+    // C3: BallActionComponent owns ball-action mechanics
+    BallActionComponent = CreateDefaultSubobject<UPSBallActionComponent>(TEXT("BallActionComp"));
 
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;
@@ -302,6 +306,15 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
         MaxStamina);
 }
 
+void APSPlayerPawn::InitializePlayerPointer(const FPlayerAttributes* InAttributes)
+{
+    AttributesPtr = InAttributes;
+    if (InAttributes)
+    {
+        InitializePlayer(*InAttributes);
+    }
+}
+
 void APSPlayerPawn::MoveToLocation(const FVector& TargetLocation)
 {
     if (AAIController* AIC = Cast<AAIController>(GetController()))
@@ -438,302 +451,45 @@ void APSPlayerPawn::ResetFatigue()
 
 bool APSPlayerPawn::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc)
 {
-    if (!Ball)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ThrowPass failed - Ball is null."));
-        return false;
-    }
-
-    if (!bHasPossession)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ThrowPass failed - Player %s does not have the ball."), *Attributes.DisplayName);
-        return false;
-    }
-
-    // LaunchSpeed is scaled by Strength (0-100 rating -> 1500 to 3000 cm/s launch speed)
-    float LaunchSpeed = 1500.f + (Attributes.Strength * 15.f);
-
-    // Apply accuracy scatter to the target point based on Awareness (lower awareness = more error)
-    FVector ScatterTarget = TargetLocation;
-    if (Attributes.Awareness < 100.f)
-    {
-        float AccuracyError = (100.f - Attributes.Awareness) * 2.f; // Max error up to 200cm
-        FVector ErrorOffset = FMath::VRand() * FMath::FRandRange(0.f, AccuracyError);
-        ErrorOffset.Z = 0.f; // Keep error on 2D plane
-        ScatterTarget += ErrorOffset;
-    }
-
-    FVector OutVelocity = FVector::ZeroVector;
-    FVector StartLocation = GetActorLocation() + FVector(0.f, 0.f, 50.f); // Throw from hand/chest height
-
-    bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(
-        this,
-        OutVelocity,
-        StartLocation,
-        ScatterTarget,
-        LaunchSpeed,
-        bHighArc,
-        0.f,
-        0.f,
-        ESuggestProjVelocityTraceOption::DoNotTrace
-    );
-
-    if (bSuccess)
-    {
-        Ball->Launch(OutVelocity);
-        LosePossession();
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) threw a pass to %s. Launch velocity: %s"), 
-            *Attributes.DisplayName, 
-            *Attributes.PlayerId.ToString(), 
-            *TargetLocation.ToString(), 
-            *OutVelocity.ToString());
-        return true;
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ThrowPass failed - Target is out of range for launch speed %.1f."), LaunchSpeed);
-        return false;
-    }
+    return BallActionComponent ? BallActionComponent->ThrowPass(Ball, TargetLocation, bHighArc) : false;
 }
 
 bool APSPlayerPawn::ExecuteHandoff(APSPlayerPawn* TargetPlayer)
 {
-    if (!TargetPlayer)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteHandoff failed - TargetPlayer is null."));
-        return false;
-    }
-
-    if (!bHasPossession)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteHandoff failed - Player %s does not have the ball."), *Attributes.DisplayName);
-        return false;
-    }
-
-    float Distance = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
-    if (Distance > 200.f)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteHandoff failed - TargetPlayer %s is out of range (%.1f > 200 cm)."), *TargetPlayer->GetAttributes().DisplayName, Distance);
-        return false;
-    }
-
-    APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
-    if (GM && GM->ActiveBall)
-    {
-        if (TransferPossessionTo(TargetPlayer))
-        {
-            GM->ActiveBall->AttachToCarrier(TargetPlayer, TEXT("HandSocket"));
-            UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Executed handoff from %s to %s."), *Attributes.DisplayName, *TargetPlayer->GetAttributes().DisplayName);
-            return true;
-        }
-    }
-    return false;
+    return BallActionComponent ? BallActionComponent->ExecuteHandoff(TargetPlayer) : false;
 }
 
 bool APSPlayerPawn::ExecutePitch(APSPlayerPawn* TargetPlayer)
 {
-    if (!TargetPlayer)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecutePitch failed - TargetPlayer is null."));
-        return false;
-    }
-
-    if (!bHasPossession)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecutePitch failed - Player %s does not have the ball."), *Attributes.DisplayName);
-        return false;
-    }
-
-    APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
-    if (!GM || !GM->ActiveBall)
-    {
-        return false;
-    }
-
-    FVector OutVelocity = FVector::ZeroVector;
-    FVector StartLocation = GetActorLocation() + FVector(0.f, 0.f, 50.f);
-    FVector TargetLocation = TargetPlayer->GetActorLocation() + FVector(0.f, 0.f, 50.f);
-
-    float PitchSpeed = 1000.f;
-
-    bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(
-        this,
-        OutVelocity,
-        StartLocation,
-        TargetLocation,
-        PitchSpeed,
-        false,
-        0.f,
-        0.f,
-        ESuggestProjVelocityTraceOption::DoNotTrace
-    );
-
-    if (bSuccess)
-    {
-        GM->ActiveBall->Launch(OutVelocity);
-        LosePossession();
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Executed lateral pitch from %s to %s. Launch velocity: %s"), 
-            *Attributes.DisplayName, 
-            *TargetPlayer->GetAttributes().DisplayName, 
-            *OutVelocity.ToString());
-        return true;
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecutePitch failed - Target is out of range for pitch speed %.1f."), PitchSpeed);
-        return false;
-    }
+    return BallActionComponent ? BallActionComponent->ExecutePitch(TargetPlayer) : false;
 }
 
 bool APSPlayerPawn::ExecuteKick(APSBall* Ball, float KickPower, float LaunchAngle)
 {
-    if (!Ball)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteKick failed - Ball is null."));
-        return false;
-    }
-
-    if (!bHasPossession)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: ExecuteKick failed - Player does not have possession."));
-        return false;
-    }
-
-    FVector Direction = GetActorForwardVector();
-    Direction.Z = FMath::Sin(FMath::DegreesToRadians(LaunchAngle));
-    if (!Direction.IsNearlyZero())
-    {
-        Direction.Normalize();
-    }
-    else
-    {
-        Direction = FVector(1.f, 0.f, 0.f);
-    }
-
-    FVector LaunchVelocity = Direction * KickPower;
-
-    Ball->Launch(LaunchVelocity);
-    LosePossession();
-
-    UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Executed kick with power %.1f at angle %.1f degrees. Velocity: %s"), 
-        KickPower, LaunchAngle, *LaunchVelocity.ToString());
-
-    return true;
+    return BallActionComponent ? BallActionComponent->ExecuteKick(Ball, KickPower, LaunchAngle) : false;
 }
 
 void APSPlayerPawn::FumbleBall()
 {
-    if (!bHasPossession)
+    if (BallActionComponent)
     {
-        UE_LOG(LogTemp, Warning, TEXT("APSPlayerPawn: FumbleBall failed - Player %s does not have the ball."), *Attributes.DisplayName);
-        return;
+        BallActionComponent->FumbleBall();
     }
+}
 
-    APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
-    if (GM && GM->ActiveBall)
-    {
-        FVector FumbleVelocity = GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f);
-        FumbleVelocity += FMath::VRand() * 100.f;
-        FumbleVelocity.Z = FMath::Max(50.f, FumbleVelocity.Z);
-
-        GM->ActiveBall->Fumble(FumbleVelocity);
-        LosePossession();
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Player %s (ID: %s) fumbled the ball!"), *Attributes.DisplayName, *Attributes.PlayerId.ToString());
-    }
+bool APSPlayerPawn::ResolveTackle(APSPlayerPawn* Defender)
+{
+    return BallActionComponent ? BallActionComponent->ResolveTackle(Defender) : false;
 }
 
 void APSPlayerPawn::OnPawnOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
     if (APSPlayerPawn* OtherPawn = Cast<APSPlayerPawn>(OtherActor))
     {
-        if (bHasPossession && OtherPawn->TeamSide != TeamSide)
+        if (HasPossession() && OtherPawn->TeamSide != TeamSide)
         {
-            UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Contact detected! Ball carrier %s contacted by defender %s."), *Attributes.DisplayName, *OtherPawn->GetAttributes().DisplayName);
+            UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Contact detected! Ball carrier %s contacted by defender %s."), *GetAttributes().DisplayName, *OtherPawn->GetAttributes().DisplayName);
             ResolveTackle(OtherPawn);
         }
-    }
-}
-
-bool APSPlayerPawn::ResolveTackle(APSPlayerPawn* Defender)
-{
-    if (!Defender)
-    {
-        return false;
-    }
-
-    APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
-    if (!GM)
-    {
-        return false;
-    }
-
-    FPlayerAttributes CarrierAttr = GetAttributes();
-    FPlayerAttributes DefenderAttr = Defender->GetAttributes();
-
-    float CarrierSpeed = GetVelocity().Size();
-    float DefenderSpeed = Defender->GetVelocity().Size();
-
-    float DefenderPower = DefenderAttr.Strength * 0.5f + (DefenderSpeed * 0.1f);
-    float CarrierPower = CarrierAttr.Strength * 0.3f + CarrierAttr.Agility * 0.3f + (CarrierSpeed * 0.05f);
-
-    float TackleChance = 0.50f + (DefenderPower - CarrierPower) * 0.005f;
-    TackleChance = FMath::Clamp(TackleChance, 0.10f, 0.95f);
-
-    float Roll = FMath::FRand();
-    if (Roll <= TackleChance)
-    {
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Tackle SUCCESS! Defender %s tackled carrier %s (Roll: %.2f <= Chance: %.2f)"), 
-            *DefenderAttr.DisplayName, *CarrierAttr.DisplayName, Roll, TackleChance);
-
-        // Fumble chance check
-        float FumbleChance = 0.02f + (DefenderSpeed * 0.0001f);
-        FumbleChance = FMath::Clamp(FumbleChance, 0.01f, 0.25f);
-        if (FMath::FRand() <= FumbleChance)
-        {
-            FumbleBall();
-            return true;
-        }
-
-        // Apply physics impulse (knockback)
-        FVector KnockbackDir = GetActorLocation() - Defender->GetActorLocation();
-        KnockbackDir.Z = 0.f;
-        if (!KnockbackDir.IsNearlyZero())
-        {
-            KnockbackDir.Normalize();
-        }
-        else
-        {
-            KnockbackDir = -GetActorForwardVector();
-        }
-
-        if (MovementComponent)
-        {
-            MovementComponent->Velocity = KnockbackDir * 150.f;
-        }
-
-        // Down by contact
-        if (MovementComponent)
-        {
-            MovementComponent->Velocity = FVector::ZeroVector;
-            MovementComponent->StopActiveMovement();
-        }
-
-        int32 YardsGained = FMath::RoundToInt((GetActorLocation().X - StartingLocation.X) / 100.f);
-        if (GM->PlaySimulation)
-        {
-            GM->PlaySimulation->RecordTackle(YardsGained);
-        }
-        return true;
-    }
-    else
-    {
-        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Tackle BROKEN! Carrier %s broke tackle from defender %s (Roll: %.2f > Chance: %.2f)"), 
-            *CarrierAttr.DisplayName, *DefenderAttr.DisplayName, Roll, TackleChance);
-
-        if (MovementComponent)
-        {
-            MovementComponent->Velocity *= 0.5f;
-        }
-        return false;
     }
 }

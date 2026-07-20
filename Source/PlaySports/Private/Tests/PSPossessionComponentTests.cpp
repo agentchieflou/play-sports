@@ -79,7 +79,7 @@ bool FPSC3FieldGridFormationSpawnTest::RunTest(const FString& Parameters)
     OL.DisplayName = TEXT("Test OL");
     OL.Role = EPlayerRole::OffensiveLineman;
 
-    TArray<FPlayerAttributes*> Roster = { &QB, &OL };
+    TArray<const FPlayerAttributes*> Roster = { &QB, &OL };
     const float ScrimmageX = 2000.f;
 
     TArray<APSPlayerPawn*> SpawnedPawns = APSFieldGrid::SpawnPlayersFromRoster(Roster, ScrimmageX, World);

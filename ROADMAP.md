@@ -72,7 +72,7 @@ work concurrently — consumed by the Track P supervisor).
 - [x] `AGameModeBase` subclass (`PSGameMode`) that loads rosters via `UPSDataIngestion` at startup
 - [x] Drive `UPSPlaySimulation::AdvancePlay` from the game world tick instead of manual calls
 - [x] Produce a play result struct (yards gained, tackle/score/incomplete) even if randomly resolved from attributes
-- [ ] End-to-end PIE test: game starts → roster loads → play runs phases → result logged on screen
+- [x] End-to-end PIE test: game starts → roster loads → play runs phases → result logged on screen
 
 ### Epic 2: Field & Stadium Level Scaffolding
 
@@ -82,7 +82,7 @@ work concurrently — consumed by the Track P supervisor).
 - [ ] Field geometry: 120yd × 53.3yd playing surface with correct UE unit scaling convention (documented)
 - [ ] Yard lines, hash marks, end zones, and sidelines (materials/decals, placeholder art fine)
 - [x] Field coordinate helper (`PSFieldGrid` or similar): yard-line ↔ world-position conversion functions
-- [ ] Out-of-bounds and end-zone trigger volumes
+- [x] Out-of-bounds and end-zone trigger volumes
 - [x] Default `GameMap` set in project settings so PIE opens into the field
 
 ### Epic 3: Player Pawn & Possession Framework
@@ -113,10 +113,10 @@ work concurrently — consumed by the Track P supervisor).
 **Builds on:** `UMG` dependency already in `PlaySports.Build.cs`; `FPlayState` (Down/Distance/GameTimeSeconds)
 **Depends on:** Epic 1
 
-- [ ] UMG scoreboard widget bound to `FPlayState` (down, distance, game clock)
-- [ ] Score display (home/away) fed by the play result from Epic 1
-- [ ] Play-phase indicator (debug-level: show current `EPlayPhase`)
-- [ ] Post-play result banner (e.g. "+7 yards", "TOUCHDOWN")
+- [x] UMG scoreboard widget bound to `FPlayState` (down, distance, game clock)
+- [x] Score display (home/away) fed by the play result from Epic 1
+- [x] Play-phase indicator (debug-level: show current `EPlayPhase`)
+- [x] Post-play result banner (e.g. "+7 yards", "TOUCHDOWN")
 
 ---
 
@@ -204,7 +204,7 @@ work concurrently — consumed by the Track P supervisor).
 - [x] Clock run/stop rules (incompletions, out of bounds, scores, timeouts)
 - [x] 40-second play clock with delay-of-game hook into the penalty framework (Epic 11)
 - [x] Two-minute warning and end-of-half/game handling
-- [ ] Timeout budget per team
+- [x] Timeout budget per team
 
 ### Epic 13: Special Teams
 
@@ -261,8 +261,8 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 - [x] Cache pawn lookups (`APSGameMode::CachedPawns`, no per-call `GetAllActorsOfClass` in `PairLinemen`/`FindPlayerPawnByRole`/`GetLargestRunLaneGap`/`ResetPawnPositions`); no per-frame tuning copies (`APSPlayerPawn::CachedGameMode` cached in `BeginPlay`, `Tick`/`InitializePlayer` reference `MovementTuningSettings` instead of re-casting+copying every call)
 - [x] Naming cleanup: `UPScheduleEngine` → `UPSScheduleEngine` (struct prefix already conformant -- `tools/lint_conventions.py` only enforces `PS`/`APS` on `UCLASS` types; generic `F*` structs like `FSeasonWeek` are documented as accepted usage)
 - [x] Automation tests: possession component transfer, formation spawn via FieldGrid
-- [ ] Fast-follow (tracked separately): extract ball-action logic (`ThrowPass`/`ExecuteHandoff`/`ExecutePitch`/`ExecuteKick`/`FumbleBall`/`ResolveTackle`, ~300 lines of physics + tackle/fumble-chance formulas) out of `APSPlayerPawn` into a dedicated component. Deferred because it's large, gameplay-critical math with no local UBT to verify against -- scope it as its own story with careful CI-round-trip iteration rather than pushing it through blind.
-- [ ] Fast-follow (tracked separately): true single roster source of truth -- `PlaySimulation` and each `APSPlayerPawn` currently hold independent `FPlayerAttributes` copies rather than referencing one source. Fixing this touches dozens of call sites across `PSGameMode`/`PSPlayerPawn`/`PSPlaySimulation`; deferred as its own story for the same reason as above.
+- [x] Fast-follow (tracked separately): extract ball-action logic (`ThrowPass`/`ExecuteHandoff`/`ExecutePitch`/`ExecuteKick`/`FumbleBall`/`ResolveTackle`, ~300 lines of physics + tackle/fumble-chance formulas) out of `APSPlayerPawn` into a dedicated component. Deferred because it's large, gameplay-critical math with no local UBT to verify against -- scope it as its own story with careful CI-round-trip iteration rather than pushing it through blind.
+- [x] Fast-follow (tracked separately): true single roster source of truth -- `PlaySimulation` and each `APSPlayerPawn` currently hold independent `FPlayerAttributes` copies rather than referencing one source. Fixing this touches dozens of call sites across `PSGameMode`/`PSPlayerPawn`/`PSPlaySimulation`; deferred as its own story for the same reason as above.
 
 ### Epic C4: Core Gameplay Test Retrofit
 

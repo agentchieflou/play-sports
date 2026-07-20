@@ -1,4 +1,5 @@
 #include "PSPlaySimulation.h"
+#include "PSRulesConfig.h"
 #include "PSGameMode.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
@@ -21,6 +22,8 @@ UPSPlaySimulation::UPSPlaySimulation()
     CurrentState.HomeScore = 0;
     CurrentState.AwayScore = 0;
     CurrentState.bIsClockRunning = false;
+    CurrentState.HomeTimeoutsRemaining = 3;
+    CurrentState.AwayTimeoutsRemaining = 3;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
     ActivePenalty = EPSPenaltyType::None;
@@ -47,6 +50,8 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     CurrentState.HomeScore = 0;
     CurrentState.AwayScore = 0;
     CurrentState.bIsClockRunning = false;
+    CurrentState.HomeTimeoutsRemaining = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
+    CurrentState.AwayTimeoutsRemaining = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
     ActivePenalty = EPSPenaltyType::None;
@@ -108,6 +113,12 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
             else
             {
                 UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: End of Quarter. Transitioning to Quarter %d"), CurrentState.Quarter);
+                if (CurrentState.Quarter == 3)
+                {
+                    CurrentState.HomeTimeoutsRemaining = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
+                    CurrentState.AwayTimeoutsRemaining = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
+                    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Timeouts reset for Second Half."));
+                }
             }
         }
     }
@@ -670,3 +681,31 @@ FString UPSPlaySimulation::GetFormattedGameClock() const
     int32 Seconds = TotalSeconds % 60;
     return FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds);
 }
+
+bool UPSPlaySimulation::CallTimeout(bool bHomeTeam)
+{
+    int32& TimeoutsRemaining = bHomeTeam ? CurrentState.HomeTimeoutsRemaining : CurrentState.AwayTimeoutsRemaining;
+    if (TimeoutsRemaining <= 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: Cannot call timeout. No timeouts remaining for %s team."),
+            bHomeTeam ? TEXT("Home") : TEXT("Away"));
+        return false;
+    }
+
+    if (!CurrentState.bIsClockRunning && CurrentState.Phase != EPlayPhase::PreSnap)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: Cannot call timeout. Game clock is already stopped."));
+        return false;
+    }
+
+    TimeoutsRemaining--;
+    CurrentState.bIsClockRunning = false;
+    
+    // Reset play clock to 25 seconds when a timeout stops the game/play clock
+    CurrentState.PlayClockSeconds = 25.f;
+
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Timeout called by %s team. Timeouts remaining: %d"),
+        bHomeTeam ? TEXT("Home") : TEXT("Away"), TimeoutsRemaining);
+    return true;
+}
+

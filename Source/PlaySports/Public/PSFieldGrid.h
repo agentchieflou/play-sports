@@ -74,10 +74,14 @@ public:
      * @return             Array of spawned APSPlayerPawn pointers.
      */
     static TArray<APSPlayerPawn*> SpawnPlayersFromRoster(
-        const TArray<FPlayerAttributes*>& Roster,
+        const TArray<const FPlayerAttributes*>& Roster,
         float ScrimmageX,
         UWorld* World);
 
+protected:
+    virtual void BeginPlay() override;
+
+public:
     /** How far behind the scrimmage line a QB lines up (world units). Shared by
      *  SpawnPlayersFromRoster and GameMode::ResetPawnPositions so the two formation
      *  call sites don't each hardcode their own copy (Epic C3: "field constants

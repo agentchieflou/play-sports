@@ -170,8 +170,18 @@ void APSGameMode::StartPlay()
             UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), ExistingPawns);
             if (ExistingPawns.Num() == 0)
             {
-                TArray<FPlayerAttributes*> RosterPlayers;
-                PlayerRosterTable->GetAllRows<FPlayerAttributes>(TEXT("PSGameMode Spawning"), RosterPlayers);
+                TArray<const FPlayerAttributes*> RosterPlayers;
+                if (PlaySimulation)
+                {
+                    for (const FPlayerAttributes& Player : PlaySimulation->GetOffenseRoster())
+                    {
+                        RosterPlayers.Add(&Player);
+                    }
+                    for (const FPlayerAttributes& Player : PlaySimulation->GetDefenseRoster())
+                    {
+                        RosterPlayers.Add(&Player);
+                    }
+                }
 
                 const float ScrimmageX = PlaySimulation ? PlaySimulation->GetPlayState().YardLine * 100.f : 2000.f;
                 CachedPawns = APSFieldGrid::SpawnPlayersFromRoster(RosterPlayers, ScrimmageX, GetWorld());

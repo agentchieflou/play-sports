@@ -129,4 +129,56 @@ bool FPSSimC2NoDualWrite::RunTest(const FString& Parameters)
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Test 4 -- Timeout budget tests
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSSimTimeoutBudget,
+    "PlaySports.Clock.TimeoutBudget",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSSimTimeoutBudget::RunTest(const FString& Parameters)
+{
+    UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
+    TestNotNull(TEXT("Sim created"), Sim);
+    if (!Sim) { return false; }
+
+    TArray<FPlayerAttributes> Offense, Defense;
+    Sim->InitializePlay(Offense, Defense);
+
+    // Initial timeouts should be 3
+    TestEqual(TEXT("Initial Home Timeouts is 3"), Sim->GetPlayState().HomeTimeoutsRemaining, 3);
+    TestEqual(TEXT("Initial Away Timeouts is 3"), Sim->GetPlayState().AwayTimeoutsRemaining, 3);
+
+    // Call home timeout pre-snap
+    Sim->SetPlayPhase(EPlayPhase::PreSnap);
+    bool bSuccess = Sim->CallTimeout(true);
+    TestTrue(TEXT("Call timeout successfully"), bSuccess);
+    TestEqual(TEXT("Home Timeouts decremented to 2"), Sim->GetPlayState().HomeTimeoutsRemaining, 2);
+    TestFalse(TEXT("Clock is stopped"), Sim->GetPlayState().bIsClockRunning);
+
+    // Call remaining home timeouts
+    Sim->CallTimeout(true);
+    Sim->CallTimeout(true);
+    TestEqual(TEXT("Home Timeouts is 0"), Sim->GetPlayState().HomeTimeoutsRemaining, 0);
+
+    // Call one more - should fail
+    bool bFail = Sim->CallTimeout(true);
+    TestFalse(TEXT("Cannot call timeout with 0 remaining"), bFail);
+
+    // Test transition to Q3 resets timeouts
+    Sim->SetPlayPhase(EPlayPhase::PassRush); // Set to phase that ticks game clock
+    Sim->TriggerSnap(); // starts clock
+
+    Sim->AdvancePlay(905.f); // Q1 -> Q2
+    TestEqual(TEXT("Quarter is 2"), Sim->GetPlayState().Quarter, 2);
+    Sim->AdvancePlay(905.f); // Q2 -> Q3
+    TestEqual(TEXT("Quarter is 3"), Sim->GetPlayState().Quarter, 3);
+
+    // After transitioning to Q3 (2nd half), timeouts should reset to 3
+    TestEqual(TEXT("Home Timeouts reset to 3 in Q3"), Sim->GetPlayState().HomeTimeoutsRemaining, 3);
+
+    return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

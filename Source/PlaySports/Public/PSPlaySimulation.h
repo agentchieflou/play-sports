@@ -62,6 +62,12 @@ struct FPlayState
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bIsClockRunning = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 HomeTimeoutsRemaining = 3;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 AwayTimeoutsRemaining = 3;
 };
 
 USTRUCT(BlueprintType)
@@ -185,6 +191,15 @@ public:
 
     UFUNCTION()
     void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Simulation|Clock")
+    bool CallTimeout(bool bHomeTeam);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|Config")
+    class UPSRulesConfig* RulesConfig = nullptr;
+
+    const TArray<FPlayerAttributes>& GetOffenseRoster() const { return OffenseRoster; }
+    const TArray<FPlayerAttributes>& GetDefenseRoster() const { return DefenseRoster; }
 
 private:
     FPlayState CurrentState;

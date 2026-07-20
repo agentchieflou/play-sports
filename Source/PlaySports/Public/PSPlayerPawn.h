@@ -33,9 +33,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Player")
     void InitializePlayer(const FPlayerAttributes& InAttributes);
 
+    // Initialize the pawn with specific player attributes pointer (Epic C3: single source of truth)
+    void InitializePlayerPointer(const FPlayerAttributes* InAttributes);
+
     // Get the player's current attributes
     UFUNCTION(BlueprintPure, Category = "Player")
-    FPlayerAttributes GetAttributes() const { return Attributes; }
+    FPlayerAttributes GetAttributes() const { return AttributesPtr ? *AttributesPtr : Attributes; }
 
     // Request the pawn's controller to move to a location
     UFUNCTION(BlueprintCallable, Category = "Movement")
@@ -90,6 +93,12 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     EPSTeamSide TeamSide;
+
+    UFUNCTION(BlueprintPure, Category = "Possession")
+    UPSPossessionComponent* GetPossessionComponent() const { return PossessionComponent; }
+
+    UFUNCTION(BlueprintPure, Category = "BallAction")
+    class UPSBallActionComponent* GetBallActionComponent() const { return BallActionComponent; }
 
     // Called to bind functionality to input
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -149,8 +158,12 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UPSPossessionComponent* PossessionComponent;
 
-    UFUNCTION(BlueprintPure, Category = "Possession")
-    UPSPossessionComponent* GetPossessionComponent() const { return PossessionComponent; }
+    /** Extracted ball action mechanics component (Epic C3). Methods below delegate here. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    class UPSBallActionComponent* BallActionComponent;
+
+
+    const FPlayerAttributes* AttributesPtr = nullptr;
 
     UPROPERTY(BlueprintReadOnly, Category = "Player")
     FPlayerAttributes Attributes;
