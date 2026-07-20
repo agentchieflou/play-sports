@@ -1,0 +1,134 @@
+{
+    "Plays": [
+        {
+            "PlayId": "Offense_SlantFlat",
+            "DisplayName": "Slant-Flat",
+            "Formation": "Trips Right",
+            "bIsOffensivePlay": true,
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -200, "Y": 0, "Z": 0 } },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Slant" },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "TightEnd", "Kind": "PassBlock" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Offense_FourVerts",
+            "DisplayName": "Four Verticals",
+            "Formation": "Spread",
+            "bIsOffensivePlay": true,
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -700, "Y": 0, "Z": 0 } },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Post" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Offense_OutCurl",
+            "DisplayName": "Out-Curl",
+            "Formation": "Twins",
+            "bIsOffensivePlay": true,
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -200, "Y": 0, "Z": 0 } },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Out" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Curl" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Offense_InsideZone",
+            "DisplayName": "Inside Zone Run",
+            "Formation": "I-Form",
+            "bIsOffensivePlay": true,
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -100, "Y": 0, "Z": 0 } },
+                { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -400, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "RunBlock" },
+                { "Role": "TightEnd", "Kind": "RunBlock" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" }
+            ]
+        },
+        {
+            "PlayId": "Offense_PowerOSweep",
+            "DisplayName": "Power O Sweep",
+            "Formation": "Strong-I",
+            "bIsOffensivePlay": true,
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -100, "Y": 0, "Z": 0 } },
+                { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -400, "Y": 400, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "RunBlock" },
+                { "Role": "TightEnd", "Kind": "RunBlock" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post" }
+            ]
+        },
+        {
+            "PlayId": "Offense_PlayActionPost",
+            "DisplayName": "Play-Action Post",
+            "Formation": "Ace",
+            "bIsOffensivePlay": true,
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -300, "Y": 0, "Z": 0 } },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Out" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Defense_43Cover2",
+            "DisplayName": "4-3 Cover 2",
+            "Formation": "Base 4-3",
+            "bIsOffensivePlay": false,
+            "Front": "4-3",
+            "CoverageShell": "Cover2",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "PassRush" },
+                { "Role": "Linebacker", "Kind": "RunFit" },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 1200, "Y": -600, "Z": 0 } }
+            ]
+        },
+        {
+            "PlayId": "Defense_34Cover3",
+            "DisplayName": "3-4 Cover 3",
+            "Formation": "Base 3-4",
+            "bIsOffensivePlay": false,
+            "Front": "3-4",
+            "CoverageShell": "Cover3",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "PassRush" },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 800, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 1400, "Y": -700, "Z": 0 } }
+            ]
+        },
+        {
+            "PlayId": "Defense_NickelManFree",
+            "DisplayName": "Nickel Man-Free",
+            "Formation": "Nickel",
+            "bIsOffensivePlay": false,
+            "Front": "Nickel",
+            "CoverageShell": "ManFree",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "PassRush" },
+                { "Role": "Linebacker", "Kind": "ManCoverage" },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage" }
+            ]
+        },
+        {
+            "PlayId": "Defense_DoubleABlitz",
+            "DisplayName": "Double-A Gap Blitz",
+            "Formation": "Blitz Package",
+            "bIsOffensivePlay": false,
+            "Front": "Nickel",
+            "CoverageShell": "Cover1",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "PassRush" },
+                { "Role": "Linebacker", "Kind": "Blitz" },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage" }
+            ]
+        }
+    ]
+}
