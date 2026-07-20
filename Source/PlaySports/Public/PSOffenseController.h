@@ -19,6 +19,15 @@ class PLAYSPORTS_API APSOffenseController : public AAIController
 public:
     APSOffenseController();
 
+    /** Assign a route as a sequence of world-space waypoints (formation offsets already
+     *  resolved by the play orchestrator, Epic 17). Sets TargetLocation/RouteWaypointIndex
+     *  blackboard keys consumed by the BT route-running task. */
+    UFUNCTION(BlueprintCallable, Category = "AI|Offense")
+    void SetAssignedRoute(const TArray<FVector>& WorldSpaceWaypoints);
+
+    UFUNCTION(BlueprintCallable, Category = "AI|Offense")
+    void AdvanceToNextWaypoint();
+
 protected:
     virtual void OnPossess(APawn* InPawn) override;
     virtual void OnUnPossess() override;
@@ -46,4 +55,9 @@ private:
     void OnTackleEvent(const FPSTelemetryTackleEvent& Event);
 
     void InitializeBlackboardState();
+
+    UPROPERTY(Transient)
+    TArray<FVector> RouteWaypoints;
+
+    int32 CurrentWaypointIndex = 0;
 };

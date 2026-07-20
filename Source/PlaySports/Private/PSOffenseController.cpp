@@ -8,6 +8,7 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Int.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 
@@ -93,6 +94,8 @@ void APSOffenseController::InitializeBlackboardState()
             }
 
             TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Bool>(TEXT("bHasPossession"));
+            TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Vector>(TEXT("TargetLocation"));
+            TemporaryBBData->UpdatePersistentKey<UBlackboardKeyType_Int>(TEXT("RouteWaypointIndex"));
 
             for (int32 i = 0; i < TemporaryBBData->Keys.Num(); ++i)
             {
@@ -249,6 +252,41 @@ void APSOffenseController::OnFumbleEvent(const FPSTelemetryFumbleEvent& Event)
 
     BB->SetValueAsObject(TEXT("BallCarrier"), nullptr);
     BB->SetValueAsBool(TEXT("bHasPossession"), false);
+}
+
+void APSOffenseController::SetAssignedRoute(const TArray<FVector>& WorldSpaceWaypoints)
+{
+    RouteWaypoints = WorldSpaceWaypoints;
+    CurrentWaypointIndex = 0;
+
+    UBlackboardComponent* BB = GetBlackboardComponent();
+    if (!BB)
+    {
+        return;
+    }
+
+    BB->SetValueAsInt(TEXT("RouteWaypointIndex"), 0);
+    if (RouteWaypoints.Num() > 0)
+    {
+        BB->SetValueAsVector(TEXT("TargetLocation"), RouteWaypoints[0]);
+    }
+}
+
+void APSOffenseController::AdvanceToNextWaypoint()
+{
+    if (CurrentWaypointIndex + 1 >= RouteWaypoints.Num())
+    {
+        return;
+    }
+
+    ++CurrentWaypointIndex;
+
+    UBlackboardComponent* BB = GetBlackboardComponent();
+    if (BB)
+    {
+        BB->SetValueAsInt(TEXT("RouteWaypointIndex"), CurrentWaypointIndex);
+        BB->SetValueAsVector(TEXT("TargetLocation"), RouteWaypoints[CurrentWaypointIndex]);
+    }
 }
 
 void APSOffenseController::OnTackleEvent(const FPSTelemetryTackleEvent& Event)

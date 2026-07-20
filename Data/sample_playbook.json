@@ -79,6 +79,32 @@
             ]
         },
         {
+            "PlayId": "Offense_ScreenLeft",
+            "DisplayName": "Screen Left",
+            "Formation": "Shotgun",
+            "bIsOffensivePlay": true,
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -500, "Y": 0, "Z": 0 } },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" },
+                { "Role": "TightEnd", "Kind": "PassBlock" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Curl" }
+            ]
+        },
+        {
+            "PlayId": "Offense_DeepPost",
+            "DisplayName": "Deep Post Shot",
+            "Formation": "Trips Left",
+            "bIsOffensivePlay": true,
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -700, "Y": 0, "Z": 0 } },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Out" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" }
+            ]
+        },
+        {
             "PlayId": "Defense_43Cover2",
             "DisplayName": "4-3 Cover 2",
             "Formation": "Base 4-3",
@@ -114,6 +140,32 @@
             "Assignments": [
                 { "Role": "DefensiveLineman", "Kind": "PassRush" },
                 { "Role": "Linebacker", "Kind": "ManCoverage" },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage" }
+            ]
+        },
+        {
+            "PlayId": "Defense_Cover4Quarters",
+            "DisplayName": "Cover 4 Quarters",
+            "Formation": "Base 4-3",
+            "bIsOffensivePlay": false,
+            "Front": "4-3",
+            "CoverageShell": "Cover4",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "PassRush" },
+                { "Role": "Linebacker", "Kind": "RunFit" },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 1600, "Y": -600, "Z": 0 } }
+            ]
+        },
+        {
+            "PlayId": "Defense_GoalLineStack",
+            "DisplayName": "Goal Line Stack",
+            "Formation": "Goal Line",
+            "bIsOffensivePlay": false,
+            "Front": "6-2",
+            "CoverageShell": "ManFree",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "RunFit" },
+                { "Role": "Linebacker", "Kind": "RunFit" },
                 { "Role": "DefensiveBack", "Kind": "ManCoverage" }
             ]
         },

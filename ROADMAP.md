@@ -298,11 +298,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Goal:** The other 14+ players behave credibly per assignment.
 **Depends on:** Epics 9, 14
 
-- [ ] OL: assignment-based blocking (man/zone scheme selection from play data)
-- [ ] DL: rush lanes, contain responsibility, run-fit reaction
-- [ ] LB: run/pass read, zone drop or man assignment, pursuit angles
-- [ ] DB: man coverage mirroring and zone coverage with ball-hawking on throws (`Awareness`-driven)
-- [ ] Pursuit system: all defenders converge on the ball-carrier with attribute-scaled angles
+- [x] OL: assignment-based blocking (man/zone scheme selection from play data)
+- [x] DL: rush lanes, contain responsibility, run-fit reaction
+- [x] LB: run/pass read, zone drop or man assignment, pursuit angles
+- [x] DB: man coverage mirroring and zone coverage with ball-hawking on throws (`Awareness`-driven)
+- [x] Pursuit system: all defenders converge on the ball-carrier with attribute-scaled angles
 
 ### Epic 16: Playbook & Play Data System
 
@@ -310,22 +310,22 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `PSDataIngestion` patterns (JSON → engine data), `UDataTable` usage
 **Depends on:** Epic 14 (informed by what the AI actually consumes)
 
-- [ ] Play definition schema: formation, per-position assignment (route/block/coverage), snap trigger
-- [ ] Route library: waypoint-based route shapes reusable across plays
-- [ ] Defensive play schema: front, coverage shell, blitz packages
-- [ ] JSON ingestion path for playbooks (mirroring `LoadPlayerAttributesFromJson`)
-- [ ] Starter playbook: ~10 offensive plays, ~6 defensive calls, enough to exercise every AI branch
+- [x] Play definition schema: formation, per-position assignment (route/block/coverage), snap trigger
+- [x] Route library: waypoint-based route shapes reusable across plays
+- [x] Defensive play schema: front, coverage shell, blitz packages
+- [x] JSON ingestion path for playbooks (mirroring `LoadPlayerAttributesFromJson`)
+- [x] Starter playbook: ~10 offensive plays, ~6 defensive calls, enough to exercise every AI branch
 
 ### Epic 17: 22-Agent Coordinated Play Orchestration
 
 **Goal:** All 22 on-field agents execute one play call coherently — the README's "22-agent behavior system."
 **Depends on:** Epics 14, 15, 16
 
-- [ ] Play-call distribution: one selected play resolves into 22 individual assignments
-- [ ] Synchronized phase transitions: all agents react to snap/throw/turnover events from the play state machine
+- [x] Play-call distribution: one selected play resolves into 22 individual assignments
+- [x] Synchronized phase transitions: all agents react to snap/throw/turnover events from the play state machine
 - [ ] Broken-play adaptation: scramble drill, blown coverage reactions, blocked-kick chaos handling
 - [ ] Performance pass: 22 simultaneous behavior trees + physics at target frame rate
-- [ ] Determinism/replay hooks: seedable decisions so a play can be re-simulated for debugging
+- [x] Determinism/replay hooks: seedable decisions so a play can be re-simulated for debugging
 
 ### Epic 18: Coaching & Play-Selection AI
 
