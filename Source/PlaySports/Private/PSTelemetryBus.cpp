@@ -136,3 +136,50 @@ void UPSTelemetryBus::PublishPhaseChange(const FPSTelemetryPhaseChangeEvent& Eve
     }
     OnPhaseChangeMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishDamage(const FPSTelemetryDamageEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryDamageEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Damage: Target=%s, Amount=%.1f, Remaining=%.1f"),
+        *Event.TargetName, Event.Amount, Event.RemainingHitPoints);
+    RecordHistory(EPSTelemetryEventType::Damage, Description, JsonPayload);
+
+    if (OnDamage.IsBound())
+    {
+        OnDamage.Broadcast(Event);
+    }
+    OnDamageMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishDeath(const FPSTelemetryDeathEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryDeathEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Death: Player=%s, Cause=%s"),
+        *Event.PlayerName, *UEnum::GetValueAsString(Event.Cause));
+    RecordHistory(EPSTelemetryEventType::Death, Description, JsonPayload);
+
+    if (OnDeath.IsBound())
+    {
+        OnDeath.Broadcast(Event);
+    }
+    OnDeathMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishRespawn(const FPSTelemetryRespawnEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryRespawnEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Respawn: Player=%s"), *Event.PlayerName);
+    RecordHistory(EPSTelemetryEventType::Respawn, Description, JsonPayload);
+
+    if (OnRespawn.IsBound())
+    {
+        OnRespawn.Broadcast(Event);
+    }
+    OnRespawnMC.Broadcast(Event);
+}

@@ -122,4 +122,82 @@ bool FInjuryModelFatigueTest::RunTest(const FString& Parameters)
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Test 4 -- Downed ball carrier sits out exactly the next play (Epic 139)
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FRosterDownedCarrierSitOutTest,
+    "PlaySports.Roster.DownedCarrierSitsOutOnePlay",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FRosterDownedCarrierSitOutTest::RunTest(const FString& Parameters)
+{
+    UPSRoster* Roster = NewObject<UPSRoster>();
+    const FName CarrierId(TEXT("RB_Carrier"));
+    const int32 DownedOnPlayIndex = 5;
+
+    TestTrue(TEXT("Player is available before being downed"), Roster->IsAvailableForPlay(CarrierId, DownedOnPlayIndex));
+
+    Roster->MarkDownedForNextPlay(CarrierId, DownedOnPlayIndex);
+    TestFalse(TEXT("Downed carrier unavailable for the very next play"), Roster->IsAvailableForPlay(CarrierId, DownedOnPlayIndex + 1));
+    TestTrue(TEXT("Downed carrier available again the play after that"), Roster->IsAvailableForPlay(CarrierId, DownedOnPlayIndex + 2));
+
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 5 -- Non-carrier death respawns fully for the very next play, no sit-out (Epic 139)
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FRosterNonCarrierRespawnTest,
+    "PlaySports.Roster.NonCarrierRespawnsNextPlay",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FRosterNonCarrierRespawnTest::RunTest(const FString& Parameters)
+{
+    UPSRoster* Roster = NewObject<UPSRoster>();
+    const FName LinemanId(TEXT("OL_Downed"));
+    const int32 CurrentPlayIndex = 3;
+
+    Roster->MarkDownedForCurrentPlayOnly(LinemanId);
+    TestTrue(TEXT("A non-carrier death has no sit-out for the next play"), Roster->IsAvailableForPlay(LinemanId, CurrentPlayIndex + 1));
+
+    Roster->RespawnForNewPlay(LinemanId, 100.f);
+    FPSPlayerLiveState State;
+    TestTrue(TEXT("Live state exists after respawn"), Roster->FindLiveState(LinemanId, State));
+    TestFalse(TEXT("Respawned player is no longer downed"), State.bIsDowned);
+    TestEqual(TEXT("Respawned player is at full hitpoints"), State.CurrentHitPoints, 100.f);
+
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 6 -- XP accrual and level-up are tracked per player (Epic 141)
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FRosterXpLevelingTest,
+    "PlaySports.Roster.XpLeveling",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FRosterXpLevelingTest::RunTest(const FString& Parameters)
+{
+    UPSRoster* Roster = NewObject<UPSRoster>();
+    const FName PlayerId(TEXT("WR_Leveling"));
+
+    Roster->AwardXp(PlayerId, 50.f);
+    Roster->AwardXp(PlayerId, 25.f);
+
+    FPSPlayerLiveState State;
+    TestTrue(TEXT("Live state exists after XP award"), Roster->FindLiveState(PlayerId, State));
+    TestEqual(TEXT("XP accumulates across awards"), State.CurrentXp, 75.f);
+    TestEqual(TEXT("Level starts at 1"), State.Level, 1);
+
+    Roster->SetLevel(PlayerId, 2, 5.f);
+    TestTrue(TEXT("Live state exists after level-up"), Roster->FindLiveState(PlayerId, State));
+    TestEqual(TEXT("Level increments"), State.Level, 2);
+    TestEqual(TEXT("Remaining XP carries over past the level threshold"), State.CurrentXp, 5.f);
+
+    return true;
+}
+
 #endif

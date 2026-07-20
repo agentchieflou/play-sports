@@ -21,9 +21,12 @@ class PLAYSPORTS_API UPSBallActionComponent : public UActorComponent
 public:
     UPSBallActionComponent();
 
-    /** Throw the ball to a target location */
+    /** Throw the ball to a target location. IntendedTarget, when provided, is
+     *  published on the TelemetryBus as the pass's intended receiver (Epic 140: an
+     *  interception on this pass auto-kills IntendedTarget, not whoever the ball
+     *  happens to hit). */
     UFUNCTION(BlueprintCallable, Category = "BallAction")
-    bool ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false);
+    bool ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr);
 
     /** Perform an instant handoff of the ball to a target player pawn */
     UFUNCTION(BlueprintCallable, Category = "BallAction")

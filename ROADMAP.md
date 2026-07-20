@@ -1,8 +1,8 @@
 # ROADMAP.md
 
-Development roadmap for `play-sports`: **138 Epics** — a 25-Epic core (this file, Phases 0–4)
+Development roadmap for `play-sports`: **141 Epics** — a 25-Epic core (this file, Phases 0–4)
 sequenced **vertical-slice first** (Phase 0 produces one crude but complete, watchable play as
-early as possible; later phases deepen it), plus **113 expansion Epics (26–138)** in themed
+early as possible; later phases deepen it), plus **116 expansion Epics (26–141)** in themed
 track files under `roadmap/` (see the track index below).
 
 Conventions used throughout:
@@ -53,6 +53,33 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 | N | `roadmap/platform-ports.md` | 129–131 | Platform ports (iOS first): audit, scalability tiers, touch abstraction, build pipeline |
 | O | `roadmap/playbook-extraction.md` | 132–134 | One-time playbook extraction: compliance gate, polite resumable scraper, normalized play data |
 | P | `roadmap/agent-orchestration.md` | 135–138 | Agent orchestration graph: model clients, worker harness, benchmark duels, supervisor graph |
+| Q | `roadmap/character-combat.md` | 139–141 | Character archetypes & combat rules: hitpoints, death/respawn, no-punting, 4th-down overload, leveling/XP |
+
+## MVP priority sequencing (code-mode tracks)
+
+Core Epics 1–21 shipped an AI-vs-AI simulation loop (play sim, coaching AI, orchestration,
+roster/season/franchise), but **no human input path exists yet** — Track M (Enhanced
+Input/`PSPlayerController`/gamepad, 126–128) and Track I's front-end/play-call UI (101–102) are
+both still open. That is the single biggest gap between "impressive AI sim" and "a person can sit
+down and play a game" — bigger than any amount of additional AI depth. The tiers below are a
+recommended execution order for the entirely-or-mostly-`code`-mode tracks (E, F, G, I, J, K, L, M,
+O, P, Q) toward an actual playable MVP; they do not change any `depends_on` edge in
+`roadmap/PARALLEL.md`, which remains the source of truth for what's actually unblocked. Editor-
+heavy tracks (A, B, C, D, H) are intentionally deprioritized here since this repo's agent sessions
+have no Unreal Editor access (see `AGENTS.md`).
+
+- **Tier 0 — human-playable core:** Track M in full (126 → 127 → 128), Track I Epics 101 → 102,
+  and Track Q (139 → 140 → 141) — the character archetype/hitpoint/combat-rules layer the user
+  wants as foundational groundwork before more content layers land on top of it.
+- **Tier 1 — deepen the on-field game:** Track E in full (66–77) — the largest pure-code track,
+  and the most direct improver of play-to-play feel once a human can call plays.
+- **Tier 2 — make the AI opponent and season worth playing against:** Track F (78–85) and Track G
+  (86–95) — franchise depth only matters once there's a human loop to embed it in.
+- **Tier 3 — content at scale + remaining infra:** Track L (121–125, also unblocks realistic test
+  content for Tiers 0–2), remaining Track K infra (114/115/117/118/119), Track J multiplayer
+  (107–111, local H2H first since it reuses Tier 0's input work directly).
+- **Tier 4 — polish/reach:** Track O, Track P, Track N, plus the code-only slices of A/B/C/H once
+  the on-field game is solid.
 
 Cross-cutting planning docs: `roadmap/MILESTONE_FIRST_GAME.md` (the launch-critical path to
 one full playable game) and `roadmap/PARALLEL.md` (which epic groups independent agents can

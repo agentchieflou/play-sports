@@ -118,3 +118,72 @@ const FPSDepthChartEntry* UPSRoster::FindEntry(EPlayerRole Role) const
     }
     return nullptr;
 }
+
+FPSPlayerLiveState& UPSRoster::FindOrAddLiveState(FName PlayerId)
+{
+    if (FPSPlayerLiveState* Existing = LiveStateByPlayerId.Find(PlayerId))
+    {
+        return *Existing;
+    }
+
+    FPSPlayerLiveState NewState;
+    NewState.PlayerId = PlayerId;
+    return LiveStateByPlayerId.Add(PlayerId, NewState);
+}
+
+void UPSRoster::MarkDownedForNextPlay(FName PlayerId, int32 CurrentPlayIndex)
+{
+    FPSPlayerLiveState& State = FindOrAddLiveState(PlayerId);
+    State.bIsDowned = true;
+    State.CurrentHitPoints = 0.f;
+    State.UnavailableUntilPlayIndex = CurrentPlayIndex + 2; // sits out exactly the next play
+}
+
+void UPSRoster::MarkDownedForCurrentPlayOnly(FName PlayerId)
+{
+    FPSPlayerLiveState& State = FindOrAddLiveState(PlayerId);
+    State.bIsDowned = true;
+    State.CurrentHitPoints = 0.f;
+    State.UnavailableUntilPlayIndex = INDEX_NONE;
+}
+
+void UPSRoster::RespawnForNewPlay(FName PlayerId, float MaxHitPoints)
+{
+    FPSPlayerLiveState& State = FindOrAddLiveState(PlayerId);
+    State.bIsDowned = false;
+    State.CurrentHitPoints = MaxHitPoints;
+    State.UnavailableUntilPlayIndex = INDEX_NONE;
+}
+
+bool UPSRoster::IsAvailableForPlay(FName PlayerId, int32 CurrentPlayIndex) const
+{
+    const FPSPlayerLiveState* State = LiveStateByPlayerId.Find(PlayerId);
+    if (!State)
+    {
+        return true;
+    }
+    return State->UnavailableUntilPlayIndex == INDEX_NONE || CurrentPlayIndex >= State->UnavailableUntilPlayIndex;
+}
+
+bool UPSRoster::FindLiveState(FName PlayerId, FPSPlayerLiveState& OutState) const
+{
+    if (const FPSPlayerLiveState* State = LiveStateByPlayerId.Find(PlayerId))
+    {
+        OutState = *State;
+        return true;
+    }
+    return false;
+}
+
+void UPSRoster::AwardXp(FName PlayerId, float XpAmount)
+{
+    FPSPlayerLiveState& State = FindOrAddLiveState(PlayerId);
+    State.CurrentXp += XpAmount;
+}
+
+void UPSRoster::SetLevel(FName PlayerId, int32 NewLevel, float RemainingXp)
+{
+    FPSPlayerLiveState& State = FindOrAddLiveState(PlayerId);
+    State.Level = NewLevel;
+    State.CurrentXp = RemainingXp;
+}

@@ -4,6 +4,7 @@
 #include "GameFramework/Pawn.h"
 #include "PSPlayerAttributes.h"
 #include "PSPossessionComponent.h"
+#include "PSHealthComponent.h"
 #include "PSPlayerPawn.generated.h"
 
 class UCapsuleComponent;
@@ -69,9 +70,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Player")
     bool TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn);
 
-    // Throw the ball to a target location
+    // Throw the ball to a target location. IntendedTarget, when provided, is the
+    // receiver an interception on this pass will auto-kill (Epic 140).
     UFUNCTION(BlueprintCallable, Category = "Player")
-    bool ThrowPass(class APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false);
+    bool ThrowPass(class APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr);
 
     // Perform an instant handoff of the ball to a target player pawn
     UFUNCTION(BlueprintCallable, Category = "Player")
@@ -100,6 +102,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "BallAction")
     class UPSBallActionComponent* GetBallActionComponent() const { return BallActionComponent; }
+
+    UFUNCTION(BlueprintPure, Category = "Health")
+    UPSHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
     // Called to bind functionality to input
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -162,6 +167,11 @@ protected:
     /** Extracted ball action mechanics component (Epic C3). Methods below delegate here. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     class UPSBallActionComponent* BallActionComponent;
+
+    /** Live in-play hitpoint pool (Epic 139). Initialized from archetype tuning in
+     *  InitializePlayer/InitializePlayerPointer. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UPSHealthComponent* HealthComponent;
 
 
     const FPlayerAttributes* AttributesPtr = nullptr;

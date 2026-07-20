@@ -517,15 +517,24 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
             if (CurrentState.Down == 3) // If next down is 4th down
             {
                 CurrentState.Down = 4;
+                const bool bPuntingAllowed = RulesConfig ? RulesConfig->bAllowPunting : true;
                 if (CurrentState.YardLine >= 60)
                 {
                     NextPhase = EPlayPhase::FieldGoal;
+                    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: 4th Down. Offense chooses Special Teams: %s"), *UEnum::GetValueAsString(NextPhase));
+                }
+                else if (bPuntingAllowed)
+                {
+                    NextPhase = EPlayPhase::Punt;
+                    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: 4th Down. Offense chooses Special Teams: %s"), *UEnum::GetValueAsString(NextPhase));
                 }
                 else
                 {
-                    NextPhase = EPlayPhase::Punt;
+                    // No-punting ruleset (Epic 140): out of field-goal range with punting
+                    // disallowed means the offense has no kicking option -- they must go
+                    // for it. NextPhase stays PreSnap for a normal 4th-down snap attempt.
+                    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: 4th Down, punting disallowed and out of FG range. Offense must go for it."));
                 }
-                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: 4th Down. Offense chooses Special Teams: %s"), *UEnum::GetValueAsString(NextPhase));
             }
             else
             {

@@ -6,6 +6,7 @@
 #include "PSGameMode.h"
 #include "PSPlaySimulation.h"
 #include "PSTelemetryBus.h"
+#include "PSHealthComponent.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Dom/JsonObject.h"
@@ -81,6 +82,11 @@ void APSBall::BeginPlay()
     if (ProjectileMovement)
     {
         ProjectileMovement->OnProjectileBounce.AddDynamic(this, &APSBall::OnBallBounce);
+    }
+
+    if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    {
+        Bus->OnThrow.AddDynamic(this, &APSBall::OnBusThrowEvent);
     }
 
     if (CatchTuningTable)
@@ -272,6 +278,7 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
                     CatchEvt.bIsInterception = false;
                     Bus->PublishCatch(CatchEvt);
                 }
+                LastThrowTargetName.Empty();
 
                 // Keep direct phase set until C2 routes control through bus
                 if (GM->PlaySimulation)
@@ -305,6 +312,31 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
                     IntEvt.YardsGained     = 0;
                     IntEvt.bIsInterception = true;
                     Bus->PublishCatch(IntEvt);
+                }
+
+                // Epic 140: an interception auto-kills the QB's intended receiver
+                // (not the intercepting defender), so the offense can't lean on
+                // auto-tackles to bail out a bad read.
+                if (Bus && !LastThrowTargetName.IsEmpty())
+                {
+                    for (APSPlayerPawn* Pawn : GM->CachedPawns)
+                    {
+                        if (Pawn && Pawn->GetAttributes().DisplayName == LastThrowTargetName)
+                        {
+                            if (UPSHealthComponent* TargetHealth = Pawn->GetHealthComponent())
+                            {
+                                TargetHealth->Kill();
+                            }
+
+                            FPSTelemetryDeathEvent DeathEvt;
+                            DeathEvt.PlayerName = LastThrowTargetName;
+                            DeathEvt.Cause = EPSDeathCause::InterceptionPunishment;
+                            Bus->PublishDeath(DeathEvt);
+                            UE_LOG(LogTemp, Display, TEXT("APSBall: Interception punishment -- intended target %s auto-killed."), *LastThrowTargetName);
+                            break;
+                        }
+                    }
+                    LastThrowTargetName.Empty();
                 }
 
                 // Keep direct phase set until C2 routes control through bus
@@ -353,4 +385,9 @@ void APSBall::OnBallBounce(const FHitResult& ImpactResult, const FVector& Impact
             GM->PlaySimulation->SetPlayPhase(EPlayPhase::Scoring);
         }
     }
+}
+
+void APSBall::OnBusThrowEvent(const FPSTelemetryThrowEvent& Event)
+{
+    LastThrowTargetName = Event.TargetReceiverName;
 }
