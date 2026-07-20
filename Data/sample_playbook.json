@@ -5,6 +5,7 @@
             "DisplayName": "Slant-Flat",
             "Formation": "Trips Right",
             "bIsOffensivePlay": true,
+            "PlayCategory": "ShortPass",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -200, "Y": 0, "Z": 0 } },
                 { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Slant" },
@@ -18,6 +19,7 @@
             "DisplayName": "Four Verticals",
             "Formation": "Spread",
             "bIsOffensivePlay": true,
+            "PlayCategory": "DeepPass",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -700, "Y": 0, "Z": 0 } },
                 { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" },
@@ -31,6 +33,7 @@
             "DisplayName": "Out-Curl",
             "Formation": "Twins",
             "bIsOffensivePlay": true,
+            "PlayCategory": "ShortPass",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -200, "Y": 0, "Z": 0 } },
                 { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Out" },
@@ -44,6 +47,7 @@
             "DisplayName": "Inside Zone Run",
             "Formation": "I-Form",
             "bIsOffensivePlay": true,
+            "PlayCategory": "Run",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -100, "Y": 0, "Z": 0 } },
                 { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -400, "Y": 0, "Z": 0 } },
@@ -57,6 +61,7 @@
             "DisplayName": "Power O Sweep",
             "Formation": "Strong-I",
             "bIsOffensivePlay": true,
+            "PlayCategory": "Run",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -100, "Y": 0, "Z": 0 } },
                 { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -400, "Y": 400, "Z": 0 } },
@@ -70,6 +75,7 @@
             "DisplayName": "Play-Action Post",
             "Formation": "Ace",
             "bIsOffensivePlay": true,
+            "PlayCategory": "PlayAction",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -300, "Y": 0, "Z": 0 } },
                 { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post" },
@@ -83,6 +89,7 @@
             "DisplayName": "Screen Left",
             "Formation": "Shotgun",
             "bIsOffensivePlay": true,
+            "PlayCategory": "Screen",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -500, "Y": 0, "Z": 0 } },
                 { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat" },
@@ -96,6 +103,7 @@
             "DisplayName": "Deep Post Shot",
             "Formation": "Trips Left",
             "bIsOffensivePlay": true,
+            "PlayCategory": "DeepPass",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -700, "Y": 0, "Z": 0 } },
                 { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post" },
@@ -109,6 +117,7 @@
             "DisplayName": "4-3 Cover 2",
             "Formation": "Base 4-3",
             "bIsOffensivePlay": false,
+            "PlayCategory": "Base",
             "Front": "4-3",
             "CoverageShell": "Cover2",
             "Assignments": [
@@ -122,6 +131,7 @@
             "DisplayName": "3-4 Cover 3",
             "Formation": "Base 3-4",
             "bIsOffensivePlay": false,
+            "PlayCategory": "Base",
             "Front": "3-4",
             "CoverageShell": "Cover3",
             "Assignments": [
@@ -135,6 +145,7 @@
             "DisplayName": "Nickel Man-Free",
             "Formation": "Nickel",
             "bIsOffensivePlay": false,
+            "PlayCategory": "Base",
             "Front": "Nickel",
             "CoverageShell": "ManFree",
             "Assignments": [
@@ -148,6 +159,7 @@
             "DisplayName": "Cover 4 Quarters",
             "Formation": "Base 4-3",
             "bIsOffensivePlay": false,
+            "PlayCategory": "Prevent",
             "Front": "4-3",
             "CoverageShell": "Cover4",
             "Assignments": [
@@ -161,6 +173,7 @@
             "DisplayName": "Goal Line Stack",
             "Formation": "Goal Line",
             "bIsOffensivePlay": false,
+            "PlayCategory": "Base",
             "Front": "6-2",
             "CoverageShell": "ManFree",
             "Assignments": [
@@ -174,6 +187,7 @@
             "DisplayName": "Double-A Gap Blitz",
             "Formation": "Blitz Package",
             "bIsOffensivePlay": false,
+            "PlayCategory": "Blitz",
             "Front": "Nickel",
             "CoverageShell": "Cover1",
             "Assignments": [

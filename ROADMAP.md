@@ -332,10 +332,10 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Goal:** The CPU opponent (and optional suggestion engine for the player) calls sensible plays.
 **Depends on:** Epics 16, 17
 
-- [ ] Situation model: down/distance/clock/score → play-category weighting
-- [ ] Tendency profiles per opponent team (aggressive/conservative archetypes as data)
-- [ ] 4th-down, 2-point, and clock-management decision logic
-- [ ] Optional LLM hook: expose the situation model so an external model (via the Epic 25 bridge) can be consulted for play-calling — designed but gated behind the bridge existing
+- [x] Situation model: down/distance/clock/score → play-category weighting
+- [x] Tendency profiles per opponent team (aggressive/conservative archetypes as data)
+- [x] 4th-down, 2-point, and clock-management decision logic
+- [x] Optional LLM hook: expose the situation model so an external model (via the Epic 25 bridge) can be consulted for play-calling — designed but gated behind the bridge existing
 
 ---
 

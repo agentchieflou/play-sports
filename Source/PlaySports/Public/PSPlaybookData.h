@@ -89,6 +89,12 @@ struct FPSPlayDefinition : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bIsOffensivePlay = true;
 
+    /** Situational category used by the coaching AI's play-selection weighting
+     *  (Epic 18): "Run", "ShortPass", "DeepPass", "PlayAction", "Screen" for
+     *  offense; "Base", "Blitz", "Prevent" for defense. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString PlayCategory;
+
     /** Defensive front, e.g. "4-3", "3-4", "Nickel"; empty for offensive plays. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FString Front;
