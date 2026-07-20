@@ -1,0 +1,44 @@
+{
+    "Routes": [
+        {
+            "RouteId": "Slant",
+            "Waypoints": [
+                { "Offset": { "X": 300, "Y": 0, "Z": 0 }, "TimingSeconds": 0.6 },
+                { "Offset": { "X": 500, "Y": -400, "Z": 0 }, "TimingSeconds": 1.2 }
+            ]
+        },
+        {
+            "RouteId": "Go",
+            "Waypoints": [
+                { "Offset": { "X": 1500, "Y": 0, "Z": 0 }, "TimingSeconds": 2.5 }
+            ]
+        },
+        {
+            "RouteId": "Out",
+            "Waypoints": [
+                { "Offset": { "X": 600, "Y": 0, "Z": 0 }, "TimingSeconds": 1.0 },
+                { "Offset": { "X": 600, "Y": 500, "Z": 0 }, "TimingSeconds": 1.6 }
+            ]
+        },
+        {
+            "RouteId": "Curl",
+            "Waypoints": [
+                { "Offset": { "X": 800, "Y": 0, "Z": 0 }, "TimingSeconds": 1.8 },
+                { "Offset": { "X": 650, "Y": 0, "Z": 0 }, "TimingSeconds": 2.2 }
+            ]
+        },
+        {
+            "RouteId": "Flat",
+            "Waypoints": [
+                { "Offset": { "X": 100, "Y": -400, "Z": 0 }, "TimingSeconds": 0.8 }
+            ]
+        },
+        {
+            "RouteId": "Post",
+            "Waypoints": [
+                { "Offset": { "X": 900, "Y": 0, "Z": 0 }, "TimingSeconds": 1.6 },
+                { "Offset": { "X": 1400, "Y": -600, "Z": 0 }, "TimingSeconds": 2.4 }
+            ]
+        }
+    ]
+}

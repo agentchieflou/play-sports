@@ -1,0 +1,28 @@
+{
+    "Teams": [
+        {
+            "TeamId": "Falcons",
+            "DisplayName": "Founding Falcons",
+            "Division": "East",
+            "RosterDataTablePath": "Data/sample_players.json"
+        },
+        {
+            "TeamId": "Hawks",
+            "DisplayName": "Harbor Hawks",
+            "Division": "East",
+            "RosterDataTablePath": "Data/rosters/team_hawks.json"
+        },
+        {
+            "TeamId": "Wolves",
+            "DisplayName": "Western Wolves",
+            "Division": "West",
+            "RosterDataTablePath": "Data/rosters/team_wolves.json"
+        },
+        {
+            "TeamId": "Bears",
+            "DisplayName": "Blackridge Bears",
+            "Division": "West",
+            "RosterDataTablePath": "Data/rosters/team_bears.json"
+        }
+    ]
+}

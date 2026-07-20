@@ -1,0 +1,15 @@
+{
+  "Players": [
+    { "PlayerId": "BER_QB_001", "DisplayName": "W. Grizzle", "Role": "Quarterback", "WeightKg": 103.0, "HeightCm": 194.0, "Speed": 80.0, "Agility": 78.0, "Strength": 82.0, "Acceleration": 79.0, "Awareness": 86.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_RB_001", "DisplayName": "K. Trample", "Role": "RunningBack", "WeightKg": 101.0, "HeightCm": 183.0, "Speed": 89.0, "Agility": 87.0, "Strength": 88.0, "Acceleration": 90.0, "Awareness": 79.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_WR_001", "DisplayName": "N. Claw", "Role": "WideReceiver", "WeightKg": 92.0, "HeightCm": 191.0, "Speed": 91.0, "Agility": 90.0, "Strength": 73.0, "Acceleration": 89.0, "Awareness": 83.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_WR_002", "DisplayName": "F. Sprint", "Role": "WideReceiver", "WeightKg": 88.0, "HeightCm": 184.0, "Speed": 93.5, "Agility": 94.0, "Strength": 68.0, "Acceleration": 91.0, "Awareness": 81.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_TE_001", "DisplayName": "G. Hulk", "Role": "TightEnd", "WeightKg": 117.0, "HeightCm": 201.0, "Speed": 82.0, "Agility": 80.0, "Strength": 89.0, "Acceleration": 83.0, "Awareness": 82.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_OL_001", "DisplayName": "B. Boulder", "Role": "OffensiveLineman", "WeightKg": 150.0, "HeightCm": 199.0, "Speed": 58.0, "Agility": 61.0, "Strength": 97.5, "Acceleration": 56.0, "Awareness": 70.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_OL_002", "DisplayName": "J. Cave", "Role": "OffensiveLineman", "WeightKg": 141.0, "HeightCm": 191.0, "Speed": 63.5, "Agility": 67.5, "Strength": 91.5, "Acceleration": 62.5, "Awareness": 77.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_DL_001", "DisplayName": "R. Maul", "Role": "DefensiveLineman", "WeightKg": 126.0, "HeightCm": 195.0, "Speed": 74.5, "Agility": 75.5, "Strength": 93.5, "Acceleration": 78.0, "Awareness": 77.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_LB_001", "DisplayName": "M. Growl", "Role": "Linebacker", "WeightKg": 111.5, "HeightCm": 190.0, "Speed": 85.0, "Agility": 84.0, "Strength": 88.0, "Acceleration": 86.5, "Awareness": 85.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_DB_001", "DisplayName": "C. Prowl", "Role": "DefensiveBack", "WeightKg": 86.0, "HeightCm": 183.0, "Speed": 93.5, "Agility": 94.5, "Strength": 65.0, "Acceleration": 92.5, "Awareness": 86.0, "Stamina": 90.0 },
+    { "PlayerId": "BER_DB_002", "DisplayName": "S. Guard", "Role": "DefensiveBack", "WeightKg": 89.0, "HeightCm": 186.0, "Speed": 91.5, "Agility": 91.0, "Strength": 70.0, "Acceleration": 90.5, "Awareness": 84.0, "Stamina": 90.0 }
+  ]
+}

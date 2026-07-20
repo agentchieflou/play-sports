@@ -10,6 +10,7 @@ class UCapsuleComponent;
 class UStaticMeshComponent;
 class UFloatingPawnMovement;
 class APSGameMode;
+class APSOffenseController;
 
 UENUM(BlueprintType)
 enum class EPSTeamSide : uint8

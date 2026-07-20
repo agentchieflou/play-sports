@@ -298,11 +298,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Goal:** The other 14+ players behave credibly per assignment.
 **Depends on:** Epics 9, 14
 
-- [ ] OL: assignment-based blocking (man/zone scheme selection from play data)
-- [ ] DL: rush lanes, contain responsibility, run-fit reaction
-- [ ] LB: run/pass read, zone drop or man assignment, pursuit angles
-- [ ] DB: man coverage mirroring and zone coverage with ball-hawking on throws (`Awareness`-driven)
-- [ ] Pursuit system: all defenders converge on the ball-carrier with attribute-scaled angles
+- [x] OL: assignment-based blocking (man/zone scheme selection from play data)
+- [x] DL: rush lanes, contain responsibility, run-fit reaction
+- [x] LB: run/pass read, zone drop or man assignment, pursuit angles
+- [x] DB: man coverage mirroring and zone coverage with ball-hawking on throws (`Awareness`-driven)
+- [x] Pursuit system: all defenders converge on the ball-carrier with attribute-scaled angles
 
 ### Epic 16: Playbook & Play Data System
 
@@ -310,32 +310,32 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `PSDataIngestion` patterns (JSON → engine data), `UDataTable` usage
 **Depends on:** Epic 14 (informed by what the AI actually consumes)
 
-- [ ] Play definition schema: formation, per-position assignment (route/block/coverage), snap trigger
-- [ ] Route library: waypoint-based route shapes reusable across plays
-- [ ] Defensive play schema: front, coverage shell, blitz packages
-- [ ] JSON ingestion path for playbooks (mirroring `LoadPlayerAttributesFromJson`)
-- [ ] Starter playbook: ~10 offensive plays, ~6 defensive calls, enough to exercise every AI branch
+- [x] Play definition schema: formation, per-position assignment (route/block/coverage), snap trigger
+- [x] Route library: waypoint-based route shapes reusable across plays
+- [x] Defensive play schema: front, coverage shell, blitz packages
+- [x] JSON ingestion path for playbooks (mirroring `LoadPlayerAttributesFromJson`)
+- [x] Starter playbook: ~10 offensive plays, ~6 defensive calls, enough to exercise every AI branch
 
 ### Epic 17: 22-Agent Coordinated Play Orchestration
 
 **Goal:** All 22 on-field agents execute one play call coherently — the README's "22-agent behavior system."
 **Depends on:** Epics 14, 15, 16
 
-- [ ] Play-call distribution: one selected play resolves into 22 individual assignments
-- [ ] Synchronized phase transitions: all agents react to snap/throw/turnover events from the play state machine
+- [x] Play-call distribution: one selected play resolves into 22 individual assignments
+- [x] Synchronized phase transitions: all agents react to snap/throw/turnover events from the play state machine
 - [ ] Broken-play adaptation: scramble drill, blown coverage reactions, blocked-kick chaos handling
 - [ ] Performance pass: 22 simultaneous behavior trees + physics at target frame rate
-- [ ] Determinism/replay hooks: seedable decisions so a play can be re-simulated for debugging
+- [x] Determinism/replay hooks: seedable decisions so a play can be re-simulated for debugging
 
 ### Epic 18: Coaching & Play-Selection AI
 
 **Goal:** The CPU opponent (and optional suggestion engine for the player) calls sensible plays.
 **Depends on:** Epics 16, 17
 
-- [ ] Situation model: down/distance/clock/score → play-category weighting
-- [ ] Tendency profiles per opponent team (aggressive/conservative archetypes as data)
-- [ ] 4th-down, 2-point, and clock-management decision logic
-- [ ] Optional LLM hook: expose the situation model so an external model (via the Epic 25 bridge) can be consulted for play-calling — designed but gated behind the bridge existing
+- [x] Situation model: down/distance/clock/score → play-category weighting
+- [x] Tendency profiles per opponent team (aggressive/conservative archetypes as data)
+- [x] 4th-down, 2-point, and clock-management decision logic
+- [x] Optional LLM hook: expose the situation model so an external model (via the Epic 25 bridge) can be consulted for play-calling — designed but gated behind the bridge existing
 
 ---
 
@@ -347,11 +347,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `FPlayerAttributes`, `EPlayerRole`
 **Depends on:** Epic 1
 
-- [ ] Team/roster model: 53-player rosters, depth chart per position
+- [x] Team/roster model: 53-player rosters, depth chart per position
 - [ ] Substitution and personnel packages tied into formations (11 personnel, nickel, etc.)
-- [ ] Stamina/fatigue consuming the hooks left in Epic 6, driving rotation
-- [ ] Progression/regression: attribute changes from play, age, and training
-- [ ] Injury model (probability, severity, recovery timeline)
+- [x] Stamina/fatigue consuming the hooks left in Epic 6, driving rotation
+- [x] Progression/regression: attribute changes from play, age, and training
+- [x] Injury model (probability, severity, recovery timeline)
 
 ### Epic 20: Season / Franchise Mode
 
@@ -359,11 +359,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `UPScheduleEngine::GenerateSeasonSchedule` (complete, unused)
 **Depends on:** Epics 12, 19
 
-- [ ] League model: teams, divisions, standings
-- [ ] Season loop: `PSScheduleEngine` schedule → play/sim each week → standings update
-- [ ] Quick-sim: resolve non-played games headlessly via the play simulation (no rendering)
-- [ ] Save/load season state (`SaveGame` objects)
-- [ ] Playoff bracket generation from final standings
+- [x] League model: teams, divisions, standings
+- [x] Season loop: `PSScheduleEngine` schedule → play/sim each week → standings update
+- [x] Quick-sim: resolve non-played games headlessly via the play simulation (no rendering)
+- [x] Save/load season state (`SaveGame` objects)
+- [x] Playoff bracket generation from final standings
 
 ### Epic 21: Data & Content Pipeline Expansion
 
@@ -371,11 +371,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `UPSDataIngestion`, `Data/sample_players.json`
 **Depends on:** Epics 16, 19
 
-- [ ] Generalize `PSDataIngestion` beyond players: teams, playbooks, league config
-- [ ] Schema validation with actionable error reporting (bad field, bad row, bad enum value)
-- [ ] Full sample league dataset: 4+ teams with complete rosters for testing
-- [ ] Editor utility (or commandlet) to re-import all `Data/` content in one action
-- [ ] Document the data contract in `Data/README.md` so external tools/agents can generate content
+- [x] Generalize `PSDataIngestion` beyond players: teams, playbooks, league config
+- [x] Schema validation with actionable error reporting (bad field, bad row, bad enum value)
+- [x] Full sample league dataset: 4+ teams with complete rosters for testing
+- [x] Editor utility (or commandlet) to re-import all `Data/` content in one action
+- [x] Document the data contract in `Data/README.md` so external tools/agents can generate content
 
 ---
 

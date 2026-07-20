@@ -1,0 +1,15 @@
+{
+  "Players": [
+    { "PlayerId": "WLV_QB_001", "DisplayName": "B. Howler", "Role": "Quarterback", "WeightKg": 101.0, "HeightCm": 192.0, "Speed": 82.0, "Agility": 80.0, "Strength": 79.0, "Acceleration": 81.0, "Awareness": 88.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_RB_001", "DisplayName": "G. Fang", "Role": "RunningBack", "WeightKg": 99.0, "HeightCm": 181.0, "Speed": 91.0, "Agility": 90.0, "Strength": 84.0, "Acceleration": 92.0, "Awareness": 80.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_WR_001", "DisplayName": "S. Prowl", "Role": "WideReceiver", "WeightKg": 90.0, "HeightCm": 189.0, "Speed": 93.0, "Agility": 92.0, "Strength": 71.0, "Acceleration": 91.0, "Awareness": 84.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_WR_002", "DisplayName": "L. Chase", "Role": "WideReceiver", "WeightKg": 86.0, "HeightCm": 182.0, "Speed": 94.5, "Agility": 96.0, "Strength": 66.0, "Acceleration": 93.5, "Awareness": 82.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_TE_001", "DisplayName": "M. Den", "Role": "TightEnd", "WeightKg": 114.0, "HeightCm": 199.0, "Speed": 84.0, "Agility": 83.0, "Strength": 86.0, "Acceleration": 85.0, "Awareness": 83.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_OL_001", "DisplayName": "R. Alpha", "Role": "OffensiveLineman", "WeightKg": 148.0, "HeightCm": 198.0, "Speed": 59.5, "Agility": 63.0, "Strength": 96.5, "Acceleration": 57.0, "Awareness": 71.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_OL_002", "DisplayName": "C. Pack", "Role": "OffensiveLineman", "WeightKg": 143.0, "HeightCm": 193.0, "Speed": 62.5, "Agility": 66.0, "Strength": 93.0, "Acceleration": 61.5, "Awareness": 75.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_DL_001", "DisplayName": "H. Snarl", "Role": "DefensiveLineman", "WeightKg": 124.0, "HeightCm": 194.0, "Speed": 76.0, "Agility": 77.0, "Strength": 92.0, "Acceleration": 79.5, "Awareness": 78.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_LB_001", "DisplayName": "D. Howl", "Role": "Linebacker", "WeightKg": 109.5, "HeightCm": 189.0, "Speed": 86.0, "Agility": 85.5, "Strength": 86.0, "Acceleration": 87.5, "Awareness": 86.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_DB_001", "DisplayName": "A. Shadow", "Role": "DefensiveBack", "WeightKg": 84.0, "HeightCm": 181.0, "Speed": 95.5, "Agility": 96.5, "Strength": 63.0, "Acceleration": 94.5, "Awareness": 87.0, "Stamina": 90.0 },
+    { "PlayerId": "WLV_DB_002", "DisplayName": "T. Lurker", "Role": "DefensiveBack", "WeightKg": 88.0, "HeightCm": 185.0, "Speed": 92.5, "Agility": 92.0, "Strength": 68.0, "Acceleration": 91.5, "Awareness": 85.0, "Stamina": 90.0 }
+  ]
+}
