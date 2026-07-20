@@ -51,7 +51,8 @@ def run_story(repo_root: Path, story_id: str, client,
               specialization: str | None = None,
               dry_run: bool = False,
               max_iterations: int | None = None,
-              keep_worktree: bool = False) -> RunOutcome:
+              keep_worktree: bool = False,
+              extra_context: str = "") -> RunOutcome:
     assignment = find_story(repo_root, story_id)
     if specialization:
         assignment = StoryAssignment(
@@ -68,7 +69,7 @@ def run_story(repo_root: Path, story_id: str, client,
             harness_kwargs["max_iterations"] = max_iterations
         harness = WorkerHarness(client, tools, repo_root=repo_root,
                                 **harness_kwargs)
-        harness_result = harness.run(assignment)
+        harness_result = harness.run(assignment, extra_context=extra_context)
 
         outcome = RunOutcome(assignment=assignment, harness=harness_result,
                              branch=branch)

@@ -70,11 +70,15 @@ class WorkerHarness:
 
     # -- the loop -----------------------------------------------------------
 
-    def run(self, assignment: StoryAssignment) -> HarnessResult:
+    def run(self, assignment: StoryAssignment,
+            extra_context: str = "") -> HarnessResult:
+        task_prompt = build_task_prompt(assignment)
+        if extra_context:
+            task_prompt += f"\n\n## Notes from the supervisor\n{extra_context}"
         messages = [
             Message(role="system",
                     content=build_system_prompt(self.repo_root, assignment)),
-            Message(role="user", content=build_task_prompt(assignment)),
+            Message(role="user", content=task_prompt),
         ]
         result = HarnessResult(status="budget_exhausted")
         usage = Usage()

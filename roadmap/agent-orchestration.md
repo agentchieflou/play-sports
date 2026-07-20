@@ -1,86 +1,80 @@
 # Track P — Agent Orchestration Graph (Epics 135–138)
 
-The prose six-role pipeline (`GEMINI.md`, `.agents/skills/`) becomes a runnable program
-under `tools/orchestrator/`: model clients honoring the `.env` contract, a worker harness
-that lets cheap models complete roadmap stories in isolated worktrees, a benchmark duel mode
-that races two workers on the same story, and a supervisor graph that dispatches N workers
-concurrently from `roadmap/PARALLEL.md`. Model tiers: supervisor = Gemini 3.5 Flash (high)
-via `GEMINI_API_KEY`; workers = GPT-OSS-120B via `OPENROUTER_API_KEY`, falling back to
-Gemini 3.5 Flash (low) on the same Gemini key. Sizing/mode legend: see `ROADMAP.md`.
+Architecting and implementing the Python multi-agent orchestrator under `tools/orchestrator/`. Translates the prose six-role pipeline (Supervisor, Planner, Coder, Tester, Reviewer, Git) into a programmatic orchestrator graph where a Gemini 3.5 Flash high supervisor model assigns tasks to cheap worker models (GPT-OSS-120B on OpenRouter or Gemini 3.5 Flash low). Sizing/mode legend: see `ROADMAP.md`.
 
-**Reality note (2026-07-19 review):** This track **extends, never twins,** Epics 119/120 and
-Core 25: Epic 119's future MCP router service *wraps* Epic 135's client layer
-(`tools/orchestrator/models/`), and Core 25's ".env model router" story consumes it; Epic
-137 refactors (does not fork) `tools/score_agent_run.py` into an importable `tools/score_lib.py`.
-The `.agents/skills/` prose remains the behavioral source of truth — the worker harness
-renders its system prompts *from* the matching coder skill, and the supervisor enforces the
-`supervisor-orchestrator`/`phase-runner` rules (one story = one run, failure→fresh-worker,
-hard stops) in code. Nothing here touches UE C++; the whole track is Python, locally
-testable, CI-safe.
-
-Agreed module layout:
+**Reality note (2026-07-19 review):** This track extends, but does not duplicate, infrastructure from Epics 119 and 120. Epic 119 (Model Router Service) and Epic 120 (Agent Evaluation Gym) wrap and reuse client layers and scoring mechanisms built here. The prose skills in `.agents/skills/` remain the behavioral source of truth; the harness renders prompts *from* them.
 
 ```
 tools/orchestrator/
-  __init__.py  __main__.py        # CLI: run | duel | graph | status | resume | check-parallel
-  config.py                       # .env loading, model-tier table
-  models/   base.py gemini.py openrouter.py router.py
-  worker/   workspace.py tools.py harness.py prompts.py
-  supervisor/ board.py state.py graph.py
-  duel.py
-tools/score_lib.py                # extracted from score_agent_run.py (Epic 137)
+  __init__.py
+  __main__.py        # CLI: run | duel | graph | status | resume | check-parallel
+  config.py          # .env loading (OLLAMA_HOST, GEMINI_API_KEY, OPENROUTER_API_KEY)
+  models/
+    base.py          # ModelClient protocol and interfaces
+    gemini.py        # Gemini client (using raw HTTP to avoid SDK dependencies)
+    openrouter.py    # OpenRouter client (raw HTTP)
+    router.py        # Tier-to-client mapper, worker fallback chain
+  worker/
+    workspace.py     # Git worktree isolation in .worktrees/
+    tools.py         # Worker agent tool sandbox (jailed read/write/grep/run)
+    harness.py       # Worker prompt formatting, agent loop execution
+    prompts.py       # System prompt builders
+  supervisor/
+    board.py         # Track crawler, dependency graph analyzer
+    state.py         # Run state JSON tracker (eval/runs/<run-id>.json)
+    graph.py         # Concurrent scheduler, parallel dispatch loop
+  duel.py            # Head-to-head worker comparison logic
+tools/score_lib.py   # Refactored library extracted from tools/score_agent_run.py
 ```
-
-Run-state schema (implemented in Epic 138, sketched here as the contract):
-`{version, run_id, mode: graph|duel|single, started_at, parallel_matrix_sha, stories:
-{"<epic>.<story>": {status: pending|assigned|coding|testing|review|pr_open|merged|failed|escalated,
-worker, worktree, branch, attempts, pr, score, events[]}}, duels[], escalations[]}` stored at
-`eval/runs/<run-id>.json`.
 
 ### Epic 135: Model Client Layer
 
 **Size/Mode:** M / code
-**Goal:** One importable Python layer turns the `.env` contract into working model calls with tiers, retries, and fallback.
-**Depends on:** — (seed of Epic 119; Core 25's router story consumes this)
+**Goal:** HTTP client implementations for Gemini and OpenRouter are built, providing clean interfaces for the orchestrator.
+**Depends on:** —
 
-- [x] `tools/orchestrator/` scaffold + `config.py`: `.env` parsing (stdlib only), model-tier table — supervisor = Gemini 3.5 Flash high (`GEMINI_API_KEY`); worker = GPT-OSS-120B (`OPENROUTER_API_KEY`); worker fallback = Gemini 3.5 Flash low (same Gemini key); `OLLAMA_HOST` slot documented as reserved, unimplemented
-- [x] `models/base.py`: `ModelClient` protocol — chat completion with tool/function-calling, usage accounting, retry with rate-limit backoff
-- [x] Concrete clients `models/gemini.py` and `models/openrouter.py` (stdlib HTTP, no SDK dependencies)
-- [x] `models/router.py`: tier→client resolution with health checks and the worker fallback chain (openrouter → gemini-flash-low) — documented as the layer Epic 119's MCP service will wrap
-- [x] Unit tests with mocked HTTP for both clients and the fallback chain
+- [ ] Implement `tools/orchestrator/config.py` parsing `.env` file credentials using standard Python libraries
+- [ ] Implement `tools/orchestrator/models/base.py` defining standard response types, message interfaces, and tool call schemas
+- [ ] Implement `tools/orchestrator/models/gemini.py` supporting Gemini 3.5 Flash APIs via raw HTTPS requests, handling error codes and backoffs
+- [ ] Implement `tools/orchestrator/models/openrouter.py` supporting OpenRouter API integrations (instruct/chat endpoints, tool schema handling)
+- [ ] Implement `tools/orchestrator/models/router.py` mapping role demands to client configurations (Supervisor -> Gemini Flash high, Worker -> OpenRouter gpt-oss-120b with fallback to Gemini Flash low)
+- [ ] Local tests with mocked HTTP endpoints verifying connection, routing, API key retrieval, and fallback execution
 
 ### Epic 136: Worker Harness & Isolated Worktrees
 
 **Size/Mode:** L / code
-**Goal:** A cheap model can actually complete one roadmap story: an agentic tool loop jailed to its own git worktree, with the harness (not the model) owning git.
+**Goal:** A sandbox environment executes worker agents in clean git worktrees with strict file boundaries.
 **Depends on:** 135
 
-- [x] `worker/workspace.py`: worktree lifecycle — create `.worktrees/<branch>` off `main` (branch named per the `git-steward` convention), diff capture via `git diff main...HEAD`, cleanup; `.worktrees/` gitignored
-- [x] `worker/tools.py`: model-facing tools — `read_file`, `write_file`, `list_dir`, `grep`, `run_check` (allowlist only: `lint_conventions.py`, `validate_data.py`, `pytest`), `finish(summary)`; all paths resolved and jailed to the worktree root, per-file size caps, per-run write caps
-- [x] `worker/harness.py`: the loop — system prompt rendered from the matching coder-skill prose plus the story assignment; executes tool calls until `finish` or budget exhaustion (max iterations, token cap); full transcript persisted for scoring
-- [x] Single-run CLI `python -m tools.orchestrator run --story <epic>.<story>`: worker completes the story; the harness commits, pushes, and opens the PR via `gh` — the model never runs git
-- [x] Dry-run mode (diff printed, no push/PR) + harness tests driven by a scripted fake model
+- [ ] Implement `tools/orchestrator/worker/workspace.py` managing git worktrees under a gitignored `.worktrees/` directory, checking out main and naming branches per `git-steward` convention
+- [ ] Implement `tools/orchestrator/worker/tools.py` exposing jailed tools (file reads, file writes, grep search, run check-allowlist) limited to the worktree directory
+- [ ] Implement `tools/orchestrator/worker/harness.py` combining the system prompt (templated from `.agents/skills/`) and story details into a tool call execution loop
+- [ ] Build the harness commit step, committing worker work to the local worktree, pushing, and opening a PR via CLI `gh` commands
+- [ ] Expose single-agent runner: `python -m tools.orchestrator run --story <epic.story> [--dry-run]`
+- [ ] Offline harness tests utilizing mock agents and scripted file-operation histories
 
 ### Epic 137: Benchmark Duel Mode
 
 **Size/Mode:** M / code
-**Goal:** Two workers race the same story in separate worktrees; objective scores plus a supervisor-model judgment pick the branch that proceeds to PR — Epic 120's eval gym, made head-to-head.
-**Depends on:** 136 (extends Epic 120)
+**Goal:** Two worker configurations compete on the same story, with their changes compared and judged.
+**Depends on:** 136
 
-- [x] Refactor `tools/score_agent_run.py`: extract scoring into importable `tools/score_lib.py` (CLI behavior byte-identical) and add a local-diff path — scope/lint/data/tests-added computable pre-PR without `gh`
-- [x] `duel.py`: same story, two worker configs, two worktrees; both diffs and transcripts captured
-- [x] Judge pass: the supervisor model compares both diffs against the story's acceptance criteria → structured verdict, combined with objective local scores into a winner (tie → cheaper model wins)
-- [x] Duel records in `eval/duels/<id>.json`; `tools/eval_report.py` extended to fold duel outcomes into `eval/SCORECARD.md`
-- [x] Winner flow: winning branch proceeds to PR via the 136 pipeline; loser worktree archived to the transcript store, then removed
+- [ ] Extract a reusable `tools/score_lib.py` from `tools/score_agent_run.py` that computes scores from local diffs instead of requiring a pushed PR
+- [ ] Implement `tools/orchestrator/duel.py` spawning two parallel worker harnesses in independent worktrees for the same story
+- [ ] Implement the Supervisor judge prompt comparing both worktree diffs against the plan's acceptance criteria
+- [ ] Combine supervisor judgment with objective scores from `score_lib` to choose the winning implementation
+- [ ] Write duel reports to `eval/duels/<id>.json` and integrate results into `eval/SCORECARD.md` via `tools/eval_report.py`
+- [ ] Automation test: running a mock duel on a doc-only story records scorecard data and clean-merges the winner
 
 ### Epic 138: Supervisor Graph Mode
 
 **Size/Mode:** L / code
-**Goal:** A Gemini-Flash supervisor reads `roadmap/PARALLEL.md` and the board, dispatches N concurrent workers on disjoint stories, and survives restarts via a run-state file.
+**Goal:** A coordinator loop reads the roadmap, schedules non-overlapping stories, and dispatches workers concurrently.
 **Depends on:** 136, 137
 
-- [ ] `supervisor/board.py`: roadmap crawler — parse `ROADMAP.md` + all track files into epics/stories with checkbox state and the Depends-on graph; includes a `check-parallel` command validating `roadmap/PARALLEL.md` against the crawl (CI-runnable drift check)
-- [ ] `supervisor/state.py`: versioned run-state JSON at `eval/runs/<run-id>.json` — crash-safe writes, load-and-resume
-- [ ] `supervisor/graph.py`: supervisor loop — Gemini Flash (high) gets the PARALLEL.md groups + board state, assigns unblocked disjoint stories to a worker pool (thread pool over 136 harnesses); one-story-one-run and file-scope disjointness enforced in code, not just in the prompt
-- [ ] Failure routing per the `supervisor-orchestrator` skill: stage failure → fresh worker attempt with findings (max 2) → escalation entry; hard stop conditions mirrored from `phase-runner` (repo-state surprises, merge conflicts, mis-sized stories)
-- [ ] `status`/`resume` CLI + end-to-end smoke: a 2-worker graph run over two trivially disjoint doc-only stories
+- [ ] Implement `tools/orchestrator/supervisor/board.py` crawling `ROADMAP.md` and track files to construct a story dependency graph
+- [ ] Implement `tools/orchestrator/supervisor/state.py` persisting execution state in `eval/runs/<run-id>.json`
+- [ ] Implement the scheduler assigning unblocked, disjoint stories to worker sessions based on `roadmap/PARALLEL.md` scope rules
+- [ ] Implement supervisor feedback routing: routing failed tests/reviews back to worker harnesses with error contexts
+- [ ] Expose graph CLI controls: `python -m tools.orchestrator graph status|resume|check-parallel`
+- [ ] Smoke test: coordinate two mock workers completing two disjoint, document-only stories concurrently

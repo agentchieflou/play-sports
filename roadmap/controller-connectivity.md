@@ -1,49 +1,42 @@
 # Track M — Controller Connectivity (Epics 126–128)
 
-The plumbing that puts a human on the field: Enhanced Input bring-up, a real player
-controller, Xbox gamepad support, and human↔AI possession handoff. This track owns
-*connectivity*; Track I's Epic 104 owns *feel* (the move vocabulary, buffering, and passing
-model) and consumes what lands here. Sizing/mode legend: see `ROADMAP.md`.
+Bring-up plumbing for gamepads and enhanced input contexts. Installs EnhancedInput modules, exposes PSPlayerController, maps controls, handles device events, and manages possession handoffs between AI and human. Sizing/mode legend: see `ROADMAP.md`.
 
-**Reality note (2026-07-19 review):** Input today is two legacy `BindAxis` calls
-(`MoveForward`/`MoveRight`) on `APSPlayerPawn`; the `EnhancedInput` module is not in
-`PlaySports.Build.cs`, and no project player controller class exists. Epic 126 creates the
-substrate; Epic 104's first story was re-scoped to extend it rather than create it. Device
-and possession state flow over the C1 `UPSTelemetryBus` — HUD/camera never cast to the
-controller. Note the file-scope conflict recorded in `roadmap/PARALLEL.md`: Epic C3's
-ball-action-component fast-follow touches `APSPlayerPawn` and must land before Epic 127.
+**Reality note (2026-07-19 review):** Input today is legacy `BindAxis` MoveForward/MoveRight on `APSPlayerPawn` (PSPlayerPawn.cpp). `EnhancedInput` is NOT in `PlaySports.Build.cs` yet, and no custom PlayerController subclass exists. Track M owns the input plumbing/connectivity; Epic 104 (Track I) owns gameplay input feel and move vocabulary (jukes, placement passing).
 
 ### Epic 126: Enhanced Input Foundation & PSPlayerController
 
 **Size/Mode:** M / code
-**Goal:** Enhanced Input replaces legacy axis bindings behind a real player controller — the substrate every human-input epic builds on.
+**Goal:** Enhanced Input is integrated into the build, replacing legacy input bindings with a default Action mapping context.
 **Depends on:** Core 3
 
-- [ ] Enable Enhanced Input: add `EnhancedInput` to `PlaySports.Build.cs`, enable the plugin in `play-sports.uproject`, set `UEnhancedPlayerInput`/`UEnhancedInputComponent` as the default input classes in `Config/DefaultInput.ini`
-- [ ] `APSPlayerController`: project player controller registered in `APSGameMode`; owns mapping-context application on possession so `APSPlayerPawn` stays input-free (rule 1: new system = new class)
-- [ ] `UPSInputConfig` code-defined data asset declaring the action catalog (Move, Sprint, Confirm, Cancel, SwitchPlayer) and context priorities — no magic bindings in gameplay code (rule 4)
-- [ ] Migrate `APSPlayerPawn`'s legacy `BindAxis` MoveForward/MoveRight onto Enhanced Input actions bound in the controller; delete the legacy axis entries from `Config/DefaultInput.ini`
-- [ ] Automation test: possessing a pawn applies the gameplay mapping context; an injected Move action value reaches the pawn's movement input path headlessly
+- [ ] Add `EnhancedInput` dependency to `PlaySports.Build.cs` and verify module loading
+- [ ] Create `APSPlayerController` (subclass of `APlayerController`) and configure in `APSGameMode` as default controller class
+- [ ] Create `UPSInputConfig` (data asset wrapping input actions: Move, Sprint, Confirm, Cancel, SwitchPlayer)
+- [ ] Create `IMC_Default` Input Mapping Context matching actions to keyboard defaults (WASD, Space, Shift, Tab)
+- [ ] Bind actions in `APSPlayerPawn::SetupPlayerInputComponent` via `UEnhancedInputComponent`, removing legacy `BindAxis`/`BindAction`
+- [ ] Automation test: context applied to `APSPlayerController` on possession, keyboard Move action resolves to pawn locomotion vectors
 
 ### Epic 127: Xbox Gamepad Bring-Up & Human Possession
 
 **Size/Mode:** M / code
-**Goal:** A human on an Xbox controller actually controls one pawn on the field, with device awareness.
-**Depends on:** 126 (and Epic C3's ball-action fast-follow — shared `APSPlayerPawn` scope, see `roadmap/PARALLEL.md`)
+**Goal:** Xbox controllers are mapped via DataTables with possession handoff between human controller and AI.
+**Depends on:** 126
 
-- [ ] Gamepad mapping context: left stick → Move, face buttons/triggers/bumpers → catalog actions; dead-zone and response curves via Enhanced Input modifiers with values from a tuning DataTable row (`FInputTuningRow`)
-- [ ] Device detection: active-device tracking (gamepad vs keyboard) via `IPlatformInputDeviceMapper` connect/disconnect plus a last-input heuristic; device-change events published on `UPSTelemetryBus` (rule 5)
-- [ ] Human possession flow: `APSPlayerController` takes control of a designated pawn (QB by default on offense) through a `UPSPossessionComponent`-aware handoff; the displaced `AIController` resumes on release; user-controlled flag queryable by HUD/camera
-- [ ] Player-switch action (defense / post-turnover): switch control to the nearest eligible pawn to the ball, respecting single-authority possession rules (rule 6)
-- [ ] Automation tests: device-change event round-trip on the bus; human↔AI possession handoff in both directions with no orphaned controllers
+- [ ] Create `IMC_Gamepad` mapping actions to Xbox thumbsticks and buttons (Left Stick -> Move, A -> Sprint, B -> SwitchPlayer)
+- [ ] Add dead-zone and sensitivity tuning to gamepad mappings, loaded from a new `FInputTuningRow` DataTable structure
+- [ ] Listen for controller connection events via `IPlatformInputDeviceMapper` and publish connect/disconnect events to `UPSTelemetryBus` (C1)
+- [ ] Create `UPSPossessionComponent` on `APSPlayerPawn` to track possession state (Human vs AI controller) and execute clean controller swap
+- [ ] Bind "SwitchPlayer" action to possess the defensive pawn nearest to the ball, returning the previous pawn to AI control
+- [ ] Automation test: possess/release pawn dynamically shifts driver between `AIController` and `APSPlayerController` with zero movement interruption
 
 ### Epic 128: Rumble, Glyphs & Feel Handoff
 
 **Size/Mode:** S / code
-**Goal:** Controller output (rumble), device-correct button glyphs, and the documented contract Epic 104 builds feel on.
+**Goal:** Force feedback and UI glyph mappings are exposed, establishing the contract for gameplay input depth.
 **Depends on:** 127
 
-- [ ] Force-feedback layer: a `UPSTelemetryBus` subscriber mapping gameplay events (tackle, catch, score, sack) to `PlayDynamicForceFeedback` patterns, with intensities in a tuning DataTable
-- [ ] Glyph mapping table (JSON via the `UPSDataIngestion` pattern): action → per-device glyph ID (Xbox set first); consumed by Epic 5/101 HUD, Epic 103's remap surface, and Track N's touch layer
-- [ ] `Specs/Input_Architecture.md`: context stack, action catalog, and extension points — the written contract Epic 104's move vocabulary/buffering and Epic 107's two-controller split build on
-- [ ] Automation tests: telemetry event → force-feedback dispatch mapping; glyph table ingestion + validation
+- [ ] Implement telemetry-bus (C1) subscriptions mapping game events (tackle, catch, score, sack) to gamepad force feedback/rumble effects
+- [ ] Create a gamepad glyph lookup table JSON in `Data/input_glyphs.json` mapping input actions to UI texture assets (Xbox A/B/X/Y, sticks)
+- [ ] Create `Specs/Input_Architecture.md` defining the input event APIs, action mappings, and data flow to guide Epic 104's implementation
+- [ ] Automation test: event bus notification for tackle triggers rumble intensity corresponding to momentum values
