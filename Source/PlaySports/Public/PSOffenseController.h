@@ -6,6 +6,7 @@
 #include "PSOffenseController.generated.h"
 
 class UBehaviorTree;
+class UBlackboardComponent;
 
 /**
  * APSOffenseController drives offensive skill players (QB, RB, WR, TE)
@@ -34,6 +35,9 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI")
     UBehaviorTree* BehaviorTreeAsset;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+    UBlackboardComponent* BlackboardComp;
 
 private:
     UFUNCTION()

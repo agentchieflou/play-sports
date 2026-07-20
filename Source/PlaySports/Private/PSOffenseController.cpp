@@ -15,6 +15,13 @@
 APSOffenseController::APSOffenseController()
 {
     BehaviorTreeAsset = nullptr;
+
+    // Create the Blackboard component here (constructor-time default subobject) rather
+    // than lazily via UseBlackboard() in OnPossess: components created via NewObject at
+    // runtime are never registered in headless/automation-test worlds, which silently
+    // fails UseBlackboard() and leaves every key at KeyID 65535 (invalid).
+    BlackboardComp = CreateDefaultSubobject<UBlackboardComponent>(TEXT("BlackboardComponent"));
+    Blackboard = BlackboardComp;
 }
 
 void APSOffenseController::OnPossess(APawn* InPawn)
@@ -128,16 +135,6 @@ void APSOffenseController::InitializeBlackboardState()
             {
                 bool bInitResult = BB->InitializeBlackboard(*TemporaryBBData);
                 UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: BB->InitializeBlackboard result=%d, BBAsset=%p"), bInitResult, BB->GetBlackboardAsset());
-            }
-            else
-            {
-                UBlackboardComponent* RawBB = nullptr;
-                bool bUseBBResult = UseBlackboard(TemporaryBBData, RawBB);
-                UE_LOG(LogTemp, Warning, TEXT("InitializeBlackboardState: UseBlackboard result=%d, RawBB=%p"), bUseBBResult, RawBB);
-                if (bUseBBResult)
-                {
-                    Blackboard = RawBB;
-                }
             }
         }
     }

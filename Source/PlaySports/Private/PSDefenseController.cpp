@@ -17,6 +17,12 @@ APSDefenseController::APSDefenseController()
     CurrentAssignment = EPSDefensiveAssignmentType::RunFit;
     AssignmentCoverageTarget = nullptr;
     AssignmentZoneLocation = FVector::ZeroVector;
+
+    // Constructor-time default subobject: components created via NewObject at runtime
+    // are never registered in headless/automation-test worlds, which silently fails
+    // UseBlackboard() and leaves every key at KeyID 65535 (invalid).
+    BlackboardComp = CreateDefaultSubobject<UBlackboardComponent>(TEXT("BlackboardComponent"));
+    Blackboard = BlackboardComp;
 }
 
 void APSDefenseController::OnPossess(APawn* InPawn)
@@ -164,14 +170,6 @@ void APSDefenseController::InitializeBlackboardState()
             if (BB)
             {
                 BB->InitializeBlackboard(*TemporaryBBData);
-            }
-            else
-            {
-                UBlackboardComponent* RawBB = nullptr;
-                if (UseBlackboard(TemporaryBBData, RawBB))
-                {
-                    Blackboard = RawBB;
-                }
             }
         }
     }

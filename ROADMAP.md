@@ -347,11 +347,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `FPlayerAttributes`, `EPlayerRole`
 **Depends on:** Epic 1
 
-- [ ] Team/roster model: 53-player rosters, depth chart per position
+- [x] Team/roster model: 53-player rosters, depth chart per position
 - [ ] Substitution and personnel packages tied into formations (11 personnel, nickel, etc.)
-- [ ] Stamina/fatigue consuming the hooks left in Epic 6, driving rotation
-- [ ] Progression/regression: attribute changes from play, age, and training
-- [ ] Injury model (probability, severity, recovery timeline)
+- [x] Stamina/fatigue consuming the hooks left in Epic 6, driving rotation
+- [x] Progression/regression: attribute changes from play, age, and training
+- [x] Injury model (probability, severity, recovery timeline)
 
 ### Epic 20: Season / Franchise Mode
 
