@@ -48,12 +48,52 @@ public:
     UFUNCTION(BlueprintPure, Category = "Roster")
     const TArray<FPlayerAttributes>& GetFullRoster() const { return FullRoster; }
 
+    /** Non-Blueprint mutable accessor for in-place attribute growth (e.g. level-up
+     *  stat gains in UPSPlayerLeveling). */
+    TArray<FPlayerAttributes>& GetMutableFullRoster() { return FullRoster; }
+
+    // --- Live combat/leveling state (Epic 139/141) ---------------------------------
+
+    /** Ball carrier downed this play: sits out exactly the next play (INDEX_NONE
+     *  UnavailableUntilPlayIndex clears once CurrentPlayIndex advances past it). */
+    UFUNCTION(BlueprintCallable, Category = "Roster|Combat")
+    void MarkDownedForNextPlay(FName PlayerId, int32 CurrentPlayIndex);
+
+    /** Non-carrier downed this play: no sit-out, queued for a full-HP respawn at the
+     *  next play (Architecture rule: distinct from the ball-carrier rule above). */
+    UFUNCTION(BlueprintCallable, Category = "Roster|Combat")
+    void MarkDownedForCurrentPlayOnly(FName PlayerId);
+
+    /** Clears bIsDowned/UnavailableUntilPlayIndex and restores CurrentHitPoints to
+     *  MaxHitPoints; call once per player at the start of each new play. */
+    UFUNCTION(BlueprintCallable, Category = "Roster|Combat")
+    void RespawnForNewPlay(FName PlayerId, float MaxHitPoints);
+
+    /** False only while a ball-carrier sit-out from MarkDownedForNextPlay is active
+     *  for CurrentPlayIndex. */
+    UFUNCTION(BlueprintPure, Category = "Roster|Combat")
+    bool IsAvailableForPlay(FName PlayerId, int32 CurrentPlayIndex) const;
+
+    UFUNCTION(BlueprintPure, Category = "Roster|Combat")
+    bool FindLiveState(FName PlayerId, FPSPlayerLiveState& OutState) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Roster|Combat")
+    void AwardXp(FName PlayerId, float XpAmount);
+
+    UFUNCTION(BlueprintCallable, Category = "Roster|Combat")
+    void SetLevel(FName PlayerId, int32 NewLevel, float RemainingXp);
+
 private:
     UPROPERTY(Transient)
     TArray<FPlayerAttributes> FullRoster;
 
     UPROPERTY(Transient)
     TArray<FPSDepthChartEntry> DepthChart;
+
+    UPROPERTY(Transient)
+    TMap<FName, FPSPlayerLiveState> LiveStateByPlayerId;
+
+    FPSPlayerLiveState& FindOrAddLiveState(FName PlayerId);
 
     FPSDepthChartEntry* FindOrAddEntry(EPlayerRole Role);
     const FPSDepthChartEntry* FindEntry(EPlayerRole Role) const;

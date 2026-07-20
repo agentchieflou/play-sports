@@ -4,6 +4,9 @@
 #include "PSBall.h"
 #include "PSGameMode.h"
 #include "PSPlaySimulation.h"
+#include "PSHealthComponent.h"
+#include "PSCombatRulesModel.h"
+#include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "Engine/World.h"
@@ -13,7 +16,7 @@ UPSBallActionComponent::UPSBallActionComponent()
     PrimaryComponentTick.bCanEverTick = false;
 }
 
-bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc)
+bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc, APSPlayerPawn* IntendedTarget)
 {
     APSPlayerPawn* OwnerPawn = Cast<APSPlayerPawn>(GetOwner());
     if (!OwnerPawn)
@@ -65,11 +68,25 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
     {
         Ball->Launch(OutVelocity);
         OwnerPawn->LosePossession();
-        UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Player %s (ID: %s) threw a pass to %s. Launch velocity: %s"), 
-            *OwnerPawn->GetAttributes().DisplayName, 
-            *OwnerPawn->GetAttributes().PlayerId.ToString(), 
-            *TargetLocation.ToString(), 
+        UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Player %s (ID: %s) threw a pass to %s. Launch velocity: %s"),
+            *OwnerPawn->GetAttributes().DisplayName,
+            *OwnerPawn->GetAttributes().PlayerId.ToString(),
+            *TargetLocation.ToString(),
             *OutVelocity.ToString());
+
+        if (IntendedTarget)
+        {
+            if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
+            {
+                FPSTelemetryThrowEvent ThrowEvt;
+                ThrowEvt.PasserName = OwnerPawn->GetAttributes().DisplayName;
+                ThrowEvt.TargetReceiverName = IntendedTarget->GetAttributes().DisplayName;
+                ThrowEvt.StartLocation = StartLocation;
+                ThrowEvt.TargetLocation = TargetLocation;
+                Bus->PublishThrow(ThrowEvt);
+            }
+        }
+
         return true;
     }
     else
@@ -315,9 +332,48 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         }
 
         int32 YardsGained = FMath::RoundToInt((OwnerPawn->GetActorLocation().X - OwnerPawn->GetStartingLocation().X) / 100.f);
-        if (GM->PlaySimulation)
+
+        // Hitpoint resolution (Epic 139): a successful tackle deals damage rather than
+        // automatically ending the play -- the snap isn't over until the carrier is
+        // downed (hitpoints reach 0). A carrier who survives the hit has broken the
+        // tackle and keeps the play alive.
+        bool bCarrierDowned = true;
+        UPSHealthComponent* CarrierHealth = OwnerPawn->GetHealthComponent();
+        if (CarrierHealth)
         {
-            GM->PlaySimulation->RecordTackle(YardsGained);
+            UPSCombatRulesModel* CombatRules = NewObject<UPSCombatRulesModel>(this);
+            const float Damage = CombatRules->ResolveTackleDamage(CarrierAttr, DefenderAttr, GM->ArchetypeTuningSettings);
+            bCarrierDowned = CarrierHealth->ApplyDamage(Damage);
+
+            if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
+            {
+                FPSTelemetryDamageEvent DamageEvt;
+                DamageEvt.TargetName = CarrierAttr.DisplayName;
+                DamageEvt.Amount = Damage;
+                DamageEvt.RemainingHitPoints = CarrierHealth->GetCurrentHitPoints();
+                Bus->PublishDamage(DamageEvt);
+
+                if (bCarrierDowned)
+                {
+                    FPSTelemetryDeathEvent DeathEvt;
+                    DeathEvt.PlayerName = CarrierAttr.DisplayName;
+                    DeathEvt.Cause = EPSDeathCause::TackleDamage;
+                    Bus->PublishDeath(DeathEvt);
+                }
+            }
+        }
+
+        if (bCarrierDowned)
+        {
+            if (GM->PlaySimulation)
+            {
+                GM->PlaySimulation->RecordTackle(YardsGained);
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Carrier %s survived the hit (%.1f HP remaining) -- play continues."),
+                *CarrierAttr.DisplayName, CarrierHealth ? CarrierHealth->GetCurrentHitPoints() : 0.f);
         }
         return true;
     }

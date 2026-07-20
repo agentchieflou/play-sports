@@ -13,7 +13,18 @@ enum class EPSTelemetryEventType : uint8
     Tackle,
     Fumble,
     Score,
-    PhaseChange
+    PhaseChange,
+    Damage,
+    Death,
+    Respawn
+};
+
+/** Why a player was downed/killed (Epic 139/140). */
+UENUM(BlueprintType)
+enum class EPSDeathCause : uint8
+{
+    TackleDamage,
+    InterceptionPunishment
 };
 
 USTRUCT(BlueprintType)
@@ -146,6 +157,42 @@ struct FPSTelemetryPhaseChangeEvent
 };
 
 USTRUCT(BlueprintType)
+struct FPSTelemetryDamageEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString TargetName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Amount = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float RemainingHitPoints = 0.f;
+};
+
+USTRUCT(BlueprintType)
+struct FPSTelemetryDeathEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSDeathCause Cause = EPSDeathCause::TackleDamage;
+};
+
+USTRUCT(BlueprintType)
+struct FPSTelemetryRespawnEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+};
+
+USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
     GENERATED_BODY()
@@ -170,6 +217,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTackleSignature, const F
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryFumbleSignature, const FPSTelemetryFumbleEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryScoreSignature, const FPSTelemetryScoreEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPhaseChangeSignature, const FPSTelemetryPhaseChangeEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDamageSignature, const FPSTelemetryDamageEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeathSignature, const FPSTelemetryDeathEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRespawnSignature, const FPSTelemetryRespawnEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -178,6 +228,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTackleMC, const FPSTelemetryTack
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryFumbleMC, const FPSTelemetryFumbleEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryScoreMC, const FPSTelemetryScoreEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPhaseChangeMC, const FPSTelemetryPhaseChangeEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDamageMC, const FPSTelemetryDamageEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeathMC, const FPSTelemetryDeathEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRespawnMC, const FPSTelemetryRespawnEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -209,6 +262,15 @@ public:
     void PublishPhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishDamage(const FPSTelemetryDamageEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishDeath(const FPSTelemetryDeathEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishRespawn(const FPSTelemetryRespawnEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -235,6 +297,15 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPhaseChangeSignature OnPhaseChange;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryDamageSignature OnDamage;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryDeathSignature OnDeath;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryRespawnSignature OnRespawn;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -242,6 +313,9 @@ public:
     FPSTelemetryFumbleMC OnFumbleMC;
     FPSTelemetryScoreMC OnScoreMC;
     FPSTelemetryPhaseChangeMC OnPhaseChangeMC;
+    FPSTelemetryDamageMC OnDamageMC;
+    FPSTelemetryDeathMC OnDeathMC;
+    FPSTelemetryRespawnMC OnRespawnMC;
 
 private:
     UPROPERTY(Transient)

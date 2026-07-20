@@ -4,6 +4,7 @@
 #include "Engine/DataTable.h"
 #include "PSPlayerAttributes.h"
 #include "PSLeagueData.h"
+#include "PSArchetypeTuning.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -23,6 +24,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadLeagueConfigFromJson(const FString& JsonFilePath, FPSLeagueConfig& OutConfig);
+
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadArchetypeTuningFromJson(const FString& JsonFilePath, FPSArchetypeTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

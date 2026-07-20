@@ -11,6 +11,10 @@
 #include "PSPlayerPawn.h"
 #include "PSFieldGrid.h"
 #include "PSBroadcastCamera.h"
+#include "PSRoster.h"
+#include "PSHealthComponent.h"
+#include "PSRulesConfig.h"
+#include "PSPlayerLeveling.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
 
@@ -50,6 +54,10 @@ APSGameMode::APSGameMode()
     PlayerRosterTable = nullptr;
     PlaySimulation = nullptr;
     BroadcastCamera = nullptr;
+    ActiveRoster = nullptr;
+    CurrentPlayIndex = 0;
+    ExtraDefenderPawn = nullptr;
+    PlayerLeveling = nullptr;
 
     HUDClass = APSHUD::StaticClass();
     HomeScore = 0;
@@ -150,12 +158,24 @@ void APSGameMode::StartPlay()
                 {
                     Bus->OnScore.AddDynamic(this, &APSGameMode::OnBusScoreEvent);
                     Bus->OnCatch.AddDynamic(this, &APSGameMode::OnBusCatchEvent);
-                    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Subscribed scoring/catch handlers to TelemetryBus."));
+                    Bus->OnDeath.AddDynamic(this, &APSGameMode::OnBusDeathEvent);
+                    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Subscribed scoring/catch/death handlers to TelemetryBus."));
                 }
 
                 // Give the simulation its world ref so it can subscribe to bus events (C2)
                 PlaySimulation->InitializeWithWorld(GetWorld());
             }
+
+            // Epic 139/141: authoritative combat/leveling live-state for this roster
+            ActiveRoster = NewObject<UPSRoster>(this);
+            if (ActiveRoster)
+            {
+                TArray<FPlayerAttributes> FullRosterCopy = OffenseRoster;
+                FullRosterCopy.Append(DefenseRoster);
+                ActiveRoster->InitializeRoster(FullRosterCopy);
+                ActiveRoster->BuildDefaultDepthChart();
+            }
+            PlayerLeveling = NewObject<UPSPlayerLeveling>(this);
 
             // Find the broadcast camera in the level so bus-driven catch events can
             // retarget it (fixes the orphaned TargetActor, Epic C3).
@@ -421,8 +441,38 @@ void APSGameMode::ResetPawnPositions()
         return;
     }
 
+    CurrentPlayIndex++;
+
     int32 YardLine = PlaySimulation->GetPlayState().YardLine;
     float ScrimmageX = YardLine * 100.f;
+
+    // Epic 140: no punting means no safety valve to discourage 4th-down attempts, so
+    // the defense fields extra defenders on 4th down instead.
+    const int32 CurrentDown = PlaySimulation->GetPlayState().Down;
+    const int32 DesiredDefensiveCount = GetDefensivePersonnelCount(CurrentDown, PlaySimulation->RulesConfig);
+    if (DesiredDefensiveCount > 11 && !ExtraDefenderPawn && ActiveRoster)
+    {
+        const FName BackupLinebackerId = ActiveRoster->GetNextBackup(ActiveRoster->GetStarterId(EPlayerRole::Linebacker));
+        if (!BackupLinebackerId.IsNone() && ActiveRoster->FindPlayerById(BackupLinebackerId, ExtraDefenderAttributes))
+        {
+            TArray<const FPlayerAttributes*> ExtraRoster;
+            ExtraRoster.Add(&ExtraDefenderAttributes);
+            TArray<APSPlayerPawn*> Spawned = APSFieldGrid::SpawnPlayersFromRoster(ExtraRoster, ScrimmageX, GetWorld());
+            if (Spawned.Num() > 0 && Spawned[0])
+            {
+                ExtraDefenderPawn = Spawned[0];
+                ExtraDefenderPawn->TeamSide = EPSTeamSide::Defense;
+                CachedPawns.Add(ExtraDefenderPawn);
+                UE_LOG(LogTemp, Display, TEXT("PSGameMode: 4th-down defensive overload -- fielded extra defender %s."), *ExtraDefenderAttributes.DisplayName);
+            }
+        }
+    }
+    else if (DesiredDefensiveCount <= 11 && ExtraDefenderPawn)
+    {
+        CachedPawns.Remove(ExtraDefenderPawn);
+        ExtraDefenderPawn->Destroy();
+        ExtraDefenderPawn = nullptr;
+    }
 
     float OffenseY = -150.f;
     float DefenseY = -150.f;
@@ -431,6 +481,26 @@ void APSGameMode::ResetPawnPositions()
     {
         if (Pawn)
         {
+            // Epic 139: heal every on-field pawn's live HP pool back to full for the
+            // new play, and mirror that into the authoritative roster live-state.
+            if (UPSHealthComponent* Health = Pawn->GetHealthComponent())
+            {
+                Health->Respawn();
+                if (ActiveRoster)
+                {
+                    ActiveRoster->RespawnForNewPlay(Pawn->GetAttributes().PlayerId, Health->GetMaxHitPoints());
+                }
+            }
+
+            // Epic 141: award participation XP for the play just completed (and a
+            // bonus to whoever is still holding the ball if it ended in a touchdown).
+            if (ActiveRoster && PlayerLeveling)
+            {
+                const bool bTouchdown = PlaySimulation && PlaySimulation->GetPlayResult().ResultType == EPlayResultType::Touchdown && Pawn->HasPossession();
+                const float XpAmount = PlayerLeveling->ComputeXpForPlay(bTouchdown, LevelingTuningSettings);
+                PlayerLeveling->AwardXpForPlay(ActiveRoster, Pawn->GetAttributes().PlayerId, XpAmount, LevelingTuningSettings);
+            }
+
             // Reset velocities
             if (Pawn->GetFloatingMovementComponent())
             {
@@ -521,6 +591,36 @@ void APSGameMode::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
         {
             BroadcastCamera->SetTargetActor(Pawn);
             UE_LOG(LogTemp, Display, TEXT("PSGameMode: Catch event routed BroadcastCamera to %s."), *Event.ReceiverName);
+            break;
+        }
+    }
+}
+
+void APSGameMode::OnBusDeathEvent(const FPSTelemetryDeathEvent& Event)
+{
+    if (!ActiveRoster)
+    {
+        return;
+    }
+
+    for (APSPlayerPawn* Pawn : CachedPawns)
+    {
+        if (Pawn && Pawn->GetAttributes().DisplayName == Event.PlayerName)
+        {
+            // TackleDamage deaths only ever happen to the ball carrier (only carriers
+            // get tackled) -- they sit out exactly the next play. InterceptionPunishment
+            // deaths only ever happen to a non-carrier (the intended receiver never had
+            // the ball) -- no sit-out, full respawn next play (Epic 139/140).
+            if (Event.Cause == EPSDeathCause::TackleDamage)
+            {
+                ActiveRoster->MarkDownedForNextPlay(Pawn->GetAttributes().PlayerId, CurrentPlayIndex);
+            }
+            else
+            {
+                ActiveRoster->MarkDownedForCurrentPlayOnly(Pawn->GetAttributes().PlayerId);
+            }
+            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Death event routed to roster live-state for %s (Cause=%s)."),
+                *Event.PlayerName, *UEnum::GetValueAsString(Event.Cause));
             break;
         }
     }

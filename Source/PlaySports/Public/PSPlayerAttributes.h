@@ -17,6 +17,17 @@ enum class EPlayerRole : uint8
     DefensiveBack UMETA(DisplayName = "Defensive Back")
 };
 
+/** Broad character-archetype grouping used for hitpoint/combat tuning (Epic 139):
+ *  offensive skill players, defensive skill players, and linemen play by different
+ *  combat rules even though they share the finer-grained EPlayerRole. */
+UENUM(BlueprintType)
+enum class EPlayerArchetypeClass : uint8
+{
+    OffenseSkill UMETA(DisplayName = "Offense Skill Player"),
+    DefenseSkill UMETA(DisplayName = "Defense Skill Player"),
+    Lineman UMETA(DisplayName = "Lineman")
+};
+
 USTRUCT(BlueprintType)
 struct FPlayerAttributes : public FTableRowBase
 {

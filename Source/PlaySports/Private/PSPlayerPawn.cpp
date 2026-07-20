@@ -1,5 +1,6 @@
 #include "PSPlayerPawn.h"
 #include "PSBallActionComponent.h"
+#include "PSArchetypeTuning.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -31,6 +32,9 @@ APSPlayerPawn::APSPlayerPawn()
 
     // C3: BallActionComponent owns ball-action mechanics
     BallActionComponent = CreateDefaultSubobject<UPSBallActionComponent>(TEXT("BallActionComp"));
+
+    // Epic 139: HealthComponent owns the live in-play hitpoint pool
+    HealthComponent = CreateDefaultSubobject<UPSHealthComponent>(TEXT("HealthComp"));
 
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;
@@ -307,6 +311,15 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
     MaxStamina = Attributes.Stamina;
     CurrentStamina = MaxStamina;
 
+    // Initialize hitpoints from archetype tuning (Epic 139)
+    if (HealthComponent)
+    {
+        static const FPSArchetypeTuning DefaultArchetypeTuning;
+        const FPSArchetypeTuning& ArchetypeTuning = CachedGameMode ? CachedGameMode->ArchetypeTuningSettings : DefaultArchetypeTuning;
+        const EPlayerArchetypeClass ArchetypeClass = GetArchetypeClassForRole(Attributes.Role);
+        HealthComponent->Initialize(GetMaxHitPointsForClass(ArchetypeClass, ArchetypeTuning));
+    }
+
     // Log player pawn initialization details
     FString RoleName = UEnum::GetValueAsString(Attributes.Role);
     UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Initialized player pawn for %s (ID: %s, Role: %s, Height: %.1f cm, Weight: %.1f kg, MaxSpeed: %.1f cm/s, BaseAccel: %.1f cm/s^2, Stamina: %.1f)"), 
@@ -463,9 +476,9 @@ void APSPlayerPawn::ResetFatigue()
     UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Reset fatigue for %s. CurrentStamina: %.1f/%.1f"), *Attributes.DisplayName, CurrentStamina, MaxStamina);
 }
 
-bool APSPlayerPawn::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc)
+bool APSPlayerPawn::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc, APSPlayerPawn* IntendedTarget)
 {
-    return BallActionComponent ? BallActionComponent->ThrowPass(Ball, TargetLocation, bHighArc) : false;
+    return BallActionComponent ? BallActionComponent->ThrowPass(Ball, TargetLocation, bHighArc, IntendedTarget) : false;
 }
 
 bool APSPlayerPawn::ExecuteHandoff(APSPlayerPawn* TargetPlayer)

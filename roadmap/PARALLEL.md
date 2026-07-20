@@ -59,7 +59,8 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "M": ["Source/PlaySports/**/PSPlayerController*", "Source/PlaySports/**/PSInputConfig*", "Source/PlaySports/**/PSForceFeedback*", "Source/PlaySports/PlaySports.Build.cs", "Config/DefaultInput.ini", "play-sports.uproject", "Specs/Input_Architecture.md", "Data/input_glyphs*"],
     "N": ["Specs/Platform_Audit.md", "Specs/Touch_Controls_Spec.md", "Specs/ADR_iOS_Build.md", "Config/DefaultDeviceProfiles.ini", "Source/PlaySports/**/PSTouch*", "Source/PlaySports/**/PSScalability*"],
     "O": ["tools/playbook_scraper/**", "Data/playbooks/**"],
-    "P": ["tools/orchestrator/**", "tools/score_lib.py", "eval/duels/**", "eval/runs/**", "roadmap/PARALLEL.md"]
+    "P": ["tools/orchestrator/**", "tools/score_lib.py", "eval/duels/**", "eval/runs/**", "roadmap/PARALLEL.md"],
+    "Q": ["Source/PlaySports/**/PSArchetype*", "Source/PlaySports/**/PSHealth*", "Source/PlaySports/**/PSCombat*", "Source/PlaySports/**/PSLeveling*", "Source/PlaySports/**/PSPlayerLeveling*"]
   },
   "epics": {
     "1":   {"track": "core", "mode": "mixed", "status": "partial", "depends_on": [], "open_stories": ["1.5 end-to-end PIE test"]},
@@ -205,7 +206,10 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "135": {"track": "P", "mode": "code", "status": "open", "depends_on": []},
     "136": {"track": "P", "mode": "code", "status": "open", "depends_on": ["135"]},
     "137": {"track": "P", "mode": "code", "status": "open", "depends_on": ["136"]},
-    "138": {"track": "P", "mode": "code", "status": "open", "depends_on": ["136", "137"]}
+    "138": {"track": "P", "mode": "code", "status": "open", "depends_on": ["136", "137"]},
+    "139": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["8", "19", "C1"]},
+    "140": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "18", "17"]},
+    "141": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "19"]}
   },
   "groups": [
     {"id": "G1", "label": "Phase 0/1.5 cleanup", "epics": ["12", "C3-ff-A", "C3-ff-B", "1", "2", "5"], "serialize_within": true},

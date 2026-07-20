@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "PSBallResolutionHelpers.h"
+#include "PSTelemetryBus.h"
 #include "PSBall.generated.h"
 
 class USphereComponent;
@@ -80,9 +81,17 @@ protected:
 private:
     float CurrentRollSpin;
 
+    /** Intended receiver of the most recently thrown pass (Epic 140: an interception
+     *  auto-kills this player, not whoever the ball happens to hit). Cleared once
+     *  consumed by an interception so it can't leak into a later, unrelated play. */
+    FString LastThrowTargetName;
+
     UFUNCTION()
     void OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
     UFUNCTION()
     void OnBallBounce(const FHitResult& ImpactResult, const FVector& ImpactVelocity);
+
+    UFUNCTION()
+    void OnBusThrowEvent(const FPSTelemetryThrowEvent& Event);
 };
