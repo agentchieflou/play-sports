@@ -22,6 +22,30 @@ struct FPSTeamInfo : public FTableRowBase
     FString RosterDataTablePath;
 };
 
+/** Top-level league configuration (season length, bye weeks, playoff field size).
+ *  Not a DataTable row -- loaded as a single JSON object by
+ *  UPSDataIngestion::LoadLeagueConfigFromJson (Epic 21). */
+USTRUCT(BlueprintType)
+struct FPSLeagueConfig
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString LeagueName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 NumWeeks = 17;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<int32> ByeWeekNumbers;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 NumPlayoffTeams = 4;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString TeamsDataTablePath;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTeamStanding
 {
@@ -45,7 +69,6 @@ struct FPSTeamStanding
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 PointsAgainst = 0;
 
-    UFUNCTION(BlueprintPure, Category = "League")
     float GetWinPercentage() const
     {
         const int32 TotalGames = Wins + Losses + Ties;

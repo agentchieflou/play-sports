@@ -1,0 +1,15 @@
+{
+  "Players": [
+    { "PlayerId": "HAW_QB_001", "DisplayName": "R. Talon", "Role": "Quarterback", "WeightKg": 99.0, "HeightCm": 191.0, "Speed": 84.0, "Agility": 82.0, "Strength": 76.0, "Acceleration": 83.0, "Awareness": 92.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_RB_001", "DisplayName": "J. Swift", "Role": "RunningBack", "WeightKg": 95.0, "HeightCm": 178.0, "Speed": 93.0, "Agility": 92.0, "Strength": 79.0, "Acceleration": 94.0, "Awareness": 81.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_WR_001", "DisplayName": "T. Glide", "Role": "WideReceiver", "WeightKg": 89.0, "HeightCm": 188.0, "Speed": 95.0, "Agility": 94.0, "Strength": 69.0, "Acceleration": 93.0, "Awareness": 85.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_WR_002", "DisplayName": "K. Streak", "Role": "WideReceiver", "WeightKg": 87.0, "HeightCm": 183.0, "Speed": 94.0, "Agility": 95.0, "Strength": 67.0, "Acceleration": 92.0, "Awareness": 83.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_TE_001", "DisplayName": "D. Perch", "Role": "TightEnd", "WeightKg": 112.0, "HeightCm": 197.0, "Speed": 85.0, "Agility": 84.0, "Strength": 83.0, "Acceleration": 86.0, "Awareness": 84.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_OL_001", "DisplayName": "F. Bastion", "Role": "OffensiveLineman", "WeightKg": 144.0, "HeightCm": 197.0, "Speed": 61.0, "Agility": 65.0, "Strength": 94.5, "Acceleration": 58.0, "Awareness": 73.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_OL_002", "DisplayName": "N. Rampart", "Role": "OffensiveLineman", "WeightKg": 146.5, "HeightCm": 194.5, "Speed": 60.0, "Agility": 63.5, "Strength": 95.5, "Acceleration": 60.5, "Awareness": 76.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_DL_001", "DisplayName": "V. Pressure", "Role": "DefensiveLineman", "WeightKg": 121.0, "HeightCm": 192.0, "Speed": 77.5, "Agility": 78.0, "Strength": 90.5, "Acceleration": 81.0, "Awareness": 79.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_LB_001", "DisplayName": "O. Range", "Role": "Linebacker", "WeightKg": 107.5, "HeightCm": 187.0, "Speed": 87.5, "Agility": 86.5, "Strength": 84.0, "Acceleration": 88.0, "Awareness": 87.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_DB_001", "DisplayName": "E. Talonback", "Role": "DefensiveBack", "WeightKg": 85.5, "HeightCm": 182.0, "Speed": 94.5, "Agility": 95.0, "Strength": 64.0, "Acceleration": 93.5, "Awareness": 88.0, "Stamina": 90.0 },
+    { "PlayerId": "HAW_DB_002", "DisplayName": "P. Sweep", "Role": "DefensiveBack", "WeightKg": 87.0, "HeightCm": 184.0, "Speed": 93.0, "Agility": 93.5, "Strength": 66.0, "Acceleration": 92.5, "Awareness": 86.0, "Stamina": 90.0 }
+  ]
+}

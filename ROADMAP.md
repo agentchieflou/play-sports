@@ -371,11 +371,11 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `UPSDataIngestion`, `Data/sample_players.json`
 **Depends on:** Epics 16, 19
 
-- [ ] Generalize `PSDataIngestion` beyond players: teams, playbooks, league config
-- [ ] Schema validation with actionable error reporting (bad field, bad row, bad enum value)
-- [ ] Full sample league dataset: 4+ teams with complete rosters for testing
-- [ ] Editor utility (or commandlet) to re-import all `Data/` content in one action
-- [ ] Document the data contract in `Data/README.md` so external tools/agents can generate content
+- [x] Generalize `PSDataIngestion` beyond players: teams, playbooks, league config
+- [x] Schema validation with actionable error reporting (bad field, bad row, bad enum value)
+- [x] Full sample league dataset: 4+ teams with complete rosters for testing
+- [x] Editor utility (or commandlet) to re-import all `Data/` content in one action
+- [x] Document the data contract in `Data/README.md` so external tools/agents can generate content
 
 ---
 

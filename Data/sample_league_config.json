@@ -1,0 +1,7 @@
+{
+    "LeagueName": "PlaySports Sample League",
+    "NumWeeks": 6,
+    "ByeWeekNumbers": [],
+    "NumPlayoffTeams": 4,
+    "TeamsDataTablePath": "Data/sample_teams.json"
+}
