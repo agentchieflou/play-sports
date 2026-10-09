@@ -1,0 +1,13 @@
+{
+    "MinimumDisplaySeconds": 2.0,
+    "Tips": [
+        { "TipId": "Switch", "Text": "On defense, press X or LB to take the player nearest the ball.", "Contexts": ["Any"] },
+        { "TipId": "Sprint", "Text": "Hold RT or click the left stick to sprint -- stamina runs down while you do.", "Contexts": ["Any"] },
+        { "TipId": "Pause", "Text": "Press Start or P to pause. Settings are a button away.", "Contexts": ["Any"] },
+        { "TipId": "Carrier", "Text": "When your side has the ball, switching player always takes you to the ball carrier.", "Contexts": ["PlayNow", "Practice"] },
+        { "TipId": "Depth", "Text": "Ratings on team select come straight from the roster: change a player, change the team.", "Contexts": ["PlayNow"] },
+        { "TipId": "Season", "Text": "A franchise season runs every week's games; the ones you don't play are simulated.", "Contexts": ["Franchise"] },
+        { "TipId": "Injuries", "Text": "Hard hits wear players down. Rest them before an injury does it for you.", "Contexts": ["Franchise", "PlayNow"] },
+        { "TipId": "Gym", "Text": "Practice is the place to learn the stick: nothing you do here counts.", "Contexts": ["Practice"] }
+    ]
+}

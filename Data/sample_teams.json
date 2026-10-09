@@ -4,25 +4,41 @@
             "TeamId": "Falcons",
             "DisplayName": "Founding Falcons",
             "Division": "East",
-            "RosterDataTablePath": "Data/sample_players.json"
+            "RosterDataTablePath": "Data/sample_players.json",
+            "Abbreviation": "FAL",
+            "PrimaryColor": "#B3262E",
+            "SecondaryColor": "#1C1C1C",
+            "LogoPath": ""
         },
         {
             "TeamId": "Hawks",
             "DisplayName": "Harbor Hawks",
             "Division": "East",
-            "RosterDataTablePath": "Data/rosters/team_hawks.json"
+            "RosterDataTablePath": "Data/rosters/team_hawks.json",
+            "Abbreviation": "HAW",
+            "PrimaryColor": "#0B5E8A",
+            "SecondaryColor": "#F2B705",
+            "LogoPath": ""
         },
         {
             "TeamId": "Wolves",
             "DisplayName": "Western Wolves",
             "Division": "West",
-            "RosterDataTablePath": "Data/rosters/team_wolves.json"
+            "RosterDataTablePath": "Data/rosters/team_wolves.json",
+            "Abbreviation": "WOL",
+            "PrimaryColor": "#4A4F57",
+            "SecondaryColor": "#C7CBD1",
+            "LogoPath": ""
         },
         {
             "TeamId": "Bears",
             "DisplayName": "Blackridge Bears",
             "Division": "West",
-            "RosterDataTablePath": "Data/rosters/team_bears.json"
+            "RosterDataTablePath": "Data/rosters/team_bears.json",
+            "Abbreviation": "BEA",
+            "PrimaryColor": "#5A3A22",
+            "SecondaryColor": "#E8D5B5",
+            "LogoPath": ""
         }
     ]
 }

@@ -20,6 +20,23 @@ struct FPSTeamInfo : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FString RosterDataTablePath;
+
+    /** Short on-screen name, e.g. "HAW" (Epic 101 team select). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString Abbreviation;
+
+    /** Team colors as "#RRGGBB" (Epic 101 team select; Track L's identity generator fills
+     *  these at scale). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString PrimaryColor;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString SecondaryColor;
+
+    /** Soft object path of the team logo texture; empty until an editor session imports
+     *  logos (the abbreviation stands in). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString LogoPath;
 };
 
 /** Top-level league configuration (season length, bye weeks, playoff field size).

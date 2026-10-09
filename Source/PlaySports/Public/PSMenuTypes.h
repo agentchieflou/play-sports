@@ -17,6 +17,18 @@ enum class EPSMenuCommand : uint8
     QuitGame
 };
 
+/** Where a screen's options come from. */
+UENUM(BlueprintType)
+enum class EPSMenuScreenContent : uint8
+{
+    /** The options authored in the catalog. */
+    Static,
+    /** One option per team (UPSUITeamCatalog), each starting Play Now with that team. */
+    TeamSelect,
+    /** Shown while travelling; its body is the loading tip. Left only by the travel. */
+    Loading
+};
+
 /** How the screen stack changed; screen widgets use it to pick a transition. */
 UENUM(BlueprintType)
 enum class EPSMenuTransition : uint8
@@ -44,6 +56,14 @@ struct FPSMenuOptionDef
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
     EPSMenuCommand Command = EPSMenuCommand::None;
+
+    /** What the command acts on, e.g. the team a generated team-select option starts with. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
+    FName Payload;
+
+    /** Identity color for the option (team select); transparent means none. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
+    FLinearColor AccentColor = FLinearColor::Transparent;
 };
 
 /** One screen: its text, whether Back may leave it, and its options in display order. */
@@ -61,6 +81,9 @@ struct FPSMenuScreenDef
     /** Optional line under the title. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
     FString Body;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
+    EPSMenuScreenContent Content = EPSMenuScreenContent::Static;
 
     /** False for a root screen Back must not close (the main menu). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
@@ -83,6 +106,10 @@ struct FPSMenuCatalog
     /** The screen the in-game Pause action opens. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
     FName PauseScreen;
+
+    /** The screen shown while travelling to a level (Content = Loading). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
+    FName LoadingScreen;
 
     /** Fade-in time for a newly shown screen. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")

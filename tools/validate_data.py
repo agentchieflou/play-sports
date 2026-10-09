@@ -8,13 +8,16 @@ types, valid EPlayerRole values, unique non-empty PlayerId; files carrying
 "Contexts" + "Actions" against the input catalog contract (FPSInputCatalog,
 Source/PlaySports/Public/PSInputConfigTypes.h; Specs/Input_Architecture.md); files
 carrying "StickDeadZoneLower" against FInputTuningRow's ranges; files carrying
-"Screens" + "RootScreen" against the menu catalog rules (FPSMenuCatalog).
+"Screens" + "RootScreen" against the menu catalog rules (FPSMenuCatalog); team
+identity fields (colors, abbreviation) on "Teams" files; "Tips" files against
+FPSLoadingTipCatalog.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -166,6 +169,9 @@ def validate_input_catalog(path, payload):
 
 
 MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame"}
+MENU_CONTENTS = {"Static", "TeamSelect", "Loading"}
+TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
+HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 
 def validate_menu_catalog(path, payload):
@@ -189,11 +195,20 @@ def validate_menu_catalog(path, payload):
     root = by_id.get(payload.get("RootScreen"))
     if root is not None and root.get("bAllowBack", True):
         err(path, f"RootScreen '{payload['RootScreen']}' must set bAllowBack to false")
+    loading = payload.get("LoadingScreen")
+    if loading:
+        if loading not in by_id:
+            err(path, f"LoadingScreen '{loading}' is not a screen")
+        elif by_id[loading].get("Content") != "Loading":
+            err(path, f"LoadingScreen '{loading}' must have Content Loading")
     if payload.get("TransitionSeconds", 0) < 0:
         err(path, "TransitionSeconds must not be negative")
     for sid, screen in by_id.items():
+        content = screen.get("Content", "Static")
+        if content not in MENU_CONTENTS:
+            err(path, f"Screen '{sid}': unknown Content '{content}' ({sorted(MENU_CONTENTS)})")
         options = screen.get("Options", [])
-        if not options and not screen.get("bAllowBack", True):
+        if not options and not screen.get("bAllowBack", True) and content != "Loading":
             err(path, f"Screen '{sid}' has no options and blocks Back")
         seen = set()
         for option in options:
@@ -210,6 +225,48 @@ def validate_menu_catalog(path, payload):
                 err(path, f"{where}: needs a TargetScreen or a Command")
             if target and target not in by_id:
                 err(path, f"{where}: unknown TargetScreen '{target}'")
+
+
+def validate_team_identity(path, teams):
+    """FPSTeamInfo identity fields (Epic 101 team select): optional, but well-formed if set."""
+    for idx, team in enumerate(teams):
+        if not isinstance(team, dict):
+            continue
+        where = f"Teams[{idx}] '{team.get('TeamId')}'"
+        for field in ("PrimaryColor", "SecondaryColor"):
+            value = team.get(field)
+            if value is not None and not (isinstance(value, str) and HEX_COLOR.match(value)):
+                err(path, f"{where}.{field}: '{value}' is not #RRGGBB")
+        abbr = team.get("Abbreviation")
+        if abbr is not None and not (isinstance(abbr, str) and 2 <= len(abbr) <= 4 and abbr.isalnum()):
+            err(path, f"{where}.Abbreviation: '{abbr}' must be 2-4 letters or digits")
+
+
+def validate_loading_tips(path, payload):
+    """FPSLoadingTipCatalog (Data/loading_tips.json); mirrors UPSLoadingTips::Validate."""
+    tips = payload.get("Tips")
+    if not isinstance(tips, list) or not tips:
+        err(path, "'Tips' must be a non-empty array")
+        return
+    if payload.get("MinimumDisplaySeconds", 0) < 0:
+        err(path, "MinimumDisplaySeconds must not be negative")
+    seen = set()
+    for idx, tip in enumerate(tips):
+        tid = tip.get("TipId") if isinstance(tip, dict) else None
+        where = f"Tips[{idx}] '{tid}'"
+        if not tid or tid in seen:
+            err(path, f"{where}: empty or duplicate TipId")
+        seen.add(tid)
+        if not isinstance(tip, dict):
+            continue
+        if not str(tip.get("Text", "")).strip():
+            err(path, f"{where}: empty Text")
+        contexts = tip.get("Contexts") or []
+        if not contexts:
+            err(path, f"{where}: names no context")
+        for context in contexts:
+            if context not in TIP_CONTEXTS:
+                err(path, f"{where}: unknown context '{context}' ({sorted(TIP_CONTEXTS)})")
 
 
 INPUT_TUNING_FIELDS = ("StickDeadZoneLower", "StickDeadZoneUpper", "StickResponseExponent", "DeviceSwitchAnalogThreshold")
@@ -256,6 +313,10 @@ def main():
             validate_input_tuning(path, payload)
         if isinstance(payload, dict) and "Screens" in payload and "RootScreen" in payload:
             validate_menu_catalog(path, payload)
+        if isinstance(payload, dict) and isinstance(payload.get("Teams"), list):
+            validate_team_identity(path, payload["Teams"])
+        if isinstance(payload, dict) and "Tips" in payload:
+            validate_loading_tips(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

@@ -92,6 +92,10 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
         UPSMenuButton* Button = WidgetTree->ConstructWidget<UPSMenuButton>(UPSMenuButton::StaticClass());
         Button->OptionId = Option.OptionId;
         Button->OnOptionChosen.BindUObject(this, &UPSMenuScreenWidget::ChooseOption);
+        if (Option.AccentColor.A > 0.f)
+        {
+            Button->SetBackgroundColor(Option.AccentColor);
+        }
 
         UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
         Label->SetText(FText::FromString(Option.Label));

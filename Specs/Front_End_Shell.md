@@ -25,13 +25,23 @@ editor handoff: what exists in code, and what an editor session adds.
   mode runs the match; "Quit to Main Menu" travels back with `?game=Menu`.
 - **Pausing.** The `Pause` action (P, Start) on the field calls `APlayerController::SetPause`
   and opens the pause screen: Resume, Settings, Quit to Main Menu.
+- **Team select.** Play Now opens a `TeamSelect` screen: one option per team in
+  `Data/sample_teams.json`, tinted with its primary color and labelled with overall, offense and
+  defense ratings that `UPSUITeamCatalog` derives from the team's roster (mean of each player's
+  average skill attribute). Choosing a team travels with `?mode=PlayNow?team=<TeamId>`.
+- **Loading.** Every travel first shows the `Loading` screen with a tip for the mode
+  (`Data/loading_tips.json`, `UPSLoadingTips`: shuffled, no repeats until all have shown), then
+  travels on the next frame. In standalone and packaged games `UPSLoadingScreenSubsystem` puts
+  the same tip on the engine loading screen (MoviePlayer) for at least `MinimumDisplaySeconds`
+  while the map loads; the editor has no MoviePlayer, so PIE shows only the in-world screen.
 
 ## 2. Not yet (other epics)
 
-- `?mode=` is passed but nothing reads it yet: Franchise needs its hub (Track G), Practice the
-  gym map (Core 24). Both start an ordinary game today.
+- `?mode=` and `?team=` are passed but nothing reads them yet: the match still loads
+  `RosterJsonPath`, Franchise needs its hub (Track G) and Practice the gym map (Core 24).
 - The Settings screen is a placeholder until Epic 103.
-- Team select and loading screens with tips are Epic 101's remaining stories.
+- Logos: `LogoPath` is empty for every team until an editor session imports logo textures; the
+  abbreviation stands in.
 
 ## 3. Editor session (when one is available)
 
