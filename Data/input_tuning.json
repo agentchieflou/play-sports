@@ -1,0 +1,6 @@
+{
+    "StickDeadZoneLower": 0.25,
+    "StickDeadZoneUpper": 1.0,
+    "StickResponseExponent": 1.0,
+    "DeviceSwitchAnalogThreshold": 0.5
+}

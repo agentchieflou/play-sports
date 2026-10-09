@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/DataTable.h"
 #include "InputActionValue.h"
 #include "PSInputConfigTypes.generated.h"
 
@@ -79,4 +80,31 @@ struct FPSInputCatalog
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
     TArray<FPSInputActionDef> Actions;
+};
+
+/** Gamepad response tuning (Epic 127), authored in Data/input_tuning.json. UPSInputConfig
+ *  turns the stick values into Enhanced Input modifiers on every gamepad stick binding, so
+ *  dead zones and curves are data, not constants (Architecture rule 4). */
+USTRUCT(BlueprintType)
+struct FInputTuningRow : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    /** Radial dead zone: stick deflection below this reads as zero. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    float StickDeadZoneLower = 0.25f;
+
+    /** Deflection at or above this reads as full. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    float StickDeadZoneUpper = 1.f;
+
+    /** Response curve applied after the dead zone: 1 is linear, above 1 gives finer
+     *  control near the centre of the stick. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    float StickResponseExponent = 1.f;
+
+    /** How far an analog input must move before it counts as "the player picked up the
+     *  gamepad" for active-device tracking, so stick drift never flips the device. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    float DeviceSwitchAnalogThreshold = 0.5f;
 };

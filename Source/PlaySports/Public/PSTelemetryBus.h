@@ -16,7 +16,9 @@ enum class EPSTelemetryEventType : uint8
     PhaseChange,
     Damage,
     Death,
-    Respawn
+    Respawn,
+    InputDeviceChange,
+    ControlChange
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -25,6 +27,14 @@ enum class EPSDeathCause : uint8
 {
     TackleDamage,
     InterceptionPunishment
+};
+
+/** Which kind of hardware the human player last used (Epic 127). */
+UENUM(BlueprintType)
+enum class EPSInputDevice : uint8
+{
+    KeyboardMouse,
+    Gamepad
 };
 
 USTRUCT(BlueprintType)
@@ -192,6 +202,44 @@ struct FPSTelemetryRespawnEvent
     FString PlayerName;
 };
 
+/** The human player's active device changed, or a gamepad connected/disconnected
+ *  (Epic 127). HUD glyphs and rumble follow this instead of asking the controller. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryInputDeviceEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSInputDevice ActiveDevice = EPSInputDevice::KeyboardMouse;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSInputDevice PreviousDevice = EPSInputDevice::KeyboardMouse;
+
+    /** True when a connect/disconnect caused this event rather than the last-input heuristic. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bFromConnectionChange = false;
+
+    /** For connection changes: whether the gamepad connected (true) or disconnected. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bConnected = true;
+};
+
+/** A human took or released control of a pawn (Epic 127). */
+USTRUCT(BlueprintType)
+struct FPSTelemetryControlChangeEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PlayerId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHumanControlled = false;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -220,6 +268,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPhaseChangeSignature, co
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDamageSignature, const FPSTelemetryDamageEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeathSignature, const FPSTelemetryDeathEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRespawnSignature, const FPSTelemetryRespawnEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryInputDeviceSignature, const FPSTelemetryInputDeviceEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeSignature, const FPSTelemetryControlChangeEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -231,6 +281,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPhaseChangeMC, const FPSTelemetr
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDamageMC, const FPSTelemetryDamageEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeathMC, const FPSTelemetryDeathEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRespawnMC, const FPSTelemetryRespawnEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryInputDeviceMC, const FPSTelemetryInputDeviceEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeMC, const FPSTelemetryControlChangeEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -271,6 +323,12 @@ public:
     void PublishRespawn(const FPSTelemetryRespawnEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishInputDeviceChange(const FPSTelemetryInputDeviceEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishControlChange(const FPSTelemetryControlChangeEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -306,6 +364,12 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryRespawnSignature OnRespawn;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryInputDeviceSignature OnInputDeviceChange;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryControlChangeSignature OnControlChange;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -316,6 +380,8 @@ public:
     FPSTelemetryDamageMC OnDamageMC;
     FPSTelemetryDeathMC OnDeathMC;
     FPSTelemetryRespawnMC OnRespawnMC;
+    FPSTelemetryInputDeviceMC OnInputDeviceChangeMC;
+    FPSTelemetryControlChangeMC OnControlChangeMC;
 
 private:
     UPROPERTY(Transient)

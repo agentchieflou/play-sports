@@ -6,7 +6,8 @@ Validates every JSON file under Data/ : parseability always; files carrying a
 (Source/PlaySports/Public/PSPlayerAttributes.h) - exact field names, numeric
 types, valid EPlayerRole values, unique non-empty PlayerId; files carrying
 "Contexts" + "Actions" against the input catalog contract (FPSInputCatalog,
-Source/PlaySports/Public/PSInputConfigTypes.h; Specs/Input_Architecture.md).
+Source/PlaySports/Public/PSInputConfigTypes.h; Specs/Input_Architecture.md); files
+carrying "StickDeadZoneLower" against FInputTuningRow's ranges.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -163,6 +164,28 @@ def validate_input_catalog(path, payload):
                     err(path, f"{where}: key '{key}' is already bound to '{owner}' in context '{cid}'")
 
 
+INPUT_TUNING_FIELDS = ("StickDeadZoneLower", "StickDeadZoneUpper", "StickResponseExponent", "DeviceSwitchAnalogThreshold")
+
+
+def validate_input_tuning(path, payload):
+    """FInputTuningRow (Data/input_tuning.json): numeric fields in range."""
+    for field in INPUT_TUNING_FIELDS:
+        value = payload.get(field)
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            err(path, f"{field}: expected a number, got {type(value).__name__}")
+            return
+    extra = set(payload) - set(INPUT_TUNING_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FInputTuningRow exactly")
+    lower, upper = payload["StickDeadZoneLower"], payload["StickDeadZoneUpper"]
+    if not 0 <= lower < upper <= 1:
+        err(path, f"stick dead zone must satisfy 0 <= StickDeadZoneLower ({lower}) < StickDeadZoneUpper ({upper}) <= 1")
+    if payload["StickResponseExponent"] <= 0:
+        err(path, "StickResponseExponent must be positive")
+    if not 0 < payload["DeviceSwitchAnalogThreshold"] <= 1:
+        err(path, "DeviceSwitchAnalogThreshold must be in (0, 1]")
+
+
 def main():
     if not DATA_DIR.is_dir():
         print("validate_data: no Data/ directory - nothing to check")
@@ -181,6 +204,8 @@ def main():
                 validate_players(path, payload["Players"])
         if isinstance(payload, dict) and "Contexts" in payload and "Actions" in payload:
             validate_input_catalog(path, payload)
+        if isinstance(payload, dict) and "StickDeadZoneLower" in payload:
+            validate_input_tuning(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

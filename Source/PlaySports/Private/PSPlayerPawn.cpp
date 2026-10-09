@@ -418,6 +418,12 @@ bool APSPlayerPawn::TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn)
     return true;
 }
 
+bool APSPlayerPawn::IsUserControlled() const
+{
+    const AController* CurrentController = GetController();
+    return CurrentController && CurrentController->IsPlayerController();
+}
+
 FVector APSPlayerPawn::GetMomentum() const
 {
     if (MovementComponent)

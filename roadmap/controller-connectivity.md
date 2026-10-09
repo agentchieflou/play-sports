@@ -5,13 +5,14 @@ controller, Xbox gamepad support, and human↔AI possession handoff. This track 
 *connectivity*; Track I's Epic 104 owns *feel* (the move vocabulary, buffering, and passing
 model) and consumes what lands here. Sizing/mode legend: see `ROADMAP.md`.
 
-**Reality note (updated 2026-10-09, Epic 126 landed):** `APSPlayerController` (registered in
-`APSGameMode`) binds the `UPSInputConfig` catalog (`Data/input_actions.json`, contexts `World`
-and `OnField`) on Enhanced Input and applies `OnField` when it possesses an `APSPlayerPawn`;
-the pawn has no input bindings. The human still spawns as the engine's default pawn --
-taking control of a football pawn is Epic 127's possession flow, and gamepad dead zones /
-response curves are its `FInputTuningRow`. Epic 104's first story was re-scoped to extend
-this substrate rather than create it. Device
+**Reality note (updated 2026-10-09, Epics 126 and 127 landed):** `APSPlayerController`
+(registered in `APSGameMode`) binds the `UPSInputConfig` catalog (`Data/input_actions.json`,
+contexts `World` and `OnField`) on Enhanced Input and applies `OnField` when it possesses an
+`APSPlayerPawn`; the pawn has no input bindings. On the tick after BeginPlay it takes the QB
+from its AI (which resumes the pawn on release), SwitchPlayer moves control to the ball
+carrier or the nearest teammate, stick dead zones and curves come from `FInputTuningRow`
+(`Data/input_tuning.json`), and `UPSInputDeviceComponent` publishes gamepad/keyboard changes
+on the bus. Epic 104's first story was re-scoped to extend this substrate rather than create it. Device
 and possession state flow over the C1 `UPSTelemetryBus` — HUD/camera never cast to the
 controller. Note the file-scope conflict recorded in `roadmap/PARALLEL.md`: Epic C3's
 ball-action-component fast-follow touches `APSPlayerPawn` and must land before Epic 127.
@@ -34,11 +35,11 @@ ball-action-component fast-follow touches `APSPlayerPawn` and must land before E
 **Goal:** A human on an Xbox controller actually controls one pawn on the field, with device awareness.
 **Depends on:** 126 (and Epic C3's ball-action fast-follow — shared `APSPlayerPawn` scope, see `roadmap/PARALLEL.md`)
 
-- [ ] Gamepad mapping context: left stick → Move, face buttons/triggers/bumpers → catalog actions; dead-zone and response curves via Enhanced Input modifiers with values from a tuning DataTable row (`FInputTuningRow`)
-- [ ] Device detection: active-device tracking (gamepad vs keyboard) via `IPlatformInputDeviceMapper` connect/disconnect plus a last-input heuristic; device-change events published on `UPSTelemetryBus` (rule 5)
-- [ ] Human possession flow: `APSPlayerController` takes control of a designated pawn (QB by default on offense) through a `UPSPossessionComponent`-aware handoff; the displaced `AIController` resumes on release; user-controlled flag queryable by HUD/camera
-- [ ] Player-switch action (defense / post-turnover): switch control to the nearest eligible pawn to the ball, respecting single-authority possession rules (rule 6)
-- [ ] Automation tests: device-change event round-trip on the bus; human↔AI possession handoff in both directions with no orphaned controllers
+- [x] Gamepad mapping context: left stick → Move, face buttons/triggers/bumpers → catalog actions; dead-zone and response curves via Enhanced Input modifiers with values from a tuning DataTable row (`FInputTuningRow`)
+- [x] Device detection: active-device tracking (gamepad vs keyboard) via `IPlatformInputDeviceMapper` connect/disconnect plus a last-input heuristic; device-change events published on `UPSTelemetryBus` (rule 5)
+- [x] Human possession flow: `APSPlayerController` takes control of a designated pawn (QB by default on offense) through a `UPSPossessionComponent`-aware handoff; the displaced `AIController` resumes on release; user-controlled flag queryable by HUD/camera
+- [x] Player-switch action (defense / post-turnover): switch control to the nearest eligible pawn to the ball, respecting single-authority possession rules (rule 6)
+- [x] Automation tests: device-change event round-trip on the bus; human↔AI possession handoff in both directions with no orphaned controllers
 
 ### Epic 128: Rumble, Glyphs & Feel Handoff
 

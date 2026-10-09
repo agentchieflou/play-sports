@@ -28,12 +28,26 @@ public:
     /** Absolute path of the authored catalog: <ProjectDir>/Data/input_actions.json. */
     static FString GetDefaultCatalogPath();
 
+    /** Absolute path of the gamepad tuning: <ProjectDir>/Data/input_tuning.json. */
+    static FString GetDefaultTuningPath();
+
+    /** Loads the tuning, then the catalog, from their default paths. A missing tuning file
+     *  keeps FInputTuningRow's defaults; false only when the catalog fails to load. */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    bool LoadDefaults();
+
+    /** Loads Tuning through UPSDataIngestion. Takes effect on the next BuildRuntimeObjects
+     *  (LoadFromJson rebuilds), so load tuning before the catalog. */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    bool LoadTuningFromJson(const FString& JsonFilePath);
+
     /** Loads Catalog from JsonFilePath through UPSDataIngestion, then rebuilds the
      *  runtime actions and contexts. False when the file is missing or malformed. */
     UFUNCTION(BlueprintCallable, Category = "Input")
     bool LoadFromJson(const FString& JsonFilePath);
 
-    /** (Re)creates the UInputAction / UInputMappingContext objects from Catalog. Keys
+    /** (Re)creates the UInputAction / UInputMappingContext objects from Catalog. Every
+     *  gamepad stick binding gets a radial dead zone and a response curve from Tuning. Keys
      *  that are not valid engine keys are skipped here and reported by Validate(). */
     UFUNCTION(BlueprintCallable, Category = "Input")
     void BuildRuntimeObjects();
@@ -41,7 +55,7 @@ public:
     /** Problems that make the catalog unusable, one actionable line each: empty or
      *  duplicate IDs, unknown context references, invalid keys, a key bound twice in one
      *  context, or an action missing a keyboard/mouse or a gamepad binding in a context it
-     *  is declared for. Empty when the catalog is valid. */
+     *  is declared for; also out-of-range Tuning values. Empty when everything is valid. */
     UFUNCTION(BlueprintCallable, Category = "Input")
     TArray<FString> Validate() const;
 
@@ -60,6 +74,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     FPSInputCatalog Catalog;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+    FInputTuningRow Tuning;
 
 private:
     UPROPERTY(Transient)

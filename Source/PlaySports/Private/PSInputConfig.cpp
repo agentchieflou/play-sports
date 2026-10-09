@@ -13,6 +13,33 @@ FString UPSInputConfig::GetDefaultCatalogPath()
     return Path;
 }
 
+FString UPSInputConfig::GetDefaultTuningPath()
+{
+    FString Path = FPaths::ProjectDir() / TEXT("Data/input_tuning.json");
+    FPaths::CollapseRelativeDirectories(Path);
+    return Path;
+}
+
+bool UPSInputConfig::LoadDefaults()
+{
+    LoadTuningFromJson(GetDefaultTuningPath());
+    return LoadFromJson(GetDefaultCatalogPath());
+}
+
+bool UPSInputConfig::LoadTuningFromJson(const FString& JsonFilePath)
+{
+    UPSDataIngestion* Ingestion = NewObject<UPSDataIngestion>(this);
+    FInputTuningRow LoadedTuning;
+    if (!Ingestion->LoadInputTuningFromJson(JsonFilePath, LoadedTuning))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSInputConfig: Could not load input tuning from %s; keeping defaults."), *JsonFilePath);
+        return false;
+    }
+
+    Tuning = LoadedTuning;
+    return true;
+}
+
 bool UPSInputConfig::LoadFromJson(const FString& JsonFilePath)
 {
     UPSDataIngestion* Ingestion = NewObject<UPSDataIngestion>(this);
@@ -76,6 +103,18 @@ void UPSInputConfig::BuildRuntimeObjects()
                 }
 
                 FEnhancedActionKeyMapping& Mapping = Context->MapKey(Action, Key);
+                if (Key.IsGamepadKey() && Key.IsAxis2D())
+                {
+                    UInputModifierDeadZone* DeadZone = NewObject<UInputModifierDeadZone>(Context);
+                    DeadZone->Type = EDeadZoneType::Radial;
+                    DeadZone->LowerThreshold = Tuning.StickDeadZoneLower;
+                    DeadZone->UpperThreshold = Tuning.StickDeadZoneUpper;
+                    Mapping.Modifiers.Add(DeadZone);
+
+                    UInputModifierResponseCurveExponential* Curve = NewObject<UInputModifierResponseCurveExponential>(Context);
+                    Curve->CurveExponent = FVector(Tuning.StickResponseExponent);
+                    Mapping.Modifiers.Add(Curve);
+                }
                 if (Binding.bSwizzleYX)
                 {
                     UInputModifierSwizzleAxis* Swizzle = NewObject<UInputModifierSwizzleAxis>(Context);
@@ -188,6 +227,20 @@ TArray<FString> UPSInputConfig::Validate() const
                 }
             }
         }
+    }
+
+    if (Tuning.StickDeadZoneLower < 0.f || Tuning.StickDeadZoneLower >= Tuning.StickDeadZoneUpper || Tuning.StickDeadZoneUpper > 1.f)
+    {
+        Errors.Add(FString::Printf(TEXT("Tuning: stick dead zone must satisfy 0 <= lower (%.2f) < upper (%.2f) <= 1"),
+            Tuning.StickDeadZoneLower, Tuning.StickDeadZoneUpper));
+    }
+    if (Tuning.StickResponseExponent <= 0.f)
+    {
+        Errors.Add(FString::Printf(TEXT("Tuning: StickResponseExponent (%.2f) must be positive"), Tuning.StickResponseExponent));
+    }
+    if (Tuning.DeviceSwitchAnalogThreshold <= 0.f || Tuning.DeviceSwitchAnalogThreshold > 1.f)
+    {
+        Errors.Add(FString::Printf(TEXT("Tuning: DeviceSwitchAnalogThreshold (%.2f) must be in (0, 1]"), Tuning.DeviceSwitchAnalogThreshold));
     }
 
     return Errors;
