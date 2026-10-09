@@ -1,0 +1,16 @@
+The world's cars, made in this repository by tools/world/cars/ from no third-party asset.
+
+Every body is lofted by tools/world/cars/cars.py from the profiles in it (its top line, beltline,
+widths and underside), its glass, lamps, grille, plates and seams laid on it from the outlines in it,
+its wheels built from numbers in it; Blender ran the script (only as a tool: its GPL-3.0 does not
+reach what it makes) and tools/world/cars/cars.mjs (gltf-transform, MIT) packed it. No photograph,
+scan, model or texture went in, and none of the cars is any maker's design. The file is part of this
+project and under its licence: MIT, the LICENSE at the repository's root.
+
+File       What it holds
+cars.glb   four cars, a sedan, a hatchback, an SUV and a van, each near (body, glass, trim, lamps)
+           and far (the body with its glass and trim in it, and the lamps), painted by the page
+
+Remade with:
+  blender --background --factory-startup --python tools/world/cars/cars.py -- <build-dir>
+  node tools/world/cars/cars.mjs <build-dir>/raw agentdata/fleet/static/world/cars

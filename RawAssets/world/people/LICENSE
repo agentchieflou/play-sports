@@ -1,0 +1,56 @@
+The world's people: the stand-in for the player's character and for the pedestrians.
+
+Both files are built from MakeHuman assets released under CC0 1.0 Universal
+(creativecommons.org/publicdomain/zero/1.0/): dedicated to the public domain, free to use, change
+and redistribute for any purpose, commercial or not, with no attribution required. They are credited
+here anyway. No person's likeness is in them: every face is MakeHuman's base mesh moved by its own
+macro targets (gender, age, weight, muscle, height, proportions), never a scan of anyone.
+
+File(s)                Built from
+standin.glb            the player's character: base mesh with five body morphs, hair, beard, glasses
+standin_crowd.glb      five pedestrians, two levels of detail each, in one texture atlas
+
+The licence was read on the MakeHuman project's own site, static.makehumancommunity.org:
+about/license.html ("All core assets are shared under Creative Commons, CC0") and the asset-pack
+pages that list each asset with its licence (assets/assetpacks/<pack>.html). Every asset's own file
+says CC0 as well (its .mhclo, .mhmat or .obj header, or the pack's JSON index). The sources' own
+pages at makehumancommunity.org/node/<n> did not answer from the machine that built these; the pack
+pages that name them did. No checksums are published for the packs; the zips used had these sha256:
+  makehuman_system_assets_cc0.zip  b542127a8e25547c7c29c19f2d1d2adb9a664c80396ecd694095dbc8028a0107
+  bodyparts05_cc0.zip              262bba42246f85b2a91f493dd920296b258a3b4544eb495c91c4d08e57c528fd
+  glasses01_cc0.zip                f215c58e09e31b7ee568c814067cb47704cee6da1f6fc01cffb8e9fca37bafdd
+  hair01_cc0.zip                   49445d69848a313ec41a9970f6a0fe4bcf925c9f1c6ef40a76f119c2e07940c9
+  mpfb2-20260911.zip (the base mesh, targets, game-engine rig and its weights, all CC0; MPFB's code,
+  GPL-3.0, was only run as a tool and is not in these files)
+
+Asset                              Pack (static.makehumancommunity.org)  Author(s)          Source page
+base mesh hm08, macro targets      mpfb2 data                           MakeHuman team     makehumancommunity.org
+game_engine rig and weights        mpfb2 data                           MakeHuman team     makehumancommunity.org
+young_caucasian_male (skin)        makehuman_system_assets              makehuman_system   makehumancommunity.org
+low-poly eyes, brown               makehuman_system_assets              makehuman_system   makehumancommunity.org
+eyebrow001, eyelashes01            makehuman_system_assets              makehuman_system   makehumancommunity.org
+male_casualsuit01 (hero outfit)    makehuman_system_assets              makehuman_system   makehumancommunity.org
+male_casualsuit03, _05, _06        makehuman_system_assets              makehuman_system   makehumancommunity.org
+female_casualsuit01                makehuman_system_assets              makehuman_system   makehumancommunity.org
+female_elegantsuit01               makehuman_system_assets              makehuman_system   makehumancommunity.org
+shoes01, 03, 04, 05, 06            makehuman_system_assets              makehuman_system   makehumancommunity.org
+hair short01, short02, long01,     makehuman_system_assets              makehuman_system   makehumancommunity.org
+  ponytail01, afro01, bob01
+rehmanpolanski_hair_bun_brown      hair01                               RehmanPolanski     makehumancommunity.org/node/2477
+grinsegold_beard_sigmund_wip       bodyparts05                          grinsegold         makehumancommunity.org/node/877
+rehmanpolanski_moustache_viking    bodyparts05                          RehmanPolanski     makehumancommunity.org/node/2615
+toigo_round_glasses_leopard        glasses01                            MargaretToigo      makehumancommunity.org/node/1070
+frankyaye_glasses_library_male     glasses01                            frankyaye          makehumancommunity.org/node/153
+
+The makehuman_system assets' copyright holders at their release to CC0 (September 2020) were Data
+Collection AB, Joel Palmius and Jonas Hauquier.
+
+What was changed. Each character was made in Blender 4.5 with MPFB 2.0.17 from the assets above
+(the macros differ between the hero's variants and the pedestrians), fitted, rigged with the game
+engine rig (Unreal Engine bone names) and exported, then put through the world's people pipeline:
+skinned to the rest pose, turned to face -Z in metres, bones outside the Unreal Engine body set
+folded into their nearest kept parent, a one-piece outfit split into top and bottom by the bones it
+moves with, glasses' lenses removed, a shorter "curls" style derived from afro01 by pulling it
+towards the scalp, the hero's angular, curved, older, slim and broad bodies added as morph targets,
+everything decimated with meshoptimizer, quantised, and every colour map turned into a detail map
+(its mean colour normalised) and re-encoded as WebP (hero up to 1024 px, crowd atlas tiles 512 px).

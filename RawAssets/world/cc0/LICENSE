@@ -1,0 +1,34 @@
+The world's photo textures, scanned props and skies.
+
+Every file in this folder is from Poly Haven (polyhaven.com), released under CC0 1.0 Universal
+(creativecommons.org/publicdomain/zero/1.0/): dedicated to the public domain, free to use, change
+and redistribute for any purpose, with no attribution required. They are credited here anyway.
+
+They are not the files as downloaded. Each was fetched from Poly Haven's own API at its 1k
+resolution, its checksum matched against the one the API published, and then made smaller for a
+browser: textures re-encoded as WebP (colour and normal maps at 1024 px, the ambient
+occlusion/roughness/metalness map at 512 px); skies averaged down to 512 x 256 and written as
+uncompressed Radiance RGBE; models cut to one variant, their transforms baked, decimated with
+meshoptimizer to a few thousand triangles at most, and their textures packed into the .glb as
+512 px WebP.
+
+File(s)                                   Poly Haven asset          Author(s)
+brick_wall_001_{diff,nor,arm}.webp        Brick Wall 001            Rob Tuytel, Dimitrios Savva
+painted_plaster_wall_{diff,nor,arm}.webp  Painted Plaster Wall      Amal Kumar
+concrete_slab_wall_{diff,nor,arm}.webp    Concrete Slab Wall        Dimitrios Savva
+asphalt_02_{diff,nor,arm}.webp            Asphalt 02                Rob Tuytel
+concrete_pavement_{diff,nor,arm}.webp     Concrete Pavement         Charlotte Baglioni
+potsdamer_platz.hdr                       Potsdamer Platz           Greg Zaal
+hansaplatz.hdr                            Hansaplatz                Greg Zaal
+fire_hydrant.glb                          Fire Hydrant              Gonçalo Felício
+metal_trash_can.glb                       Metal Trash Can           GurJas Studios
+trashbag.glb                              Trashbag                  Benny Weimer
+cardboard_box_01.glb                      Cardboard Box 01          Rahul Chaudhary
+utility_box_01.glb                        Utility Box 01            James Ray Cock
+utility_box_02.glb                        Utility Box 02            James Ray Cock
+exterior_aircon_unit.glb                  Exterior Aircon Unit      Monsta3D
+concrete_road_barrier.glb                 Concrete Road Barrier     Amal Kumar
+covered_car.glb                           Covered Car               MP
+
+Each asset's page is polyhaven.com/a/<id>, where <id> is the file's name without its extension
+and without a _diff, _nor or _arm suffix: polyhaven.com/a/brick_wall_001, polyhaven.com/a/hansaplatz.

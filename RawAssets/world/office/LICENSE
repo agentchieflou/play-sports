@@ -1,0 +1,16 @@
+The office's furniture, made in this repository by tools/world/office/ from no third-party asset.
+
+The workstation (a bench desk, a monitor whose display is its own part, a keyboard, a mouse, a mug and
+an office chair) and the planter are built by tools/world/office/office.py from the numbers in it,
+run by Blender (only as a tool: its GPL-3.0 does not reach what it builds), and packed by
+tools/world/office/office.mjs (gltf-transform, MIT). No photograph, scan, model or texture went in,
+and no maker's design. The file is part of this project and under its licence: MIT, the LICENSE at the
+repository's root.
+
+File         What it holds
+office.glb   the workstation (wood, fittings and screen) and the planter; the page lays the desk's
+             wood and each agent's screen on them
+
+Remade with:
+  blender --background --factory-startup --python tools/world/office/office.py -- <build-dir>
+  node tools/world/office/office.mjs <build-dir>/raw agentdata/fleet/static/world/office

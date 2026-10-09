@@ -1,0 +1,13 @@
+{
+  "hero": [{"file": "standin.glb", "fits": {}}],
+  "crowd": [{"file": "standin_crowd.glb"}],
+  "hair": {"part": "short02", "curls": "curls", "coils": "afro01", "long": "long01", "bun": "rehmanpolanski_hair_bun_brown", "buzz": "short01"},
+  "face": {"beard": "grinsegold_beard_sigmund_wip", "moustache": "rehmanpolanski_moustache_viking"},
+  "glasses": {"round": "toigo_round_glasses_leopard", "square": "frankyaye_glasses_library_male"},
+  "morphs": {
+    "figure": {"angular": {"angular": 1}, "between": {}, "curved": {"curved": 1}},
+    "build": {"slim": {"slim": 1}, "regular": {}, "broad": {"broad": 1}},
+    "age": {"young": {}, "middle": {"older": 0.45}, "older": {"older": 1}}
+  },
+  "clips": {}
+}

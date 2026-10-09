@@ -19,6 +19,9 @@ Source/PlaySports/            Runtime game module ("PlaySports")
 Plugins/Autonomix/            Editor-time AI bridge plugin (stub)
 Plugins/AgenticLink/          External agent bridge plugin (stub)
 Data/                         External data assets consumed by ingestion code
+RawAssets/                    Source (non-.uasset) assets with provenance: the world kit (CC0/own GLB, textures, skies)
+tools/assets/                 Offline Blender/Node pipeline that made RawAssets/ (never run by CI)
+Specs/                        Editor-session handoff specs, plus the imported browser-world knowledge
 ```
 
 ### `Source/PlaySports` (runtime module)
@@ -63,6 +66,18 @@ real editor automation or an MCP bridge, that is new implementation work, not a 
 `sample_players.json` — example payload for `PSDataIngestion`, two rows (`QB_001`, `OL_001`)
 matching the `FPlayerAttributes` field names exactly (`PlayerId`, `DisplayName`, `Role`,
 `WeightKg`, `HeightCm`, `Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`).
+
+### `RawAssets/` and `tools/assets/` (the world kit, imported 2026-10-08)
+
+The 3D "world" built for the fleet desk in `agentchieflou/this-next-please` was semi-scrapped and its
+assets and knowledge moved here: `RawAssets/world/` (CC0 Poly Haven materials, skies and props; a CC0
+MakeHuman character and crowd already on the Unreal body bone names; procedurally grown trees, cars and
+office furniture; the three.js reference implementation with its reasoning notes), `tools/assets/world/`
+(the pipeline that made them), and `Specs/Browser_World_Lessons.md`, `Specs/Character_Customization_Spec.md`,
+`Specs/Input_Architecture.md`, `Specs/Weather_DayNight_Spec.md`. Track R (`roadmap/world-kit.md`,
+Epics 142–144) is the work that consumes them. Rules: nothing under `RawAssets/` or `tools/assets/` is
+loaded at runtime or built by CI; every subfolder carries a `LICENSE` naming each file's source; `Content/`
+stays empty until an editor session imports (`RawAssets/world/README.md` §Importing into Unreal).
 
 ## Conventions
 

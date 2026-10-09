@@ -34,6 +34,7 @@ These groups are mutually disjoint and can run simultaneously:
 | G3 | Playbook extraction (Track O) | 132 → 133 → 134 | Any agent (Python-only) |
 | G4 | Platform audit | 129 | Any agent (docs/config-only) |
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
+| G8 | World kit (Track R, code stories) | 142 → 143 → 144 | Any agent (DataTables, components, tests); editor stories wait for an editor session |
 
 After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 15 → 16 → 17 →
 18) unblocks in parallel with it — see `roadmap/MILESTONE_FIRST_GAME.md` M4/M5.
@@ -60,7 +61,8 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "N": ["Specs/Platform_Audit.md", "Specs/Touch_Controls_Spec.md", "Specs/ADR_iOS_Build.md", "Config/DefaultDeviceProfiles.ini", "Source/PlaySports/**/PSTouch*", "Source/PlaySports/**/PSScalability*"],
     "O": ["tools/playbook_scraper/**", "Data/playbooks/**"],
     "P": ["tools/orchestrator/**", "tools/score_lib.py", "eval/duels/**", "eval/runs/**", "roadmap/PARALLEL.md"],
-    "Q": ["Source/PlaySports/**/PSArchetype*", "Source/PlaySports/**/PSHealth*", "Source/PlaySports/**/PSCombat*", "Source/PlaySports/**/PSLeveling*", "Source/PlaySports/**/PSPlayerLeveling*"]
+    "Q": ["Source/PlaySports/**/PSArchetype*", "Source/PlaySports/**/PSHealth*", "Source/PlaySports/**/PSCombat*", "Source/PlaySports/**/PSLeveling*", "Source/PlaySports/**/PSPlayerLeveling*"],
+    "R": ["RawAssets/**", "tools/assets/**", "Content/Characters/Standin/**", "Content/Stadium/Kit/**", "Content/Office/**", "Source/PlaySports/**/PSCharacterLook*", "Source/PlaySports/**/PSTimeOfDay*", "Source/PlaySports/**/PSInputConfig*", "Data/input_actions*", "Data/looks*", "Data/weather_tuning*", "Specs/World_Kit_Import_Spec.md"]
   },
   "epics": {
     "1":   {"track": "core", "mode": "mixed", "status": "partial", "depends_on": [], "open_stories": ["1.5 end-to-end PIE test"]},
@@ -209,7 +211,10 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "138": {"track": "P", "mode": "code", "status": "open", "depends_on": ["136", "137"]},
     "139": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["8", "19", "C1"]},
     "140": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "18", "17"]},
-    "141": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "19"]}
+    "141": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "19"]},
+    "142": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["2"]},
+    "143": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "22", "C1"]},
+    "144": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "2"]}
   },
   "groups": [
     {"id": "G1", "label": "Phase 0/1.5 cleanup", "epics": ["12", "C3-ff-A", "C3-ff-B", "1", "2", "5"], "serialize_within": true},
@@ -218,12 +223,14 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     {"id": "G4", "label": "Platform audit", "epics": ["129"], "serialize_within": true},
     {"id": "G5", "label": "Agentic engine bridge", "epics": ["25"], "serialize_within": true},
     {"id": "G6", "label": "Controller connectivity (Track M)", "epics": ["126", "127", "128"], "serialize_within": true},
-    {"id": "G7", "label": "Phase 2 AI & playbook", "epics": ["14", "15", "16", "17", "18"], "serialize_within": true}
+    {"id": "G7", "label": "Phase 2 AI & playbook", "epics": ["14", "15", "16", "17", "18"], "serialize_within": true},
+    {"id": "G8", "label": "World kit (Track R)", "epics": ["142", "143", "144"], "serialize_within": true}
   ],
   "conflicts": [
     {"epics": ["127", "C3-ff-A"], "reason": "both touch APSPlayerPawn; C3 fast-follow A must merge first"},
     {"epics": ["C3-ff-B", "14"], "reason": "Phase 2 AI must consume the single roster source of truth; C3-ff-B first"},
-    {"epics": ["126", "C3-ff-A"], "reason": "126's input migration edits APSPlayerPawn's SetupPlayerInputComponent; do not run concurrently with the ball-action extraction"}
+    {"epics": ["126", "C3-ff-A"], "reason": "126's input migration edits APSPlayerPawn's SetupPlayerInputComponent; do not run concurrently with the ball-action extraction"},
+    {"epics": ["142", "126"], "reason": "both write Data/input_actions.json and UPSInputConfig (Specs/Input_Architecture.md §4); 142's catalog story lands first, 126 consumes it"}
   ]
 }
 ```
