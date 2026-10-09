@@ -3,6 +3,7 @@
 #include "PSPlaySimulation.h"
 #include "Misc/Paths.h"
 #include "PSHUD.h"
+#include "PSPlayerController.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "JsonObjectConverter.h"
@@ -60,6 +61,7 @@ APSGameMode::APSGameMode()
     PlayerLeveling = nullptr;
 
     HUDClass = APSHUD::StaticClass();
+    PlayerControllerClass = APSPlayerController::StaticClass();
     HomeScore = 0;
     AwayScore = 0;
 

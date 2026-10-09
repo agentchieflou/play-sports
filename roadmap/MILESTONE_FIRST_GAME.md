@@ -42,7 +42,7 @@ Already sufficient and done: Epics 3, 4, 6–11, 13, C1, C2, C4.
 
 ## M4 — A human holds a controller *(parallel with M5 once M3 is done)*
 
-- [ ] Epic 126 — Enhanced Input foundation & `APSPlayerController` (all 5 stories)
+- [x] Epic 126 — Enhanced Input foundation & `APSPlayerController` (all 5 stories)
 - [ ] Epic 127 — Xbox gamepad bring-up & human possession (all 5 stories)
 
 ## M5 — The CPU can play football

@@ -5,6 +5,7 @@
 #include "PSPlayerAttributes.h"
 #include "PSLeagueData.h"
 #include "PSArchetypeTuning.h"
+#include "PSInputConfigTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -27,6 +28,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadArchetypeTuningFromJson(const FString& JsonFilePath, FPSArchetypeTuning& OutTuning);
+
+    /** Loads the input action catalog (Data/input_actions.json) consumed by
+     *  UPSInputConfig (Epic 142/126). False on a missing file, malformed JSON, or an
+     *  unrecognized ValueType string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadInputCatalogFromJson(const FString& JsonFilePath, FPSInputCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

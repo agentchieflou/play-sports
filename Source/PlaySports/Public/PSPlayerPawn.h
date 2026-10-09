@@ -106,13 +106,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "Health")
     UPSHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
-    // Called to bind functionality to input
-    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-    // Input handlers
-    void MoveForward(float Value);
-    void MoveRight(float Value);
-
     // Called every frame
     virtual void Tick(float DeltaSeconds) override;
 

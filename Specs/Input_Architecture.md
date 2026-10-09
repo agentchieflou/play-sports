@@ -61,3 +61,9 @@ camera, Start opens the character sheet, on every context.
   (rule 4: no ad-hoc parser).
 - A headless automation test asserts every catalog action has a keyboard and a gamepad binding in
   every context it is declared for.
+
+Status (2026-10-09): implemented with Epic 126. The catalog declares two contexts, `World` (the
+section 2 table) and `OnField` (Epic 126's Move, Sprint, Confirm, Cancel, SwitchPlayer, with the
+same physical buttons). The debug frame-figures key and the dialogue-navigation rows are not in it
+yet: the first has no gamepad binding and the second needs a conversation context.
+`PlaySports.Input.CatalogCoversKeyboardAndGamepad` is the section 4 test.

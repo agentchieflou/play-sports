@@ -5,10 +5,13 @@ controller, Xbox gamepad support, and human↔AI possession handoff. This track 
 *connectivity*; Track I's Epic 104 owns *feel* (the move vocabulary, buffering, and passing
 model) and consumes what lands here. Sizing/mode legend: see `ROADMAP.md`.
 
-**Reality note (2026-07-19 review):** Input today is two legacy `BindAxis` calls
-(`MoveForward`/`MoveRight`) on `APSPlayerPawn`; the `EnhancedInput` module is not in
-`PlaySports.Build.cs`, and no project player controller class exists. Epic 126 creates the
-substrate; Epic 104's first story was re-scoped to extend it rather than create it. Device
+**Reality note (updated 2026-10-09, Epic 126 landed):** `APSPlayerController` (registered in
+`APSGameMode`) binds the `UPSInputConfig` catalog (`Data/input_actions.json`, contexts `World`
+and `OnField`) on Enhanced Input and applies `OnField` when it possesses an `APSPlayerPawn`;
+the pawn has no input bindings. The human still spawns as the engine's default pawn --
+taking control of a football pawn is Epic 127's possession flow, and gamepad dead zones /
+response curves are its `FInputTuningRow`. Epic 104's first story was re-scoped to extend
+this substrate rather than create it. Device
 and possession state flow over the C1 `UPSTelemetryBus` — HUD/camera never cast to the
 controller. Note the file-scope conflict recorded in `roadmap/PARALLEL.md`: Epic C3's
 ball-action-component fast-follow touches `APSPlayerPawn` and must land before Epic 127.
@@ -19,11 +22,11 @@ ball-action-component fast-follow touches `APSPlayerPawn` and must land before E
 **Goal:** Enhanced Input replaces legacy axis bindings behind a real player controller — the substrate every human-input epic builds on.
 **Depends on:** Core 3
 
-- [ ] Enable Enhanced Input: add `EnhancedInput` to `PlaySports.Build.cs`, enable the plugin in `play-sports.uproject`, set `UEnhancedPlayerInput`/`UEnhancedInputComponent` as the default input classes in `Config/DefaultInput.ini`
-- [ ] `APSPlayerController`: project player controller registered in `APSGameMode`; owns mapping-context application on possession so `APSPlayerPawn` stays input-free (rule 1: new system = new class)
-- [ ] `UPSInputConfig` code-defined data asset declaring the action catalog (Move, Sprint, Confirm, Cancel, SwitchPlayer) and context priorities — no magic bindings in gameplay code (rule 4)
-- [ ] Migrate `APSPlayerPawn`'s legacy `BindAxis` MoveForward/MoveRight onto Enhanced Input actions bound in the controller; delete the legacy axis entries from `Config/DefaultInput.ini`
-- [ ] Automation test: possessing a pawn applies the gameplay mapping context; an injected Move action value reaches the pawn's movement input path headlessly
+- [x] Enable Enhanced Input: add `EnhancedInput` to `PlaySports.Build.cs`, enable the plugin in `play-sports.uproject`, set `UEnhancedPlayerInput`/`UEnhancedInputComponent` as the default input classes in `Config/DefaultInput.ini`
+- [x] `APSPlayerController`: project player controller registered in `APSGameMode`; owns mapping-context application on possession so `APSPlayerPawn` stays input-free (rule 1: new system = new class)
+- [x] `UPSInputConfig` code-defined data asset declaring the action catalog (Move, Sprint, Confirm, Cancel, SwitchPlayer) and context priorities — no magic bindings in gameplay code (rule 4)
+- [x] Migrate `APSPlayerPawn`'s legacy `BindAxis` MoveForward/MoveRight onto Enhanced Input actions bound in the controller; delete the legacy axis entries from `Config/DefaultInput.ini`
+- [x] Automation test: possessing a pawn applies the gameplay mapping context; an injected Move action value reaches the pawn's movement input path headlessly
 
 ### Epic 127: Xbox Gamepad Bring-Up & Human Possession
 
