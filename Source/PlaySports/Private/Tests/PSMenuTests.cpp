@@ -65,11 +65,15 @@ bool FPSMenuCatalogTest::RunTest(const FString& Parameters)
     if (TestNotNull(TEXT("Mode select screen exists"), ModeSelect))
     {
         TArray<EPSMenuCommand> Commands;
+        bool bPlayNowPicksATeam = false;
         for (const FPSMenuOptionDef& Option : ModeSelect->Options)
         {
             Commands.Add(Option.Command);
+            const FPSMenuScreenDef* Target = Catalog.FindScreen(Option.TargetScreen);
+            bPlayNowPicksATeam |= Option.OptionId == FName(TEXT("PlayNow")) && Target && Target->Content == EPSMenuScreenContent::TeamSelect;
         }
-        TestTrue(TEXT("Mode select offers Play Now"), Commands.Contains(EPSMenuCommand::StartPlayNow));
+        // Play Now goes through team select, whose generated options start the game.
+        TestTrue(TEXT("Mode select offers Play Now through team select"), bPlayNowPicksATeam);
         TestTrue(TEXT("Mode select offers Franchise"), Commands.Contains(EPSMenuCommand::StartFranchise));
         TestTrue(TEXT("Mode select offers Practice/Gym"), Commands.Contains(EPSMenuCommand::StartPractice));
     }
