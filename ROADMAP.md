@@ -318,7 +318,7 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Builds on:** `AIModule`/`NavigationSystem` (declared in `PlaySports.Build.cs`, unused so far)
 **Depends on:** Epics 6, 7, 9
 
-- [ ] `AAIController` + behavior tree scaffolding for offensive skill positions
+- [x] `AAIController` + behavior tree scaffolding for offensive skill positions
 - [ ] QB: dropback, progression reads through eligible receivers, throw/scramble/sack decision driven by `Awareness`
 - [ ] WR/TE: route running from route data (Epic 16 feeds this; hardcode 3 routes to start)
 - [ ] RB: handoff acceptance, run-lane reading from line-play outcomes (Epic 9), pass-blocking fallback
