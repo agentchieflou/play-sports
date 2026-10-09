@@ -1,0 +1,14 @@
+{
+  "name": "play-sports-world-tools",
+  "private": true,
+  "description": "Offline tools that make the 3D world's assets (RawAssets/world/cc0 and world/people). Not shipped; see README.md.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "devDependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "meshoptimizer": "1.2.0",
+    "sharp": "0.35.5"
+  }
+}

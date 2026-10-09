@@ -1,0 +1,16 @@
+The world's street trees, made in this repository by tools/world/trees/ from no third-party asset.
+
+Every leaf's outline, veins and colour, every twig, both barks and every branch is drawn or grown by
+tools/world/trees/trees.py from the numbers in it, rendered and baked by Blender (run only as a tool:
+its GPL-3.0 does not reach what it renders), and packed by tools/world/trees/trees.mjs (gltf-transform,
+MIT; sharp, Apache-2.0). No photograph, scan, texture library or model went in. The files are part of
+this project and under its licence: MIT, the LICENSE at the repository's root.
+
+File        What it holds
+trees.glb   five trees, each whole and again with fewer, larger twigs for the distance: two London
+            planes, two lindens and a young linden (the plaza's planters); their barks; one atlas of
+            leafy twigs (WebP)
+
+Remade with:
+  blender --background --factory-startup --python tools/world/trees/trees.py -- <build-dir>
+  node tools/world/trees/trees.mjs <build-dir>/raw agentdata/fleet/static/world/trees

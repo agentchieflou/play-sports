@@ -1,8 +1,8 @@
 # ROADMAP.md
 
-Development roadmap for `play-sports`: **141 Epics** — a 25-Epic core (this file, Phases 0–4)
+Development roadmap for `play-sports`: **144 Epics** — a 25-Epic core (this file, Phases 0–4)
 sequenced **vertical-slice first** (Phase 0 produces one crude but complete, watchable play as
-early as possible; later phases deepen it), plus **116 expansion Epics (26–141)** in themed
+early as possible; later phases deepen it), plus **119 expansion Epics (26–144)** in themed
 track files under `roadmap/` (see the track index below).
 
 Conventions used throughout:
@@ -33,7 +33,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 11(L) 12(M) 13(L) 14(XL) 15(XL) 16(L) 17(XL) 18(M) 19(L) 20(L) 21(M) 22(XL-editor) 23(L-mixed)
 24(L) 25(XL).
 
-## Expansion track index (Epics 26–138)
+## Expansion track index (Epics 26–144)
 
 | Track | File | Epics | Theme |
 |---|---|---|---|
@@ -54,6 +54,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 | O | `roadmap/playbook-extraction.md` | 132–134 | One-time playbook extraction: compliance gate, polite resumable scraper, normalized play data |
 | P | `roadmap/agent-orchestration.md` | 135–138 | Agent orchestration graph: model clients, worker harness, benchmark duels, supervisor graph |
 | Q | `roadmap/character-combat.md` | 139–141 | Character archetypes & combat rules: hitpoints, death/respawn, no-punting, 4th-down overload, leveling/XP |
+| R | `roadmap/world-kit.md` | 142–144 | World kit import (from this-next-please's browser world, 2026-10-08): assets into Content, inclusive character looks, rain/day-night port |
 
 ## MVP priority sequencing (code-mode tracks)
 
@@ -63,7 +64,7 @@ Input/`PSPlayerController`/gamepad, 126–128) and Track I's front-end/play-call
 both still open. That is the single biggest gap between "impressive AI sim" and "a person can sit
 down and play a game" — bigger than any amount of additional AI depth. The tiers below are a
 recommended execution order for the entirely-or-mostly-`code`-mode tracks (E, F, G, I, J, K, L, M,
-O, P, Q) toward an actual playable MVP; they do not change any `depends_on` edge in
+O, P, Q, R) toward an actual playable MVP; they do not change any `depends_on` edge in
 `roadmap/PARALLEL.md`, which remains the source of truth for what's actually unblocked. Editor-
 heavy tracks (A, B, C, D, H) are intentionally deprioritized here since this repo's agent sessions
 have no Unreal Editor access (see `AGENTS.md`).
@@ -78,6 +79,9 @@ have no Unreal Editor access (see `AGENTS.md`).
 - **Tier 3 — content at scale + remaining infra:** Track L (121–125, also unblocks realistic test
   content for Tiers 0–2), remaining Track K infra (114/115/117/118/119), Track J multiplayer
   (107–111, local H2H first since it reuses Tier 0's input work directly).
+- **Any tier, in parallel — Track R (142–144):** the world kit's code stories (DataTables, the look
+  component, the time-of-day subsystem, the input catalog) depend only on Core 2/22 and C1 and touch
+  no MVP file scope; its editor stories wait for an editor session like every other editor story.
 - **Tier 4 — polish/reach:** Track O, Track P, Track N, plus the code-only slices of A/B/C/H once
   the on-field game is solid.
 

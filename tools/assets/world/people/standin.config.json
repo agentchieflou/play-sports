@@ -1,0 +1,43 @@
+{
+  "out": "out",
+  "rename": {"Root": "root"},
+  "outputs": [
+    {
+      "id": "standin",
+      "kind": "hero",
+      "sources": ["raw/hero_base.glb"],
+      "variants": {
+        "angular": ["raw/hero_angular.glb"],
+        "curved": ["raw/hero_curved.glb"],
+        "older": ["raw/hero_older.glb"],
+        "slim": ["raw/hero_slim.glb"],
+        "broad": ["raw/hero_broad.glb"]
+      },
+      "dropNodes": [],
+      "derive": [{"style": "curls", "from": "afro01", "shrink": 0.45}],
+      "tris": {"skin": 9000, "outfit": 6500, "shoes": 1400, "hair": 2000, "beard": 1200, "glasses": 900},
+      "texture": {"skin": 1024, "top": 1024, "bottom": 1024, "hair": 512, "shoes": 512, "eyes": 128, "brows": 256, "lashes": 256, "beard": 256, "glasses": 256},
+      "normals": ["outfit", "shoes"],
+      "normalSize": 512,
+      "quality": 80
+    },
+    {
+      "id": "standin_crowd",
+      "kind": "crowd",
+      "characters": [
+        {"name": "c1", "sources": ["raw/crowd_c1.glb"]},
+        {"name": "c2", "sources": ["raw/crowd_c2.glb"]},
+        {"name": "c3", "sources": ["raw/crowd_c3.glb"]},
+        {"name": "c4", "sources": ["raw/crowd_c4.glb"]},
+        {"name": "c5", "sources": ["raw/crowd_c5.glb"]}
+      ],
+      "tile": {"skin": 512, "top": 512, "bottom": 512, "hair": 256, "shoes": 256, "eyes": 64},
+      "atlas": 2048,
+      "lods": [
+        {"tris": {"skin": 2200, "outfit": 1500, "shoes": 300, "hair": 800}},
+        {"tris": {"skin": 650, "outfit": 450, "shoes": 80, "hair": 220}, "skip": ["eyes"], "error": 0.08}
+      ],
+      "quality": 78
+    }
+  ]
+}
