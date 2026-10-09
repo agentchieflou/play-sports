@@ -64,7 +64,7 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
     UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Column"));
     Background->SetContent(Column);
 
-    auto AddText = [this, Column](const FString& Text, int32 FontSize, const FMargin& Padding)
+    auto AddText = [this, Column](const FString& Text, int32 FontSize, const FMargin& TextPadding)
     {
         UTextBlock* Block = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
         Block->SetText(FText::FromString(Text));
@@ -74,7 +74,7 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
         Block->SetJustification(ETextJustify::Center);
         if (UVerticalBoxSlot* TextSlot = Column->AddChildToVerticalBox(Block))
         {
-            TextSlot->SetPadding(Padding);
+            TextSlot->SetPadding(TextPadding);
             TextSlot->SetHorizontalAlignment(HAlign_Center);
         }
         return Block;
