@@ -1,0 +1,134 @@
+// PSMenuComponent.h - Epic 101: the front-end shell and pause menu on the player controller
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+#include "InputCoreTypes.h"
+#include "PSMenuTypes.h"
+#include "PSMenuComponent.generated.h"
+
+class APlayerController;
+class UPSMenuStack;
+class UPSMenuScreenWidget;
+
+/**
+ * UPSMenuComponent runs every menu for its player: the front end (main menu, mode select),
+ * the in-game pause menu and anything Epics 102-106 push on top. Screens, their options and
+ * Back rules come from Data/ui_menus.json (read through UPSDataIngestion); navigation lives
+ * in a UPSMenuStack; the top screen is shown as a UPSMenuScreenWidget when the owner has a
+ * local player (headless worlds keep the stack only, so the flow is testable).
+ *
+ * While any screen is open the player is in UI input mode with a cursor; when the stack
+ * empties, game input returns. Pausing goes through APlayerController::SetPause.
+ */
+UCLASS(ClassGroup = "PlaySports", BlueprintType, meta = (BlueprintSpawnableComponent))
+class PLAYSPORTS_API UPSMenuComponent : public UActorComponent
+{
+    GENERATED_BODY()
+
+public:
+    UPSMenuComponent();
+
+    /** The menu catalog, loaded from Data/ui_menus.json on first use. */
+    const FPSMenuCatalog& GetCatalog();
+
+    /** Problems that would strand or confuse a player, one line each: missing root/pause
+     *  screen, duplicate IDs, an option that does nothing or targets an unknown screen, a
+     *  root screen Back could close, or an option-less screen Back can't leave. */
+    static TArray<FString> ValidateCatalog(const FPSMenuCatalog& InCatalog);
+
+    UPSMenuStack* GetStack() const { return Stack; }
+
+    UFUNCTION(BlueprintPure, Category = "Menu")
+    bool IsMenuOpen() const;
+
+    UFUNCTION(BlueprintPure, Category = "Menu")
+    FName GetTopScreenId() const;
+
+    /** True while the game is paused because this component paused it. */
+    UFUNCTION(BlueprintPure, Category = "Menu")
+    bool IsPausedByMenu() const { return bPausedByMenu; }
+
+    /** Pushes ScreenId. Unknown screens are refused with a warning. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    bool OpenScreen(FName ScreenId);
+
+    /** Opens the catalog's root screen as the only screen (the front end's start). */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    void OpenRootScreen();
+
+    /** Back: closes the top screen if it allows it. Back on the pause screen resumes.
+     *  False when nothing changed (no menu, or a root screen). */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    bool HandleBack();
+
+    /** Runs an option of the top screen: opens its target screen and/or runs its command. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    void ChooseOption(FName OptionId);
+
+    /** The Pause action: pauses and opens the pause screen, or resumes if it is open. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    void TogglePause();
+
+    /** Closes every screen and unpauses if this component paused the game. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    void Resume();
+
+    /** Keys that mean Back in menus: Cancel in the Menu context, plus Pause on the pause
+     *  screen (so Start toggles it closed), all from the input catalog. */
+    bool IsBackKey(const FKey& Key);
+
+    /** Travel options a command uses ("mode=PlayNow", "game=Menu"); empty when the
+     *  command does not travel. */
+    FString BuildTravelOptions(EPSMenuCommand Command) const;
+
+    /** Called by APSMenuGameMode: open the root screen once play begins. */
+    void RequestRootScreenOnBeginPlay();
+
+    /** Widget class for every screen; a Widget Blueprint subclass restyles all menus. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
+    TSubclassOf<UPSMenuScreenWidget> ScreenWidgetClass;
+
+    /** Game mode alias (Config/DefaultEngine.ini GameModeClassAliases) for the front end. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
+    FString MenuGameModeAlias;
+
+    /** Input catalog IDs used for Back. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
+    FName MenuContextId;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
+    FName CancelActionId;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
+    FName PauseActionId;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
+    FName GameplayContextId;
+
+protected:
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+private:
+    void HandleStackChanged(FName PreviousTop, FName NewTop, EPSMenuTransition Transition);
+    void ShowTopScreen();
+    void RemoveActiveWidget();
+    void ApplyInputMode(bool bMenuOpen);
+    void ExecuteCommand(EPSMenuCommand Command);
+    void TravelTo(EPSMenuCommand Command);
+    APlayerController* GetOwningPlayer() const;
+
+    UPROPERTY(Transient)
+    UPSMenuStack* Stack;
+
+    UPROPERTY(Transient)
+    UPSMenuScreenWidget* ActiveWidget;
+
+    UPROPERTY(Transient)
+    FPSMenuCatalog Catalog;
+
+    bool bCatalogLoaded = false;
+    bool bPausedByMenu = false;
+    bool bOpenRootOnBeginPlay = false;
+};

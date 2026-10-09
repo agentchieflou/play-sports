@@ -25,6 +25,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `sample_routes.json` | `FPSRoute` (array field `Routes`) | `UPSPlaybookIngestion::LoadRoutesFromJson` |
 | `input_actions.json` | `FPSInputCatalog` (single object: `Contexts`, `Actions`) | `UPSDataIngestion::LoadInputCatalogFromJson`, via `UPSInputConfig::LoadFromJson` |
 | `input_tuning.json` | `FInputTuningRow` (single object) | `UPSDataIngestion::LoadInputTuningFromJson`, via `UPSInputConfig::LoadDefaults` |
+| `ui_menus.json` | `FPSMenuCatalog` (single object: `RootScreen`, `PauseScreen`, `TransitionSeconds`, `Screens`) | `UPSDataIngestion::LoadMenuCatalogFromJson`, via `UPSMenuComponent` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -95,3 +96,14 @@ upper ≤ 1), `StickResponseExponent` (> 0; 1 is linear), `DeviceSwitchAnalogThr
 far a stick must move before the game decides the player picked up the gamepad). `UPSInputConfig`
 applies the stick values as Enhanced Input modifiers on every gamepad stick binding;
 `tools/validate_data.py` checks the ranges.
+
+## Menu catalog schema (`FPSMenuCatalog`)
+
+`RootScreen` (the front end's first screen; must set `bAllowBack` to false), `PauseScreen` (what
+the in-game Pause action opens), `TransitionSeconds` (fade-in per screen), `Screens[]`.
+Each screen: `ScreenId` (unique), `Title`, optional `Body`, `bAllowBack` (default true), and
+`Options[]`. Each option: `OptionId` (unique on its screen), `Label`, and a `TargetScreen` to
+open, a `Command`, or both. `Command` is one of `EPSMenuCommand`: `None`, `Resume`,
+`StartPlayNow`, `StartFranchise`, `StartPractice`, `QuitToMainMenu`, `QuitGame`.
+`UPSMenuComponent::ValidateCatalog` and `tools/validate_data.py` reject dangling targets,
+options that do nothing, a root screen Back could close, and screens that can never be left.

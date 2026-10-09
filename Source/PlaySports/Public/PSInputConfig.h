@@ -72,6 +72,10 @@ public:
     /** Reverse lookup for catalog-wide handlers; NAME_None when Action is not ours. */
     FName FindActionId(const UInputAction* Action) const;
 
+    /** Every key bound to ActionId in ContextId (empty when the action does not live
+     *  there). Slate-driven screens such as menus read their keys from here (Epic 101). */
+    TArray<FKey> GetKeysFor(FName ActionId, FName ContextId) const;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     FPSInputCatalog Catalog;
 

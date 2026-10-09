@@ -6,7 +6,10 @@ feel, and onboarding. UMG-heavy but largely code-driveable. Sizing/mode legend: 
 
 **Reality note (2026-07-19 review):** `APSHUD` exists as a bare widget host and Epic 5's
 scoreboard stories are still open (UMG assets are editor-mode work per the Specs/ pattern);
-Epic 101's shell absorbs and replaces it. Input bring-up (Enhanced Input, the player
+Epic 101's shell absorbs and replaces it. (2026-10-09: Epic 101's screen stack, main menu,
+mode select and pause menu landed as `UPSMenuComponent` on `APSPlayerController`, driven by
+`Data/ui_menus.json`, with a code-built default layout until Widget Blueprints exist — see
+`Specs/Front_End_Shell.md`.) Input bring-up (Enhanced Input, the player
 controller, gamepad support) lives in Track M (`roadmap/controller-connectivity.md`); Epic
 104 builds feel on top of that substrate per the `Specs/Input_Architecture.md` contract, not
 new pawn code. UI reads game state from C1 bus subscriptions and the C2 single authority —
@@ -18,11 +21,11 @@ never direct sim/GameMode reads.
 **Goal:** A real menu system frames the game — main menu, mode select, team select, loading flow.
 **Depends on:** Core 5
 
-- [ ] Screen-stack framework (navigation, back-handling, transitions) all other UI epics build on
-- [ ] Main menu + mode select (Play Now, Franchise, Practice/Gym)
+- [x] Screen-stack framework (navigation, back-handling, transitions) all other UI epics build on
+- [x] Main menu + mode select (Play Now, Franchise, Practice/Gym)
 - [ ] Team select with identity display (colors, logos, ratings from team data)
 - [ ] Loading/transition screens with tips pipeline
-- [ ] Pause menu in-game with settings access
+- [x] Pause menu in-game with settings access
 
 ### Epic 102: Play-Call Interface
 
