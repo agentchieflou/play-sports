@@ -12,6 +12,7 @@ public class PlaySports : ModuleRules
             "CoreUObject",
             "Engine",
             "InputCore",
+            "EnhancedInput",
             "UMG",
             "AIModule",
             "NavigationSystem",

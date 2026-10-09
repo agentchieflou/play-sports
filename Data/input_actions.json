@@ -1,0 +1,125 @@
+{
+    "Contexts": [
+        {
+            "ContextId": "World",
+            "Priority": 0,
+            "Description": "Lobby, sideline and world walking: the browser world's baseline mapping (Specs/Input_Architecture.md section 2)."
+        },
+        {
+            "ContextId": "OnField",
+            "Priority": 1,
+            "Description": "The possessed pawn during play. APSPlayerController applies it on possessing an APSPlayerPawn (Epic 126); Epic 127 tunes its gamepad response."
+        }
+    ],
+    "Actions": [
+        {
+            "ActionId": "Move",
+            "ValueType": "Axis2D",
+            "Description": "Move relative to the control rotation's yaw. X is right, Y is forward.",
+            "Contexts": ["World", "OnField"],
+            "Bindings": [
+                { "Key": "W", "bSwizzleYX": true },
+                { "Key": "S", "bSwizzleYX": true, "bNegate": true },
+                { "Key": "D" },
+                { "Key": "A", "bNegate": true },
+                { "Key": "Up", "bSwizzleYX": true },
+                { "Key": "Down", "bSwizzleYX": true, "bNegate": true },
+                { "Key": "Right" },
+                { "Key": "Left", "bNegate": true },
+                { "Key": "Gamepad_Left2D" }
+            ]
+        },
+        {
+            "ActionId": "Look",
+            "ValueType": "Axis2D",
+            "Description": "Turn the view. X is yaw, Y is pitch.",
+            "Contexts": ["World"],
+            "Bindings": [
+                { "Key": "Mouse2D" },
+                { "Key": "Gamepad_Right2D" }
+            ]
+        },
+        {
+            "ActionId": "Sprint",
+            "ValueType": "Boolean",
+            "Description": "Override to full speed while held (APSPlayerPawn burst).",
+            "Contexts": ["World", "OnField"],
+            "Bindings": [
+                { "Key": "LeftShift" },
+                { "Key": "Gamepad_RightTrigger" },
+                { "Key": "Gamepad_LeftThumbstick" }
+            ]
+        },
+        {
+            "ActionId": "Confirm",
+            "ValueType": "Boolean",
+            "Description": "Accept or advance. A confirms in every context.",
+            "Contexts": ["OnField"],
+            "Bindings": [
+                { "Key": "Enter" },
+                { "Key": "Gamepad_FaceButton_Bottom" }
+            ]
+        },
+        {
+            "ActionId": "Cancel",
+            "ValueType": "Boolean",
+            "Description": "Back out or close. B cancels in every context.",
+            "Contexts": ["World", "OnField"],
+            "Bindings": [
+                { "Key": "Escape" },
+                { "Key": "Gamepad_FaceButton_Right" }
+            ]
+        },
+        {
+            "ActionId": "SwitchPlayer",
+            "ValueType": "Boolean",
+            "Description": "Take control of another pawn (Epic 127). Shares T / X with the world's take-over.",
+            "Contexts": ["OnField"],
+            "Bindings": [
+                { "Key": "T" },
+                { "Key": "Gamepad_FaceButton_Left" }
+            ]
+        },
+        {
+            "ActionId": "Interact",
+            "ValueType": "Boolean",
+            "Description": "Talk to or use what you face.",
+            "Contexts": ["World"],
+            "Bindings": [
+                { "Key": "E" },
+                { "Key": "Enter" },
+                { "Key": "Gamepad_FaceButton_Bottom" }
+            ]
+        },
+        {
+            "ActionId": "Secondary",
+            "ValueType": "Boolean",
+            "Description": "Secondary interact: take over what you face.",
+            "Contexts": ["World"],
+            "Bindings": [
+                { "Key": "T" },
+                { "Key": "Gamepad_FaceButton_Left" }
+            ]
+        },
+        {
+            "ActionId": "ViewToggle",
+            "ValueType": "Boolean",
+            "Description": "Toggle third and first person. Y toggles the camera in every context.",
+            "Contexts": ["World"],
+            "Bindings": [
+                { "Key": "V" },
+                { "Key": "Gamepad_FaceButton_Top" }
+            ]
+        },
+        {
+            "ActionId": "Picker",
+            "ValueType": "Boolean",
+            "Description": "Open the character / look picker (Epic 143). Start opens it in every context.",
+            "Contexts": ["World"],
+            "Bindings": [
+                { "Key": "C" },
+                { "Key": "Gamepad_Special_Right" }
+            ]
+        }
+    ]
+}

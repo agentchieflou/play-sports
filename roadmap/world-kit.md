@@ -19,7 +19,7 @@ depends on little, so it can run in parallel with the MVP tiers. Sizing/mode leg
 - [ ] Import plan: for each `RawAssets/world/` subfolder, the target `Content/` path, the Interchange settings, and which files need WebP→PNG or dequantising first (`RawAssets/world/README.md` §Importing into Unreal) — written as `Specs/World_Kit_Import_Spec.md` — *code*
 - [ ] `tools/assets/world/`: add an `--unreal` output to the `.mjs` packers (PNG textures, no quantisation, full-resolution atlases) so the pipeline makes engine-ready GLB without a hand step; document the Blender → FBX path for the people — *code*
 - [ ] Editor pass: import people (Skeletal Mesh + Skeleton + morph targets), trees, cars, office, props, materials and the two HDR skies; commit `Content/Characters/Standin/`, `Content/Stadium/Kit/`, `Content/Office/` with the `LICENSE` files copied alongside — *editor*
-- [ ] `Data/input_actions.json` + `UPSInputConfig` reads it through `UPSDataIngestion`; headless test per `Specs/Input_Architecture.md` §4 — *code* (this is the first story of that spec; Track M's Epic 126 consumes it)
+- [x] `Data/input_actions.json` + `UPSInputConfig` reads it through `UPSDataIngestion`; headless test per `Specs/Input_Architecture.md` §4 — *code* (this is the first story of that spec; Track M's Epic 126 consumes it)
 - [ ] Automation test: a commandlet or functional test loads each imported asset by soft path and asserts it is not null (proves the import survived a fresh checkout) — *code after the editor pass*
 
 ### Epic 143: Character Looks Port

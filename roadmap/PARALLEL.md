@@ -196,7 +196,7 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "123": {"track": "L", "mode": "mixed", "status": "open", "depends_on": ["37", "56"]},
     "124": {"track": "L", "mode": "mixed", "status": "open", "depends_on": ["52", "123"]},
     "125": {"track": "L", "mode": "code", "status": "open", "depends_on": ["21", "113"]},
-    "126": {"track": "M", "mode": "code", "status": "open", "depends_on": ["3"]},
+    "126": {"track": "M", "mode": "code", "status": "done", "depends_on": ["3"]},
     "127": {"track": "M", "mode": "code", "status": "open", "depends_on": ["126", "C3-ff-A"]},
     "128": {"track": "M", "mode": "code", "status": "open", "depends_on": ["127"]},
     "129": {"track": "N", "mode": "code", "status": "open", "depends_on": []},
@@ -212,7 +212,7 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "139": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["8", "19", "C1"]},
     "140": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "18", "17"]},
     "141": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "19"]},
-    "142": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["2"]},
+    "142": {"track": "R", "mode": "mixed", "status": "partial", "depends_on": ["2"]},
     "143": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "22", "C1"]},
     "144": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "2"]}
   },

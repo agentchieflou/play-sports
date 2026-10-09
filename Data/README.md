@@ -23,6 +23,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `sample_league_config.json` | `FPSLeagueConfig` (single object) | `UPSDataIngestion::LoadLeagueConfigFromJson` |
 | `sample_playbook.json` | `FPSPlayDefinition` (array field `Plays`) | `UPSPlaybookIngestion::LoadPlaysFromJson` |
 | `sample_routes.json` | `FPSRoute` (array field `Routes`) | `UPSPlaybookIngestion::LoadRoutesFromJson` |
+| `input_actions.json` | `FPSInputCatalog` (single object: `Contexts`, `Actions`) | `UPSDataIngestion::LoadInputCatalogFromJson`, via `UPSInputConfig::LoadFromJson` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -67,3 +68,21 @@ See `Source/PlaySports/Public/PSPlaybookData.h` for the full assignment/route sh
 3. Run the content commandlet (or `ValidatePlayersJson`/`ValidateTeamsJson` directly) before
    committing -- CI's "Validate data contracts" step does not currently know about this
    commandlet, so validate locally.
+
+## Input catalog schema (`FPSInputCatalog`)
+
+The single source of input actions and mapping contexts (`Specs/Input_Architecture.md`).
+`UPSInputConfig` builds one `UInputAction` per action and one `UInputMappingContext` per
+context from it at runtime; `APSPlayerController` applies the `OnField` context when it
+possesses a pawn.
+
+- `Contexts[]`: `ContextId` (unique), `Priority` (int; higher wins on a shared key),
+  `Description`.
+- `Actions[]`: `ActionId` (unique), `ValueType` (`Boolean`, `Axis1D`, `Axis2D`, `Axis3D` --
+  the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`.
+- `Bindings[]`: `Key` (an engine `EKeys` name such as `W`, `Mouse2D`, `Gamepad_Left2D`),
+  optional `bSwizzleYX` (route a 1D key onto a 2D action's Y axis) and `bNegate`.
+
+Rules enforced by `tools/validate_data.py` and `UPSInputConfig::Validate()`: every action has
+at least one keyboard/mouse key and one `Gamepad_*` key in every context it is declared for,
+and no key is bound to two actions in the same context.
