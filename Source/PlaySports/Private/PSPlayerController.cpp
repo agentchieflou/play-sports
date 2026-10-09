@@ -1,11 +1,21 @@
 #include "PSPlayerController.h"
 #include "PSInputConfig.h"
+#include "PSInputDeviceComponent.h"
 #include "PSPlayerPawn.h"
+#include "PSBall.h"
+#include "PSBroadcastCamera.h"
+#include "PSHealthComponent.h"
+#include "PSPossessionComponent.h"
+#include "PSTelemetryBus.h"
+#include "AIController.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "TimerManager.h"
 
 APSPlayerController::APSPlayerController()
 {
@@ -13,6 +23,14 @@ APSPlayerController::APSPlayerController()
     GameplayContextId = TEXT("OnField");
     MoveActionId = TEXT("Move");
     SprintActionId = TEXT("Sprint");
+    SwitchPlayerActionId = TEXT("SwitchPlayer");
+    HumanSide = EPSTeamSide::Offense;
+    DefaultControlRole = EPlayerRole::Quarterback;
+    bTakeDefaultControlOnBeginPlay = true;
+    DisplacedAIController = nullptr;
+    ParkedPawn = nullptr;
+
+    InputDeviceComponent = CreateDefaultSubobject<UPSInputDeviceComponent>(TEXT("InputDeviceComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()
@@ -20,7 +38,11 @@ UPSInputConfig* APSPlayerController::GetInputConfig()
     if (!InputConfig)
     {
         InputConfig = NewObject<UPSInputConfig>(this, TEXT("RuntimeInputConfig"));
-        InputConfig->LoadFromJson(UPSInputConfig::GetDefaultCatalogPath());
+        InputConfig->LoadDefaults();
+    }
+    if (InputDeviceComponent)
+    {
+        InputDeviceComponent->AnalogThreshold = InputConfig->Tuning.DeviceSwitchAnalogThreshold;
     }
     return InputConfig;
 }
@@ -28,6 +50,18 @@ UPSInputConfig* APSPlayerController::GetInputConfig()
 bool APSPlayerController::IsInputContextActive(FName ContextId) const
 {
     return ActiveInputContexts.Contains(ContextId);
+}
+
+void APSPlayerController::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // The game mode spawns the roster after BeginPlay, in the same frame; take control on
+    // the next tick once the pawns exist.
+    if (bTakeDefaultControlOnBeginPlay && IsLocalController())
+    {
+        GetWorldTimerManager().SetTimerForNextTick(this, &APSPlayerController::HandleDeferredDefaultControl);
+    }
 }
 
 void APSPlayerController::SetupInputComponent()
@@ -69,6 +103,10 @@ void APSPlayerController::BindCatalogActions(UEnhancedInputComponent& InInputCom
             InInputComponent.BindAction(Action, ETriggerEvent::Started, this, &APSPlayerController::HandleSprintStarted);
             InInputComponent.BindAction(Action, ETriggerEvent::Completed, this, &APSPlayerController::HandleSprintCompleted);
         }
+        else if (ActionDef.ActionId == SwitchPlayerActionId)
+        {
+            InInputComponent.BindAction(Action, ETriggerEvent::Started, this, &APSPlayerController::HandleSwitchPlayer);
+        }
         else if (ActionDef.ValueType == EInputActionValueType::Boolean)
         {
             InInputComponent.BindAction(Action, ETriggerEvent::Started, this, &APSPlayerController::HandleCatalogActionStarted);
@@ -91,6 +129,155 @@ void APSPlayerController::OnUnPossess()
     PopInputContext(GameplayContextId);
 
     Super::OnUnPossess();
+}
+
+bool APSPlayerController::TakeControlOf(APSPlayerPawn* Target)
+{
+    if (!Target)
+    {
+        return false;
+    }
+    if (GetPawn() == Target)
+    {
+        return true;
+    }
+
+    // Moving between football pawns hands the old one back to its AI first; a non-football
+    // pawn (the spectator) is parked to return to on ReleaseControl.
+    if (Cast<APSPlayerPawn>(GetPawn()))
+    {
+        ReturnControlledPawnToAI();
+    }
+    else if (GetPawn())
+    {
+        // Parked out of sight and out of the way so it can't block play.
+        ParkedPawn = GetPawn();
+        ParkedPawn->SetActorHiddenInGame(true);
+        ParkedPawn->SetActorEnableCollision(false);
+    }
+
+    DisplacedAIController = Cast<AAIController>(Target->GetController());
+    Possess(Target);
+    if (GetPawn() != Target)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerController: Could not take control of %s."), *Target->GetAttributes().DisplayName);
+        DisplacedAIController = nullptr;
+        return false;
+    }
+
+    ViewThroughBroadcastCamera();
+    PublishControlChange(Target, true);
+    UE_LOG(LogTemp, Display, TEXT("APSPlayerController: Human now controls %s."), *Target->GetAttributes().DisplayName);
+    return true;
+}
+
+void APSPlayerController::ReleaseControl()
+{
+    if (!Cast<APSPlayerPawn>(GetPawn()))
+    {
+        return;
+    }
+
+    ReturnControlledPawnToAI();
+
+    if (IsValid(ParkedPawn) && !ParkedPawn->GetController())
+    {
+        ParkedPawn->SetActorHiddenInGame(false);
+        ParkedPawn->SetActorEnableCollision(true);
+        Possess(ParkedPawn);
+    }
+    ParkedPawn = nullptr;
+}
+
+void APSPlayerController::ReturnControlledPawnToAI()
+{
+    APSPlayerPawn* Released = Cast<APSPlayerPawn>(GetPawn());
+    if (!Released)
+    {
+        return;
+    }
+
+    AAIController* ResumingAI = DisplacedAIController;
+    DisplacedAIController = nullptr;
+
+    UnPossess();
+    if (IsValid(ResumingAI) && !ResumingAI->GetPawn())
+    {
+        ResumingAI->Possess(Released);
+    }
+    else
+    {
+        Released->SpawnDefaultController();
+    }
+
+    PublishControlChange(Released, false);
+}
+
+bool APSPlayerController::TakeDefaultControl()
+{
+    for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
+    {
+        APSPlayerPawn* Candidate = *It;
+        if (Candidate->TeamSide == HumanSide && Candidate->GetAttributes().Role == DefaultControlRole)
+        {
+            return TakeControlOf(Candidate);
+        }
+    }
+    return false;
+}
+
+void APSPlayerController::HandleDeferredDefaultControl()
+{
+    if (!Cast<APSPlayerPawn>(GetPawn()) && !TakeDefaultControl())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("APSPlayerController: No %s on the human's side to take control of; the AI keeps every pawn."),
+            *UEnum::GetValueAsString(DefaultControlRole));
+    }
+}
+
+bool APSPlayerController::SwitchToBestPawn(const FVector& BallLocation)
+{
+    APSPlayerPawn* Current = Cast<APSPlayerPawn>(GetPawn());
+    const EPSTeamSide Side = Current ? Current->TeamSide : HumanSide;
+
+    APSPlayerPawn* Best = nullptr;
+    float BestDistanceSq = TNumericLimits<float>::Max();
+    for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
+    {
+        APSPlayerPawn* Candidate = *It;
+        if (Candidate->TeamSide != Side)
+        {
+            continue;
+        }
+
+        // The possession component is the authority on who has the ball (rule 6): a
+        // carrier on our side always gets control.
+        const UPSPossessionComponent* Possession = Candidate->GetPossessionComponent();
+        if (Possession && Possession->HasPossession())
+        {
+            Best = Candidate;
+            break;
+        }
+
+        const UPSHealthComponent* Health = Candidate->GetHealthComponent();
+        if (Candidate == Current || (Health && Health->IsDowned()))
+        {
+            continue;
+        }
+
+        const float DistanceSq = FVector::DistSquared(Candidate->GetActorLocation(), BallLocation);
+        if (DistanceSq < BestDistanceSq)
+        {
+            BestDistanceSq = DistanceSq;
+            Best = Candidate;
+        }
+    }
+
+    if (!Best || Best == Current)
+    {
+        return false;
+    }
+    return TakeControlOf(Best);
 }
 
 void APSPlayerController::HandleMove(const FInputActionValue& Value)
@@ -123,12 +310,48 @@ void APSPlayerController::HandleSprintCompleted(const FInputActionValue& Value)
     }
 }
 
+void APSPlayerController::HandleSwitchPlayer(const FInputActionValue& Value)
+{
+    TActorIterator<APSBall> BallIt(GetWorld());
+    if (BallIt)
+    {
+        SwitchToBestPawn(BallIt->GetActorLocation());
+    }
+}
+
 void APSPlayerController::HandleCatalogActionStarted(const FInputActionInstance& Instance)
 {
     const FName ActionId = InputConfig ? InputConfig->FindActionId(Instance.GetSourceAction()) : NAME_None;
     if (!ActionId.IsNone())
     {
         OnCatalogActionStarted.Broadcast(ActionId);
+    }
+}
+
+void APSPlayerController::PublishControlChange(const APSPlayerPawn* PlayerPawn, bool bHumanControlled)
+{
+    UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Bus || !PlayerPawn)
+    {
+        return;
+    }
+
+    const FPlayerAttributes Attributes = PlayerPawn->GetAttributes();
+    FPSTelemetryControlChangeEvent Event;
+    Event.PlayerName = Attributes.DisplayName;
+    Event.PlayerId = Attributes.PlayerId;
+    Event.bHumanControlled = bHumanControlled;
+    Bus->PublishControlChange(Event);
+}
+
+void APSPlayerController::ViewThroughBroadcastCamera()
+{
+    // Possession would otherwise put the view inside the pawn's capsule; the broadcast
+    // camera (Epic 4) is the game's view whenever one is in the level.
+    TActorIterator<APSBroadcastCamera> CameraIt(GetWorld());
+    if (CameraIt)
+    {
+        SetViewTarget(*CameraIt);
     }
 }
 

@@ -106,6 +106,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Health")
     UPSHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
+    /** True while a human player controller controls this pawn (Epic 127). HUD and camera
+     *  read this rather than asking the controller. */
+    UFUNCTION(BlueprintPure, Category = "Player")
+    bool IsUserControlled() const;
+
     // Called every frame
     virtual void Tick(float DeltaSeconds) override;
 

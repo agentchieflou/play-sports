@@ -67,3 +67,11 @@ section 2 table) and `OnField` (Epic 126's Move, Sprint, Confirm, Cancel, Switch
 same physical buttons). The debug frame-figures key and the dialogue-navigation rows are not in it
 yet: the first has no gamepad binding and the second needs a conversation context.
 `PlaySports.Input.CatalogCoversKeyboardAndGamepad` is the section 4 test.
+
+Status (2026-10-09, Epic 127): the on-field gamepad layout is the `OnField` rows of the catalog —
+left stick moves, A confirms, B cancels, X or LB switches player, RT or L3 sprints. Every gamepad
+stick binding gets a radial dead zone and an exponential response curve from `FInputTuningRow`
+(`Data/input_tuning.json`; section 3), and the engine's own stick `AxisConfig` dead zones in
+`Config/DefaultInput.ini` are zeroed so the two don't stack. Rule 4 is live:
+`UPSInputDeviceComponent` publishes `InputDeviceChange` on the bus from a last-input heuristic
+(analog input counts only past `DeviceSwitchAnalogThreshold`) and gamepad connect/disconnect.

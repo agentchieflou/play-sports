@@ -183,3 +183,36 @@ void UPSTelemetryBus::PublishRespawn(const FPSTelemetryRespawnEvent& Event)
     }
     OnRespawnMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishInputDeviceChange(const FPSTelemetryInputDeviceEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryInputDeviceEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("InputDeviceChange: Active=%s, Previous=%s, Connection=%s"),
+        *UEnum::GetValueAsString(Event.ActiveDevice), *UEnum::GetValueAsString(Event.PreviousDevice),
+        Event.bFromConnectionChange ? (Event.bConnected ? TEXT("Connected") : TEXT("Disconnected")) : TEXT("None"));
+    RecordHistory(EPSTelemetryEventType::InputDeviceChange, Description, JsonPayload);
+
+    if (OnInputDeviceChange.IsBound())
+    {
+        OnInputDeviceChange.Broadcast(Event);
+    }
+    OnInputDeviceChangeMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishControlChange(const FPSTelemetryControlChangeEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryControlChangeEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("ControlChange: Player=%s, Human=%s"),
+        *Event.PlayerName, Event.bHumanControlled ? TEXT("true") : TEXT("false"));
+    RecordHistory(EPSTelemetryEventType::ControlChange, Description, JsonPayload);
+
+    if (OnControlChange.IsBound())
+    {
+        OnControlChange.Broadcast(Event);
+    }
+    OnControlChangeMC.Broadcast(Event);
+}

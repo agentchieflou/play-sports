@@ -35,6 +35,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadInputCatalogFromJson(const FString& JsonFilePath, FPSInputCatalog& OutCatalog);
 
+    /** Loads the gamepad response tuning (Data/input_tuning.json, Epic 127). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadInputTuningFromJson(const FString& JsonFilePath, FInputTuningRow& OutTuning);
+
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
      *  numeric attributes. OutErrors entries are "Row N: <field> <problem>" so

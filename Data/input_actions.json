@@ -73,11 +73,12 @@
         {
             "ActionId": "SwitchPlayer",
             "ValueType": "Boolean",
-            "Description": "Take control of another pawn (Epic 127). Shares T / X with the world's take-over.",
+            "Description": "Take control of the ball carrier, or the teammate nearest the ball (Epic 127). Shares T / X with the world's take-over; LB is the shoulder-button alternative.",
             "Contexts": ["OnField"],
             "Bindings": [
                 { "Key": "T" },
-                { "Key": "Gamepad_FaceButton_Left" }
+                { "Key": "Gamepad_FaceButton_Left" },
+                { "Key": "Gamepad_LeftShoulder" }
             ]
         },
         {

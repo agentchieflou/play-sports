@@ -21,7 +21,14 @@ public class PlaySports : ModuleRules
             "FunctionalTesting"
         });
 
-        PrivateDependencyModuleNames.AddRange(new string[] { });
+        // Slate's input pre-processor and the platform device mapper feed active-device
+        // tracking (Epic 127, UPSInputDeviceComponent).
+        PrivateDependencyModuleNames.AddRange(new string[]
+        {
+            "Slate",
+            "SlateCore",
+            "ApplicationCore"
+        });
 
         PublicIncludePaths.AddRange(new string[] { });
         PrivateIncludePaths.AddRange(new string[] { });

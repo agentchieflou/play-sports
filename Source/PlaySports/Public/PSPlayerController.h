@@ -1,12 +1,16 @@
-// PSPlayerController.h - Epic 126: the project player controller; owns all human input
+// PSPlayerController.h - Epic 126/127: the project player controller; owns all human input
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "PSPlayerAttributes.h"
+#include "PSPlayerPawn.h"
 #include "PSPlayerController.generated.h"
 
+class AAIController;
 class UEnhancedInputComponent;
 class UPSInputConfig;
+class UPSInputDeviceComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -21,9 +25,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * local player's UEnhancedInputLocalPlayerSubsystem when one exists; headless worlds have no
  * local player, so the stack is what tests observe.
  *
- * Move and Sprint drive the pawn here. Every other Boolean catalog action is broadcast on
- * OnCatalogActionStarted by ID for its consumer (Epic 127's player switch, Epic 101's menus)
- * to subscribe to -- no consumer casts to this controller to read input.
+ * Human possession (Epic 127): at BeginPlay the controller takes the designated pawn
+ * (DefaultControlRole on HumanSide, the QB by default) from its AI controller, which
+ * resumes the pawn on ReleaseControl. SwitchPlayer moves control to the ball carrier when
+ * the human's side has the ball (the possession component is the authority, rule 6), and
+ * otherwise to the eligible teammate nearest the ball. Every handoff is published on
+ * UPSTelemetryBus; HUD and camera read it there or from APSPlayerPawn::IsUserControlled().
+ *
+ * Move, Sprint and SwitchPlayer drive the game here. Every other Boolean catalog action is
+ * broadcast on OnCatalogActionStarted by ID for its consumer (Epic 101's menus) to
+ * subscribe to -- no consumer casts to this controller to read input.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSPlayerController : public APlayerController
@@ -33,10 +44,13 @@ class PLAYSPORTS_API APSPlayerController : public APlayerController
 public:
     APSPlayerController();
 
-    /** The action catalog, loaded from Data/input_actions.json on first use when no
-     *  InputConfig is assigned. */
+    /** The action catalog and tuning, loaded from Data/ on first use when no InputConfig
+     *  is assigned. */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSInputConfig* GetInputConfig();
+
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSInputDeviceComponent* GetInputDeviceComponent() const { return InputDeviceComponent; }
 
     /** True while ContextId is on this controller's context stack. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -51,11 +65,31 @@ public:
      *  headlessly without a local player. */
     void HandleMove(const FInputActionValue& Value);
 
+    /** Takes control of Target from whatever controls it. Its AI controller is remembered
+     *  and resumes the pawn when control is released or moves elsewhere. */
+    UFUNCTION(BlueprintCallable, Category = "Possession")
+    bool TakeControlOf(APSPlayerPawn* Target);
+
+    /** Hands the controlled APSPlayerPawn back to the AI controller it was taken from (or a
+     *  fresh one), and returns to the pawn held before taking control, if any. */
+    UFUNCTION(BlueprintCallable, Category = "Possession")
+    void ReleaseControl();
+
+    /** Takes the first DefaultControlRole pawn on HumanSide. False when none exists. */
+    UFUNCTION(BlueprintCallable, Category = "Possession")
+    bool TakeDefaultControl();
+
+    /** The player-switch rule. If a pawn on the controlled side holds the ball, control goes
+     *  to it; otherwise to the non-downed teammate nearest BallLocation. False when there is
+     *  no better pawn than the current one. */
+    UFUNCTION(BlueprintCallable, Category = "Possession")
+    bool SwitchToBestPawn(const FVector& BallLocation);
+
     /** Fires once per press for every Boolean catalog action without a dedicated handler. */
     UPROPERTY(BlueprintAssignable, Category = "Input")
     FPSInputCatalogActionSignature OnCatalogActionStarted;
 
-    /** Optional override for the catalog; when null one is created from the default path. */
+    /** Optional override for the catalog; when null one is created from the default paths. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     UPSInputConfig* InputConfig;
 
@@ -69,7 +103,24 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     FName SprintActionId;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    FName SwitchPlayerActionId;
+
+    /** The side the human plays when not yet controlling a pawn. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Possession")
+    EPSTeamSide HumanSide;
+
+    /** The role taken by default on HumanSide. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Possession")
+    EPlayerRole DefaultControlRole;
+
+    /** Take the default pawn on the tick after BeginPlay (once the game mode has spawned the
+     *  roster). Off leaves every pawn to the AI, e.g. for watching a CPU-vs-CPU game. */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Possession")
+    bool bTakeDefaultControlOnBeginPlay;
+
 protected:
+    virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;
     virtual void OnPossess(APawn* InPawn) override;
     virtual void OnUnPossess() override;
@@ -77,11 +128,29 @@ protected:
 private:
     void HandleSprintStarted(const FInputActionValue& Value);
     void HandleSprintCompleted(const FInputActionValue& Value);
+    void HandleSwitchPlayer(const FInputActionValue& Value);
     void HandleCatalogActionStarted(const FInputActionInstance& Instance);
+    void HandleDeferredDefaultControl();
+
+    /** Gives the current APSPlayerPawn back to its AI without touching ParkedPawn. */
+    void ReturnControlledPawnToAI();
+    void PublishControlChange(const APSPlayerPawn* PlayerPawn, bool bHumanControlled);
+    void ViewThroughBroadcastCamera();
 
     void PushInputContext(FName ContextId);
     void PopInputContext(FName ContextId);
 
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSInputDeviceComponent* InputDeviceComponent;
+
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;
+
+    /** The AI controller displaced by TakeControlOf; it resumes the pawn on release. */
+    UPROPERTY(Transient)
+    AAIController* DisplacedAIController;
+
+    /** The non-football pawn (the game mode's spectator) held before taking control. */
+    UPROPERTY(Transient)
+    APawn* ParkedPawn;
 };

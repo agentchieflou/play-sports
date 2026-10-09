@@ -24,6 +24,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `sample_playbook.json` | `FPSPlayDefinition` (array field `Plays`) | `UPSPlaybookIngestion::LoadPlaysFromJson` |
 | `sample_routes.json` | `FPSRoute` (array field `Routes`) | `UPSPlaybookIngestion::LoadRoutesFromJson` |
 | `input_actions.json` | `FPSInputCatalog` (single object: `Contexts`, `Actions`) | `UPSDataIngestion::LoadInputCatalogFromJson`, via `UPSInputConfig::LoadFromJson` |
+| `input_tuning.json` | `FInputTuningRow` (single object) | `UPSDataIngestion::LoadInputTuningFromJson`, via `UPSInputConfig::LoadDefaults` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -86,3 +87,11 @@ possesses a pawn.
 Rules enforced by `tools/validate_data.py` and `UPSInputConfig::Validate()`: every action has
 at least one keyboard/mouse key and one `Gamepad_*` key in every context it is declared for,
 and no key is bound to two actions in the same context.
+
+## Input tuning schema (`FInputTuningRow`)
+
+Single object: `StickDeadZoneLower` and `StickDeadZoneUpper` (radial dead zone, 0 ≤ lower <
+upper ≤ 1), `StickResponseExponent` (> 0; 1 is linear), `DeviceSwitchAnalogThreshold` (0–1; how
+far a stick must move before the game decides the player picked up the gamepad). `UPSInputConfig`
+applies the stick values as Enhanced Input modifiers on every gamepad stick binding;
+`tools/validate_data.py` checks the ranges.
