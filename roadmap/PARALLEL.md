@@ -21,28 +21,48 @@ check-parallel` (Epic 138) validates this file against a fresh roadmap crawl.
    glob analysis can't see, with the required ordering.
 5. Statuses: `done` (all stories checked), `partial` (some checked; remaining stories are
    the open work), `open` (not started). Pseudo-IDs `C3-ff-A`/`C3-ff-B` are Epic C3's two
-   unticked fast-follows (ball-action component extraction; roster single source of truth).
+   fast-follows (ball-action component extraction; roster single source of truth), both
+   done; they stay because other entries depend on them.
 
-## Dispatchable today (2026-07-19)
+## Dispatchable today (2026-10-09)
 
-These groups are mutually disjoint and can run simultaneously:
+Statuses re-synced from the roadmap checkboxes on 2026-10-09. Group G1 (Phase 0/1.5 cleanup)
+is finished apart from Epic 2's two editor stories (2.1 field geometry, 2.2 markings), which
+wait for a human editor session, so Track M and Phase 2 are now open.
+
+These groups can run at the same time (see the scope note under the table):
 
 | Group | Label | Epics (order) | Owner suggestion |
 |---|---|---|---|
-| G1 | Phase 0/1.5 cleanup | 12.5 → C3-ff-A → C3-ff-B → 1.5 → 2.4 → 5.1–5.4 → 2.1–2.2 (specs/escalation) | Antigravity phase-runner (`.agents/prompts/phase0-cleanup.md`) |
-| G2 | Orchestrator (Track P) | 135 → 136 → 137 → 138 | Claude Code |
+| G2 | Orchestrator (Track P) | 138 (135–137 done) | Claude Code |
 | G3 | Playbook extraction (Track O) | 132 → 133 → 134 | Any agent (Python-only) |
 | G4 | Platform audit | 129 | Any agent (docs/config-only) |
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
-| G8 | World kit (Track R, code stories) | 142 → 143 → 144 | Any agent (DataTables, components, tests); editor stories wait for an editor session |
+| G6 | Controller connectivity (Track M) | 126 (in review, PR #61) → 127 → 128 | Claude Code |
+| G7 | Phase 2 AI | 14.2–14.5 → 17.4–17.5 (15, 16, 18 done) | Any strong agent |
+| G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 is in PR #61) | Any agent; editor stories wait for an editor session |
 
-After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 15 → 16 → 17 →
-18) unblocks in parallel with it — see `roadmap/MILESTONE_FIRST_GAME.md` M4/M5.
+Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
+(`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G6's and G8's track scopes on
+paper. The milestone plan (`roadmap/MILESTONE_FIRST_GAME.md` M4/M5) runs G6 and G7 side by side
+anyway. Giving 14 and 17 narrow `scope` fields would let the supervisor confirm that rather than
+take it on trust.
+
+Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
+
+- **Tier 0:** 101 Front-End Shell (Core 5 is done).
+- **Tier 1, Track E:** 70 pass-rush moves, 75 special-teams depth, 76 situational football.
+- **Tier 2:** 81 run-fit and gap integrity, 89 coaching staffs, 19.5 personnel packages.
+- **Tier 3 / infra:** 117 crash reporting, 125 content validation CLI, 24 test expansion.
+- **Overlay and camera code:** 26 telemetry sampling layer, 30 selected-player indicator,
+  33 score bug, 40 all-22 camera. **Epic 26 is the biggest single unblocker:** 15 epics
+  depend on it directly (27, 28, 31, 32, 34, 36, 38, 41, 49, 78, 82, 85, 92, 96, 115).
+- **Editor or mixed, waiting for an editor session:** 2.1–2.2, 22, 23.
 
 ```json parallel-matrix
 {
   "version": 1,
-  "generated": "2026-07-19",
+  "generated": "2026-10-09",
   "track_scopes": {
     "core": ["Source/PlaySports/**", "Data/**", "Config/**"],
     "A": ["Source/PlaySports/**/PSOverlay*", "Source/PlaySports/**/PSTelemetrySampling*", "Content/UI/Overlays/**"],
@@ -65,33 +85,33 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "R": ["RawAssets/**", "tools/assets/**", "Content/Characters/Standin/**", "Content/Stadium/Kit/**", "Content/Office/**", "Source/PlaySports/**/PSCharacterLook*", "Source/PlaySports/**/PSTimeOfDay*", "Source/PlaySports/**/PSInputConfig*", "Data/input_actions*", "Data/looks*", "Data/weather_tuning*", "Specs/World_Kit_Import_Spec.md"]
   },
   "epics": {
-    "1":   {"track": "core", "mode": "mixed", "status": "partial", "depends_on": [], "open_stories": ["1.5 end-to-end PIE test"]},
-    "2":   {"track": "core", "mode": "mixed", "status": "partial", "depends_on": [], "open_stories": ["2.1 field geometry (editor)", "2.2 markings (editor)", "2.4 OOB/end-zone volumes"]},
+    "1":   {"track": "core", "mode": "mixed", "status": "done", "depends_on": []},
+    "2":   {"track": "core", "mode": "mixed", "status": "partial", "depends_on": [], "open_stories": ["2.1 field geometry (editor)", "2.2 markings (editor)"]},
     "3":   {"track": "core", "mode": "code", "status": "done", "depends_on": ["2"]},
     "4":   {"track": "core", "mode": "code", "status": "done", "depends_on": ["2", "3"]},
-    "5":   {"track": "core", "mode": "mixed", "status": "open", "depends_on": ["1"], "scope": ["Source/PlaySports/**/PSHUD*", "Source/PlaySports/**/PSScoreboard*", "Content/UI/HUD/**"]},
+    "5":   {"track": "core", "mode": "mixed", "status": "done", "depends_on": ["1"], "scope": ["Source/PlaySports/**/PSHUD*", "Source/PlaySports/**/PSScoreboard*", "Content/UI/HUD/**"]},
     "6":   {"track": "core", "mode": "code", "status": "done", "depends_on": ["3"]},
     "7":   {"track": "core", "mode": "code", "status": "done", "depends_on": ["3", "6"]},
     "8":   {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "7"]},
     "9":   {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "8"]},
     "10":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["1"]},
     "11":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["2", "10"]},
-    "12":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["10"], "open_stories": ["12.5 timeout budget per team"]},
+    "12":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["10"]},
     "13":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["7", "10", "11"]},
     "C1":  {"track": "core", "mode": "code", "status": "done", "depends_on": []},
     "C2":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["C1"]},
-    "C3":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["C1"], "open_stories": ["C3-ff-A", "C3-ff-B"]},
-    "C3-ff-A": {"track": "core", "mode": "code", "status": "open", "depends_on": ["C3"], "scope": ["Source/PlaySports/**/PSPlayerPawn*", "Source/PlaySports/**/PSBallAction*"], "note": "extract ball-action component from APSPlayerPawn"},
-    "C3-ff-B": {"track": "core", "mode": "code", "status": "open", "depends_on": ["C3-ff-A"], "scope": ["Source/PlaySports/**/PSGameMode*", "Source/PlaySports/**/PSPlayerPawn*", "Source/PlaySports/**/PSPlaySimulation*"], "note": "single roster source of truth"},
+    "C3":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["C1"]},
+    "C3-ff-A": {"track": "core", "mode": "code", "status": "done", "depends_on": ["C3"], "scope": ["Source/PlaySports/**/PSPlayerPawn*", "Source/PlaySports/**/PSBallAction*"], "note": "extract ball-action component from APSPlayerPawn"},
+    "C3-ff-B": {"track": "core", "mode": "code", "status": "done", "depends_on": ["C3-ff-A"], "scope": ["Source/PlaySports/**/PSGameMode*", "Source/PlaySports/**/PSPlayerPawn*", "Source/PlaySports/**/PSPlaySimulation*"], "note": "single roster source of truth"},
     "C4":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["C2", "C3"]},
-    "14":  {"track": "core", "mode": "code", "status": "open", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"]},
-    "15":  {"track": "core", "mode": "code", "status": "open", "depends_on": ["9", "14"]},
-    "16":  {"track": "core", "mode": "code", "status": "open", "depends_on": ["14"]},
-    "17":  {"track": "core", "mode": "code", "status": "open", "depends_on": ["14", "15", "16"]},
-    "18":  {"track": "core", "mode": "code", "status": "open", "depends_on": ["16", "17"]},
-    "19":  {"track": "core", "mode": "code", "status": "open", "depends_on": ["1"]},
-    "20":  {"track": "core", "mode": "code", "status": "open", "depends_on": ["12", "19"]},
-    "21":  {"track": "core", "mode": "code", "status": "open", "depends_on": ["16", "19"]},
+    "14":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"], "open_stories": ["14.2 QB dropback/reads/throw-scramble-sack decision", "14.3 WR/TE route running from route data", "14.4 RB handoff/run-lane/pass-pro", "14.5 catch-point convergence"]},
+    "15":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["9", "14"]},
+    "16":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["14"]},
+    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation", "17.5 performance pass"]},
+    "18":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "17"]},
+    "19":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["1"], "open_stories": ["19.5 substitution and personnel packages"]},
+    "20":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["12", "19"]},
+    "21":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "19"]},
     "22":  {"track": "core", "mode": "editor", "status": "open", "depends_on": ["6", "7", "8"]},
     "23":  {"track": "core", "mode": "mixed", "status": "open", "depends_on": ["8", "11"]},
     "24":  {"track": "core", "mode": "code", "status": "open", "depends_on": []},
@@ -185,7 +205,7 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "112": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "113": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "114": {"track": "K", "mode": "code", "status": "open", "depends_on": ["17"]},
-    "115": {"track": "K", "mode": "code", "status": "open", "depends_on": ["17", "26"]},
+    "115": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["17", "26"], "open_stories": ["115.4 record/playback round-trip test", "115.5 divergence bisection tool"]},
     "116": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "117": {"track": "K", "mode": "code", "status": "open", "depends_on": []},
     "118": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25"]},
@@ -205,9 +225,9 @@ After G1 completes: Track M (126 → 127 → 128) unblocks, and Phase 2 (14 → 
     "132": {"track": "O", "mode": "code", "status": "open", "depends_on": []},
     "133": {"track": "O", "mode": "code", "status": "open", "depends_on": ["132"]},
     "134": {"track": "O", "mode": "code", "status": "open", "depends_on": ["133"]},
-    "135": {"track": "P", "mode": "code", "status": "open", "depends_on": []},
-    "136": {"track": "P", "mode": "code", "status": "open", "depends_on": ["135"]},
-    "137": {"track": "P", "mode": "code", "status": "open", "depends_on": ["136"]},
+    "135": {"track": "P", "mode": "code", "status": "done", "depends_on": []},
+    "136": {"track": "P", "mode": "code", "status": "done", "depends_on": ["135"]},
+    "137": {"track": "P", "mode": "code", "status": "done", "depends_on": ["136"]},
     "138": {"track": "P", "mode": "code", "status": "open", "depends_on": ["136", "137"]},
     "139": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["8", "19", "C1"]},
     "140": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "18", "17"]},
