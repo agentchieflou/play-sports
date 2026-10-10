@@ -10,6 +10,7 @@
 #include "PSDefenderTechniqueComponent.h"
 #include "PSDifficultySubsystem.h"
 #include "PSFieldDimensions.h"
+#include "PSNetRandomStreams.h"
 #include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -94,7 +95,23 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
         {
             AccuracyError *= Difficulty->GetThrowScatterScale(OwnerPawn);
         }
-        FVector ErrorOffset = FMath::VRand() * FMath::FRandRange(0.f, AccuracyError);
+        // The miss is the passer's own roll on the play's seeded stream (Epic 108): the same match
+        // seed and snap throw the same ball. Direction, then distance, as two statements: one
+        // stream drawn twice in one expression is drawn in whichever order the compiler picks.
+        FVector ErrorDirection;
+        float ErrorDistance = 0.f;
+        if (UPSNetRandomStreams* Streams = UPSNetRandomStreams::Get(this))
+        {
+            const FName PasserId = OwnerPawn->GetAttributes().PlayerId;
+            ErrorDirection = Streams->RollUnitVector(TEXT("ThrowScatter"), PasserId);
+            ErrorDistance = Streams->RollRange(TEXT("ThrowScatter"), 0.f, AccuracyError, PasserId);
+        }
+        else
+        {
+            ErrorDirection = FMath::VRand();
+            ErrorDistance = FMath::FRandRange(0.f, AccuracyError);
+        }
+        FVector ErrorOffset = ErrorDirection * ErrorDistance;
         ErrorOffset.Z = 0.f; // Keep error on 2D plane
         ScatterTarget += ErrorOffset;
     }
@@ -345,7 +362,8 @@ void UPSBallActionComponent::FumbleBall()
     if (Ball)
     {
         FVector FumbleVelocity = OwnerPawn->GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f);
-        FumbleVelocity += FMath::VRand() * 100.f;
+        // Which way it squirts is the fumbler's roll on the play's seeded streams (Epic 108).
+        FumbleVelocity += UPSNetRandomStreams::RollUnitVectorFor(this, TEXT("FumbleBounce"), OwnerPawn->GetAttributes().PlayerId) * 100.f;
         FumbleVelocity.Z = FMath::Max(50.f, FumbleVelocity.Z);
 
         Ball->Fumble(FumbleVelocity);
@@ -383,7 +401,9 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
     const float TackleChance = bGaveUp ? 1.f
         : PSBallResolutionHelpers::ComputeTackleChance(CarrierAttr, DefenderAttr, CarrierSpeed, DefenderSpeed, OddsMultiplier);
 
-    float Roll = FMath::FRand();
+    // The contest's rolls are the carrier's, on the play's seeded streams (Epic 108).
+    const FName CarrierId = CarrierAttr.PlayerId;
+    float Roll = UPSNetRandomStreams::RollFor(this, TEXT("Tackle"), CarrierId);
     if (Roll <= TackleChance)
     {
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Tackle SUCCESS! Defender %s tackled carrier %s (Roll: %.2f <= Chance: %.2f)"), 
@@ -391,7 +411,7 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
 
         // Fumble chance check (a slide protects the ball; a strip attempt rips at it)
         const float FumbleChance = PSBallResolutionHelpers::ComputeFumbleChance(DefenderSpeed, Technique ? Technique->GetFumbleChanceBonus() : 0.f);
-        if (!bGaveUp && FMath::FRand() <= FumbleChance)
+        if (!bGaveUp && UPSNetRandomStreams::RollFor(this, TEXT("TackleFumble"), CarrierId) <= FumbleChance)
         {
             FumbleBall();
             return true;
@@ -429,7 +449,10 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         UPSHealthComponent* CarrierHealth = OwnerPawn->GetHealthComponent();
         if (CarrierHealth && !bGaveUp)
         {
+            // A fresh model's stream starts at seed 0, so unseeded every hit drew the same spread;
+            // seeded from the carrier's stream, each hit draws its own, the same on a replay.
             UPSCombatRulesModel* CombatRules = NewObject<UPSCombatRulesModel>(this);
+            CombatRules->SeedDeterminism(UPSNetRandomStreams::RollSeedFor(this, TEXT("TackleDamage"), CarrierId));
             const float Damage = CombatRules->ResolveTackleDamage(CarrierAttr, DefenderAttr, ArchetypeTuning);
             bCarrierDowned = CarrierHealth->ApplyDamage(Damage);
 

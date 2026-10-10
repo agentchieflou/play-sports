@@ -17,8 +17,8 @@ offense snaps on the human's hike or the CPU's delay, and the snap distributes b
 `UPSPlayOrchestrator`; see `Specs/Play_Call_Interface.md`. Part 2 added the coaching AI's
 ranked suggestion with its reasons, recent plays and a tendency readout, and the live play clock
 with a quick-call; part 3 added favourite plays (kept in the profile save) and pre-snap
-defensive adjustments. Only 102.1 stays unticked: its play art waits on Epic 35, which depends on
-Track A's overlays (27, 31).) Input bring-up (Enhanced Input, the player
+defensive adjustments. Part 4 (102.1) drew each play beside its name as a diagram of the field's
+own compiled play art (Epic 35), laid flat by `PSPlayDiagram`.) Input bring-up (Enhanced Input, the player
 controller, gamepad support) lives in Track M (`roadmap/controller-connectivity.md`); Epic
 104 builds feel on top of that substrate per the `Specs/Input_Architecture.md` contract, not
 new pawn code. UI reads game state from C1 bus subscriptions and the C2 single authority —
@@ -42,7 +42,7 @@ never direct sim/GameMode reads.
 **Goal:** Browsing and calling plays is fast, informative, and readable — the most-used screen in the game.
 **Depends on:** Core 16, 101
 
-- [ ] Play-call screen: formation → concept browsing with play-art previews (reuses Track A art pipeline, 35)
+- [x] Play-call screen: formation → concept browsing with play-art previews (reuses Track A art pipeline, 35) *(formation → play browsing was part 1's, each play a concept in that formation ("Slant-Flat" in Trips Right). Every option that calls a play (a formation's plays, the suggestion, recent and favourite plays) now shows its diagram beside its name. `UPSOverlayPlayArtSubsystem::BuildPlayDiagram` resolves the play for the players where they stand (`PSPlayResolution`, man matchups too) and compiles it (`PSPlayArt::CompilePlayArt`), as the field's art is; `PSPlayDiagram::BuildDiagram` lays it flat: routes with arrowheads in their read's color and width, blockers' Ts, the quarterback's drop, zone stars with the drops to them, man lines and rush arrows, the side's rings or Xs, the other side faint, the line. `UPSPlayDiagramWidget` paints it with Slate lines (`PSWidgetDrawing`) fitted to whatever size it gets, upfield up, in a preview box sized in Slate units so a phone shows it at the same share of the screen. Look: `play_art.json`'s `Diagram` block. Tests: `PlaySports.PlayDiagram.*`. Not seen on a screen yet: the PIE and iPhone check, `Specs/Play_Call_Interface.md` section 3 step 3)*
 - [x] Suggestion surfaces: situation-aware recommendations (Core 18) with reasoning shown
 - [x] Recent/favorite plays and tendency self-awareness readout (what you've been calling — ties to 78)
 - [x] Defensive call flow (front + coverage + adjustments) with the same speed bar

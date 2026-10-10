@@ -14,8 +14,8 @@ struct FPSDifficultyScale
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
     FName Dial;
 
-    /** The tuning it scales: SkillAI, Pocket, DefenderAI or RouteRunning (as PSPlayerDNA's
-     *  bindings name them). */
+    /** The tuning it scales: SkillAI, Pocket, DefenderAI, RouteRunning or Recognition (as
+     *  PSPlayerDNA's bindings name them). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Difficulty")
     FName Target;
 

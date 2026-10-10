@@ -35,35 +35,14 @@ struct FPSDeceptionTuning : public FTableRowBase
 
     // --- Play-action ---
 
-    /** The quarterback carries out a play-action fake hand-off this long before his drop. */
+    /** The quarterback carries out a play-action fake hand-off this long before his drop. Who
+     *  bites on it, and for how long, is the recognition model's (UPSPlayRecognitionSubsystem,
+     *  Epic 80). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayAction")
     float FakeSeconds = 0.6f;
 
-    /** A run-fit defender's chance to bite on the fake at Awareness 0 against an even run-pass
-     *  mix ... */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayAction")
-    float BiteBaseChance = 0.5f;
-
-    /** ... plus this times how much more than half of the offense's recent calls were runs
-     *  (doubled: all runs adds it whole, all passes takes it away) ... */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayAction")
-    float BiteRunTendencyWeight = 0.4f;
-
-    /** ... minus this times his Awareness / 100. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayAction")
-    float BiteAwarenessWeight = 0.6f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayAction")
-    float BiteMinChance = 0.05f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayAction")
-    float BiteMaxChance = 0.9f;
-
-    /** A defender who bites is frozen this long (holding on the run fake, not dropping). */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayAction")
-    float BiteFreezeSeconds = 0.8f;
-
-    /** The offense's tendency is read over its last this-many scrimmage calls. */
+    /** The offense's tendency is read over its last this-many scrimmage calls (GetRunShare; the
+     *  recognition model expects the run from it). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayAction")
     int32 TendencyWindow = 10;
 
@@ -118,9 +97,10 @@ struct FPSDeceptionTuning : public FTableRowBase
  * UPSPlayCallSubsystem's playbook):
  *
  *  - Play-action: the quarterback carries out a fake hand-off for FakeSeconds (UpdateFake), then
- *    sells it: every run-fit defender may bite -- his Awareness against how run-heavy the
- *    offense's recent calls have been (BiteChance) -- and one who bites freezes instead of
- *    dropping.
+ *    sells it: a run-fit defender who hasn't seen through it by then bites and freezes instead
+ *    of dropping, until he does (UPSPlayRecognitionSubsystem::GetBiteSeconds, Epic 80: his
+ *    Awareness and style, against what the formation and the offense's recent calls made him
+ *    expect).
  *  - The run options' read at the mesh (ReadMesh), once the quarterback has ridden it for
  *    MeshRideSeconds: an RPO throws to its pass option when the conflict defender (the
  *    linebacker nearest the pass option, else a back) is playing the run, else gives; a zone read
@@ -137,8 +117,8 @@ struct FPSDeceptionTuning : public FTableRowBase
  *    the ball to someone already covered; undisciplined ones get read and beaten.
  *
  * Every moment goes on UPSTelemetryBus (Deception). The quarterback (UPSSkillPlayerAIComponent)
- * asks for his fake and his reads; the defenders hear the bites. Rolls are seeded from the snap's
- * situation. It steps from Tick at the AI's decision rate; headless tests call UpdateDefense.
+ * asks for his fake and his reads; the defenders hear the bites. It steps from Tick at the AI's
+ * decision rate; headless tests call UpdateDefense.
  * Tuning: Data/deception.json.
  */
 UCLASS()
@@ -164,10 +144,6 @@ public:
 
     /** Problems with InTuning (empty when sound). */
     static TArray<FString> ValidateTuning(const FPSDeceptionTuning& InTuning);
-
-    /** A run-fit defender's chance to bite on a play-action fake: his Awareness against the share
-     *  of runs in the offense's recent calls (0-1). */
-    static float BiteChance(float Awareness, float RunShare, const FPSDeceptionTuning& InTuning);
 
     /** The share of runs in the offense's last TendencyWindow scrimmage calls (0.5 with none). */
     float GetRunShare() const;
@@ -244,7 +220,6 @@ private:
     TWeakObjectPtr<APSPlayerPawn> PitchKey;
 
     FPSDeceptionDef PlayDeception;
-    FRandomStream Rolls;
     FVector LineOfScrimmage = FVector::ZeroVector;
     float SinceUpdate = 0.f;
     EPSOptionChoice MeshChoice = EPSOptionChoice::Give;

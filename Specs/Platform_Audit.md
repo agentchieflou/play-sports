@@ -98,6 +98,7 @@ Landed so far:
 | Player emphasis (Epic 36): custom-depth marks for outline, glow and dimming | `OverlayDetail` | Drawn, up to `MaxEmphasized` players | Drawn, up to `MaxEmphasized` players | Not drawn (requests kept) |
 | Replay playback (Epic 41): posing every pawn and the ball at the playhead | `ReplayPoseRateHz` | Every frame (0) | 30 a second | 15 a second |
 | Pre-snap route art (Epic 27): resolving every player's route to follow shifts and motion | `PlayArtRefreshHz`, `OverlayDetail` | 30 a second; fades at the snap | 15 a second; gone at the snap | Not drawn (0: events only) |
+| Audio (Epic 23): voices sounding at once, and releasing them and following the volume settings; the crowd's excitement settling | `AudioMaxVoices`, `AudioUpdateHz`, `CrowdUpdateHz` | 32 voices, every frame; crowd 30 a second | 16 voices, 30 a second; crowd 15 a second | 12 voices, 15 a second; crowd 10 a second |
 
 The sampler also halves its own rate when its frames run over the tier's budget
 (`PlaySports.TelemetrySampling.BudgetDegradesAndRecovers`); `stat PSTelemetrySampling` shows its
@@ -179,8 +180,8 @@ thread.
 | Overlays | ball flight, broadcast package, reticle, badges | 1.0 | 0.75 | 0.5 |
 | UI | HUD and menus | 1.0 | 0.75 | 1.0 |
 | Animation | not built yet (Track A) | 3.0 | 2.5 | 4.0 |
-| Crowd | not built yet (Track R) | 2.0 | 1.0 | 0.5 |
-| Audio | not built yet (Track E) | 1.0 | 0.75 | 1.0 |
+| Crowd | the crowd's excitement (Epic 23.2); the rendered crowd (Track R) not built yet | 2.0 | 1.0 | 0.5 |
+| Audio | the cue mapping and the commentary (Epics 23, 96); no sounds imported yet | 1.0 | 0.75 | 1.0 |
 
 These are proposed figures, like section 6's, set before the world kit arrives. A device
 measurement replaces them. A system that lands later keeps to its row, or argues for a new

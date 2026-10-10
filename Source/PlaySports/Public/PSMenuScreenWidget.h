@@ -9,6 +9,7 @@
 
 class UPSMenuComponent;
 class UTextBlock;
+class UWidget;
 class APlayerController;
 
 DECLARE_DELEGATE_OneParam(FPSMenuOptionChosen, FName /* OptionId */);
@@ -64,6 +65,10 @@ public:
     /** Gives OptionId's button focus (the first option when it is not on the screen). */
     void FocusOption(FName OptionId, APlayerController* Player);
 
+    /** True for an option that calls a play (Epic 102): the code-built layout shows that play's
+     *  diagram beside its name (UPSPlayDiagramWidget, Epic 102.1). */
+    static bool ShowsPlayPreview(const FPSMenuOptionDef& Option);
+
 protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
@@ -76,6 +81,10 @@ protected:
 
 private:
     void BuildDefaultLayout();
+
+    /** The play's preview for Option, sized by the play art's Diagram style; null for an option
+     *  that calls no play, or a play with nobody on the field to resolve it for. */
+    UWidget* MakePlayPreview(const FPSMenuOptionDef& Option);
 
     UPROPERTY(Transient)
     FPSMenuScreenDef Screen;

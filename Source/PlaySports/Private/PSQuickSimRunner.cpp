@@ -3,21 +3,15 @@
 #include "PSTelemetryBus.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
-#include "HAL/PlatformTime.h"
 #include "UObject/Class.h"
 
-namespace PSQuickSimRunnerPrivate
-{
-    /** Hands the global random stream back to chance after a seeded run. */
-    void UnseedRandom()
-    {
-        FMath::RandInit(static_cast<int32>(FPlatformTime::Cycles()));
-    }
-}
-
-FPSQuickSimResult UPSQuickSimRunner::SimulateGame(const TArray<FPlayerAttributes>& HomeRoster, const TArray<FPlayerAttributes>& AwayRoster)
+FPSQuickSimResult UPSQuickSimRunner::SimulateGame(const TArray<FPlayerAttributes>& HomeRoster, const TArray<FPlayerAttributes>& AwayRoster, int32 Seed)
 {
     UPSPlaySimulation* Sim = MakeGameSimulation(HomeRoster, AwayRoster);
+    if (Seed != 0)
+    {
+        Sim->SeedRolls(Seed);
+    }
     return RunGame(*Sim, SecondsPerPlayAdvance, nullptr);
 }
 
@@ -33,14 +27,15 @@ FPSQuickSimResult UPSQuickSimRunner::RecordGame(UObject* WorldContextObject, con
         return FPSQuickSimResult();
     }
 
-    FMath::RandInit(Seed);
     UPSPlaySimulation* Sim = MakeGameSimulation(HomeRoster, AwayRoster);
+    if (Seed != 0)
+    {
+        Sim->SeedRolls(Seed);
+    }
     FPSReplayRecording Start = UPSReplayFormat::MakeRecording(Sim->GetPlayState(), HomeRoster, AwayRoster);
     Start.Header.RandomSeed = Seed;
     Start.Header.FixedDeltaSeconds = SecondsPerPlayAdvance;
-    const FPSQuickSimResult Result = RecordRun(*World, *Sim, Start, OutRecording);
-    PSQuickSimRunnerPrivate::UnseedRandom();
-    return Result;
+    return RecordRun(*World, *Sim, Start, OutRecording);
 }
 
 bool UPSQuickSimRunner::ReplayGame(UObject* WorldContextObject, const FPSReplayRecording& Recording, FPSReplayRecording& OutReplay,
@@ -66,12 +61,11 @@ bool UPSQuickSimRunner::ReplayGame(UObject* WorldContextObject, const FPSReplayR
         return false;
     }
 
-    FMath::RandInit(Recording.Header.RandomSeed);
     UPSPlaySimulation* Sim = MakeGameSimulation(Recording.InitialState.OffenseRoster, Recording.InitialState.DefenseRoster);
+    Sim->SeedRolls(Recording.Header.RandomSeed);
     FPlayState Opening = Sim->GetPlayState();
     if (!FPlayState::StaticStruct()->CompareScriptStruct(&Opening, &Recording.InitialState.PlayState, PPF_None))
     {
-        PSQuickSimRunnerPrivate::UnseedRandom();
         OutFailure = FString::Printf(TEXT("the recording starts at Q%d, down %d at the %d, not at a quick-sim game's opening (Q%d, down %d at the %d)"),
             Recording.InitialState.PlayState.Quarter, Recording.InitialState.PlayState.Down, Recording.InitialState.PlayState.YardLine,
             Opening.Quarter, Opening.Down, Opening.YardLine);
@@ -83,7 +77,6 @@ bool UPSQuickSimRunner::ReplayGame(UObject* WorldContextObject, const FPSReplayR
     Start.Header.FixedDeltaSeconds = Recording.Header.FixedDeltaSeconds;
     Start.Header.GameBuildVersion = Recording.Header.GameBuildVersion;
     OutResult = RecordRun(*World, *Sim, Start, OutReplay);
-    PSQuickSimRunnerPrivate::UnseedRandom();
     return true;
 }
 

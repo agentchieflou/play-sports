@@ -1,6 +1,8 @@
 #include "PSPerfHarness.h"
 #include "PSAIFieldSnapshot.h"
+#include "PSAudioSubsystem.h"
 #include "PSBall.h"
+#include "PSCrowdExcitementSubsystem.h"
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
 #include "PSDefenderGapSubsystem.h"
@@ -272,6 +274,14 @@ void UPSPerfHarness::StepFrame(UWorld* World, const TArray<APSPlayerPawn*>& Play
     {
         Broadcast->AdvanceTime(DeltaSeconds);
     }
+    if (UPSCrowdExcitementSubsystem* Crowd = World->GetSubsystem<UPSCrowdExcitementSubsystem>())
+    {
+        Crowd->AdvanceTime(DeltaSeconds);
+    }
+    if (UPSAudioSubsystem* Audio = World->GetSubsystem<UPSAudioSubsystem>())
+    {
+        Audio->AdvanceTime(DeltaSeconds);
+    }
     PSPerf::EndFrame();
 }
 
@@ -321,6 +331,17 @@ FPSPerfReport UPSPerfHarness::RunStandardPlay(UWorld* World, const FPSPlatformTi
     {
         Sampler->ApplyPlatformTier(Tier);
         Sampler->RefreshRoster();
+    }
+    // The audio and the crowd hear the play as they do in a match (Epic 23), at the tier's rates.
+    if (UPSAudioSubsystem* Audio = World->GetSubsystem<UPSAudioSubsystem>())
+    {
+        Audio->BindToBus(Bus);
+        Audio->ApplyPlatformTier(Tier);
+    }
+    if (UPSCrowdExcitementSubsystem* Crowd = World->GetSubsystem<UPSCrowdExcitementSubsystem>())
+    {
+        Crowd->BindToBus(Bus);
+        Crowd->ApplyPlatformTier(Tier);
     }
 
     const float Frame = Active.FrameSeconds;

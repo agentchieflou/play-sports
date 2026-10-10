@@ -27,7 +27,10 @@ public:
      *  published on the TelemetryBus as the pass's intended receiver (Epic 140: an
      *  interception on this pass auto-kills IntendedTarget, not whoever the ball
      *  happens to hit). SpeedScale (0-1] throws softer than the passer's full arm: a touch
-     *  pass (Epic 104); a target out of reach that softly is thrown at full speed. */
+     *  pass (Epic 104); a target out of reach that softly is thrown at full speed. The ball
+     *  comes down off target by the passer's inaccuracy (his Awareness, the CPU difficulty's
+     *  scale), rolled on his stream of the play's seeded streams (UPSNetRandomStreams, Epic 108):
+     *  the same match seed and snap throw the same ball. */
     UFUNCTION(BlueprintCallable, Category = "BallAction")
     bool ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr, float SpeedScale = 1.f);
 

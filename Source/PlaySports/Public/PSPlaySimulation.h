@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/RandomStream.h"
 #include "UObject/NoExportTypes.h"
 #include "PSPlayerAttributes.h"
 #include "PSSituationData.h"
@@ -288,6 +289,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation|SpecialTeams")
     UPSSpecialTeamsModel* GetSpecialTeams();
 
+    /** From now on the simulation's chance (the flags, the quick sim's pass, the try, the CPU
+     *  kicker's kick) comes from a stream of its own seeded with Seed, and the special-teams
+     *  model's from one seeded from it (Epic 108). FRandomStream's integer core is the same on
+     *  every platform, and nothing else draws from it, so a seeded game is the same game
+     *  whatever else in the process draws random numbers. Unseeded, the simulation draws from
+     *  the engine's global stream, as franchise quick sims seeded with FMath::RandInit do. */
+    UFUNCTION(BlueprintCallable, Category = "Simulation|Determinism")
+    void SeedRolls(int32 Seed);
+
+    UFUNCTION(BlueprintPure, Category = "Simulation|Determinism")
+    bool AreRollsSeeded() const { return bRollsSeeded; }
+
     /** The last kick's outcome, as the special-teams model resolved it. */
     const FPSSpecialTeamsOutcome& GetLastSpecialTeamsOutcome() const { return LastSpecialTeamsOutcome; }
 
@@ -316,6 +329,16 @@ private:
     UPROPERTY(Transient)
     UPSSpecialTeamsModel* SpecialTeams = nullptr;
 
+    /** The simulation's own random stream, once SeedRolls has seeded it. */
+    FRandomStream Rolls;
+    bool bRollsSeeded = false;
+
+    /** The next roll in [0, 1): from Rolls once seeded, else the global stream. */
+    float NextRoll();
+
+    /** The next roll in [Min, Max): from Rolls once seeded, else the global stream. */
+    float NextRollInRange(float Min, float Max);
+
     /** Resolves the kickoff, punt or field goal the play is in through the special-teams model.
      *  KickRoll (0 = perfect .. 1) is the kick's quality; negative lets the model draw it. */
     void ResolveKick(float KickRoll = -1.f);
@@ -327,6 +350,13 @@ private:
     /** A scrimmage play is under way: from the snap until the whistle (not before the snap, not
      *  on a kick). Offensive holding is called only then. */
     bool IsBallLive() const;
+
+    /** Throws a flag: Penalty is settled as the play is scored, and the flag goes out on the bus
+     *  (a Penalty event, Epic 23) for the referee's whistle, the crowd and the commentary. */
+    void ThrowFlag(EPSPenaltyType Penalty, const FString& PlayerName);
+
+    /** The offended side's choice on the flag being settled, on the bus (Epic 23). */
+    void AnnouncePenaltyRuling(EPSPenaltyType Penalty, bool bAccepted, int32 Yards);
 
     /** A blocked kick's loose ball is being played out on the field (Epic 17.4). */
     bool bLooseBallLive = false;

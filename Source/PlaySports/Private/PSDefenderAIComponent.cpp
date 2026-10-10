@@ -11,6 +11,7 @@
 #include "PSLooseBallSubsystem.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayerDNA.h"
+#include "PSPlayRecognitionSubsystem.h"
 #include "PSPlayerPawn.h"
 #include "PSPlayResolution.h"
 #include "Engine/World.h"
@@ -190,11 +191,11 @@ void UPSDefenderAIComponent::HandleSnap(const FPSTelemetrySnapEvent& Event)
     bBallInAir = false;
     TimeSinceSnap = 0.f;
     PursueAt = -1.f;
-    PassReadAt = -1.f;
     BallHawkAt = -1.f;
     FrozenUntil = -1.f;
     LineOfScrimmage = Event.LineOfScrimmage;
     CoveredReceiver.Reset();
+    RunKeyBack.Reset();
     Action = EPSDefenderAction::Idle;
 }
 
@@ -222,11 +223,12 @@ void UPSDefenderAIComponent::HandleThrow(const FPSTelemetryThrowEvent& Event)
     bBallInAir = true;
     LandingSpot = Event.LandingLocation.IsZero() ? Event.TargetLocation : Event.LandingLocation;
 
-    // Defenders in coverage near where it comes down break on it, once they react.
+    // Defenders in coverage near where it comes down break on it, once they read it (Epic 80: an
+    // elite reader, or a ball hawk, jumps it).
     const bool bInCoverage = Action == EPSDefenderAction::Cover || Action == EPSDefenderAction::Zone || Action == EPSDefenderAction::Read;
     if (bInCoverage && FVector::Dist2D(Self->GetActorLocation(), LandingSpot) <= GetTuning().BallHawkRadius)
     {
-        BallHawkAt = TimeSinceSnap + GetReactionSeconds();
+        BallHawkAt = TimeSinceSnap + GetThrowReadSeconds(Self);
     }
 }
 
@@ -518,18 +520,22 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
             Action = EPSDefenderAction::BallHawk;
         }
 
-        // A run-fit defender who sees the passer drop back calls it a pass and drops.
-        if (Action == EPSDefenderAction::Read && Carrier && Carrier->GetAttributes().Role == EPlayerRole::Quarterback
-            && Carrier->GetActorLocation().X < LineOfScrimmage.X - Settings.PassReadDepth)
+        // A run-fit defender reads his keys, the line and the backfield, as fast as his Awareness
+        // and his style let him (UPSPlayRecognitionSubsystem, Epic 80): reading pass he drops;
+        // reading run he plays it, filling his gap while the quarterback still has the ball.
+        if (Action == EPSDefenderAction::Read)
         {
-            if (PassReadAt < 0.f)
-            {
-                PassReadAt = TimeSinceSnap + GetReactionSeconds();
-            }
-            if (TimeSinceSnap >= PassReadAt)
+            UPSPlayRecognitionSubsystem* Recognition = GetRecognition();
+            const FPSPlayDiagnosis Diagnosis = Recognition ? Recognition->GetDiagnosis(Self, TimeSinceSnap) : FPSPlayDiagnosis();
+            RunKeyBack.Reset();
+            if (Diagnosis.Read == EPSPlayRead::Pass)
             {
                 ZoneSpot = FVector(LineOfScrimmage.X + Settings.PassDropDepth, Self->GetActorLocation().Y, Self->GetActorLocation().Z);
                 Action = EPSDefenderAction::Zone;
+            }
+            else if (Diagnosis.Read == EPSPlayRead::Run)
+            {
+                RunKeyBack = Diagnosis.Player;
             }
         }
     }
@@ -586,6 +592,9 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
         break;
     case EPSDefenderAction::Fit:
         Direction = SteerToFit(Self, Carrier);
+        break;
+    case EPSDefenderAction::Read:
+        Direction = SteerOnRead(Self, Carrier);
         break;
     case EPSDefenderAction::BallHawk:
         Direction = SteerToward(Self, LandingSpot);
@@ -644,7 +653,8 @@ void UPSDefenderAIComponent::RecordDecision(UPSAIDecisionLog* DecisionLog, const
         Usual = TEXT("Holding his zone");
         break;
     case EPSDefenderAction::Read:
-        Usual = TEXT("Reading run or pass");
+        Target = RunKeyBack.Get();
+        Usual = Target ? TEXT("Read run: filling his gap") : TEXT("Reading run or pass");
         break;
     case EPSDefenderAction::Pursue:
         Target = Carrier;
@@ -779,6 +789,25 @@ FVector UPSDefenderAIComponent::SteerToFit(const APSPlayerPawn* Self, const APSP
     return GetFitTarget(Self, Carrier, Target) ? SteerToward(Self, Target) : SteerToPursue(Self, Carrier);
 }
 
+FVector UPSDefenderAIComponent::SteerOnRead(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier) const
+{
+    // Read run before the ball is out: he fills his gap against the back his key showed, as he
+    // would against that back with the ball (Epic 81's fit). Otherwise he holds.
+    const APSPlayerPawn* Back = RunKeyBack.Get();
+    FVector Target;
+    if (Back && !IsBallOut(Carrier) && GetFitTarget(Self, Back, Target))
+    {
+        return SteerToward(Self, Target);
+    }
+    return FVector::ZeroVector;
+}
+
+float UPSDefenderAIComponent::GetThrowReadSeconds(const APSPlayerPawn* Self)
+{
+    UPSPlayRecognitionSubsystem* Recognition = GetRecognition();
+    return Recognition && Self ? Recognition->GetReadTimes(Self).ThrowSeconds : GetReactionSeconds();
+}
+
 bool UPSDefenderAIComponent::GetFitTarget(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier, FVector& OutTarget) const
 {
     // A run: the ball handed or pitched to someone other than the passer.
@@ -818,6 +847,11 @@ UPSDeceptionSubsystem* UPSDefenderAIComponent::GetDeception() const
 {
     const UWorld* OwningWorld = GetWorld();
     return OwningWorld ? OwningWorld->GetSubsystem<UPSDeceptionSubsystem>() : nullptr;
+}
+
+UPSPlayRecognitionSubsystem* UPSDefenderAIComponent::GetRecognition() const
+{
+    return UPSPlayRecognitionSubsystem::Get(GetWorld());
 }
 
 UPSLooseBallSubsystem* UPSDefenderAIComponent::GetLooseBall() const

@@ -214,9 +214,9 @@ bool FPSReplayGameRoundTripTest::RunTest(const FString& Parameters)
             [](const FPSReplayEventRecord& Event) { return Event.EventType != TEXT("GameState") && Event.EventType != TEXT("PlayResult"); }));
         TestTrue(*(Label + TEXT(": somebody scored")), Recorded.HomeScore + Recorded.AwayScore > 0);
 
-        // Recording doesn't change the game: the franchise's quick sim, unrecorded, agrees.
-        FMath::RandInit(Seed);
-        const FPSQuickSimResult Unrecorded = Runner->SimulateGame(Home, Away);
+        // Recording doesn't change the game: the quick sim, unrecorded, agrees for the same seed
+        // (since Epic 108 a seed is the simulation's own stream's, not the global stream's).
+        const FPSQuickSimResult Unrecorded = Runner->SimulateGame(Home, Away, Seed);
         TestEqual(*(Label + TEXT(": the unrecorded game's home score")), Unrecorded.HomeScore, Recorded.HomeScore);
         TestEqual(*(Label + TEXT(": the unrecorded game's away score")), Unrecorded.AwayScore, Recorded.AwayScore);
 
