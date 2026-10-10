@@ -1,5 +1,6 @@
 #include "PSGameMode.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSPreSnapSubsystem.h"
 #include "PSFieldReads.h"
 #include "PSDataIngestion.h"
 #include "PSPlaySimulation.h"
@@ -368,34 +369,21 @@ void APSGameMode::PairLinemen()
         }
     }
 
-    for (APSPlayerPawn* OL : OffensiveLinemen)
+    // Each lineman takes the nearest free rusher, looking toward the offense's slide call
+    // (Epic 66: UPSPreSnapSubsystem owns protection).
+    UPSPreSnapSubsystem* PreSnap = GetWorld() ? GetWorld()->GetSubsystem<UPSPreSnapSubsystem>() : nullptr;
+    const FVector SlideAim = PreSnap ? PreSnap->GetSlideAimOffset() : FVector::ZeroVector;
+    for (const TPair<APSPlayerPawn*, APSPlayerPawn*>& Pair : UPSPreSnapSubsystem::ComputeBlockingPairs(OffensiveLinemen, Defenders, SlideAim))
     {
-        APSPlayerPawn* BestDefender = nullptr;
-        float MinDistance = FLT_MAX;
+        APSPlayerPawn* OL = Pair.Key;
+        APSPlayerPawn* BestDefender = Pair.Value;
+        OL->EngagedOpponent = BestDefender;
+        OL->bIsEngaged = true;
+        BestDefender->EngagedOpponent = OL;
+        BestDefender->bIsEngaged = true;
 
-        for (APSPlayerPawn* Def : Defenders)
-        {
-            if (!Def->bIsEngaged)
-            {
-                float Dist = FVector::Dist(OL->GetActorLocation(), Def->GetActorLocation());
-                if (Dist < MinDistance)
-                {
-                    MinDistance = Dist;
-                    BestDefender = Def;
-                }
-            }
-        }
-
-        if (BestDefender)
-        {
-            OL->EngagedOpponent = BestDefender;
-            OL->bIsEngaged = true;
-            BestDefender->EngagedOpponent = OL;
-            BestDefender->bIsEngaged = true;
-
-            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Paired OL %s with Defender %s for engagement."), 
-                *OL->GetAttributes().DisplayName, *BestDefender->GetAttributes().DisplayName);
-        }
+        UE_LOG(LogTemp, Display, TEXT("PSGameMode: Paired OL %s with Defender %s for engagement."),
+            *OL->GetAttributes().DisplayName, *BestDefender->GetAttributes().DisplayName);
     }
 }
 

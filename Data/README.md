@@ -36,6 +36,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
@@ -323,3 +324,31 @@ Single object (Epic 70; how a CPU pass rusher beats the man blocking him):
 
 `PSRushMoves::ValidateCatalog` and `tools/validate_data.py` check it.
 
+## Pre-snap tuning schema (`FPreSnapTuningRow`)
+
+Single object (Epic 66; the offense's audibles, hot routes, motion and protection,
+`UPSPreSnapSubsystem`). Distances are cm:
+- `HotRouteSets[]`, one per `Alignment` (`Wide`, `Slot`, `Tight`, `Backfield`, each once):
+  `Routes`, the route IDs a player lined up there may be hot-routed to, in the order the
+  hot-route button cycles them; and `ReleaseRoute`, the route a blocker there runs when
+  released. Every route must exist in `sample_routes.json`.
+- `SlotMaxSplit`: a wide receiver no further than this from the ball is in the slot.
+- `MotionEndSplit`, `MotionArrivalRadius`: motion runs across to this far on the other side of
+  the ball; arriving is being this close.
+- `ManTravelLateralRadius`: in man coverage, the defender within this distance across the field
+  of the man in motion travels with him (the man indicator).
+- `SlideAimOffset`: a sliding lineman looks for his man this far toward the slide.
+- `BoxWidth`, `BoxDepth`: the box, either side of the ball and off the line.
+- `CpuReadMinAwareness` (0-100): the CPU quarterback reads the defense before the snap only
+  with at least this Awareness.
+- `HeavyBoxCount`, `LightBoxCount` (whole numbers, light below heavy): a run into a heavy box
+  or a blitz look is checked out of, to a pass; a pass against a light box and no blitz, to a
+  run.
+- `BlitzHotRoute`, `bCpuKeepsBackInVsBlitz`: against a blitz look the CPU sends its slot
+  receiver on this route and keeps a back with a route in to block.
+- `bCpuMotionOnPass`: on a pass the CPU motions its slot receiver.
+- `AudibleAction`, `SelectAction`, `HotRouteAction`, `MotionAction`, `SlideAction`,
+  `ProtectionAction`: the human's pre-snap buttons, each a different Boolean action in the input
+  catalog's `PreSnap` context.
+
+`tools/validate_data.py` checks it, including the routes and the actions.
