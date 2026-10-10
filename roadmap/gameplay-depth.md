@@ -87,10 +87,10 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** The QB navigates a live pocket — climbs, slides, escapes, and decides to run.
 **Depends on:** Core 14, Core 9
 
-- [ ] Pocket-shape awareness from live line-play state (climb/slide directions)
-- [ ] Escape triggers and scramble-drill activation (receivers break off per Epic 17's rules)
-- [ ] Run/throw decision layer past the LOS constraint, slide/protect-self endings
-- [ ] Sack resolution variety (strip attempts, throwaways under `Awareness` gates, grounding risk)
+- [x] Pocket-shape awareness from live line-play state (climb/slide directions) *(`UPSPocketComponent` on `APSOffenseController` reads the rushers around the QB, a blocked one pressing less: edge pressure makes him climb (never onto the line), one-sided inside pressure slide away from it. Tuning: `Data/pocket_tuning.json`)*
+- [x] Escape triggers and scramble-drill activation (receivers break off per Epic 17's rules) *(a collapsed pocket (free rusher within `EscapeRadius`, or too much pressure) with nobody open sends him out to the side with room, announced as a `Pocket` Escape on the bus; the orchestrator that handed out the play hears it and runs `TriggerScrambleDrill`: receivers on routes break upfield of him toward that side, deep ones on further, blockers keep blocking)*
+- [x] Run/throw decision layer past the LOS constraint, slide/protect-self endings *(scrambling behind the line he throws on the run to a man who comes open (for `ScrambleMaxSeconds`), tucks it up a clear lane, and once past the line is a runner who can't throw and slides (`UPSCarrierMoveComponent`'s Slide) ahead of a closing tackler after `SlideMinGain`)*
+- [x] Sack resolution variety (strip attempts, throwaways under `Awareness` gates, grounding risk) *(a sack about to land: a rusher from the blind side tries a strip (`StripChance`, seeded per snap); one the QB sees gets the ball thrown away from `ThrowawayMinAwareness`, at a receiver's feet or out wide past the line, and a throwaway from the tackle box with nobody near it is announced as `IntentionalGrounding` for the rules (Epic 73) to flag, unless the QB is aware enough (`GroundingAvoidAwareness`) to take the sack. Tests: `Tests/PSPocketTests.cpp`)*
 
 ### Epic 72: Play-Action, RPO & Option Football
 

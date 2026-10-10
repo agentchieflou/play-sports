@@ -13,6 +13,7 @@
 class APSOffenseController;
 class APSPlayerPawn;
 class UPSRouteRunnerComponent;
+class UPSPocketComponent;
 
 /** What an offensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -96,6 +97,11 @@ struct FSkillPlayerAITuningRow : public FTableRowBase
      *  separation the break will make (none at 0). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float MaxAnticipationSeconds = 0.3f;
+
+    /** A receiver this far from every defender has had his coverage blown: the QB reads him
+     *  whatever his route's timing (Epic 17's broken-play reactions). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float BlownCoverageSeparation = 1000.f;
 
     /** How far in front of the QB a pass blocker sets up. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
@@ -200,8 +206,10 @@ private:
 
     /** The first action of the play: the route if he has one, else the QB's read or a block. */
     void StartOpeningAction(const APSPlayerPawn* Self);
+    void HandlePocket(const FPSTelemetryPocketEvent& Event);
 
     void TickQuarterback(APSPlayerPawn* Self);
+    void TickScrambler(APSPlayerPawn* Self);
     void ThrowTo(APSPlayerPawn* Self, APSPlayerPawn* Receiver);
     FVector SteerAlongRoute(APSPlayerPawn* Self);
     FVector SteerAsCarrier(APSPlayerPawn* Self) const;
@@ -209,6 +217,7 @@ private:
 
     APSOffenseController* GetOffenseController() const;
     UPSRouteRunnerComponent* GetRouteRunner() const;
+    UPSPocketComponent* GetPocket() const;
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindTeammate(EPlayerRole Role) const;
     const TArray<APSPlayerPawn*>& GetFieldPawns() const;
@@ -227,6 +236,8 @@ private:
     bool bPlayLive = false;
     bool bSnapPending = false;
     bool bRunPlay = false;
+    /** The QB escaped: a receiver still running (or done with) his route joins the drill. */
+    bool bScrambleDrill = false;
     bool bTuningLoaded = false;
     /** From the offense's call: what the carrier does about the sideline (Epic 76). */
     EPSBoundaryIntent BoundaryIntent = EPSBoundaryIntent::None;

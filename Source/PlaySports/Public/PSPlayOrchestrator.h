@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "PSPlaybookData.h"
+#include "PSPocketComponent.h"
+#include "PSTelemetryBus.h"
 #include "PSPlayOrchestrator.generated.h"
 
 class APSPlayerPawn;
@@ -13,8 +15,11 @@ class APSDefenseController;
  * on-field agents (Epic 17). Offense pawns get world-space route waypoints via
  * APSOffenseController::SetAssignedRoute; defense pawns get coverage/rush/run-fit
  * assignments via APSDefenseController::SetAssignment. Synchronized phase reaction
- * is handled by each controller's own TelemetryBus subscription (Epic C1); this
- * class only performs the one-time distribution at snap time.
+ * is handled by each controller's own TelemetryBus subscription (Epic C1).
+ *
+ * When the play breaks down it re-coordinates (Epic 17's broken-play adaptation): having
+ * handed out a play it listens on the bus, and a quarterback's escape from the pocket
+ * (Pocket event, Epic 71) sends the receivers into the scramble drill.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSPlayOrchestrator : public UObject
@@ -38,10 +43,16 @@ public:
      *  play has no slot for Role. */
     static const FPSPlayAssignment* FindAssignmentSlot(const FPSPlayDefinition& Play, EPlayerRole Role, int32 RoleIndex);
 
-    /** Broken-play adaptation: redirects offensive skill players still running routes
-     *  toward space near the scrambling QB's current location. */
+    /** Broken-play adaptation, the scramble drill: every receiver, tight end or back still on
+     *  a route (not a blocker) breaks to a spot the scrambling QB can throw to -- upfield of
+     *  him toward ScrambleSide (-1 left, +1 right; 0 takes his own side of the ball), or, deep
+     *  already, further on toward it -- spread by the play's seeded jitter
+     *  (PSPocket::ScrambleDrillSpot, Data/pocket_tuning.json). */
     UFUNCTION(BlueprintCallable, Category = "AI|Orchestration")
-    void TriggerScrambleDrill(const TArray<APSPlayerPawn*>& OnFieldPawns, const FVector& QBLocation);
+    void TriggerScrambleDrill(const TArray<APSPlayerPawn*>& OnFieldPawns, const FVector& QBLocation, float ScrambleSide = 0.f);
+
+    /** Listens for the play breaking down. DistributePlayCall binds to its pawns' world. */
+    void BindToBus(UWorld* World);
 
     /** Seeds the deterministic RNG used for any orchestration-level randomness
      *  (e.g. coverage jitter), so a play can be re-simulated identically for replay/debug. */
@@ -54,8 +65,17 @@ public:
 private:
     static EPSDefensiveAssignmentType ToDefensiveAssignmentType(EPSAssignmentKind Kind);
 
+    void HandlePocket(const FPSTelemetryPocketEvent& Event);
+    const FPocketTuningRow& GetScrambleTuning();
+
     TArray<FVector> ResolveRouteWaypoints(const FName& RouteId, const UDataTable* RouteLibrary, const FVector& Origin, float MirrorY = 1.f) const;
 
     UPROPERTY(Transient)
     FRandomStream DeterminismStream;
+
+    UPROPERTY(Transient)
+    FPocketTuningRow ScrambleTuning;
+
+    TWeakObjectPtr<UPSTelemetryBus> BoundBus;
+    bool bScrambleTuningLoaded = false;
 };

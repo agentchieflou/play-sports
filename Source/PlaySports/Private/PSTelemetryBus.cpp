@@ -463,3 +463,19 @@ void UPSTelemetryBus::PublishPersonnel(const FPSTelemetryPersonnelEvent& Event)
     }
     OnPersonnelMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishPocket(const FPSTelemetryPocketEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPocketEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Pocket: %s %s vs %s%s"),
+        *UEnum::GetValueAsString(Event.Kind), *Event.PasserName, *Event.DefenderName, Event.bSuccess ? TEXT(" (success)") : TEXT(""));
+    RecordHistory(EPSTelemetryEventType::Pocket, Description, JsonPayload);
+
+    if (OnPocket.IsBound())
+    {
+        OnPocket.Broadcast(Event);
+    }
+    OnPocketMC.Broadcast(Event);
+}

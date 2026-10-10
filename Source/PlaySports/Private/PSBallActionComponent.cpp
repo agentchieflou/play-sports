@@ -289,14 +289,20 @@ void UPSBallActionComponent::FumbleBall()
         return;
     }
 
-    APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
-    if (GM && GM->ActiveBall)
+    // The ball this pawn carries (rule 5: no reach-through), else the game's.
+    APSBall* Ball = GetCarriedBall();
+    if (!Ball)
+    {
+        const APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
+        Ball = GM ? GM->ActiveBall : nullptr;
+    }
+    if (Ball)
     {
         FVector FumbleVelocity = OwnerPawn->GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f);
         FumbleVelocity += FMath::VRand() * 100.f;
         FumbleVelocity.Z = FMath::Max(50.f, FumbleVelocity.Z);
 
-        GM->ActiveBall->Fumble(FumbleVelocity);
+        Ball->Fumble(FumbleVelocity);
         OwnerPawn->LosePossession();
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Player %s (ID: %s) fumbled the ball!"), *OwnerPawn->GetAttributes().DisplayName, *OwnerPawn->GetAttributes().PlayerId.ToString());
     }
