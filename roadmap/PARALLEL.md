@@ -221,7 +221,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "119": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["25", "135"], "open_stories": ["119.4 MCP registration: the stdio server is built (#138, entries in AGENTS.md); registering it waits on the owner, as 25.4 does"]},
     "120": {"track": "K", "mode": "code", "status": "done", "depends_on": ["112", "113"]},
     "121": {"track": "L", "mode": "code", "status": "open", "depends_on": ["16", "89"]},
-    "122": {"track": "L", "mode": "code", "status": "open", "depends_on": ["19", "79"]},
+    "122": {"track": "L", "mode": "code", "status": "partial", "depends_on": ["19", "79"], "open_stories": ["122.4 appearance parameters: the DNA half is in (#155); appearance waits on Epic 57"]},
     "123": {"track": "L", "mode": "mixed", "status": "open", "depends_on": ["37", "56"]},
     "124": {"track": "L", "mode": "mixed", "status": "open", "depends_on": ["52", "123"]},
     "125": {"track": "L", "mode": "code", "status": "done", "depends_on": ["21", "113"]},

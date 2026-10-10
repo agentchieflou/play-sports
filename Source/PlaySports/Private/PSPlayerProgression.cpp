@@ -1,4 +1,12 @@
 #include "PSPlayerProgression.h"
+#include "Misc/Paths.h"
+
+FString UPSPlayerProgression::GetDefaultTuningPath()
+{
+    FString Path = FPaths::ProjectDir() / TEXT("Data/player_progression.json");
+    FPaths::CollapseRelativeDirectories(Path);
+    return Path;
+}
 
 float UPSPlayerProgression::ClampAttribute(float Value)
 {

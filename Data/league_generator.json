@@ -1,0 +1,375 @@
+{
+    "LeagueName": "PlaySports League",
+    "NumTeams": 32,
+    "NumWeeks": 17,
+    "ByeWeekNumbers": [],
+    "NumPlayoffTeams": 12,
+    "Divisions": ["Atlantic", "Capital", "Coastal", "Frontier", "Heartland", "Lakes", "Mountain", "Pacific"],
+    "PlaceholderTeamName": "League Team",
+    "PlaceholderColors": [
+        "#1F4E79", "#8C1D18", "#2E6B30", "#C9A227", "#4B2E83", "#D45500", "#0E7C7B", "#5B5B5B",
+        "#A61C3C", "#1B998B", "#F2F2F2", "#202020"
+    ],
+    "TeamTalentSpread": 0.3,
+    "TalentPerExperienceYear": 0.06,
+    "MaxExperienceTalent": 0.5,
+    "EntryAgeMin": 21,
+    "EntryAgeMax": 23,
+    "MaxNameAttempts": 64,
+    "DraftClass": { "ProspectsPerTeam": 8, "TalentShift": -0.4, "TalentSpread": 1.1 },
+    "RoleProfiles": [
+        {
+            "Role": "Quarterback",
+            "RosterCount": 3,
+            "IdCode": "QB",
+            "Attrition": 0.12,
+            "MaxAge": 40,
+            "Attributes": [
+                { "Attribute": "Speed", "Mean": 72, "StdDev": 7, "Min": 48, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Agility", "Mean": 73, "StdDev": 6, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Strength", "Mean": 72, "StdDev": 6, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Acceleration", "Mean": 73, "StdDev": 6, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Awareness", "Mean": 76, "StdDev": 8, "Min": 50, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Stamina", "Mean": 82, "StdDev": 5, "Min": 65, "Max": 99, "TalentWeight": 0.3 },
+                { "Attribute": "WeightKg", "Mean": 102, "StdDev": 5, "Min": 88, "Max": 118, "TalentWeight": 0.0 },
+                { "Attribute": "HeightCm", "Mean": 191, "StdDev": 4, "Min": 180, "Max": 203, "TalentWeight": 0.0 }
+            ]
+        },
+        {
+            "Role": "RunningBack",
+            "RosterCount": 4,
+            "IdCode": "RB",
+            "Attrition": 0.26,
+            "MaxAge": 33,
+            "Attributes": [
+                { "Attribute": "Speed", "Mean": 85, "StdDev": 4, "Min": 70, "Max": 98, "TalentWeight": 0.75 },
+                { "Attribute": "Agility", "Mean": 83, "StdDev": 5, "Min": 65, "Max": 98, "TalentWeight": 0.75 },
+                { "Attribute": "Strength", "Mean": 74, "StdDev": 6, "Min": 55, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Acceleration", "Mean": 85, "StdDev": 4, "Min": 70, "Max": 98, "TalentWeight": 0.75 },
+                { "Attribute": "Awareness", "Mean": 70, "StdDev": 7, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Stamina", "Mean": 80, "StdDev": 5, "Min": 65, "Max": 99, "TalentWeight": 0.3 },
+                { "Attribute": "WeightKg", "Mean": 98, "StdDev": 6, "Min": 82, "Max": 115, "TalentWeight": 0.0 },
+                { "Attribute": "HeightCm", "Mean": 179, "StdDev": 4, "Min": 168, "Max": 190, "TalentWeight": 0.0 }
+            ]
+        },
+        {
+            "Role": "WideReceiver",
+            "RosterCount": 6,
+            "IdCode": "WR",
+            "Attrition": 0.2,
+            "MaxAge": 36,
+            "Attributes": [
+                { "Attribute": "Speed", "Mean": 87, "StdDev": 3.5, "Min": 72, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Agility", "Mean": 85, "StdDev": 4.5, "Min": 68, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Strength", "Mean": 62, "StdDev": 6, "Min": 45, "Max": 85, "TalentWeight": 0.75 },
+                { "Attribute": "Acceleration", "Mean": 86, "StdDev": 4, "Min": 70, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Awareness", "Mean": 71, "StdDev": 7, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Stamina", "Mean": 82, "StdDev": 5, "Min": 65, "Max": 99, "TalentWeight": 0.3 },
+                { "Attribute": "WeightKg", "Mean": 89, "StdDev": 5, "Min": 76, "Max": 105, "TalentWeight": 0.0 },
+                { "Attribute": "HeightCm", "Mean": 186, "StdDev": 5, "Min": 172, "Max": 200, "TalentWeight": 0.0 }
+            ]
+        },
+        {
+            "Role": "TightEnd",
+            "RosterCount": 3,
+            "IdCode": "TE",
+            "Attrition": 0.17,
+            "MaxAge": 37,
+            "Attributes": [
+                { "Attribute": "Speed", "Mean": 77, "StdDev": 5, "Min": 60, "Max": 93, "TalentWeight": 0.75 },
+                { "Attribute": "Agility", "Mean": 74, "StdDev": 5, "Min": 58, "Max": 92, "TalentWeight": 0.75 },
+                { "Attribute": "Strength", "Mean": 78, "StdDev": 5, "Min": 62, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Acceleration", "Mean": 77, "StdDev": 5, "Min": 60, "Max": 93, "TalentWeight": 0.75 },
+                { "Attribute": "Awareness", "Mean": 71, "StdDev": 7, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Stamina", "Mean": 81, "StdDev": 5, "Min": 65, "Max": 99, "TalentWeight": 0.3 },
+                { "Attribute": "WeightKg", "Mean": 115, "StdDev": 5, "Min": 102, "Max": 130, "TalentWeight": 0.0 },
+                { "Attribute": "HeightCm", "Mean": 196, "StdDev": 3, "Min": 188, "Max": 204, "TalentWeight": 0.0 }
+            ]
+        },
+        {
+            "Role": "OffensiveLineman",
+            "RosterCount": 9,
+            "IdCode": "OL",
+            "Attrition": 0.15,
+            "MaxAge": 38,
+            "Attributes": [
+                { "Attribute": "Speed", "Mean": 58, "StdDev": 5, "Min": 40, "Max": 77, "TalentWeight": 0.75 },
+                { "Attribute": "Agility", "Mean": 63, "StdDev": 6, "Min": 44, "Max": 84, "TalentWeight": 0.75 },
+                { "Attribute": "Strength", "Mean": 87, "StdDev": 4, "Min": 72, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Acceleration", "Mean": 59, "StdDev": 5, "Min": 40, "Max": 78, "TalentWeight": 0.75 },
+                { "Attribute": "Awareness", "Mean": 73, "StdDev": 7, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Stamina", "Mean": 80, "StdDev": 5, "Min": 65, "Max": 99, "TalentWeight": 0.3 },
+                { "Attribute": "WeightKg", "Mean": 143, "StdDev": 6, "Min": 128, "Max": 165, "TalentWeight": 0.0 },
+                { "Attribute": "HeightCm", "Mean": 196, "StdDev": 3, "Min": 188, "Max": 206, "TalentWeight": 0.0 }
+            ]
+        },
+        {
+            "Role": "DefensiveLineman",
+            "RosterCount": 10,
+            "IdCode": "DL",
+            "Attrition": 0.17,
+            "MaxAge": 37,
+            "Attributes": [
+                { "Attribute": "Speed", "Mean": 68, "StdDev": 7, "Min": 48, "Max": 90, "TalentWeight": 0.75 },
+                { "Attribute": "Agility", "Mean": 68, "StdDev": 6, "Min": 50, "Max": 90, "TalentWeight": 0.75 },
+                { "Attribute": "Strength", "Mean": 84, "StdDev": 5, "Min": 68, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Acceleration", "Mean": 72, "StdDev": 6, "Min": 52, "Max": 94, "TalentWeight": 0.75 },
+                { "Attribute": "Awareness", "Mean": 68, "StdDev": 7, "Min": 48, "Max": 93, "TalentWeight": 0.75 },
+                { "Attribute": "Stamina", "Mean": 79, "StdDev": 5, "Min": 62, "Max": 99, "TalentWeight": 0.3 },
+                { "Attribute": "WeightKg", "Mean": 130, "StdDev": 10, "Min": 110, "Max": 155, "TalentWeight": 0.0 },
+                { "Attribute": "HeightCm", "Mean": 193, "StdDev": 3, "Min": 183, "Max": 203, "TalentWeight": 0.0 }
+            ]
+        },
+        {
+            "Role": "Linebacker",
+            "RosterCount": 7,
+            "IdCode": "LB",
+            "Attrition": 0.19,
+            "MaxAge": 36,
+            "Attributes": [
+                { "Attribute": "Speed", "Mean": 79, "StdDev": 5, "Min": 62, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Agility", "Mean": 77, "StdDev": 5, "Min": 60, "Max": 94, "TalentWeight": 0.75 },
+                { "Attribute": "Strength", "Mean": 78, "StdDev": 5, "Min": 62, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Acceleration", "Mean": 80, "StdDev": 5, "Min": 62, "Max": 96, "TalentWeight": 0.75 },
+                { "Attribute": "Awareness", "Mean": 71, "StdDev": 7, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Stamina", "Mean": 81, "StdDev": 5, "Min": 65, "Max": 99, "TalentWeight": 0.3 },
+                { "Attribute": "WeightKg", "Mean": 109, "StdDev": 5, "Min": 95, "Max": 123, "TalentWeight": 0.0 },
+                { "Attribute": "HeightCm", "Mean": 188, "StdDev": 3, "Min": 180, "Max": 198, "TalentWeight": 0.0 }
+            ]
+        },
+        {
+            "Role": "DefensiveBack",
+            "RosterCount": 11,
+            "IdCode": "DB",
+            "Attrition": 0.21,
+            "MaxAge": 36,
+            "Attributes": [
+                { "Attribute": "Speed", "Mean": 87, "StdDev": 3.5, "Min": 72, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Agility", "Mean": 86, "StdDev": 4, "Min": 70, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Strength", "Mean": 60, "StdDev": 6, "Min": 42, "Max": 82, "TalentWeight": 0.75 },
+                { "Attribute": "Acceleration", "Mean": 86, "StdDev": 4, "Min": 70, "Max": 99, "TalentWeight": 0.75 },
+                { "Attribute": "Awareness", "Mean": 70, "StdDev": 7, "Min": 50, "Max": 95, "TalentWeight": 0.75 },
+                { "Attribute": "Stamina", "Mean": 82, "StdDev": 5, "Min": 65, "Max": 99, "TalentWeight": 0.3 },
+                { "Attribute": "WeightKg", "Mean": 88, "StdDev": 4, "Min": 78, "Max": 100, "TalentWeight": 0.0 },
+                { "Attribute": "HeightCm", "Mean": 183, "StdDev": 4, "Min": 172, "Max": 193, "TalentWeight": 0.0 }
+            ]
+        }
+    ],
+    "NameCultures": [
+        {
+            "Culture": "AmericanSouthern",
+            "Weight": 0.2,
+            "FirstNames": [
+                "Austin", "Beau", "Blake", "Caleb", "Carter", "Cody", "Colt", "Colton", "Dalton", "Drew",
+                "Garrett", "Grady", "Grant", "Hayes", "Hunter", "Jace", "Jake", "Jared", "Kyle", "Landon",
+                "Logan", "Mason", "Nolan", "Parker", "Reid", "Ryder", "Tanner", "Trent", "Tucker", "Wyatt"
+            ],
+            "LastNames": [
+                "Abbott", "Barlow", "Bennett", "Calloway", "Carver", "Crenshaw", "Dawson", "Ellison",
+                "Fletcher", "Garner", "Hadley", "Hollis", "Keller", "Lockhart", "Mercer", "Norris",
+                "Pickett", "Reeves", "Sutton", "Talbot", "Thornton", "Tillman", "Vance", "Whitaker",
+                "Winslow", "Yates", "Gentry", "Kincaid", "Pruett", "Buckner"
+            ]
+        },
+        {
+            "Culture": "AfricanAmerican",
+            "Weight": 0.26,
+            "FirstNames": [
+                "Andre", "Antoine", "Cedric", "Darius", "Darnell", "DeAndre", "Demetrius", "Desmond",
+                "Devonte", "Dominique", "Isaiah", "Jalen", "Jamal", "Javon", "Jaylen", "Jerome", "Keon",
+                "Khalil", "Malik", "Marquise", "Maurice", "Quentin", "Rashad", "Reggie", "Terrell",
+                "Tremaine", "Tyrell", "Xavier", "Zion", "Kendrick"
+            ],
+            "LastNames": [
+                "Ashford", "Battle", "Booker", "Dawkins", "Ellington", "Gaines", "Hairston", "Haynes",
+                "Holloway", "Ingram", "Lattimore", "Mabry", "McKnight", "Merriweather", "Oakley", "Pettaway",
+                "Pinckney", "Redmond", "Rucker", "Sanford", "Strickland", "Tolliver", "Underwood", "Wardlaw",
+                "Whitfield", "Wilkerson", "Witherspoon", "Dorsey", "Fairley", "Shepard"
+            ]
+        },
+        {
+            "Culture": "Hispanic",
+            "Weight": 0.1,
+            "FirstNames": [
+                "Adrian", "Alejandro", "Andres", "Diego", "Eduardo", "Emilio", "Esteban", "Fernando",
+                "Gabriel", "Hector", "Javier", "Joaquin", "Jorge", "Julian", "Lorenzo", "Luis", "Marco",
+                "Mateo", "Miguel", "Nicolas", "Rafael", "Ramon", "Ricardo", "Rodrigo", "Santiago", "Sergio",
+                "Tomas", "Victor", "Ignacio", "Cristian"
+            ],
+            "LastNames": [
+                "Acosta", "Aguilar", "Alvarado", "Arroyo", "Bautista", "Cardenas", "Castillo", "Cervantes",
+                "Delgado", "Espinoza", "Fuentes", "Guerrero", "Ibarra", "Lozano", "Maldonado", "Medina",
+                "Montoya", "Navarro", "Ochoa", "Orozco", "Pacheco", "Quintero", "Rios", "Salazar", "Serrano",
+                "Solis", "Valdez", "Vega", "Zamora", "Villanueva"
+            ]
+        },
+        {
+            "Culture": "WestAfrican",
+            "Weight": 0.08,
+            "FirstNames": [
+                "Adebayo", "Babatunde", "Chidi", "Chinedu", "Chukwuma", "Dayo", "Ebuka", "Efe", "Emeka",
+                "Femi", "Ifeanyi", "Ikenna", "Jide", "Kayode", "Kelechi", "Kofi", "Kunle", "Kwame", "Nnamdi",
+                "Obinna", "Olamide", "Oluwaseun", "Osagie", "Segun", "Sola", "Tobi", "Tunde", "Uche", "Yaw",
+                "Ade"
+            ],
+            "LastNames": [
+                "Adeyemi", "Akinola", "Amadi", "Anyanwu", "Asante", "Balogun", "Boateng", "Chukwu", "Danso",
+                "Ekwueme", "Eze", "Ibekwe", "Mensah", "Nwachukwu", "Nwosu", "Obi", "Odum", "Ogunbiyi",
+                "Okafor", "Okeke", "Okonkwo", "Okoro", "Oladipo", "Olatunji", "Onyeka", "Osei", "Owusu",
+                "Uzoma", "Agyeman", "Afolabi"
+            ]
+        },
+        {
+            "Culture": "Polynesian",
+            "Weight": 0.06,
+            "FirstNames": [
+                "Afa", "Aukai", "Iosefa", "Ioane", "Kainoa", "Kaimana", "Kalani", "Kekoa", "Keoni", "Koa",
+                "Lopeti", "Losa", "Makoa", "Malakai", "Mosese", "Nalu", "Paulo", "Penei", "Semisi", "Siaosi",
+                "Sione", "Taniela", "Tevita", "Toa", "Tui", "Viliami", "Lolo", "Manase", "Pita", "Feleti"
+            ],
+            "LastNames": [
+                "Aiona", "Aumua", "Faleolo", "Fonoti", "Fuimaono", "Kahale", "Kalolo", "Kaufusi", "Lauina",
+                "Leiataua", "Leota", "Masoli", "Moala", "Nua", "Palelei", "Pouha", "Sapolu", "Soliai",
+                "Tafuna", "Tauiliili", "Tupou", "Vainikolo", "Mahe", "Fonua", "Havili", "Lealaiauloto",
+                "Tuitupou", "Vea", "Afamasaga", "Leavasa"
+            ]
+        },
+        {
+            "Culture": "EasternEuropean",
+            "Weight": 0.06,
+            "FirstNames": [
+                "Aleksander", "Andrei", "Anton", "Bogdan", "Dmitri", "Dusan", "Filip", "Goran", "Ivan",
+                "Jakub", "Kamil", "Karel", "Lukas", "Marek", "Mikhail", "Milan", "Milos", "Nikola", "Pavel",
+                "Petar", "Radek", "Stefan", "Tomasz", "Viktor", "Vladimir", "Zoran", "Bartosz", "Emil",
+                "Ondrej", "Vasil"
+            ],
+            "LastNames": [
+                "Babic", "Dvorak", "Hajek", "Horvat", "Jankovic", "Kovac", "Kowalczyk", "Krajewski", "Kral",
+                "Marinovic", "Markovic", "Mazur", "Nowak", "Novotny", "Pavlovic", "Popescu", "Radovic",
+                "Stanek", "Tomczak", "Vasilev", "Wojcik", "Zajac", "Zielinski", "Bielecki", "Cerny",
+                "Dobrev", "Grabowski", "Kolar", "Petrovic", "Sadowski"
+            ]
+        },
+        {
+            "Culture": "Irish",
+            "Weight": 0.06,
+            "FirstNames": [
+                "Aidan", "Brendan", "Cian", "Ciaran", "Colm", "Conor", "Cormac", "Declan", "Dermot", "Donal",
+                "Eamon", "Fergus", "Finn", "Kieran", "Killian", "Lorcan", "Niall", "Odhran", "Padraig",
+                "Ronan", "Rory", "Seamus", "Tadhg", "Diarmuid", "Cathal", "Oisin", "Fionn", "Senan",
+                "Ruairi", "Shane"
+            ],
+            "LastNames": [
+                "Callahan", "Connolly", "Costigan", "Delaney", "Donnelly", "Fitzpatrick", "Hennessy",
+                "Kavanagh", "Kinsella", "MacMahon", "Mulligan", "O'Connell", "O'Donnell", "O'Rourke",
+                "O'Sullivan", "Quinlan", "Regan", "Sheehan", "Tierney", "Whelan", "Brannigan", "Corrigan",
+                "Dunphy", "Flanagan", "Gilligan", "Hanrahan", "Keogh", "Lenihan", "McGuinness", "Rafferty"
+            ]
+        },
+        {
+            "Culture": "Italian",
+            "Weight": 0.05,
+            "FirstNames": [
+                "Alessandro", "Angelo", "Antonio", "Carlo", "Dario", "Domenico", "Emilio", "Enzo", "Fabio",
+                "Francesco", "Gianni", "Giovanni", "Leonardo", "Luca", "Massimo", "Matteo", "Nico", "Paolo",
+                "Pietro", "Raffaele", "Renzo", "Roberto", "Salvatore", "Stefano", "Tommaso", "Vincenzo",
+                "Vito", "Dante", "Cosimo", "Lorenzo"
+            ],
+            "LastNames": [
+                "Albanese", "Bellini", "Bianchi", "Caputo", "Carbone", "Colombo", "Conti", "DeLuca",
+                "Ferrara", "Ferri", "Galli", "Gallo", "Greco", "Lombardo", "Marino", "Martini", "Moretti",
+                "Palumbo", "Ricci", "Rinaldi", "Romano", "Santoro", "Serra", "Vitale", "Barone", "Cattaneo",
+                "Fontana", "Longo", "Mariani", "Sorrentino"
+            ]
+        },
+        {
+            "Culture": "Nordic",
+            "Weight": 0.05,
+            "FirstNames": [
+                "Anders", "Axel", "Bjorn", "Dieter", "Emil", "Erik", "Felix", "Florian", "Gunnar", "Henning",
+                "Henrik", "Jens", "Jonas", "Karl", "Kasper", "Klaus", "Lars", "Lennart", "Magnus", "Mats",
+                "Nils", "Olaf", "Rolf", "Sven", "Tobias", "Ulrich", "Viggo", "Torsten", "Leif", "Arne"
+            ],
+            "LastNames": [
+                "Albrecht", "Andersen", "Bauer", "Becker", "Berg", "Brandt", "Dahl", "Eklund", "Engel",
+                "Fischer", "Hartmann", "Holm", "Jensen", "Kessler", "Krause", "Lindgren", "Lund", "Neumann",
+                "Nyberg", "Richter", "Schafer", "Strand", "Vogel", "Wagner", "Weber", "Ziegler", "Halvorsen",
+                "Lindahl", "Sandberg", "Wikstrom"
+            ]
+        },
+        {
+            "Culture": "Japanese",
+            "Weight": 0.03,
+            "FirstNames": [
+                "Daichi", "Haruto", "Hiroshi", "Kaito", "Kenji", "Ryota", "Takeshi", "Yuto", "Kazuki",
+                "Shota", "Daiki", "Sota", "Ren", "Riku", "Yuma"
+            ],
+            "LastNames": [
+                "Fujita", "Hayashi", "Ishikawa", "Kimura", "Kobayashi", "Matsuda", "Mori", "Nakamura",
+                "Ogawa", "Okada", "Sakamoto", "Shimizu", "Takahashi", "Ueda", "Yamaguchi"
+            ]
+        },
+        {
+            "Culture": "SouthAsian",
+            "Weight": 0.02,
+            "FirstNames": [
+                "Aman", "Anand", "Arjun", "Dhruv", "Ishaan", "Kabir", "Karan", "Kiran", "Neel", "Nikhil",
+                "Rajan", "Ravi", "Rohan", "Sameer", "Varun"
+            ],
+            "LastNames": [
+                "Bhatia", "Chawla", "Desai", "Dhillon", "Grewal", "Iyer", "Joshi", "Malhotra", "Mehta",
+                "Nair", "Reddy", "Sandhu", "Sethi", "Trivedi", "Walia"
+            ]
+        },
+        {
+            "Culture": "Levantine",
+            "Weight": 0.03,
+            "FirstNames": [
+                "Adnan", "Ahmad", "Amin", "Bilal", "Faris", "Hadi", "Hamza", "Jamil", "Karim", "Khalid",
+                "Majid", "Nabil", "Omar", "Rami", "Samir", "Tariq", "Yousef", "Zaid", "Nader", "Fadi"
+            ],
+            "LastNames": [
+                "Abboud", "Bakri", "Darwish", "Fayad", "Haddad", "Halabi", "Hamdan", "Jaber", "Kassab",
+                "Khoury", "Mansour", "Najjar", "Saleh", "Shadid", "Tamimi", "Yasin", "Zayed", "Nassar",
+                "Sabbagh", "Touma"
+            ]
+        }
+    ],
+    "NameBlocklist": [
+        "Aaron Donald", "Aaron Jones", "Aaron Rodgers", "Adrian Peterson", "Aidan O'Connell",
+        "AJ Brown", "Alex Smith", "Anders Holm", "Andre Ellington", "Andre Johnson", "Andrew Luck",
+        "Antonio Brown", "Arne Dahl", "Axel Weber", "Barry Sanders", "Ben Roethlisberger",
+        "Bill Belichick", "Bobby Wagner", "Brett Favre", "Brian Dawkins", "Brian Urlacher",
+        "Brock Purdy", "Bruce Smith", "Calvin Johnson", "Cam Newton", "Carlo Conti",
+        "Carlos Delgado", "CeeDee Lamb", "Charles Woodson", "Chris Johnson", "Chris Jones",
+        "Christian McCaffrey", "Cooper Kupp", "Cristian Medina", "Dak Prescott", "Dan Marino",
+        "Darius Rucker", "Darrelle Revis", "Davante Adams", "Deacon Jones", "Deion Sanders",
+        "DeMarcus Ware", "Demetrius Underwood", "Derek Carr", "Derrick Brooks", "Derrick Henry",
+        "Desmond Haynes", "Dick Butkus", "Drew Bennett", "Drew Brees", "Eamon Dunphy", "Ed Reed",
+        "Eli Manning", "Emeka Okafor", "Emmitt Smith", "Eric Dickerson", "Gabriel Medina",
+        "George Kittle", "Goran Dragic", "Henning Berg", "Isaiah Battle", "Isaiah Simmons",
+        "Ja'Marr Chase", "Jack Lambert", "Jalen Hurts", "Jalen Ramsey", "Jared Allen", "Jared Goff",
+        "Jason Kelce", "Jerome Bettis", "Jerry Rice", "Jim Brown", "JJ Watt", "Joe Burrow",
+        "Joe Montana", "Joe Namath", "Joe Thomas", "John Elway", "John Madden", "Johnny Unitas",
+        "Jonathan Ogden", "Josh Allen", "Josh Jacobs", "Julio Jones", "Julius Peppers",
+        "Junior Seau", "Justin Fields", "Justin Herbert", "Justin Jefferson", "Kaito Ishikawa",
+        "Keon Coleman", "Kevin Doyle", "Kevin Greene", "Khalil Mack", "Kieran Tierney",
+        "Kiran Desai", "Kirk Cousins", "Klaus Fischer", "Kyler Murray", "LaDainian Tomlinson",
+        "Lamar Jackson", "Larry Fitzgerald", "Lawrence Taylor", "LeBron James", "Liam Gallagher",
+        "Lorenzo Fontana", "Luis Castillo", "Luis Medina", "Luis Valdez", "Luke Kuechly",
+        "Malik Hairston", "Manu Tuilagi", "Marcus Allen", "Marcus Freeman", "Mark Andrews",
+        "Marshall Faulk", "Marshawn Lynch", "Marvin Harrison", "Matt Ryan", "Matteo Ricci",
+        "Matthew Stafford", "Micah Parsons", "Michael Jordan", "Michael Strahan", "Michael Thomas",
+        "Michael Vick", "Miguel Cervantes", "Mike Evans", "Mike Singletary", "Myles Garrett",
+        "Nick Bosa", "Nick Chubb", "Obinna Eze", "Odell Beckham", "Oleg Sokolov", "Owen Nolan",
+        "Pablo Escobar", "Paolo Rossi", "Paolo Sorrentino", "Patrick Mahomes", "Patrick Peterson",
+        "Peyton Manning", "Philip Rivers", "Radek Dvorak", "Randy Moss", "Ray Lewis",
+        "Reggie Brooks", "Reggie White", "Richard Sherman", "Rob Gronkowski", "Roberto Mancini",
+        "Rohan Joshi", "Russell Wilson", "Sergei Volkov", "Shannon Sharpe", "Sione Havili",
+        "Stefano Sorrentino", "Stefon Diggs", "Steve Young", "Sven Fischer", "Terrell Owens",
+        "Terry Bradshaw", "Tiger Woods", "TJ Watt", "Tom Brady", "Tony Gonzalez", "Travis Kelce",
+        "Trent Williams", "Trevor Lawrence", "Troy Aikman", "Troy Polamalu", "Tua Tagovailoa",
+        "Tyreek Hill", "Tyron Smith", "Victor Espinoza", "Victor Valdez", "Vincenzo Bellini",
+        "Vladimir Petrovic", "Von Miller", "Walter Payton", "Warren Sapp", "Zack Martin"
+    ]
+}

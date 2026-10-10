@@ -385,7 +385,7 @@ bool UPSFranchiseFlow::EndSeason()
         FreeAgency->ReleaseUnsignedToPool(TMap<FName, int32>());
         for (int32 Index = 0; Index < Released.Num(); ++Index)
         {
-            FreeAgency->AddFreeAgent(Released[Index], Contracts->GetTuning().DefaultPlayerAge, 0.5f, ReleasedBy[Index]);
+            FreeAgency->AddFreeAgent(Released[Index], Contracts->GetPlayerAge(Released[Index]), 0.5f, ReleasedBy[Index]);
         }
         if (LockerRoom)
         {
