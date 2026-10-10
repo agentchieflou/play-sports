@@ -666,7 +666,7 @@ bool FPSPlayRecognitionLatencyTest::RunTest(const FString& Parameters)
     float Clock = 0.05f;
     float AwareDropped = -1.f;
     float UnawareDropped = -1.f;
-    for (int32 Tick = 0; Tick < 40 && (AwareDropped < 0.f || UnawareDropped < 0.f); ++Tick)
+    for (int32 Frame = 0; Frame < 40 && (AwareDropped < 0.f || UnawareDropped < 0.f); ++Frame)
     {
         Clock += Step;
         AwareAI->TickAI(Step);
@@ -702,7 +702,7 @@ bool FPSPlayRecognitionLatencyTest::RunTest(const FString& Parameters)
     Clock = Step;
     float AwareBroke = -1.f;
     float UnawareBroke = -1.f;
-    for (int32 Tick = 0; Tick < 40 && (AwareBroke < 0.f || UnawareBroke < 0.f); ++Tick)
+    for (int32 Frame = 0; Frame < 40 && (AwareBroke < 0.f || UnawareBroke < 0.f); ++Frame)
     {
         Clock += Step;
         AwareCornerAI->TickAI(Step);
@@ -791,8 +791,8 @@ bool FPSPlayRecognitionBiteTest::RunTest(const FString& Parameters)
     TArray<FPSTelemetryDeceptionEvent> Events;
     Bus->OnDeceptionMC.AddLambda([&Events](const FPSTelemetryDeceptionEvent& Event) { Events.Add(Event); });
 
-    // Calls Window plays of Category's PlayId, then play-action, snaps it, puts every linebacker
-    // in the run fit and sells the fake.
+    // Calls TendencyPlay for a whole tendency window, then play-action; snaps it, puts every
+    // linebacker in the run fit and sells the fake.
     auto RunPlayAction = [&](const TCHAR* TendencyPlay)
     {
         for (int32 Index = 0; Index < Window; ++Index)

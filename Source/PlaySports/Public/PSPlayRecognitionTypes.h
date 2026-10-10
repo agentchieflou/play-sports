@@ -281,7 +281,7 @@ struct FPSKeyRead
     UPROPERTY(BlueprintReadOnly, Category = "Recognition")
     EPSPlayRead Read = EPSPlayRead::None;
 
-    /** Backfield flow: a play-action fake shows it as well as a run. */
+    /** Backfield flow: a run shows it, and so can a fake. */
     UPROPERTY(BlueprintReadOnly, Category = "Recognition")
     bool bFakeable = false;
 };
