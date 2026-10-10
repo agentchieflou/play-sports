@@ -44,7 +44,9 @@ with the control's value type, every action of a covered context is reachable by
 touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
-coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle. Teams, the league config, the
+coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "LeverageShade" files
+against FPSCoverageMatchupTuning (Epic 69): its shell rules (each coverage shell the playbook calls
+has one) and a press spot inside the route-running PressRadius. Teams, the league config, the
 playbook, player rating ranges and every reference between files are tools/content_contracts.py's
 (Epic 125), run from here.
 
@@ -2075,6 +2077,95 @@ def validate_pocket_tuning(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPocketTuningRow exactly")
 
 
+COVERAGE_MATCHUP_FIELDS = ("PressDepth", "PressShade", "PressAlignWidth", "PressMinJamChance", "PreSnapArrivalRadius",
+                           "PressCushion", "PressBeatenSeconds", "LeverageShade", "LeverageLostMargin",
+                           "LeverageRegainMargin", "LeverageBiteBonus", "BreakMinLateral", "IntoLeverageSeparationScale",
+                           "AwayFromLeverageBonus", "SeparationRecoverySpeed", "MaxOutOfPhaseSeconds", "CarryMargin",
+                           "ZoneCarryCushion", "VerticalCarryDepth", "DeepZoneDepth", "OverTopCushion", "DeepHelpWidth",
+                           "DeepShadeWeight", "FieldWidth", "FreeDeepDepth", "RobberDepth", "RobberRadius",
+                           "RobberJumpWeight", "ContactRadius", "TrailMargin", "FlagChance")
+COVERAGE_MATCHUP_SHARES = ("PressMinJamChance", "LeverageBiteBonus", "BreakMinLateral", "IntoLeverageSeparationScale",
+                           "DeepShadeWeight", "RobberJumpWeight", "FlagChance")
+COVERAGE_LEVERAGES = {"Inside", "Outside"}
+COVERAGE_FREE_ROLES = {"DeepMiddle", "Robber"}
+COVERAGE_SHELL_FIELDS = {"Shell", "Leverage", "bPress", "FreeRoles"}
+
+
+def validate_coverage_shell(path, where, rule):
+    if not isinstance(rule, dict):
+        err(path, f"{where}: must be an object")
+        return
+    if not isinstance(rule.get("Shell"), str):
+        err(path, f"{where}.Shell: must be a string")
+    if rule.get("Leverage") not in COVERAGE_LEVERAGES:
+        err(path, f"{where}.Leverage: '{rule.get('Leverage')}' is not an EPSLeverage ({sorted(COVERAGE_LEVERAGES)})")
+    if not isinstance(rule.get("bPress"), bool):
+        err(path, f"{where}.bPress: must be true or false")
+    roles = rule.get("FreeRoles")
+    if not isinstance(roles, list) or any(role not in COVERAGE_FREE_ROLES for role in roles):
+        err(path, f"{where}.FreeRoles: must be an array of {sorted(COVERAGE_FREE_ROLES)}")
+    extra = set(rule) - COVERAGE_SHELL_FIELDS
+    if extra:
+        err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
+def validate_coverage_matchups(path, payload):
+    """FPSCoverageMatchupTuning (Data/coverage_matchups.json, Epic 69); mirrors
+    UPSCoverageMatchupSubsystem::ValidateTuning, plus its shells against the playbook and its press spot
+    against the route-running model's PressRadius."""
+    for field in COVERAGE_MATCHUP_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in COVERAGE_MATCHUP_SHARES:
+        if is_number(payload.get(field)) and payload[field] > 1:
+            err(path, f"{field}: {payload[field]} is a share or chance, at most 1")
+    for field in ("SeparationRecoverySpeed", "FieldWidth"):
+        if is_number(payload.get(field)) and payload[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    shells = payload.get("Shells")
+    names = set()
+    if not isinstance(shells, list):
+        err(path, "'Shells' must be an array")
+        shells = []
+    for idx, rule in enumerate(shells):
+        validate_coverage_shell(path, f"Shells[{idx}]", rule)
+        name = rule.get("Shell") if isinstance(rule, dict) else None
+        if isinstance(name, str):
+            if not name:
+                err(path, f"Shells[{idx}].Shell: must not be empty")
+            elif name in names:
+                err(path, f"Shells[{idx}].Shell: '{name}' is listed twice")
+            names.add(name)
+    validate_coverage_shell(path, "DefaultShell", payload.get("DefaultShell"))
+    extra = set(payload) - set(COVERAGE_MATCHUP_FIELDS) - {"Shells", "DefaultShell"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCoverageMatchupTuning exactly")
+
+    # Every coverage shell a scrimmage defense (Base, Blitz, Prevent) calls has its rule; the kicking
+    # game's returns and blocks play the default.
+    try:
+        plays = json.loads((DATA_DIR / "sample_playbook.json").read_text(encoding="utf-8")).get("Plays", [])
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        plays = []
+    for play in plays if isinstance(plays, list) else []:
+        if not isinstance(play, dict) or play.get("bIsOffensivePlay", True) or play.get("PlayCategory") not in ("Base", "Blitz", "Prevent"):
+            continue
+        shell = play.get("CoverageShell")
+        if shell and shell not in names:
+            err(path, f"Shells: no rule for '{shell}', the coverage of {play.get('PlayId')} in sample_playbook.json")
+
+    # A pressing defender must stand inside the release contest's PressRadius (Epic 68).
+    try:
+        press_radius = json.loads((DATA_DIR / "route_running.json").read_text(encoding="utf-8")).get("PressRadius")
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        press_radius = None
+    depth, shade = payload.get("PressDepth"), payload.get("PressShade")
+    if is_number(press_radius) and is_number(depth) and is_number(shade) and math.hypot(depth, shade) > press_radius:
+        err(path, f"PressDepth/PressShade: the press spot ({math.hypot(depth, shade):.0f} cm off the receiver) is outside "
+                  f"route_running.json's PressRadius ({press_radius}): a pressing defender would not contest the release")
+
+
 TOUCH_KINDS = {"Stick", "Button", "Swipe"}
 TOUCH_DIRECTIONS = {"Left", "Right", "Up", "Down"}
 TOUCH_LAYOUT_FIELDS = {"SafeZone", "LayoutAspect", "bFloatingStick", "StickZone", "GestureZone",
@@ -2638,6 +2729,8 @@ def main():
             validate_skycam(path, payload)
         if isinstance(payload, dict) and "Packages" in payload and "DefaultOffensePackage" in payload:
             validate_personnel_catalog(path, payload)
+        if isinstance(payload, dict) and "LeverageShade" in payload:
+            validate_coverage_matchups(path, payload)
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
     content_contracts.check_references(REPO, parsed, err)

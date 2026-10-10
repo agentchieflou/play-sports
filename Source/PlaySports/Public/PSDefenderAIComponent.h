@@ -11,6 +11,7 @@
 class APSDefenseController;
 class APSPlayerPawn;
 class UPSAIFieldSnapshot;
+class UPSCoverageMatchupSubsystem;
 
 /** What a defensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -102,6 +103,11 @@ struct FDefenderAITuningRow : public FTableRowBase
  * stay in it -- and attacks when the carrier comes to it. Awareness sets how fast each read
  * happens, and how long a pump fake freezes coverage.
  *
+ * How coverage is played -- leverage, press, zone carries and hand-offs, safety help -- is the
+ * coverage matchup engine's (UPSCoverageMatchupSubsystem, Epic 69): once it has a matchup or a
+ * zone for this defender it gives the spot to play, and a contest it puts him out of phase in
+ * (a beaten jam, a break away from his leverage) freezes him like a bite.
+ *
  * It is the defensive twin of UPSSkillPlayerAIComponent and works the same way: it moves the
  * pawn with AddMovementInput (so FMovementTuningRow applies), takes the assignment from
  * APSDefenseController (set by UPSPlayOrchestrator at the snap), hears the snap and the throw
@@ -178,6 +184,7 @@ private:
     void HandlePumpFake(const FPSTelemetryPumpFakeEvent& Event);
     void HandleRouteRunning(const FPSTelemetryRouteEvent& Event);
     void HandleBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event);
+    void HandleCoverage(const FPSTelemetryCoverageEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
     void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
 
@@ -203,6 +210,9 @@ private:
 
     /** The field as the AI reads it this frame, shared by every AI player (Epic 17.5). */
     UPSAIFieldSnapshot* GetFieldSnapshot() const;
+
+    /** How coverage is played (Epic 69). */
+    UPSCoverageMatchupSubsystem* GetMatchups() const;
 
     UPROPERTY(Transient)
     FDefenderAITuningRow Tuning;

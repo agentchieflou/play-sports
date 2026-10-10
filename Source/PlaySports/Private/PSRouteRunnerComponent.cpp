@@ -1,4 +1,5 @@
 #include "PSRouteRunnerComponent.h"
+#include "PSCoverageMatchupSubsystem.h"
 #include "PSDataIngestion.h"
 #include "PSHealthComponent.h"
 #include "PSOffenseController.h"
@@ -202,10 +203,14 @@ FVector UPSRouteRunnerComponent::Steer(APSPlayerPawn* Self, APSOffenseController
     if (bPlanned && Index == BreakIndex)
     {
         bBroken = true;
+        // The break, for the coverage to answer (Epic 69): the leg he breaks onto.
+        const FVector BreakDirection = Waypoints.IsValidIndex(Index + 1) ? PSRouteRunnerPrivate::GroundDirection(Target, Waypoints[Index + 1]) : FVector::ZeroVector;
+        Publish(EPSRouteEventKind::Break, Self, nullptr, NAME_None, 0.f, BreakDirection);
     }
     if (bFake)
     {
-        SellFake(Self, Pawns, TimeSinceSnap);
+        const FVector FakeFrom = Index > 0 ? Waypoints[Index - 1] : StartLocation;
+        SellFake(Self, Pawns, TimeSinceSnap, PSRouteRunnerPrivate::GroundDirection(FakeFrom, Target));
     }
     if (bLast)
     {
@@ -224,7 +229,22 @@ FVector UPSRouteRunnerComponent::Steer(APSPlayerPawn* Self, APSOffenseController
 void UPSRouteRunnerComponent::ContestRelease(APSPlayerPawn* Self, APSOffenseController* Controller, const TArray<APSPlayerPawn*>& Pawns, float TimeSinceSnap)
 {
     const FRouteRunningTuningRow& Settings = GetTuning();
-    const APSPlayerPawn* Presser = PSRouteRunnerPrivate::NearestOpponentWithin(Pawns, Self, Settings.PressRadius, true);
+    // The defender lined up to press him (Epic 69's press alignment) contests it, else whoever
+    // stands in front of him.
+    const APSPlayerPawn* Presser = nullptr;
+    if (const UPSCoverageMatchupSubsystem* Matchups = GetMatchups())
+    {
+        const APSPlayerPawn* Planned = Matchups->FindPlannedPresser(Self);
+        if (Planned && Planned->GetActorLocation().X > Self->GetActorLocation().X
+            && FVector::Dist2D(Planned->GetActorLocation(), Self->GetActorLocation()) <= Settings.PressRadius)
+        {
+            Presser = Planned;
+        }
+    }
+    if (!Presser)
+    {
+        Presser = PSRouteRunnerPrivate::NearestOpponentWithin(Pawns, Self, Settings.PressRadius, true);
+    }
     if (!Presser)
     {
         ReleaseOutcome = EPSReleaseOutcome::Unpressed;
@@ -257,7 +277,7 @@ void UPSRouteRunnerComponent::ContestRelease(APSPlayerPawn* Self, APSOffenseCont
     Publish(EPSRouteEventKind::Release, Self, Presser, Outcome, Held);
 }
 
-void UPSRouteRunnerComponent::SellFake(APSPlayerPawn* Self, const TArray<APSPlayerPawn*>& Pawns, float TimeSinceSnap)
+void UPSRouteRunnerComponent::SellFake(APSPlayerPawn* Self, const TArray<APSPlayerPawn*>& Pawns, float TimeSinceSnap, const FVector& FakeDirection)
 {
     const FRouteRunningTuningRow& Settings = GetTuning();
     HoldUntil = TimeSinceSnap + Settings.FakeSellSeconds;
@@ -267,7 +287,17 @@ void UPSRouteRunnerComponent::SellFake(APSPlayerPawn* Self, const TArray<APSPlay
         return;
     }
     // The bite is decided here, once: the fake's one authority. A defender who bit freezes.
-    const float Chance = PSRouteRunning::BiteChance(Self->GetAttributes().Agility, Defender->GetAttributes().Awareness, Settings);
+    float Chance = PSRouteRunning::BiteChance(Self->GetAttributes().Agility, Defender->GetAttributes().Awareness, Settings);
+    // A fake toward the side the defender plays him is the break he sits on: he bites more
+    // often; one away from it, less (Epic 69's leverage).
+    if (const UPSCoverageMatchupSubsystem* Matchups = GetMatchups())
+    {
+        const float LeverageBonus = Matchups->GetLeverageBiteBonus(Defender, Self, FakeDirection);
+        if (LeverageBonus != 0.f)
+        {
+            Chance = FMath::Clamp(Chance + LeverageBonus, Settings.BiteMinChance, Settings.BiteMaxChance);
+        }
+    }
     const bool bBit = Rolls.FRand() < Chance;
     Publish(EPSRouteEventKind::DoubleMove, Self, Defender, bBit ? FName(TEXT("Bit")) : FName(TEXT("Stayed")), bBit ? Settings.BiteFreezeSeconds : 0.f);
 }
@@ -280,10 +310,22 @@ void UPSRouteRunnerComponent::ReadOption(APSPlayerPawn* Self, APSOffenseControll
     bRead = true;
     bBroken = true;
 
-    // Man: break away from the defender's leverage (the branch is authored breaking outside).
-    // Zone: settle in the hole.
+    // Man: break away from the defender's leverage (the branch is authored breaking outside) --
+    // the side the coverage matchup engine has him playing while he holds it (Epic 69), else
+    // where he stands. Zone: settle in the hole.
     float BranchMirror = Mirror;
-    if (Defender && (Defender->GetActorLocation().Y - Self->GetActorLocation().Y) * Mirror > 0.f)
+    const UPSCoverageMatchupSubsystem* Matchups = GetMatchups();
+    EPSLeverage Leverage = EPSLeverage::Inside;
+    float LeverageSide = 0.f;
+    bool bHeld = false;
+    if (Defender && Matchups && Matchups->GetLeverage(Defender, Self, Leverage, LeverageSide, bHeld) && bHeld)
+    {
+        if (LeverageSide * Mirror > 0.f)
+        {
+            BranchMirror = -Mirror;
+        }
+    }
+    else if (Defender && (Defender->GetActorLocation().Y - Self->GetActorLocation().Y) * Mirror > 0.f)
     {
         BranchMirror = -Mirror;
     }
@@ -314,10 +356,16 @@ void UPSRouteRunnerComponent::ReadOption(APSPlayerPawn* Self, APSOffenseControll
     OptionReadIndex = INDEX_NONE;
     BreakIndex = INDEX_NONE;
     StartLocation = ReadPoint;
-    Publish(EPSRouteEventKind::OptionRead, Self, Defender, Defender ? FName(TEXT("Man")) : FName(TEXT("Zone")), 0.f);
+    Publish(EPSRouteEventKind::OptionRead, Self, Defender, Defender ? FName(TEXT("Man")) : FName(TEXT("Zone")), 0.f, PSRouteRunnerPrivate::GroundDirection(ReadPoint, Rest[0]));
 }
 
-void UPSRouteRunnerComponent::Publish(EPSRouteEventKind Kind, const APSPlayerPawn* Self, const APSPlayerPawn* Defender, FName Outcome, float Seconds)
+UPSCoverageMatchupSubsystem* UPSRouteRunnerComponent::GetMatchups() const
+{
+    const UWorld* World = GetWorld();
+    return World ? World->GetSubsystem<UPSCoverageMatchupSubsystem>() : nullptr;
+}
+
+void UPSRouteRunnerComponent::Publish(EPSRouteEventKind Kind, const APSPlayerPawn* Self, const APSPlayerPawn* Defender, FName Outcome, float Seconds, const FVector& Direction)
 {
     UWorld* World = GetWorld();
     UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
@@ -331,5 +379,6 @@ void UPSRouteRunnerComponent::Publish(EPSRouteEventKind Kind, const APSPlayerPaw
     Event.DefenderName = Defender ? Defender->GetAttributes().DisplayName : FString();
     Event.Outcome = Outcome;
     Event.Seconds = Seconds;
+    Event.Direction = Direction;
     Bus->PublishRouteRunning(Event);
 }

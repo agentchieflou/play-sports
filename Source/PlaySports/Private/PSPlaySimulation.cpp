@@ -386,6 +386,24 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
                 UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Holding penalty DECLINED. Result stands."));
             }
         }
+        else if (ActivePenalty == EPSPenaltyType::PassInterference)
+        {
+            // A spot foul (Epic 69): the ball at the spot, never past the 1, and a first down --
+            // declined when the play itself gained more.
+            const int32 SpotYards = FMath::Min(PassInterferenceYards, 99 - CurrentState.YardLine);
+            if (CurrentPlayResult.ResultType != EPlayResultType::Touchdown && CurrentPlayResult.YardsGained < SpotYards)
+            {
+                CurrentPlayResult.YardsGained = SpotYards;
+                CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+                CurrentPlayResult.bOutOfBounds = false;
+                CurrentState.YardLineToGain = FMath::Min(CurrentState.YardLineToGain, CurrentState.YardLine + SpotYards);
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Pass interference ACCEPTED (%d yards, first down)."), SpotYards);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Pass interference DECLINED. Result stands."));
+            }
+        }
 
         ActivePenalty = EPSPenaltyType::None;
     }
@@ -658,6 +676,8 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     // Epic 104.5: the human kicker's meter and the human defender's jump at the snap
     Bus->OnKick.AddDynamic(this, &UPSPlaySimulation::OnBusKickEvent);
     Bus->OnJumpSnap.AddDynamic(this, &UPSPlaySimulation::OnBusJumpSnapEvent);
+    // Epic 69: the coverage contest's pass interference
+    Bus->OnCoverage.AddDynamic(this, &UPSPlaySimulation::OnBusCoverageEvent);
     Bus->OnPlayCall.AddDynamic(this, &UPSPlaySimulation::OnBusPlayCallEvent);
     Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
 
@@ -844,6 +864,17 @@ void UPSPlaySimulation::OnBusJumpSnapEvent(const FPSTelemetryJumpSnapEvent& Even
         ActivePenalty = EPSPenaltyType::Offsides;
         bPenaltyDeclined = false;
         UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! %s jumped offside."), *Event.DefenderName);
+    }
+}
+
+void UPSPlaySimulation::OnBusCoverageEvent(const FPSTelemetryCoverageEvent& Event)
+{
+    if (Event.Kind == EPSCoverageEventKind::PassInterference && ActivePenalty == EPSPenaltyType::None && !IsBallDead())
+    {
+        ActivePenalty = EPSPenaltyType::PassInterference;
+        bPenaltyDeclined = false;
+        PassInterferenceYards = FMath::Max(1, Event.YardsPastLine);
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Pass interference on %s, %d yards past the line."), *Event.DefenderName, PassInterferenceYards);
     }
 }
 
