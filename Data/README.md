@@ -448,8 +448,13 @@ much), `LowSnapShareThreshold` (a backup under this snap share grows half as fas
 
 ## Adding a new team
 
-1. Add a `rosters/team_<name>.json` roster file following the player schema above (aim for at
-   least one player per `EPlayerRole`).
+1. Add a `rosters/team_<name>.json` roster file following the player schema above. A live game
+   fields each side from its team's own roster, so the roster must fill every package in
+   `personnel_packages.json`: at least 1 QB, 2 RB, 2 TE, 4 WR, 5 OL, 6 DL, 4 LB and 6 DB, plus
+   depth for fatigue substitutions (the Falcons carry 31, the other shipped teams 39).
+   `python tools/content.py report` warns about a package a team can't field, and a unit test
+   fails the build on one for shipped teams. `python tools/player_dna.py --write` gives new
+   players their DNA.
 2. Add an entry to `sample_teams.json` pointing `RosterDataTablePath` at it.
 3. Run `python tools/content.py` before committing. CI runs the same validation and imports
    the roster through the game's loaders (`PlaySports.Content.ImportShippedContent`).
