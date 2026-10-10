@@ -577,3 +577,18 @@ void UPSTelemetryBus::PublishCoverage(const FPSTelemetryCoverageEvent& Event)
     }
     OnCoverageMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishLooseBall(const FPSTelemetryLooseBallEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryLooseBallEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("LooseBall: %s %s %s"), *UEnum::GetValueAsString(Event.Kind), *Event.KickType, *Event.PlayerName);
+    RecordHistory(EPSTelemetryEventType::LooseBall, Description, JsonPayload);
+
+    if (OnLooseBall.IsBound())
+    {
+        OnLooseBall.Broadcast(Event);
+    }
+    OnLooseBallMC.Broadcast(Event);
+}

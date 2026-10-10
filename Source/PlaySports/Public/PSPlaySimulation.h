@@ -244,6 +244,12 @@ public:
     UFUNCTION()
     void OnBusCoverageEvent(const FPSTelemetryCoverageEvent& Event);
 
+    /** A blocked kick's loose ball the players play out (Epic 17.4, UPSLooseBallSubsystem): once
+     *  it is taken live the play waits for it, and its dead ball -- the spot, the defense's
+     *  touchdown -- becomes the kick's outcome. */
+    UFUNCTION()
+    void OnBusLooseBallEvent(const FPSTelemetryLooseBallEvent& Event);
+
     /** The offense's call before its snap (Epic 76): its tempo's play-clock mark, and whether
      *  it is a spike or a kneel, which this resolves at the snap. */
     UFUNCTION()
@@ -298,6 +304,9 @@ private:
     /** The whistle has blown, or the special-teams model decides the play: physical tackles and
      *  catches no longer change the result. */
     bool IsBallDead() const;
+
+    /** A blocked kick's loose ball is being played out on the field (Epic 17.4). */
+    bool bLooseBallLive = false;
 
     void ResolvePlayResult();
 

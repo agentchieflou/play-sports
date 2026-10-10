@@ -65,6 +65,7 @@ every CI build.
 | `pocket_tuning.json` | `FPocketTuningRow` (single object) | `UPSDataIngestion::LoadPocketTuningFromJson`, via `UPSPocketComponent` and `UPSPlayOrchestrator` |
 | `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
 | `blown_coverage.json` | `FBlownCoverageTuningRow` (single object) | `UPSDataIngestion::LoadBlownCoverageTuningFromJson`, via `UPSBlownCoverageSubsystem` |
+| `loose_ball.json` | `FPSLooseBallTuning` (single object) | `UPSDataIngestion::LoadLooseBallTuningFromJson`, via `UPSLooseBallSubsystem` |
 | `coverage_matchups.json` | `FPSCoverageMatchupTuning` (single object: tuning, `Shells`, `DefaultShell`) | `UPSDataIngestion::LoadCoverageMatchupTuningFromJson`, via `UPSCoverageMatchupSubsystem` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
@@ -977,6 +978,26 @@ is 0 or more; distances are cm, shares and chances 0-1:
   (`DeepMiddle`, `Robber`), the jobs its left-over man defenders take, deepest first. Every shell a
   `Base`, `Blitz` or `Prevent` play in `sample_playbook.json` calls needs one; names are unique.
   `DefaultShell` is the rule for any other.
+
+`tools/validate_data.py` checks it.
+
+## Loose-ball schema (`FPSLooseBallTuning`)
+
+Single object (Epic 17.4; the players play a blocked kick's loose ball, `UPSLooseBallSubsystem`).
+Every number is 0 or more; distances are cm:
+- `BlockedFieldGoalYards` (whole yards): a blocked field goal comes loose this far behind the line,
+  at the hold (a blocked punt's recoil is `special_teams.json`'s `BlockedPuntRecoilYards`).
+- `ChaseRadius`: the players this close to the loose ball go for it, whatever their call; after a
+  scoop, the kicking team's players this close to the returner run him down.
+- `RecoverRadius` (at most `ChaseRadius`): the nearest player this close tries to take it, with his
+  fumble-recovery chance (`catch_tuning.json`'s `FumbleRecovery*`).
+- `ScoopClearRadius`: a defender with no opponent this close scoops it up and returns it; one with an
+  opponent on him, or anyone on the kicking team, falls on it.
+- `SquirtDistance`, `RetrySeconds`: a muffed ball squirts this far, and the player who muffed it
+  waits this long before trying again.
+- `MaxLooseSeconds`, `MaxReturnSeconds` (above 0): the officials blow it dead where it lies (the
+  defense's ball) when nobody has it by then, and a return still going after its time where the
+  returner is.
 
 `tools/validate_data.py` checks it.
 

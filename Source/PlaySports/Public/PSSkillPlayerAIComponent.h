@@ -34,7 +34,10 @@ enum class EPSSkillPlayerAction : uint8
     /** Converging on a pass thrown to this player. */
     TrackBall,
     /** No route: holding in front of the QB and taking on the nearest rusher. */
-    Block
+    Block,
+    /** Going for a blocked kick's loose ball, or running down the defender who scooped it up
+     *  (UPSLooseBallSubsystem, Epic 17.4). */
+    LooseBall
 };
 
 /** Offensive AI tuning (Data/skill_ai_tuning.json; Architecture rule 4). Distances in cm. */

@@ -64,9 +64,10 @@ ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBu
 FPSMoraleTuning (Epic 91): 0-1 thresholds, each chemistry unit's role, games and bonus; "ReelSize"
 files against FPSHighlightTuning (Epic 42); "PlayerPickRadius" files against FPSTelestratorTuning
 (Epic 44); "LeverageShade" files against FPSCoverageMatchupTuning (Epic 69): its shell rules (each
-coverage shell the playbook calls has one) and a press spot inside the route-running PressRadius.
-Teams, the league config, the playbook, player rating ranges and every reference between files are
-tools/content_contracts.py's (Epic 125), run from here.
+coverage shell the playbook calls has one) and a press spot inside the route-running PressRadius;
+"ScoopClearRadius" files against FPSLooseBallTuning (Epic 17.4). Teams, the league config, the
+playbook, player rating ranges and every reference between files are tools/content_contracts.py's
+(Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -2390,6 +2391,30 @@ def validate_coverage_matchups(path, payload):
                   f"route_running.json's PressRadius ({press_radius}): a pressing defender would not contest the release")
 
 
+LOOSE_BALL_FIELDS = ("BlockedFieldGoalYards", "ChaseRadius", "RecoverRadius", "ScoopClearRadius", "SquirtDistance",
+                     "RetrySeconds", "MaxLooseSeconds", "MaxReturnSeconds")
+
+
+def validate_loose_ball(path, payload):
+    """FPSLooseBallTuning (Data/loose_ball.json, Epic 17.4); mirrors UPSLooseBallSubsystem::ValidateTuning."""
+    for field in LOOSE_BALL_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    yards = payload.get("BlockedFieldGoalYards")
+    if not isinstance(yards, int) or isinstance(yards, bool):
+        err(path, "BlockedFieldGoalYards: must be a whole number of yards")
+    for field in ("MaxLooseSeconds", "MaxReturnSeconds"):
+        if is_number(payload.get(field)) and payload[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    recover, chase = payload.get("RecoverRadius"), payload.get("ChaseRadius")
+    if is_number(recover) and is_number(chase) and recover > chase:
+        err(path, "RecoverRadius must not exceed ChaseRadius: a player close enough to take the ball must be chasing it")
+    extra = set(payload) - set(LOOSE_BALL_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSLooseBallTuning exactly")
+
+
 TOUCH_KINDS = {"Stick", "Button", "Swipe"}
 TOUCH_DIRECTIONS = {"Left", "Right", "Up", "Down"}
 TOUCH_LAYOUT_FIELDS = {"SafeZone", "LayoutAspect", "bFloatingStick", "StickZone", "GestureZone",
@@ -3748,6 +3773,8 @@ def main():
             validate_personnel_catalog(path, payload)
         if isinstance(payload, dict) and "LeverageShade" in payload:
             validate_coverage_matchups(path, payload)
+        if isinstance(payload, dict) and "ScoopClearRadius" in payload:
+            validate_loose_ball(path, payload)
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "Axes" in payload and "Bindings" in payload:

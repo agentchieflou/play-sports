@@ -228,7 +228,8 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         }
         break;
     case EPlayPhase::BallCarrierMovement:
-        if (PhaseTimer >= 3.0f)
+        // A blocked kick's loose ball ends when it is blown dead (Epic 17.4).
+        if (PhaseTimer >= 3.0f && !bLooseBallLive)
         {
             // In quick-sim mode the statistical resolver drives the outcome;
             // in physical-play mode outcomes arrive via bus events (OnBusCatch/OnBusTackle).
@@ -692,6 +693,8 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnJumpSnap.AddDynamic(this, &UPSPlaySimulation::OnBusJumpSnapEvent);
     // Epic 69: the coverage contest's pass interference
     Bus->OnCoverage.AddDynamic(this, &UPSPlaySimulation::OnBusCoverageEvent);
+    // Epic 17.4: a blocked kick's loose ball, played out on the field
+    Bus->OnLooseBall.AddDynamic(this, &UPSPlaySimulation::OnBusLooseBallEvent);
     Bus->OnPlayCall.AddDynamic(this, &UPSPlaySimulation::OnBusPlayCallEvent);
     Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
 
@@ -732,8 +735,9 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
 
 void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
 {
-    // Physical tackle resolves the play, unless the whistle already blew.
-    if (bQuickSimMode || IsBallDead())
+    // Physical tackle resolves the play, unless the whistle already blew. A loose ball's return
+    // ends through its own dead ball (Epic 17.4).
+    if (bQuickSimMode || IsBallDead() || bLooseBallLive)
     {
         return;
     }
@@ -950,6 +954,45 @@ void UPSPlaySimulation::ResolveKick(float KickRoll)
     PendingSpecialTeams = FPSSpecialTeamsCall();
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: %s: %s (%d yards)."), *UEnum::GetValueAsString(CurrentState.Phase),
         *UEnum::GetValueAsString(LastSpecialTeamsOutcome.Result), LastSpecialTeamsOutcome.Yards);
+
+    // A block on a live field is the players' to finish (Epic 17.4): announced, and if the ball is
+    // taken live (a Loose event in answer) the play goes on until it is blown dead.
+    bLooseBallLive = false;
+    const bool bBlocked = LastSpecialTeamsOutcome.Result == EPSSpecialTeamsResult::Blocked || LastSpecialTeamsOutcome.Result == EPSSpecialTeamsResult::BlockedTouchdown;
+    UPSTelemetryBus* Bus = bBlocked && CachedWorld && !bQuickSimMode ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (Bus)
+    {
+        FPSTelemetryLooseBallEvent Block;
+        Block.Kind = EPSLooseBallEventKind::Blocked;
+        Block.KickType = CurrentState.Phase == EPlayPhase::Punt ? TEXT("Punt") : TEXT("FieldGoal");
+        Block.YardsBehindLine = CurrentState.Phase == EPlayPhase::Punt ? Model->GetTuning().BlockedPuntRecoilYards : 0;
+        Bus->PublishLooseBall(Block);
+    }
+    SetPlayPhase(bLooseBallLive ? EPlayPhase::BallCarrierMovement : EPlayPhase::Scoring);
+}
+
+void UPSPlaySimulation::OnBusLooseBallEvent(const FPSTelemetryLooseBallEvent& Event)
+{
+    // Taken live in answer to the block, while the kick is still being resolved.
+    const EPlayPhase Phase = CurrentState.Phase;
+    if (Event.Kind == EPSLooseBallEventKind::Loose && (Phase == EPlayPhase::Punt || Phase == EPlayPhase::FieldGoal))
+    {
+        bLooseBallLive = true;
+        return;
+    }
+    if (Event.Kind != EPSLooseBallEventKind::Dead || !bLooseBallLive)
+    {
+        return;
+    }
+    // The dead ball is the kick's outcome: the ball goes over at the spot (the kicking team
+    // falling on it behind the line on its kicking down turns it over too), or the defense scored.
+    bLooseBallLive = false;
+    LastSpecialTeamsOutcome.Result = Event.bTouchdown ? EPSSpecialTeamsResult::BlockedTouchdown : EPSSpecialTeamsResult::Blocked;
+    LastSpecialTeamsOutcome.bTouchdown = Event.bTouchdown;
+    LastSpecialTeamsOutcome.bPossessionChanges = true;
+    LastSpecialTeamsOutcome.NextYardLine = FMath::Clamp(100 - Event.YardLine, 1, 99);
+    LastSpecialTeamsOutcome.Yards = Event.YardLine - CurrentState.YardLine;
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Blocked kick dead at the %d (%s)."), Event.YardLine, Event.bTouchdown ? TEXT("touchdown") : TEXT("defense's ball"));
     SetPlayPhase(EPlayPhase::Scoring);
 }
 

@@ -41,7 +41,7 @@ These groups can run at the same time (see the scope note under the table):
 | G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
 | G4 | Platform ports (Track N, iPhone first) | Code done: 129 and 130 (touch drives every gameplay context; the touch HUD widget is an editor handoff). 131 is done but its ADR, which waits on the owner's answer about a Mac and an Apple account | Claude Code; packaging waits on a Mac |
 | G5 | Bridge track | 25: 25.3 MCP server and 25.5 router done; 25.1–25.2 Autonomix and 25.6 smoke test need an editor, 25.4 registration waits on the owner (then 118/119) | Any strong agent |
-| G7 | Phase 2 AI | 17.4 (scramble drill and blown coverage done; live blocked-kick chaos is open), 17.5's device measurement (14, 15, 16, 18 done) | Any strong agent |
+| G7 | Phase 2 AI | 17.5's device measurement (14, 15, 16, 18 and 17.4 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
 | G9 | Front end and input feel (Track I) | 105.1–105.3 (101, 104 and 106 done; 103.1, 103.3, 103.4, 103.5 and 105.4 done; 103.2 waits on Epic 37 and the overlay palettes; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
@@ -116,7 +116,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "14":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"]},
     "15":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["9", "14"]},
     "16":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["14"]},
-    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation (scramble drill and blown coverage, both sides, done; live blocked-kick chaos open)", "17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
+    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
     "18":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "17"]},
     "19":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["1"]},
     "20":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["12", "19"]},
