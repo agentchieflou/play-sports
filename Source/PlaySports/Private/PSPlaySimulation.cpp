@@ -774,8 +774,11 @@ void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
         return;
     }
 
+    // The play's yards run from the line of scrimmage, this simulation's spot, to where the
+    // carrier went down (the event's spot, in the offense's yard lines). The event's own
+    // YardsGained counts from where the carrier lined up, behind the line for a back.
     CurrentPlayResult.ResultType = EPlayResultType::Tackle;
-    CurrentPlayResult.YardsGained = Event.YardsGained;
+    CurrentPlayResult.YardsGained = FMath::Clamp(Event.YardLine, 0, 100) - CurrentState.YardLine;
     const FName CarrierId = FindPlayerIdByName(Event.BallCarrierName);
     PlayLog.TacklerId = FindPlayerIdByName(Event.TacklerName);
     if (Event.bIsSack)
@@ -789,8 +792,8 @@ void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
         PlayLog.RusherId = CarrierId;
     }
     SetPlayPhase(EPlayPhase::Scoring);
-    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusTackle — %s tackled by %s for %d yards."),
-        *Event.BallCarrierName, *Event.TacklerName, Event.YardsGained);
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusTackle -- %s tackled by %s at the %d, %d yards from the line."),
+        *Event.BallCarrierName, *Event.TacklerName, Event.YardLine, CurrentPlayResult.YardsGained);
 }
 
 void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)

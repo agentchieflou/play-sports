@@ -361,6 +361,7 @@ bool FPSStatsAttributionTest::RunTest(const FString& Parameters)
     FPSTelemetryTackleEvent Tackle;
     Tackle.TacklerName = Defense[9].DisplayName;
     Tackle.BallCarrierName = Offense[2].DisplayName;
+    Tackle.YardLine = 32;
     Tackle.YardsGained = 12;
     Bus->PublishTackle(Tackle);
     for (int32 Tick = 0; Tick < 20 && Announced.Num() == 0; ++Tick)

@@ -4,7 +4,9 @@
 //   1. The pawn's attributes pointer and its ball-action component.
 //   2. A live tackle goes out on the bus: UPSBallActionComponent::ResolveTackle publishes the
 //      Tackle event (tackler, carrier, spot, yards, sack), the play simulation records the play
-//      from it, and the statistics engine counts a rush with its tackler, then a sack.
+//      from it, with its yards from the line of scrimmage (a back who lined up 5 yards deep
+//      gains from the line, not from his own spot), and the statistics engine counts a rush
+//      with its tackler, then a sack.
 //   3. A ball that came to rest (its projectile stopped simulating) flies again when relaunched.
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -152,10 +154,10 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
     TArray<FPSTelemetryPlayResultEvent> Plays;
     Bus->OnPlayResultMC.AddLambda([&Plays](const FPSTelemetryPlayResultEvent& Event) { Plays.Add(Event); });
 
-    // A run: the back lined up on the line and is brought down at the 28. He slides into the
-    // contact, so the tackle holds with no hit and no fumble: the test needs no luck.
+    // A run: the back lined up 5 yards deep, at the 15, and is brought down at the 28. He slides
+    // into the contact, so the tackle holds with no hit and no fumble: the test needs no luck.
     Sim->TriggerSnap();
-    APSPlayerPawn* Runner = SpawnPlayer(World, Offense[1], FVector(2800.f, 0.f, 100.f), FVector(2000.f, 0.f, 100.f));
+    APSPlayerPawn* Runner = SpawnPlayer(World, Offense[1], FVector(2800.f, 0.f, 100.f), FVector(1500.f, 0.f, 100.f));
     APSPlayerPawn* Linebacker = SpawnPlayer(World, Defense[1], FVector(2900.f, 0.f, 100.f), FVector(2450.f, 0.f, 100.f));
     if (!TestTrue(TEXT("The runner and the linebacker"), Runner && Linebacker))
     {
@@ -171,12 +173,12 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
         TestEqual(TEXT("...naming the tackler"), Tackles[0].TacklerName, Defense[1].DisplayName);
         TestEqual(TEXT("...and the carrier"), Tackles[0].BallCarrierName, Offense[1].DisplayName);
         TestEqual(TEXT("...at the spot: the 28"), Tackles[0].YardLine, 28);
-        TestEqual(TEXT("...8 yards on"), Tackles[0].YardsGained, 8);
+        TestEqual(TEXT("...13 yards on from where he lined up"), Tackles[0].YardsGained, 13);
         TestFalse(TEXT("...a run, not a sack"), Tackles[0].bIsSack);
     }
     TestEqual(TEXT("The simulation took the tackle: the whistle has blown"), Sim->GetPlayState().Phase, EPlayPhase::Scoring);
     TestEqual(TEXT("...on a tackle"), Sim->GetPlayResult().ResultType, EPlayResultType::Tackle);
-    TestEqual(TEXT("...for 8 yards"), Sim->GetPlayResult().YardsGained, 8);
+    TestEqual(TEXT("...for 8 yards: the simulation measures from the line of scrimmage, the 20"), Sim->GetPlayResult().YardsGained, 8);
 
     // The whistle's wait is over (called directly: AdvancePlay's random flags would move the yards).
     Sim->EndPlayAndPrepareNext();
@@ -214,6 +216,7 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("...a sack, 6 yards back"), Tackles[1].bIsSack && Tackles[1].YardsGained == -6);
         TestEqual(TEXT("...naming the lineman"), Tackles[1].TacklerName, Defense[0].DisplayName);
     }
+    TestEqual(TEXT("The sack loses 7 yards from the line, the 28"), Sim->GetPlayResult().YardsGained, -7);
     Sim->EndPlayAndPrepareNext();
     const FPSPlayerStatLine* LinemanLine = Stats->GetCurrentGame().FindPlayer(Defense[0].PlayerId);
     TestTrue(TEXT("The lineman's sack, a tackle too"), LinemanLine && LinemanLine->Sacks == 1 && LinemanLine->Tackles == 1);
