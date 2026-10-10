@@ -1,0 +1,17 @@
+{
+    "Comment": "The content pipeline's steps (Epic 146, Specs/ADR_Content_Pipeline.md). Each step's Script runs in the editor (run_in_editor.py) and owns its Outputs; its Inputs are the files it reads. Library counts as a source of every step. Paths are relative to the repo root; a directory stands for every file in it.",
+    "Library": [
+        "tools/content_pipeline/ue_content.py"
+    ],
+    "Steps": [
+        {
+            "Id": "game_map",
+            "Description": "The default level, /Game/Maps/GameMap: lit, with the match as its game mode. The field builds itself at runtime from data.",
+            "Script": "tools/content_pipeline/steps/game_map.py",
+            "Inputs": [],
+            "Outputs": [
+                "Content/Maps/GameMap.umap"
+            ]
+        }
+    ]
+}
