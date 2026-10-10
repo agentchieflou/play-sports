@@ -24,7 +24,9 @@ enum class EPSTelemetryEventType : uint8
     PumpFake,
     PassRushMove,
     PreSnap,
-    Timeout
+    Timeout,
+    GapIntegrity,
+    RouteRunning
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -43,6 +45,18 @@ enum class EPSPreSnapAction : uint8
     HotRoute,
     Motion,
     Protection
+};
+
+/** A route-running contest a receiver had (Epic 68). */
+UENUM(BlueprintType)
+enum class EPSRouteEventKind : uint8
+{
+    /** Getting off the line against press. */
+    Release,
+    /** A double move's fake, and whether the defender bit. */
+    DoubleMove,
+    /** An option route's read of the coverage. */
+    OptionRead
 };
 
 /** Which kind of hardware the human player last used (Epic 127). */
@@ -418,6 +432,61 @@ struct FPSTelemetryTimeoutEvent
     float GameClockSeconds = 0.f;
 };
 
+/** The run defense's gap integrity changed (Epic 81): which gaps are open -- no owner, or an
+ *  owner not lined up on it. UPSDefenderGapSubsystem publishes it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryGapIntegrityEvent
+{
+    GENERATED_BODY()
+
+    /** The front the gaps were assigned from. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Front;
+
+    /** The open gaps' EPSRunGap names, comma-separated, D left to D right. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString OpenGaps;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 OpenGapCount = 0;
+
+    /** A ball carrier other than the passer had the ball. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bRunRead = false;
+
+    /** Scrape exchanges so far this play. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 ScrapeExchanges = 0;
+};
+
+/** A receiver's route-running contest was resolved (Epic 68): his release against press, a
+ *  double move's fake, or an option route's read. UPSRouteRunnerComponent decides it (the one
+ *  authority); a defender who bit freezes for Seconds. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryRouteEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSRouteEventKind Kind = EPSRouteEventKind::Release;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString ReceiverName;
+
+    /** The presser, the defender the fake worked on, or (man) the defender read; may be empty. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString DefenderName;
+
+    /** Release: "Win", "Delay" or "Reroute"; double move: "Bit" or "Stayed"; option read: "Man"
+     *  or "Zone". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Outcome;
+
+    /** How long it holds: a jammed receiver's hold, a bitten defender's freeze. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Seconds = 0.f;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -460,6 +529,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeSignature, const
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushSignature, const FPSTelemetryPassRushEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapSignature, const FPSTelemetryPreSnapEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutSignature, const FPSTelemetryTimeoutEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegritySignature, const FPSTelemetryGapIntegrityEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteSignature, const FPSTelemetryRouteEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -481,6 +552,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutMC, const FPSTelemetryTim
 
 /** Any event, once it is in the history and before its typed delegates fire (Epic 26). */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryEventRecordedMC, const FPSTelemetryEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegrityMC, const FPSTelemetryGapIntegrityEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteMC, const FPSTelemetryRouteEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -540,6 +613,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishTimeout(const FPSTelemetryTimeoutEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishGapIntegrity(const FPSTelemetryGapIntegrityEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishRouteRunning(const FPSTelemetryRouteEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -618,6 +697,12 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryTimeoutSignature OnTimeout;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryGapIntegritySignature OnGapIntegrity;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryRouteSignature OnRouteRunning;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -639,6 +724,8 @@ public:
     /** Fires for every event as it is recorded, before its typed delegates, so a listener
      *  sees the world exactly as it was when the event happened (Epic 26's keyframes). */
     FPSTelemetryEventRecordedMC OnEventRecordedMC;
+    FPSTelemetryGapIntegrityMC OnGapIntegrityMC;
+    FPSTelemetryRouteMC OnRouteRunningMC;
 
 private:
     UPROPERTY(Transient)
