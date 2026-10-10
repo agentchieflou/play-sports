@@ -48,6 +48,7 @@ enum class EPSTelemetryEventType : uint8
     Crowd,
     Commentary,
     Trade,
+    BallGrounded,
     Lineup
 };
 
@@ -530,6 +531,19 @@ struct FPSTelemetryTradeEvent
     /** "Hawks get BEARS_WR_02 (WR, 30); Bears get 2027 round 2 (Hawks)". */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     FString Description;
+};
+
+/** A ball in the air -- thrown or kicked, not fumbled -- touched the ground (APSBall). The ball only
+ *  reports it; the play simulation, the outcome authority, rules on it: a pass that lands before
+ *  anyone catches it is incomplete. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryBallGroundedEvent
+{
+    GENERATED_BODY()
+
+    /** Where it came down. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Location = FVector::ZeroVector;
 };
 
 USTRUCT(BlueprintType)
@@ -1753,6 +1767,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPenaltySignature, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCrowdSignature, const FPSTelemetryCrowdEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentarySignature, const FPSTelemetryCommentaryEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeSignature, const FPSTelemetryTradeEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedSignature, const FPSTelemetryBallGroundedEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLineupSignature, const FPSTelemetryLineupEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
@@ -1798,6 +1813,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPenaltyMC, const FPSTelemetryPen
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCrowdMC, const FPSTelemetryCrowdEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentaryMC, const FPSTelemetryCommentaryEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeMC, const FPSTelemetryTradeEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedMC, const FPSTelemetryBallGroundedEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLineupMC, const FPSTelemetryLineupEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
@@ -1934,6 +1950,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishCommentary(const FPSTelemetryCommentaryEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishBallGrounded(const FPSTelemetryBallGroundedEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -2082,6 +2101,9 @@ public:
     FPSTelemetryTradeSignature OnTrade;
 
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryBallGroundedSignature OnBallGrounded;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryLineupSignature OnLineup;
 
     FPSTelemetrySnapMC OnSnapMC;
@@ -2128,6 +2150,7 @@ public:
     FPSTelemetryCrowdMC OnCrowdMC;
     FPSTelemetryCommentaryMC OnCommentaryMC;
     FPSTelemetryTradeMC OnTradeMC;
+    FPSTelemetryBallGroundedMC OnBallGroundedMC;
     FPSTelemetryLineupMC OnLineupMC;
 
 private:

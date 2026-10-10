@@ -286,6 +286,18 @@ public:
     UFUNCTION()
     void OnBusBoundaryCrossedEvent(const FPSTelemetryBoundaryCrossedEvent& Event);
 
+    /** The ball reports a recovered fumble (APSBall): while the snap or the pass rush is still
+     *  under way, the recoverer is a ball carrier now (BallCarrierMovement). A dead ball, or a
+     *  play already in its carrier phase, is left as it is. */
+    UFUNCTION()
+    void OnBusFumbleEvent(const FPSTelemetryFumbleEvent& Event);
+
+    /** The ball reports it came down untouched (APSBall): during the snap or the pass rush -- a
+     *  pass in the air, no catch yet -- the pass is incomplete and the whistle blows. Later in
+     *  the play, or once it is dead, a bounce changes nothing. */
+    UFUNCTION()
+    void OnBusBallGroundedEvent(const FPSTelemetryBallGroundedEvent& Event);
+
     UFUNCTION(BlueprintCallable, Category = "Simulation|Clock")
     bool CallTimeout(bool bHomeTeam);
 
