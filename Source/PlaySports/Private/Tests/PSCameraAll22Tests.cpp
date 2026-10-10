@@ -392,7 +392,7 @@ bool FPSCameraAll22ToggleTest::RunTest(const FString& Parameters)
         Toggle && Toggle->ValueType == EInputActionValueType::Boolean && Toggle->Contexts.Contains(OnField));
     FPSInputGlyph Glyph;
     TestTrue(TEXT("The Xbox glyph set draws its pad button"), Input->GetGlyphForAction(ToggleId, OnField, EPSInputDevice::Gamepad, Glyph));
-    TestEqual(TEXT("...R3, the right stick's click"), Glyph.Label, FString(TEXT("R3")));
+    TestEqual(TEXT("...RSB, the right stick button (Xbox's name for it, Epic 150)"), Glyph.Label, FString(TEXT("RSB")));
     TestTrue(TEXT("The keyboard set draws its key"), Input->GetGlyphForAction(ToggleId, OnField, EPSInputDevice::KeyboardMouse, Glyph));
 
     // Its keys mean nothing in the contexts stacked over the field, so it works in each of them

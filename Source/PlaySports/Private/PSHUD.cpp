@@ -5,6 +5,7 @@
 #include "PSOverlayScoreBugWidget.h"
 #include "PSPlatformTiers.h"
 #include "PSTelestratorWidget.h"
+#include "PSTitleSafeArea.h"
 
 APSHUD::APSHUD()
 {
@@ -33,7 +34,8 @@ void APSHUD::BeginPlay()
         AIDebugWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), AIDebugWidgetClass);
         if (AIDebugWidget)
         {
-            AIDebugWidget->AddToViewport();
+            // Its cards follow the players, not the screen's edge.
+            PSTitleSafeArea::AddWholeScreen(AIDebugWidget);
         }
     }
 #endif
@@ -45,7 +47,8 @@ void APSHUD::BeginPlay()
         BadgeWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), BadgeWidgetClass);
         if (BadgeWidget)
         {
-            BadgeWidget->AddToViewport();
+            // Badges follow the players, not the screen's edge.
+            PSTitleSafeArea::AddWholeScreen(BadgeWidget);
         }
     }
 
@@ -54,7 +57,7 @@ void APSHUD::BeginPlay()
         ScoreboardWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), ScoreboardWidgetClass);
         if (ScoreboardWidget)
         {
-            ScoreboardWidget->AddToViewport();
+            PSTitleSafeArea::AddInside(ScoreboardWidget);
         }
     }
 
@@ -64,7 +67,7 @@ void APSHUD::BeginPlay()
         PersonnelWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), PersonnelWidgetClass);
         if (PersonnelWidget)
         {
-            PersonnelWidget->AddToViewport();
+            PSTitleSafeArea::AddInside(PersonnelWidget);
         }
     }
     if (ChyronWidgetClass && PSPlatformTiers::GetActiveTier().OverlayDetail != EPSOverlayDetail::Minimal)
@@ -72,7 +75,7 @@ void APSHUD::BeginPlay()
         ChyronWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), ChyronWidgetClass);
         if (ChyronWidget)
         {
-            ChyronWidget->AddToViewport();
+            PSTitleSafeArea::AddInside(ChyronWidget);
         }
     }
 
@@ -82,7 +85,8 @@ void APSHUD::BeginPlay()
         TelestratorWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), TelestratorWidgetClass);
         if (TelestratorWidget)
         {
-            TelestratorWidget->AddToViewport();
+            // Its strokes are drawn on the frame, edge to edge.
+            PSTitleSafeArea::AddWholeScreen(TelestratorWidget);
         }
     }
 }

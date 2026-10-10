@@ -1,4 +1,5 @@
 #include "PSInputDeviceComponent.h"
+#include "PSControllerPairingSubsystem.h"
 #include "PSInputConfigTypes.h"
 #include "PSPlayerController.h"
 #include "Engine/World.h"
@@ -83,6 +84,16 @@ void UPSInputDeviceComponent::NotifyTouch()
 
 void UPSInputDeviceComponent::NotifyUserInput(int32 UserIndex, const FKey& Key, float AnalogValue)
 {
+    // Any controller's button, whoever's it is: a player whose controller is lost takes another
+    // with the continue button (Epic 150).
+    if (Key.IsGamepadKey() && !Key.IsAnalog())
+    {
+        UWorld* World = GetWorld();
+        if (UPSControllerPairingSubsystem* Pairing = World ? World->GetSubsystem<UPSControllerPairingSubsystem>() : nullptr)
+        {
+            Pairing->HandleButtonPress(UserIndex, Key);
+        }
+    }
     if (IsOwnUser(UserIndex))
     {
         NotifyInput(Key, AnalogValue);

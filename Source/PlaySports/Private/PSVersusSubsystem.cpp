@@ -857,6 +857,40 @@ void UPSVersusSubsystem::HandleInputDevice(const FPSTelemetryInputDeviceEvent& E
     }
 }
 
+bool UPSVersusSubsystem::ReassignSeat(int32 Seat, int32 UserIndex)
+{
+    if (!IsSessionActive() || !IsValidSeat(Seat) || !Seats[Seat].IsClaimed() || !Seats[Seat].bDisconnected)
+    {
+        return false;
+    }
+    for (const FPSVersusSeat& Taken : Seats)
+    {
+        if (Taken.IsClaimed() && Taken.UserIndex == UserIndex)
+        {
+            return false;
+        }
+    }
+
+    Seats[Seat].UserIndex = UserIndex;
+    if (APSPlayerController* Controller = Seats[Seat].Controller.Get())
+    {
+        if (UPSInputDeviceComponent* Devices = Controller->GetInputDeviceComponent())
+        {
+            Devices->OwnerUserIndex = UserIndex;
+        }
+        // The new controller's input reaches this seat's player from now on.
+        if (ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer())
+        {
+            LocalPlayer->SetControllerId(UserIndex);
+        }
+    }
+    Seats[Seat].bDisconnected = false;
+    UE_LOG(LogTemp, Display, TEXT("UPSVersusSubsystem: Seat %d plays on with user %d's controller."), Seat, UserIndex);
+    Publish(EPSVersusEventKind::Reconnected, Seat);
+    TryStartCountdown();
+    return true;
+}
+
 bool UPSVersusSubsystem::Forfeit(int32 Seat)
 {
     if (!IsSessionActive() || !IsValidSeat(Seat) || !Seats[Seat].IsClaimed())

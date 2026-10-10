@@ -676,7 +676,10 @@ def validate_passing_input(path, payload, catalog):
             err(path, f"'{action_id}' must be a Boolean action in the Passing context")
 
 
-ENGINE_DEVICE_PROFILES = {"Windows", "Mac", "IOS", "Android", "Linux"}
+# XSX is Xbox Series X|S's base profile (Epic 150). The Xbox platform extension, gated behind ID@Xbox,
+# defines it; the name is the platform's as Microsoft's public Unreal docs give it (unverified until
+# the extension is installed: Specs/ADR_Xbox_Access.md).
+ENGINE_DEVICE_PROFILES = {"Windows", "Mac", "IOS", "Android", "Linux", "XSX"}
 
 
 def project_device_profiles():
@@ -772,13 +775,16 @@ def validate_platform_tiers(path, payload):
             rate = tier.get(field)
             if not is_number(rate) or rate < 0:
                 err(path, f"{where}.{field}: '{rate}' must be a number, 0 (every frame) or more")
+        safe = tier.get("TitleSafeArea", 1.0)
+        if not is_number(safe) or not 0.5 <= safe <= 1.0:
+            err(path, f"{where}.TitleSafeArea: '{safe}' must be a share of the screen from 0.5 to 1")
         voices = tier.get("AudioMaxVoices")
         if not isinstance(voices, int) or isinstance(voices, bool) or voices < 1:
             err(path, f"{where}.AudioMaxVoices: '{voices}' must be a whole number, 1 or more")
         validate_system_budgets(path, where, tier)
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
                              "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", "PlayArtRefreshHz",
-                             "AudioUpdateHz", "AudioMaxVoices", "CrowdUpdateHz", *TIER_TELEMETRY_NUMBERS}
+                             "AudioUpdateHz", "AudioMaxVoices", "CrowdUpdateHz", "TitleSafeArea", *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:

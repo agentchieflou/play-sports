@@ -2,6 +2,7 @@
 #include "PSDataIngestion.h"
 #include "PSLocalization.h"
 #include "PSSettingsSubsystem.h"
+#include "PSTitleSafeArea.h"
 #include "PSUICaptionWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Camera/CameraShakeBase.h"
@@ -55,7 +56,7 @@ void UPSUIAccessibilitySubsystem::OnWorldBeginPlay(UWorld& InWorld)
         CaptionWidget = CreateWidget<UPSUICaptionWidget>(Player, UPSUICaptionWidget::StaticClass());
         if (CaptionWidget)
         {
-            CaptionWidget->AddToViewport(50);
+            PSTitleSafeArea::AddInside(CaptionWidget, 50);
         }
     }
 }

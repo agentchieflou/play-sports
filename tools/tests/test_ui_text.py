@@ -45,5 +45,25 @@ class UITextTests(unittest.TestCase):
         self.assertEqual(ui_text.KEY_USE.findall(text), ["Menu.ResetToDefaults", "Menu.Option"])
 
 
+class XboxTermTests(unittest.TestCase):
+    """Epic 150: player-facing words follow the Xbox naming standard (XR-022)."""
+
+    def test_non_xbox_words_are_flagged(self):
+        for text in ("The controller rumbles on hits.", "Press L3 to sprint.", "Click the right thumbstick.",
+                     "Press the Start button.", "Press the Cross button.", "Plug in a DualSense.", "Your Gamer tag"):
+            self.assertTrue(ui_text.term_problems("K", text), text)
+
+    def test_xbox_words_pass(self):
+        for text in ("The controller vibrates on hits.", "Press LSB to sprint.", "Click the right stick.",
+                     "Press the Menu button.", "Press A.", "Your gamertag", "Level 3", "1st and 10"):
+            self.assertEqual(ui_text.term_problems("K", text), [], text)
+
+    def test_the_xbox_glyph_labels_are_checked(self):
+        labels = dict(ui_text.xbox_glyph_labels())
+        self.assertEqual(labels.get("Xbox_A"), "A")
+        self.assertEqual(labels.get("Xbox_RS_Press"), "RSB")
+        self.assertEqual([p for glyph, label in labels.items() for p in ui_text.term_problems(glyph, label)], [])
+
+
 if __name__ == "__main__":
     unittest.main()

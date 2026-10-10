@@ -53,6 +53,10 @@ TArray<FString> PSPlatformTiers::ValidateCatalog(const FPSPlatformTierCatalog& C
         {
             Problems.Add(FString::Printf(TEXT("Tiers[%d]: AudioMaxVoices must be 1 or more"), Index));
         }
+        if (!(Tier.TitleSafeArea >= 0.5f && Tier.TitleSafeArea <= 1.f))
+        {
+            Problems.Add(FString::Printf(TEXT("Tiers[%d]: TitleSafeArea must be from 0.5 to 1 (a share of the screen)"), Index));
+        }
     }
     if (!FindTier(Catalog, Catalog.DefaultTier))
     {

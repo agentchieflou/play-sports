@@ -750,3 +750,18 @@ void UPSTelemetryBus::PublishLifecycle(const FPSTelemetryLifecycleEvent& Event)
     }
     OnLifecycleMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishControllerPairing(const FPSTelemetryControllerPairingEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryControllerPairingEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    RecordHistory(EPSTelemetryEventType::ControllerPairing, FString::Printf(TEXT("ControllerPairing: %s, human %d, user %d"),
+        *UEnum::GetValueAsString(Event.Kind), Event.HumanIndex, Event.InputUserIndex), JsonPayload);
+
+    if (OnControllerPairing.IsBound())
+    {
+        OnControllerPairing.Broadcast(Event);
+    }
+    OnControllerPairingMC.Broadcast(Event);
+}

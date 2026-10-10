@@ -211,6 +211,12 @@ public:
     /** A seat's pauses left this half; -1 without a limit. */
     int32 GetPausesLeft(int32 Seat) const;
 
+    /** A seat's player picked up another controller while theirs was disconnected (Epic 150; the
+     *  Xbox Requirements' XR-115): the seat counts UserIndex's devices from now on and is connected
+     *  again, so the resume countdown can start. Refused when the seat's controller isn't
+     *  disconnected or UserIndex sits in a seat. */
+    bool ReassignSeat(int32 Seat, int32 UserIndex);
+
     /** A seat quits: with bQuitForfeits the other seat wins. The session ends either way. */
     bool Forfeit(int32 Seat);
 

@@ -456,7 +456,7 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.KickMeterDrivesTheKick` | A kick phase lines the human kicker up and the play waits; the meter's roll decides the field goal, punt and kickoff; without a human the CPU kicks on time (Epic 104.5). |
 | `PlaySports.PreSnap.HumanButtons` | The PreSnap context's buttons select, keep in, slide, hot-route, motion and audible, and do nothing on defense (Epic 66). |
 | `PlaySports.PreSnap.Defense.HumanButtons` | The defense's calls are their own Boolean actions in DefensePreSnap with glyphs, on keys free there and in `OnField`; pressed through the catalog they disguise, show blitz, creep, select, shadow and audible while the human controls a defender before the snap, and are off the stack on offense (Epic 67). |
-| `PlaySports.Camera.All22ToggleThroughCatalog` | FilmView is on the field with a key and an R3 glyph. Its keys are free in every context stacked over the field. It steps the film view on the viewing controller only (Epic 40). |
+| `PlaySports.Camera.All22ToggleThroughCatalog` | FilmView is on the field with a key and an RSB (right stick button) glyph. Its keys are free in every context stacked over the field. It steps the film view on the viewing controller only (Epic 40). |
 | `PlaySports.Versus.SplitContextsAndDefenseSwitching` | Two controllers are in their own side's depth contexts at once; the defense's switch and picks follow the head-to-head rules, a takeaway's carrier is always theirs, and nobody takes the other human's player (Epic 107). |
 | `PlaySports.Versus.PerSeatDevicesAndRumble` | A seated controller counts only its own user's input and its events carry its `HumanIndex`; each player's rumble follows only their own device and player (Epic 107). |
 

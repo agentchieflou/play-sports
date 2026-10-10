@@ -26,6 +26,11 @@ the code:
     PSCommentary*) builds no FText from raw strings:
     its text comes through UPSLocalization (GetText, Format, GetDataText, Verbatim,
     FromLocalized).
+  - controller words follow the Xbox naming standard (Epic 150; the Xbox Requirements' XR-022 and
+    Microsoft's required terminology list): every string in both tables, and the labels of the
+    Xbox glyph set in Data/input_glyphs.json, say "vibration", not "rumble", "left stick button"
+    (LSB), not "L3", and so on (XBOX_TERMS). The text is the same on every platform, so it uses
+    the Xbox words everywhere.
 
 Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones):
   Menu.<ScreenId>.Title | Body
@@ -59,6 +64,36 @@ SOURCE_DIR = REPO / "Source"
 GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings", "PSPlayCall", "PSOverlay", "PSGameStateEvents",
                   "PSCommentary")
 RAW_TEXT = re.compile(r"\bFText::FromString\(|\bFText::AsCultureInvariant\(|\bN?S?LOCTEXT\(|\bINVTEXT\(")
+# Epic 150: words a player never sees on any screen, each with the Xbox term to use instead.
+XBOX_TERMS = [
+    (re.compile(r"\brumbl", re.IGNORECASE), "vibration (the controller vibrates)"),
+    (re.compile(r"\bthumb ?sticks?\b", re.IGNORECASE), "left stick, right stick"),
+    (re.compile(r"\b(?:start|select|back) button\b", re.IGNORECASE), "Menu button, View button"),
+    (re.compile(r"\b[LR][123]\b"), "LB, LT, LSB, RB, RT, RSB"),
+    (re.compile(r"\b(?:cross|circle|square|triangle) button\b", re.IGNORECASE), "A, B, X, Y"),
+    (re.compile(r"\b(?:dualshock|dualsense|playstation|joy-?con)\b", re.IGNORECASE), "controller"),
+    (re.compile(r"\bgamer tag\b", re.IGNORECASE), "gamertag"),
+]
+
+
+def term_problems(where, text):
+    """Messages for each non-Xbox controller word in text (a player-facing string)."""
+    return [f"{where}: '{match.group(0)}' - say {use} (the Xbox naming standard, Epic 150)"
+            for pattern, use in XBOX_TERMS for match in [pattern.search(text)] if match]
+
+
+def xbox_glyph_labels():
+    """(GlyphId, Label) for every key and action of the Xbox glyph set in Data/input_glyphs.json."""
+    glyphs = _load("input_glyphs.json") or {}
+    labels = []
+    for glyph_set in glyphs.get("GlyphSets") or []:
+        if isinstance(glyph_set, dict) and glyph_set.get("GlyphSetId") == "Xbox":
+            for entry in (glyph_set.get("Keys") or []) + (glyph_set.get("Actions") or []):
+                if isinstance(entry, dict) and isinstance(entry.get("Label"), str):
+                    labels.append((entry.get("GlyphId"), entry["Label"]))
+    return labels
+
+
 KEY_USE = re.compile(r"(?<![\w:])(?:UPSLocalization::)?(?:GetText|Format)\(\s*TEXT\(\"([^\"]+)\"\)")
 
 
@@ -254,6 +289,9 @@ def problems():
     found += [(UI_TEXT, p) for p in ui_problems]
     for key, source in ui_table.items():
         found += [(UI_TEXT, p) for p in _string_problems(key, source)]
+        found += [(UI_TEXT, p) for p in term_problems(key, source)]
+    for glyph_id, label in xbox_glyph_labels():
+        found += [(DATA_DIR / "input_glyphs.json", p) for p in term_problems(f"Xbox glyph {glyph_id}", label)]
 
     rows = data_rows()
     seen = {}
@@ -262,6 +300,7 @@ def problems():
             found.append((UI_TEXT_DATA, f"'{key}' would hold two different strings: give the screen, option, setting or tip a unique ID"))
         seen[key] = source
         found += [(UI_TEXT_DATA, p) for p in _string_problems(key, source)]
+        found += [(UI_TEXT_DATA, p) for p in term_problems(key, source)]
     try:
         current = UI_TEXT_DATA.read_text(encoding="utf-8").replace("\r\n", "\n")
     except (OSError, UnicodeDecodeError):

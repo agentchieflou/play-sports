@@ -652,12 +652,16 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
 - `Tiers[]`, each with:
   - `TierId` (unique) and a `Description`;
   - `DeviceProfile`: the profile carrying the tier's rendering settings, either an engine
-    profile (`Windows`, `IOS`, ...) or one declared in `Config/DefaultDeviceProfiles.ini`;
+    profile (`Windows`, `IOS`, `XSX` for Xbox Series X|S, ...) or one declared in
+    `Config/DefaultDeviceProfiles.ini`;
   - `AIDecisionInterval`: seconds between each AI player's decisions, 0 for every frame. The AI
     steers every frame in between.
   - `OverlayDetail`: `Full` (everything, animated), `Simplified` (no animated transitions or
     pulses) or `Minimal` (the score bug and the control reticle, static). Track A's overlays
     read it.
+  - `TitleSafeArea` (0.5 to 1, default 1): the share of the screen's width and height, centred,
+    that HUD and menu text and controls stay inside (Epic 150, `PSTitleSafeArea`). 1 is the whole
+    screen; `XboxSeries` uses 0.9, the inner 90% of a TV.
   - `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` (above 0): how often the telemetry
     sampler (Epic 26) records every pawn, and what one recording may cost in ms before the
     sampler halves its rate.
@@ -679,7 +683,8 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
   - `CrowdUpdateHz` (0 or more): how often a second the crowd's excitement (Epic 23.2,
     `UPSCrowdExcitementSubsystem`) settles and is re-rated; 0 is every frame.
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
-  `Mac`, `IOS`, `Android`) to `Tier`.
+  `Mac`, `IOS`, `Android`, and `XSX` for Xbox Series X|S, unverified until the gated Xbox platform
+  extension is installed: `Specs/ADR_Xbox_Access.md`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
 
 A run can be forced onto a tier with `-PSTier=<TierId>`. A system with a per-tier cost adds its

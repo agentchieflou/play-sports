@@ -50,7 +50,8 @@ enum class EPSTelemetryEventType : uint8
     Trade,
     BallGrounded,
     Lineup,
-    Lifecycle
+    Lifecycle,
+    ControllerPairing
 };
 
 /** What a statistic counts (Epic 92). Player categories first, then team ones. */
@@ -1744,6 +1745,44 @@ struct FPSTelemetryLifecycleEvent
     FName Backend;
 };
 
+/** What happened to a human's controller or user (UPSControllerPairingSubsystem, Epic 150). */
+UENUM(BlueprintType)
+enum class EPSControllerPairingKind : uint8
+{
+    /** The controller driving the human's game disconnected: the game paused. */
+    ControllerLost,
+    /** The same controller came back. */
+    ControllerRestored,
+    /** Another controller took over ("press A to continue"). */
+    ControllerReassigned,
+    /** The human's user signed out or changed while the game was away (checked on resume). */
+    UserSignedOut,
+    /** The human's user is signed in again. */
+    UserRestored
+};
+
+/** A human's controller or user changed (UPSControllerPairingSubsystem, Epic 150). */
+USTRUCT(BlueprintType)
+struct FPSTelemetryControllerPairingEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSControllerPairingKind Kind = EPSControllerPairingKind::ControllerLost;
+
+    /** Which human (APSPlayerController::HumanIndex). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 HumanIndex = 0;
+
+    /** The platform user whose devices drive the human now; INDEX_NONE for any device. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 InputUserIndex = INDEX_NONE;
+
+    /** The human's platform user (FPSPlatformUser::UserId); empty when signed out. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString UserId;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -1812,6 +1851,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeSignature, const FP
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedSignature, const FPSTelemetryBallGroundedEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLineupSignature, const FPSTelemetryLineupEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLifecycleSignature, const FPSTelemetryLifecycleEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryControllerPairingSignature, const FPSTelemetryControllerPairingEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -1859,6 +1899,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeMC, const FPSTelemetryTrade
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedMC, const FPSTelemetryBallGroundedEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLineupMC, const FPSTelemetryLineupEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLifecycleMC, const FPSTelemetryLifecycleEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryControllerPairingMC, const FPSTelemetryControllerPairingEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1986,6 +2027,10 @@ public:
     /** The platform suspended, resumed or constrained the game, from UPSPlatformServices. */
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishLifecycle(const FPSTelemetryLifecycleEvent& Event);
+
+    /** A human's controller or user changed, from UPSControllerPairingSubsystem. */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishControllerPairing(const FPSTelemetryControllerPairingEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishRecognition(const FPSTelemetryRecognitionEvent& Event);
@@ -2157,6 +2202,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryLifecycleSignature OnLifecycle;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryControllerPairingSignature OnControllerPairing;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -2204,6 +2252,7 @@ public:
     FPSTelemetryBallGroundedMC OnBallGroundedMC;
     FPSTelemetryLineupMC OnLineupMC;
     FPSTelemetryLifecycleMC OnLifecycleMC;
+    FPSTelemetryControllerPairingMC OnControllerPairingMC;
 
 private:
     UPROPERTY(Transient)

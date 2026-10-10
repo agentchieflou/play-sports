@@ -84,7 +84,7 @@ the CI runner, which already runs the editor headlessly for tests.
 
 ## Xbox ladder
 
-- [ ] **X0, the guts on PC:** the `XboxSeries` tier, users and controllers, lifecycle, the title-safe area and glyphs, all through 152 and tested on Win64; and `Specs/ADR_Xbox_Access.md`, ready for the owner to apply (150)
+- [x] **X0, the guts on PC:** the `XboxSeries` tier, users and controllers, lifecycle, the title-safe area and glyphs, all through 152 and tested on Win64; and `Specs/ADR_Xbox_Access.md`, ready for the owner to apply (150)
 - [ ] **X1, access (when the owner applies):** ID@Xbox onboarding and console hardware enabled for development; the console target compiles in CI (151.1, or 150 if the public plug-ins allow it)
 - [ ] **X2, Xbox playable:** 152's Xbox implementation and a full game on Series S and Series X with a controller (151.2, 151.3)
 - [ ] **X3, certification ready:** on-console checks of the guts, boot time, and a pre-certification pass (151.4, 151.5)

@@ -61,6 +61,13 @@ struct FPSPlatformTier
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     EPSOverlayDetail OverlayDetail = EPSOverlayDetail::Full;
 
+    /** The title-safe area (Epic 150): the share of the screen's width and height, centred, that
+     *  HUD and menu text and controls stay inside, so a TV's edge never hides them. 1 is the whole
+     *  screen (a monitor; a phone keeps to its own safe insets); 0.9 is the inner 90% Microsoft
+     *  asks of games on a TV. PSTitleSafeArea applies it to every HUD and menu widget. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float TitleSafeArea = 1.f;
+
     /** The frame rate this tier is budgeted for (Epic 114): a frame is 1000 / this ms. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     float TargetFrameRate = 60.f;
