@@ -194,6 +194,20 @@ class ReportTests(unittest.TestCase):
         self.assertTrue(any(w.startswith("team 'Alpha' has no ") and "DefensiveBack" in w for w in warnings), warnings)
         self.assertIn("no offensive Run play - the coaching AI has nothing to call there", warnings)
 
+    def test_a_roster_short_of_a_personnel_package(self):
+        personnel = {"DefaultOffensePackage": "Spread", "DefaultDefensePackage": "Dime", "Packages": [
+            {"PackageId": "Spread", "bOffense": True, "RoleCounts": {"Quarterback": 1, "WideReceiver": 2}},
+            {"PackageId": "Dime", "bOffense": False, "RoleCounts": {"DefensiveBack": 1}}]}
+        warnings = self.build(league(**{"Data/personnel_packages.json": personnel}))["warnings"]
+        self.assertIn("team 'Alpha' can't field personnel package(s) Spread (2 WideReceiver, has 1), "
+                      "Dime (1 DefensiveBack, has 0) - the field plays short", warnings)
+        self.assertIn("team 'Beta' can't field personnel package(s) Spread (2 WideReceiver, has 0) - the field plays short",
+                      warnings)
+
+    def test_every_shipped_team_fields_every_personnel_package(self):
+        report = content.build_report(content.REPO)
+        self.assertEqual([w for w in report["warnings"] if "personnel package" in w], [])
+
     def test_body_plausibility(self):
         roster = {"Players": [player("ALP_QB", "Quarterback", WeightKg=40), player("ALP_WR", "WideReceiver", HeightCm=250)]}
         warnings = self.build(league(**{"Data/rosters/alpha.json": roster}))["warnings"]
