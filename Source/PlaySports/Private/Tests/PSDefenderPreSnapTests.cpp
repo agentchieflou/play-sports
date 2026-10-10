@@ -52,7 +52,7 @@ namespace PSDefenderPreSnapTests
 
     /** Both elevens as the game lines them up on the ball at the origin, by role in order:
      *  OL x5, QB, RB, WR x3, TE, DL x4, LB x3, DB x4. Every defender rated DefenseAwareness. */
-    struct FField
+    struct FPreSnapField
     {
         TArray<APSPlayerPawn*> Line;
         TArray<APSPlayerPawn*> Receivers;
@@ -102,7 +102,7 @@ namespace PSDefenderPreSnapTests
         return Pawn;
     }
 
-    static FField SpawnField(UWorld* World, float DefenseAwareness)
+    static FPreSnapField SpawnField(UWorld* World, float DefenseAwareness)
     {
         const TArray<EPlayerRole> Personnel = {
             EPlayerRole::OffensiveLineman, EPlayerRole::Quarterback, EPlayerRole::RunningBack, EPlayerRole::WideReceiver, EPlayerRole::TightEnd,
@@ -117,7 +117,7 @@ namespace PSDefenderPreSnapTests
             }
         }
         const TArray<FVector> Lineup = APSFieldGrid::ComputeLineup(Roles, 0.f);
-        FField Field;
+        FPreSnapField Field;
         for (int32 Index = 0; Index < Roles.Num(); ++Index)
         {
             const EPlayerRole Role = Roles[Index];
@@ -219,7 +219,7 @@ bool FPSDefenderShellDisguiseTest::RunTest(const FString& Parameters)
         }
         return false;
     }
-    FField Field = SpawnField(World, 100.f);
+    FPreSnapField Field = SpawnField(World, 100.f);
     if (!TestTrue(TEXT("Both elevens are on the field"), Field.IsComplete()))
     {
         DestroyTestWorld(World);
@@ -303,7 +303,7 @@ bool FPSDefenderShowBlitzTest::RunTest(const FString& Parameters)
         }
         return false;
     }
-    FField Field = SpawnField(World, 100.f);
+    FPreSnapField Field = SpawnField(World, 100.f);
     if (!TestTrue(TEXT("Both elevens are on the field"), Field.IsComplete()))
     {
         DestroyTestWorld(World);
@@ -376,7 +376,7 @@ bool FPSDefenderAudibleShadowTest::RunTest(const FString& Parameters)
         }
         return false;
     }
-    FField Field = SpawnField(World, 100.f);
+    FPreSnapField Field = SpawnField(World, 100.f);
     if (!TestTrue(TEXT("Both elevens are on the field"), Field.IsComplete()))
     {
         DestroyTestWorld(World);
@@ -444,7 +444,7 @@ bool FPSDefenderCpuDisguiseTest::RunTest(const FString& Parameters)
         }
         return false;
     }
-    FField Field = SpawnField(World, 100.f);
+    FPreSnapField Field = SpawnField(World, 100.f);
     if (!TestTrue(TEXT("Both elevens are on the field"), Field.IsComplete()))
     {
         DestroyTestWorld(World);
@@ -545,7 +545,7 @@ bool FPSDefenderPreSnapButtonsTest::RunTest(const FString& Parameters)
         }
         return false;
     }
-    FField Field = SpawnField(World, 100.f);
+    FPreSnapField Field = SpawnField(World, 100.f);
     UPSDefenderPreSnapInputComponent* Input = Controller->GetDefenderPreSnapInputComponent();
     if (!TestTrue(TEXT("Both elevens are on the field"), Field.IsComplete()) || !TestNotNull(TEXT("The controller has defensive pre-snap buttons"), Input))
     {
