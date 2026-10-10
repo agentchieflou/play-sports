@@ -1778,6 +1778,27 @@ are cm, colors `#RRGGBB`:
 - `NoDefenseArtCategories`: defensive `PlayCategory` values that draw no icons (the kicking game's).
 - `bDrawDebug`: development builds draw the art as debug lines until the editor-made renderer
   exists.
+- `Diagram` (`FPSPlayDiagramStyle`, Epic 102.1): the same art drawn flat as the play-call
+  screen's previews (`PSPlayDiagram`, `UPSPlayDiagramWidget`; `Specs/Play_Call_Interface.md`).
+  Sizes are field cm unless noted:
+  - `MinFieldWidth`, `MinFieldDepth` (above 0): the diagram shows at least this much field
+    across (centred on the ball) and deep; `FieldMargin` (0 or more) is kept clear round the
+    drawing.
+  - `WidthScale` (above 0): the art's line widths are drawn this many times as wide;
+    `MinStrokeWidth` (above 0, Slate units): no line is drawn thinner on screen.
+  - `PlayerRadius` (above 0): a player's ring (offense) or X (defense); `MarkWidth` (above 0):
+    the width of players, blocks, guides and the line of scrimmage.
+  - `OffenseColor`, `DefenseColor`: each side's players; `OpponentOpacity` (0 to 1): the other
+    side's players are drawn this opaque (0 leaves them out); `GuideOpacity` (0 to 1): a zone
+    defender's drop and a "go to your spot" path, in the side's color.
+  - `ArrowheadLength` (above 0) and `ArrowheadAngleDegrees` (above 0, below 90): the head on
+    every route, guide and rush.
+  - `RunBlockStemLength`, `PassBlockStemLength` (0 or more), `BlockBarWidth` (above 0),
+    `BlockColor`: a blocker's T, its stem upfield for a run block and back for a pass block.
+  - `LineOfScrimmageColor`; `CircleSegments` (6 or more): segments in a ring.
+  - `BackgroundColor`, `BackgroundOpacity` (0 to 1; 0 draws none): the diagram's backdrop.
+  - `PreviewWidth`, `PreviewHeight` (above 0, Slate units, which scale with the display): the
+    preview's size beside each play.
 
 What a cut is comes from the route-running tuning (`BreakMinAngleDegrees` in
 `route_running.json`). The `RouteArt` and `DefenseIcons` settings (Gameplay, `ui_settings.json`)

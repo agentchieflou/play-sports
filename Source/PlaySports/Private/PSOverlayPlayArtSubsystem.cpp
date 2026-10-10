@@ -2,6 +2,7 @@
 #include "PSAIFieldSnapshot.h"
 #include "PSCoverageMatchupSubsystem.h"
 #include "PSDataIngestion.h"
+#include "PSGameStateEvents.h"
 #include "PSPerfBudget.h"
 #include "PSPlayArt.h"
 #include "PSPlayCallSubsystem.h"
@@ -296,9 +297,8 @@ void UPSOverlayPlayArtSubsystem::RebuildRouteArt()
 
     // Resolved exactly as the snap will resolve it (UPSPlayOrchestrator), against the line the
     // play simulation announced, and compiled with the play's annotations (Epic 35).
-    const UDataTable* Routes = PlayCall->GetRouteLibrary();
-    const TArray<FPSResolvedAssignment> Resolved = PSPlayResolution::ResolvePlay(Play, UPSAIFieldSnapshot::GetFieldPawns(World), Routes, LineOfScrimmage, false);
-    RouteArt = PSPlayArt::CompilePlayArt(Play, Resolved, Routes, Style, GetBreakMinAngleDegrees(), LineOfScrimmage);
+    TArray<FPSResolvedAssignment> Resolved;
+    RouteArt = ResolveAndCompile(Play, LineOfScrimmage, Resolved);
     PlayId = RouteArt.Num() > 0 ? Play.PlayId : NAME_None;
     KeepBadgeLetters(Resolved, OffenseBadgeLetters);
 }
@@ -307,8 +307,7 @@ void UPSOverlayPlayArtSubsystem::RebuildDefenseArt()
 {
     UWorld* World = GetWorld();
     UPSPlayCallSubsystem* PlayCall = World ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
-    UPSAIFieldSnapshot* Field = World ? World->GetSubsystem<UPSAIFieldSnapshot>() : nullptr;
-    if (!PlayCall || !Field || !IsSettingOn(DefenseIconsSettingId))
+    if (!PlayCall || !IsSettingOn(DefenseIconsSettingId))
     {
         return;
     }
@@ -321,14 +320,54 @@ void UPSOverlayPlayArtSubsystem::RebuildDefenseArt()
     }
 
     // Resolved as the snap will resolve it, its man matchups taken as the defense AI takes them.
-    const TArray<APSPlayerPawn*>& Pawns = Field->GetPawns();
-    const TArray<EPlayerRole>& Roles = Field->GetRoles();
-    const UPSCoverageMatchupSubsystem* Matchups = World->GetSubsystem<UPSCoverageMatchupSubsystem>();
-    TArray<FPSResolvedAssignment> Resolved = PSPlayResolution::ResolvePlay(Play, Pawns, PlayCall->GetRouteLibrary(), LineOfScrimmage, false);
-    PSPlayResolution::ResolveManMatchups(Resolved, Pawns, Roles, Matchups);
-    DefenseArt = PSPlayArt::CompilePlayArt(Play, Resolved, PlayCall->GetRouteLibrary(), Style, GetBreakMinAngleDegrees(), LineOfScrimmage, Matchups);
+    TArray<FPSResolvedAssignment> Resolved;
+    DefenseArt = ResolveAndCompile(Play, LineOfScrimmage, Resolved);
     DefensePlayId = DefenseArt.Num() > 0 ? Play.PlayId : NAME_None;
     KeepBadgeLetters(Resolved, DefenseBadgeLetters);
+}
+
+TArray<FPSPlayArtPrimitive> UPSOverlayPlayArtSubsystem::ResolveAndCompile(const FPSPlayDefinition& Play, const FVector& Line, TArray<FPSResolvedAssignment>& OutResolved)
+{
+    OutResolved.Reset();
+    UWorld* World = GetWorld();
+    UPSPlayCallSubsystem* PlayCall = World ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+    UPSAIFieldSnapshot* Field = World ? World->GetSubsystem<UPSAIFieldSnapshot>() : nullptr;
+    if (!PlayCall || !Field)
+    {
+        return TArray<FPSPlayArtPrimitive>();
+    }
+    const TArray<APSPlayerPawn*>& Pawns = Field->GetPawns();
+    const UDataTable* Routes = PlayCall->GetRouteLibrary();
+    OutResolved = PSPlayResolution::ResolvePlay(Play, Pawns, Routes, Line, false);
+    const UPSCoverageMatchupSubsystem* Matchups = nullptr;
+    if (!Play.bIsOffensivePlay)
+    {
+        Matchups = World->GetSubsystem<UPSCoverageMatchupSubsystem>();
+        PSPlayResolution::ResolveManMatchups(OutResolved, Pawns, Field->GetRoles(), Matchups);
+    }
+    return PSPlayArt::CompilePlayArt(Play, OutResolved, Routes, Style, GetBreakMinAngleDegrees(), Line, Matchups);
+}
+
+bool UPSOverlayPlayArtSubsystem::BuildPlayDiagram(FName InPlayId, FPSPlayDiagram& OutDiagram)
+{
+    OutDiagram = FPSPlayDiagram();
+    UWorld* World = GetWorld();
+    UPSPlayCallSubsystem* PlayCall = World ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+    FPSPlayDefinition Play;
+    if (!PlayCall || !PlayCall->FindPlay(InPlayId, Play))
+    {
+        return false;
+    }
+    // The announced line; before one, where the situation puts it (the line the snap will use).
+    const FVector Line = bHasLine ? LineOfScrimmage : PSGameStateEvents::LineOfScrimmageFor(PlayCall->GetSituation().YardLine);
+    TArray<FPSResolvedAssignment> Resolved;
+    const TArray<FPSPlayArtPrimitive> Art = ResolveAndCompile(Play, Line, Resolved);
+    if (Resolved.Num() == 0)
+    {
+        return false;
+    }
+    OutDiagram = PSPlayDiagram::BuildDiagram(Play, Resolved, Art, Line, Style);
+    return true;
 }
 
 void UPSOverlayPlayArtSubsystem::KeepBadgeLetters(const TArray<FPSResolvedAssignment>& Resolved, TMap<FObjectKey, FString>& OutLetters)

@@ -79,7 +79,8 @@ FPSPhotoModeTuning (Epic 45); "RoleProfiles" + "NameCultures" files against FPSL
 pools and the real-person NameBlocklist, which every roster's DisplayNames are checked against;
 "PeakAgeStart" files against FPSProgressionTuning (the age curve; Epic 122); a player's optional
 "Age" is a whole number; "ReadColors" files against FPSPlayArtStyle (Epics 27 and 31), each no-art
-category one of its side's play categories; "Concepts" + "Coverages" files against
+category one of its side's play categories, and its "Diagram" block against FPSPlayDiagramStyle
+(Epic 102.1's play-call previews); "Concepts" + "Coverages" files against
 FPSPlaybookGeneratorTuning (Epic 121): its concepts' routes in the route library and formations in
 personnel packages, each front in run_fits.json, each coverage shell in coverage_matchups.json and
 each flavor's scheme in coaching_staffs.json; "CombineDrills" files against FPSDraftTuning (Epic
@@ -4575,7 +4576,47 @@ PLAY_ART_NUMBERS = {
 }
 PLAY_ART_COLORS = ("UnrankedColor", "ZoneStarColor", "ManLineColor", "BlitzArrowColor", "RushArrowColor")
 PLAY_ART_FIELDS = set(PLAY_ART_NUMBERS) | set(PLAY_ART_COLORS) | {
-    "ReadColors", "BranchOpacity", "NoRouteArtCategories", "NoDefenseArtCategories", "bDrawDebug"}
+    "ReadColors", "BranchOpacity", "NoRouteArtCategories", "NoDefenseArtCategories", "bDrawDebug", "Diagram"}
+PLAY_DIAGRAM_NUMBERS = {
+    "MinFieldWidth": "above 0", "MinFieldDepth": "above 0", "FieldMargin": "0 or more", "WidthScale": "above 0",
+    "MinStrokeWidth": "above 0", "PlayerRadius": "above 0", "MarkWidth": "above 0", "ArrowheadLength": "above 0",
+    "RunBlockStemLength": "0 or more", "PassBlockStemLength": "0 or more", "BlockBarWidth": "above 0",
+    "PreviewWidth": "above 0", "PreviewHeight": "above 0",
+}
+PLAY_DIAGRAM_FRACTIONS = ("OpponentOpacity", "GuideOpacity", "BackgroundOpacity")
+PLAY_DIAGRAM_COLORS = ("OffenseColor", "DefenseColor", "BlockColor", "LineOfScrimmageColor", "BackgroundColor")
+PLAY_DIAGRAM_FIELDS = set(PLAY_DIAGRAM_NUMBERS) | set(PLAY_DIAGRAM_FRACTIONS) | set(PLAY_DIAGRAM_COLORS) | {
+    "ArrowheadAngleDegrees", "CircleSegments"}
+
+
+def validate_play_diagram(path, diagram):
+    """FPSPlayDiagramStyle (play_art.json's Diagram block, Epic 102.1); mirrors
+    PSPlayDiagram::ValidateStyle."""
+    if not isinstance(diagram, dict):
+        err(path, "Diagram: must be an object (FPSPlayDiagramStyle)")
+        return
+    for field, rule in PLAY_DIAGRAM_NUMBERS.items():
+        value = diagram.get(field)
+        bad = not is_number(value) or (value <= 0 if rule == "above 0" else value < 0)
+        if bad:
+            err(path, f"Diagram.{field}: '{value}' must be a number {rule}")
+    for field in PLAY_DIAGRAM_FRACTIONS:
+        value = diagram.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"Diagram.{field}: '{value}' must be a number from 0 to 1")
+    for field in PLAY_DIAGRAM_COLORS:
+        value = diagram.get(field)
+        if not isinstance(value, str) or not HEX_COLOR.match(value):
+            err(path, f"Diagram.{field}: '{value}' must be #RRGGBB")
+    angle = diagram.get("ArrowheadAngleDegrees")
+    if not is_number(angle) or not 0 < angle < 90:
+        err(path, f"Diagram.ArrowheadAngleDegrees: '{angle}' must be above 0 and below 90")
+    segments = diagram.get("CircleSegments")
+    if not isinstance(segments, int) or isinstance(segments, bool) or segments < 6:
+        err(path, f"Diagram.CircleSegments: '{segments}' must be a whole number, 6 or more")
+    extra = set(diagram) - PLAY_DIAGRAM_FIELDS
+    if extra:
+        err(path, f"Diagram: unknown field(s) {sorted(extra)} - names must match FPSPlayDiagramStyle exactly")
 
 
 def validate_play_art(path, payload):
@@ -4611,6 +4652,8 @@ def validate_play_art(path, payload):
                 err(path, f"{field}[{idx}]: '{category}' is not {side} play category")
     if not isinstance(payload.get("bDrawDebug"), bool):
         err(path, "bDrawDebug: must be true or false")
+    if "Diagram" in payload:
+        validate_play_diagram(path, payload["Diagram"])
     extra = set(payload) - PLAY_ART_FIELDS
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPlayArtStyle exactly")
