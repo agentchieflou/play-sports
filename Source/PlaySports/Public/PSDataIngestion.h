@@ -17,6 +17,7 @@
 #include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
 #include "PSTouchControls.h"
+#include "PSTouchHudTypes.h"
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
 #include "PSTelemetrySamplingTypes.h"
@@ -194,6 +195,12 @@ public:
      *  malformed JSON, or an unrecognized control Kind or swipe Direction. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadTouchLayoutFromJson(const FString& JsonFilePath, FPSTouchLayout& OutLayout);
+
+    /** Loads how the touch controls look (Data/touch_hud.json, Epic 146.4): UPSTouchHudWidget's
+     *  opacities, colours and sizes. False on a missing file or malformed JSON;
+     *  PSTouchHud::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTouchHudStyleFromJson(const FString& JsonFilePath, FPSTouchHudStyle& OutStyle);
 
     /** Loads the route-running model's tuning (Data/route_running.json, Epic 68). */
     UFUNCTION(BlueprintCallable, Category = "Data")

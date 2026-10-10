@@ -166,6 +166,63 @@ struct FPSTouchLayout
     TArray<FName> ContextsWithoutTouch;
 };
 
+/** A control as the touch HUD draws it right now (Epic 146.4): where it is, what it drives and
+ *  whether a finger holds it. Positions are viewport pixels. */
+USTRUCT(BlueprintType)
+struct FPSTouchControlView
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    FName ControlId;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    EPSTouchControlKind Kind = EPSTouchControlKind::Button;
+
+    /** The action it drives now, and the active context whose binding won it. */
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    FName ActionId;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    FName ContextId;
+
+    /** Its place on the screen: a button's centre, or the stick's rest position. */
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    FVector2D Center = FVector2D::ZeroVector;
+
+    /** A button's hit radius, or the stick's full throw. */
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    float Radius = 0.f;
+
+    /** A finger holds it and drives its action (a finger silenced by a context change doesn't). */
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    bool bHeld = false;
+
+    /** The stick, while held: where the finger landed (the stick's centre) and where it is now. */
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    FVector2D TouchOrigin = FVector2D::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    FVector2D TouchCurrent = FVector2D::ZeroVector;
+};
+
+/** The last swipe the touch layer recognised and delivered, for the HUD's feedback. */
+USTRUCT(BlueprintType)
+struct FPSTouchSwipeView
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    EPSSwipeDirection Direction = EPSSwipeDirection::None;
+
+    /** Midway along the finger's path, in viewport pixels. */
+    UPROPERTY(BlueprintReadOnly, Category = "Touch")
+    FVector2D Position = FVector2D::ZeroVector;
+
+    /** When the finger lifted, on the clock the touch events carry (FPlatformTime::Seconds). */
+    double TimeSeconds = 0.0;
+};
+
 /** One action value the touch layer hands Enhanced Input this frame. */
 USTRUCT(BlueprintType)
 struct FPSTouchActionSample

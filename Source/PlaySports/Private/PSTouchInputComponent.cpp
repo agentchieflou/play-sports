@@ -284,6 +284,43 @@ TArray<FPSTouchBindingDef> UPSTouchInputComponent::GetActiveControls()
     return Active;
 }
 
+TArray<FPSTouchControlView> UPSTouchInputComponent::GetControlViews()
+{
+    TArray<FPSTouchControlView> Views;
+    APSPlayerController* Controller = GetPlayerController();
+    const UPSInputConfig* Config = Controller ? Controller->GetInputConfig() : nullptr;
+    if (!Config || IsStoodDown())
+    {
+        return Views;
+    }
+
+    const TArray<FName> Contexts = GetActiveContexts();
+    for (const FPSTouchControlDef& Control : GetLayout().TouchControls)
+    {
+        FPSTouchControlView View;
+        if (Control.Kind == EPSTouchControlKind::Swipe
+            || !PSTouchControls::ResolveControl(GetLayout(), Config->Catalog, Control.ControlId, Contexts, View.ActionId, View.ContextId)
+            || !GetControlPlacement(Control.ControlId, View.Center, View.Radius))
+        {
+            continue;
+        }
+        View.ControlId = Control.ControlId;
+        View.Kind = Control.Kind;
+        for (const TPair<int32, FPSTouchPointer>& Held : Pointers)
+        {
+            if (Held.Value.ControlId == Control.ControlId && !Held.Value.bSilenced && Held.Value.LatchedAction == View.ActionId)
+            {
+                View.bHeld = true;
+                View.TouchOrigin = Held.Value.Origin;
+                View.TouchCurrent = Held.Value.Current;
+                break;
+            }
+        }
+        Views.Add(View);
+    }
+    return Views;
+}
+
 void UPSTouchInputComponent::TouchStarted(int32 FingerId, const FVector2D& Position, double TimeSeconds)
 {
     APSPlayerController* Controller = GetPlayerController();
@@ -410,6 +447,9 @@ void UPSTouchInputComponent::TouchEnded(int32 FingerId, const FVector2D& Positio
     if (SwipeControl && MakeSample(SwipeControl->ControlId, FInputActionValue(true), GetActiveContexts(), Sample))
     {
         PendingSwipes.Add(Sample);
+        LastSwipe.Direction = Direction;
+        LastSwipe.Position = (Pointer.Origin + Position) * 0.5;
+        LastSwipe.TimeSeconds = TimeSeconds;
     }
 }
 

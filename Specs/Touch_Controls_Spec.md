@@ -14,7 +14,7 @@ actions and no gameplay of its own. A touch-only gameplay path is a review-rejec
 - what the code does;
 - where every control sits and why;
 - what each control means in each context;
-- the visual half that an editor session still has to build.
+- the visual half, drawn in code by `UPSTouchHudWidget` (Epic 146.4).
 
 ## 1. How touch reaches the game (code, built)
 
@@ -231,27 +231,34 @@ so on Touch, `UPSInputConfig::GetGlyphForAction` answers with the action's glyph
 reads "Press [A] to hike" on a pad reads "Tap [Go] to hike" on touch, and switches the moment the
 device changes. The labels stand in until icons are imported, as for Xbox.
 
-## 6. The editor/visual half (handoff, not built)
+## 6. The visual half (code, built: Epic 146.4)
 
-The code hit-tests from data; nothing draws the controls yet. An editor session adds a touch HUD
-widget (UMG), shown while the active device is `Touch` (listen for `InputDeviceChange` on the
-bus):
+`UPSTouchHudWidget` draws the controls. `APSHUD` makes it for its player on every tier. It is a C++
+widget that builds its own tree (a canvas for the labels; the rings are painted), so no Widget
+Blueprint is needed. Its look is `Data/touch_hud.json` (`FPSTouchHudStyle`, schema in
+`Data/README.md`).
 
-1. **Draw the controls** from `UPSTouchInputComponent::GetActiveControls()`: each entry pairs a
-   control with the action it drives right now. Place each with `GetControlPlacement` (centre
-   and radius in viewport pixels), and label it with the action's Touch glyph. Redraw when the
-   context changes; poll each frame or on `ControlChange` and the play phase.
-2. **Make every drawn element hit-test invisible**, so taps pass through to the layer, which
-   does the hit-testing. A visible-and-clickable UMG button would also fire a click.
-3. **The stick.** Draw the base at its rest position, faded. While the stick finger is down, draw
-   it at the touch-down point with a knob showing the deflection.
-4. **Feedback.** A pressed button darkens. A recognised swipe flashes its direction arrow briefly.
-5. **Look.** Semi-transparent, so the field stays readable (about 40% opacity at rest, 70%
-   pressed). Respect the reduced-motion setting (Input_Architecture section 7) for the feedback.
-6. **Check in PIE** with Project Settings → Input → "Use Mouse for Touch" on. The engine should
-   then turn mouse clicks into touch events, so the layer and the device switch can be tried on
-   the desktop. This is unverified: if the layer doesn't react, the clicks aren't arriving
-   flagged as touch, and only the phone will tell.
+1. **Only on Touch.** It draws only while the player's active input device is `Touch`
+   (`UPSInputDeviceComponent`, which a finger switches). On a pad or a keyboard nothing shows.
+2. **What it draws comes from the touch layer.** Each frame it reads
+   `UPSTouchInputComponent::GetControlViews()`. Each entry is the stick or a button that an
+   active context binds, placed by `GetControlPlacement`, with the action and context it drives
+   now and whether a finger holds it. So it redraws as contexts change. `PSTouchHud::BuildDrawing`
+   turns those views into the drawing; it is pure and tested headlessly. Each button gets a ring
+   with its action's Touch glyph inside.
+3. **Hit-test invisible throughout.** Every tap passes through to the layer, which does the
+   hit-testing.
+4. **The stick.** At rest it is a fainter ring at its rest position (`StickIdleFade`). While held,
+   a ring sits where the finger landed, with a knob at the finger's deflection, clamped to the
+   rim.
+5. **Feedback.** A held button is drawn in `PressedColor` at `PressedOpacity`. A recognised swipe
+   shows its direction arrow where it happened for `SwipeFlashSeconds` (`GetLastSwipe`). It fades
+   out, unless the reduced-motion setting (Epic 103.5) is on, in which case it holds steady and
+   then goes.
+6. **Look.** 40% opacity at rest and 70% held by default, so the field stays readable.
+7. **Check in PIE** with Project Settings → Input → "Use Mouse for Touch" on (unverified, as
+   before). Mouse clicks should then arrive as touches, so the device switches to Touch and the
+   controls appear. On the phone, check the sizes to the eye and that the labels are readable.
 
 ## 7. Verification
 
@@ -261,6 +268,7 @@ bus):
 | Each gesture gives the pad's action and value: the stick (dead zone, curve, clamp), every button in every gameplay context, swipes | `PlaySports.Input.TouchGesturesMatchGamepad` | — |
 | The device switches to Touch on a finger, and prompts follow | `PlaySports.Input.TouchLayoutValidates` | — |
 | Slate delivers touches to the layer with the right viewport coordinates | Nothing: headless tests have no Slate input | PIE with "Use Mouse for Touch", then the phone |
+| The HUD draws what the layer says: the active stick and buttons in place, labelled, a held one pressed, the stick's knob, the swipe arrow | `PlaySports.UI.TouchHudDrawsTheTouchLayer`, `PlaySports.UI.TouchHudStyleData` | How it looks: PIE, then the phone |
 | The injected values drive play on a device (`InjectInputForAction`) | Nothing: headless worlds have no local player | PIE, then the phone |
 | The engine joysticks are gone, the layout fits the real safe area, thumbs reach everything | Nothing | The phone (an iOS build: `Specs/ADR_iOS_Build.md`) |
 | How it feels: stick throw, swipe threshold, button size | Nothing | Play on the phone; tune the numbers in `Data/touch_controls.json` |
