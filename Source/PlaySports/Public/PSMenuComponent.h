@@ -5,11 +5,13 @@
 #include "Components/ActorComponent.h"
 #include "InputCoreTypes.h"
 #include "PSMenuTypes.h"
+#include "PSUITeamCatalog.h"
 #include "PSMenuComponent.generated.h"
 
 class APlayerController;
 class UPSMenuStack;
 class UPSMenuScreenWidget;
+class UPSLoadingTips;
 
 /**
  * UPSMenuComponent runs every menu for its player: the front end (main menu, mode select),
@@ -45,6 +47,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Menu")
     FName GetTopScreenId() const;
 
+    /** ScreenId as it is shown: catalog text and options, plus generated content -- one
+     *  option per team on a TeamSelect screen, the loading tip as a Loading screen's body. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    FPSMenuScreenDef GetPresentedScreen(FName ScreenId);
+
+    /** Teams for team select, built once from the league data (UPSUITeamCatalog). */
+    const TArray<FPSTeamSummary>& GetTeamSummaries();
+
     /** True while the game is paused because this component paused it. */
     UFUNCTION(BlueprintPure, Category = "Menu")
     bool IsPausedByMenu() const { return bPausedByMenu; }
@@ -78,9 +88,12 @@ public:
      *  screen (so Start toggles it closed), all from the input catalog. */
     bool IsBackKey(const FKey& Key);
 
-    /** Travel options a command uses ("mode=PlayNow", "game=Menu"); empty when the
-     *  command does not travel. */
-    FString BuildTravelOptions(EPSMenuCommand Command) const;
+    /** Travel options a command uses ("mode=PlayNow?team=Hawks", "game=Menu"); empty when
+     *  the command does not travel. Payload is the chosen team for Play Now. */
+    FString BuildTravelOptions(EPSMenuCommand Command, FName Payload = NAME_None) const;
+
+    /** The loading-tip context for a travel command ("PlayNow", "Franchise", ...). */
+    static FName GetTipContext(EPSMenuCommand Command);
 
     /** Called by APSMenuGameMode: open the root screen once play begins. */
     void RequestRootScreenOnBeginPlay();
@@ -115,8 +128,10 @@ private:
     void ShowTopScreen();
     void RemoveActiveWidget();
     void ApplyInputMode(bool bMenuOpen);
-    void ExecuteCommand(EPSMenuCommand Command);
-    void TravelTo(EPSMenuCommand Command);
+    void ExecuteCommand(EPSMenuCommand Command, FName Payload);
+    void BeginTravel(EPSMenuCommand Command, FName Payload);
+    void PerformPendingTravel();
+    FString PrepareLoadingTip(FName Context);
     APlayerController* GetOwningPlayer() const;
 
     UPROPERTY(Transient)
@@ -127,6 +142,17 @@ private:
 
     UPROPERTY(Transient)
     FPSMenuCatalog Catalog;
+
+    UPROPERTY(Transient)
+    TArray<FPSTeamSummary> TeamSummaries;
+
+    /** Tips for worlds without a game instance (tests); the game uses the subsystem's. */
+    UPROPERTY(Transient)
+    UPSLoadingTips* FallbackTips;
+
+    FString PendingTravelOptions;
+    FString PendingLoadingTip;
+    bool bTeamSummariesBuilt = false;
 
     bool bCatalogLoaded = false;
     bool bPausedByMenu = false;

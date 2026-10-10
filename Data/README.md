@@ -25,6 +25,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `sample_routes.json` | `FPSRoute` (array field `Routes`) | `UPSPlaybookIngestion::LoadRoutesFromJson` |
 | `input_actions.json` | `FPSInputCatalog` (single object: `Contexts`, `Actions`) | `UPSDataIngestion::LoadInputCatalogFromJson`, via `UPSInputConfig::LoadFromJson` |
 | `input_tuning.json` | `FInputTuningRow` (single object) | `UPSDataIngestion::LoadInputTuningFromJson`, via `UPSInputConfig::LoadDefaults` |
+| `loading_tips.json` | `FPSLoadingTipCatalog` (single object: `MinimumDisplaySeconds`, `Tips`) | `UPSDataIngestion::LoadLoadingTipsFromJson`, via `UPSLoadingTips` |
 | `ui_menus.json` | `FPSMenuCatalog` (single object: `RootScreen`, `PauseScreen`, `TransitionSeconds`, `Screens`) | `UPSDataIngestion::LoadMenuCatalogFromJson`, via `UPSMenuComponent` |
 
 ## Player schema (`FPlayerAttributes`)
@@ -51,6 +52,9 @@ if (!Ingestion->ValidatePlayersJson(JsonPath, Errors))
 
 `TeamId` (unique), `DisplayName`, `Division`, `RosterDataTablePath` (relative path to that
 team's player roster JSON, loaded separately via `LoadPlayerAttributesFromJson`).
+Identity for team select (Epic 101): `Abbreviation` (2-4 letters or digits), `PrimaryColor` and
+`SecondaryColor` (`#RRGGBB`), `LogoPath` (soft object path; empty until logos are imported).
+Team ratings are not stored: `UPSUITeamCatalog` derives them from the roster.
 
 ## League config schema (`FPSLeagueConfig`)
 
@@ -104,6 +108,14 @@ the in-game Pause action opens), `TransitionSeconds` (fade-in per screen), `Scre
 Each screen: `ScreenId` (unique), `Title`, optional `Body`, `bAllowBack` (default true), and
 `Options[]`. Each option: `OptionId` (unique on its screen), `Label`, and a `TargetScreen` to
 open, a `Command`, or both. `Command` is one of `EPSMenuCommand`: `None`, `Resume`,
-`StartPlayNow`, `StartFranchise`, `StartPractice`, `QuitToMainMenu`, `QuitGame`.
+`StartPlayNow`, `StartFranchise`, `StartPractice`, `QuitToMainMenu`, `QuitGame`. A screen's
+`Content` is `Static` (its authored options), `TeamSelect` (one option per team, generated) or
+`Loading` (its body is the loading tip; `LoadingScreen` names it and it is left only by travel).
 `UPSMenuComponent::ValidateCatalog` and `tools/validate_data.py` reject dangling targets,
 options that do nothing, a root screen Back could close, and screens that can never be left.
+
+## Loading tips schema (`FPSLoadingTipCatalog`)
+
+`MinimumDisplaySeconds` (how long the engine loading screen stays up), `Tips[]`: `TipId`
+(unique), `Text`, `Contexts` (any of `Any`, `PlayNow`, `Franchise`, `Practice`). A mode shows its
+own tips and the `Any` tips, shuffled, with no repeat until all have been shown.

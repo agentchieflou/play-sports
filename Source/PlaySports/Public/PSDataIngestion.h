@@ -7,6 +7,7 @@
 #include "PSArchetypeTuning.h"
 #include "PSInputConfigTypes.h"
 #include "PSMenuTypes.h"
+#include "PSLoadingTips.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -44,6 +45,10 @@ public:
      *  file, malformed JSON, or an unrecognized Command string. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadMenuCatalogFromJson(const FString& JsonFilePath, FPSMenuCatalog& OutCatalog);
+
+    /** Loads the loading-screen tips (Data/loading_tips.json, Epic 101). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadLoadingTipsFromJson(const FString& JsonFilePath, FPSLoadingTipCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

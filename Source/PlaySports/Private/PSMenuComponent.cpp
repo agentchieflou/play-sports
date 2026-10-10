@@ -4,6 +4,10 @@
 #include "PSDataIngestion.h"
 #include "PSInputConfig.h"
 #include "PSPlayerController.h"
+#include "PSLoadingTips.h"
+#include "PSLoadingScreenSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "TimerManager.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -24,6 +28,7 @@ UPSMenuComponent::UPSMenuComponent()
     GameplayContextId = TEXT("OnField");
     Stack = nullptr;
     ActiveWidget = nullptr;
+    FallbackTips = nullptr;
 }
 
 const FPSMenuCatalog& UPSMenuComponent::GetCatalog()
@@ -72,6 +77,18 @@ TArray<FString> UPSMenuComponent::ValidateCatalog(const FPSMenuCatalog& InCatalo
     {
         Errors.Add(FString::Printf(TEXT("PauseScreen '%s' is not a screen"), *InCatalog.PauseScreen.ToString()));
     }
+    if (!InCatalog.LoadingScreen.IsNone())
+    {
+        const FPSMenuScreenDef* Loading = InCatalog.FindScreen(InCatalog.LoadingScreen);
+        if (!Loading)
+        {
+            Errors.Add(FString::Printf(TEXT("LoadingScreen '%s' is not a screen"), *InCatalog.LoadingScreen.ToString()));
+        }
+        else if (Loading->Content != EPSMenuScreenContent::Loading)
+        {
+            Errors.Add(FString::Printf(TEXT("LoadingScreen '%s' must have Content Loading"), *InCatalog.LoadingScreen.ToString()));
+        }
+    }
     if (InCatalog.TransitionSeconds < 0.f)
     {
         Errors.Add(TEXT("TransitionSeconds must not be negative"));
@@ -80,7 +97,8 @@ TArray<FString> UPSMenuComponent::ValidateCatalog(const FPSMenuCatalog& InCatalo
     for (const FPSMenuScreenDef& Screen : InCatalog.Screens)
     {
         const FString ScreenLabel = Screen.ScreenId.ToString();
-        if (Screen.Options.Num() == 0 && !Screen.bAllowBack)
+        // A Loading screen is left by the travel it announces, not by input.
+        if (Screen.Options.Num() == 0 && !Screen.bAllowBack && Screen.Content != EPSMenuScreenContent::Loading)
         {
             Errors.Add(FString::Printf(TEXT("Screen '%s' has no options and blocks Back, so it can never be left"), *ScreenLabel));
         }
@@ -202,10 +220,8 @@ bool UPSMenuComponent::HandleBack()
 
 void UPSMenuComponent::ChooseOption(FName OptionId)
 {
-    const FPSMenuScreenDef* Screen = GetCatalog().FindScreen(GetTopScreenId());
-    const FPSMenuOptionDef* Option = Screen
-        ? Screen->Options.FindByPredicate([OptionId](const FPSMenuOptionDef& Candidate) { return Candidate.OptionId == OptionId; })
-        : nullptr;
+    const FPSMenuScreenDef Screen = GetPresentedScreen(GetTopScreenId());
+    const FPSMenuOptionDef* Option = Screen.Options.FindByPredicate([OptionId](const FPSMenuOptionDef& Candidate) { return Candidate.OptionId == OptionId; });
     if (!Option)
     {
         UE_LOG(LogTemp, Warning, TEXT("UPSMenuComponent: Option '%s' is not on screen '%s'."), *OptionId.ToString(), *GetTopScreenId().ToString());
@@ -215,13 +231,14 @@ void UPSMenuComponent::ChooseOption(FName OptionId)
     // Copy before acting: opening a screen or running a command can change the top screen.
     const FName TargetScreen = Option->TargetScreen;
     const EPSMenuCommand Command = Option->Command;
+    const FName Payload = Option->Payload;
     if (!TargetScreen.IsNone())
     {
         OpenScreen(TargetScreen);
     }
     if (Command != EPSMenuCommand::None)
     {
-        ExecuteCommand(Command);
+        ExecuteCommand(Command, Payload);
     }
 }
 
@@ -272,12 +289,27 @@ bool UPSMenuComponent::IsBackKey(const FKey& Key)
     return GetTopScreenId() == GetCatalog().PauseScreen && Config->GetKeysFor(PauseActionId, GameplayContextId).Contains(Key);
 }
 
-FString UPSMenuComponent::BuildTravelOptions(EPSMenuCommand Command) const
+FName UPSMenuComponent::GetTipContext(EPSMenuCommand Command)
 {
     switch (Command)
     {
     case EPSMenuCommand::StartPlayNow:
-        return TEXT("mode=PlayNow");
+        return TEXT("PlayNow");
+    case EPSMenuCommand::StartFranchise:
+        return TEXT("Franchise");
+    case EPSMenuCommand::StartPractice:
+        return TEXT("Practice");
+    default:
+        return UPSLoadingTips::AnyContext;
+    }
+}
+
+FString UPSMenuComponent::BuildTravelOptions(EPSMenuCommand Command, FName Payload) const
+{
+    switch (Command)
+    {
+    case EPSMenuCommand::StartPlayNow:
+        return Payload.IsNone() ? FString(TEXT("mode=PlayNow")) : FString::Printf(TEXT("mode=PlayNow?team=%s"), *Payload.ToString());
     case EPSMenuCommand::StartFranchise:
         return TEXT("mode=Franchise");
     case EPSMenuCommand::StartPractice:
@@ -289,7 +321,7 @@ FString UPSMenuComponent::BuildTravelOptions(EPSMenuCommand Command) const
     }
 }
 
-void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command)
+void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
 {
     switch (Command)
     {
@@ -300,7 +332,7 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command)
     case EPSMenuCommand::StartFranchise:
     case EPSMenuCommand::StartPractice:
     case EPSMenuCommand::QuitToMainMenu:
-        TravelTo(Command);
+        BeginTravel(Command, Payload);
         break;
     case EPSMenuCommand::QuitGame:
         UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
@@ -310,15 +342,93 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command)
     }
 }
 
-void UPSMenuComponent::TravelTo(EPSMenuCommand Command)
+void UPSMenuComponent::BeginTravel(EPSMenuCommand Command, FName Payload)
 {
     // Unpause first: a paused world would carry the pause into the next level's start.
     Resume();
 
+    PendingTravelOptions = BuildTravelOptions(Command, Payload);
+    PendingLoadingTip = PrepareLoadingTip(GetTipContext(Command));
+
+    // Show the Loading screen this frame and travel on the next, so it is drawn first.
+    if (!GetCatalog().LoadingScreen.IsNone())
+    {
+        OpenScreen(GetCatalog().LoadingScreen);
+    }
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimerForNextTick(this, &UPSMenuComponent::PerformPendingTravel);
+    }
+}
+
+void UPSMenuComponent::PerformPendingTravel()
+{
     const FString Map = UGameMapsSettings::GetGameDefaultMap();
-    const FString Options = BuildTravelOptions(Command);
-    UE_LOG(LogTemp, Display, TEXT("UPSMenuComponent: Travelling to %s?%s"), *Map, *Options);
-    UGameplayStatics::OpenLevel(this, FName(*Map), true, Options);
+    UE_LOG(LogTemp, Display, TEXT("UPSMenuComponent: Travelling to %s?%s"), *Map, *PendingTravelOptions);
+    UGameplayStatics::OpenLevel(this, FName(*Map), true, PendingTravelOptions);
+}
+
+FString UPSMenuComponent::PrepareLoadingTip(FName Context)
+{
+    // The game instance's subsystem also puts this tip on the engine loading screen.
+    const UWorld* World = GetWorld();
+    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+    if (UPSLoadingScreenSubsystem* LoadingScreen = GameInstance ? GameInstance->GetSubsystem<UPSLoadingScreenSubsystem>() : nullptr)
+    {
+        return LoadingScreen->PrepareTip(Context);
+    }
+
+    if (!FallbackTips)
+    {
+        FallbackTips = NewObject<UPSLoadingTips>(this);
+        FallbackTips->EnsureLoaded();
+    }
+    return FallbackTips->NextTip(Context);
+}
+
+const TArray<FPSTeamSummary>& UPSMenuComponent::GetTeamSummaries()
+{
+    if (!bTeamSummariesBuilt)
+    {
+        bTeamSummariesBuilt = true;
+        TArray<FString> Errors;
+        UPSUITeamCatalog::BuildSummaries(UPSUITeamCatalog::GetDefaultTeamsPath(), TeamSummaries, Errors);
+        for (const FString& Error : Errors)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("UPSMenuComponent: %s"), *Error);
+        }
+    }
+    return TeamSummaries;
+}
+
+FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
+{
+    const FPSMenuScreenDef* Authored = GetCatalog().FindScreen(ScreenId);
+    if (!Authored)
+    {
+        return FPSMenuScreenDef();
+    }
+
+    FPSMenuScreenDef Presented = *Authored;
+    if (Presented.Content == EPSMenuScreenContent::TeamSelect)
+    {
+        for (const FPSTeamSummary& Team : GetTeamSummaries())
+        {
+            FPSMenuOptionDef Option;
+            Option.OptionId = Team.TeamId;
+            Option.Label = FString::Printf(TEXT("%s  (%s)    OVR %d   OFF %d   DEF %d    %s"),
+                *Team.DisplayName, *Team.Abbreviation, Team.Overall, Team.Offense, Team.Defense, *Team.Division);
+            Option.Command = EPSMenuCommand::StartPlayNow;
+            Option.Payload = Team.TeamId;
+            Option.AccentColor = Team.PrimaryColor;
+            Presented.Options.Add(Option);
+        }
+    }
+    else if (Presented.Content == EPSMenuScreenContent::Loading && !PendingLoadingTip.IsEmpty())
+    {
+        Presented.Body = PendingLoadingTip;
+    }
+    return Presented;
 }
 
 void UPSMenuComponent::HandleStackChanged(FName PreviousTop, FName NewTop, EPSMenuTransition Transition)
@@ -339,8 +449,7 @@ void UPSMenuComponent::ShowTopScreen()
 
     // Headless worlds (and dedicated servers) have no local player to show widgets to.
     APlayerController* Player = GetOwningPlayer();
-    const FPSMenuScreenDef* Screen = GetCatalog().FindScreen(Stack->Top());
-    if (!Player || !Player->GetLocalPlayer() || !Screen || !ScreenWidgetClass)
+    if (!Player || !Player->GetLocalPlayer() || !ScreenWidgetClass)
     {
         return;
     }
@@ -348,7 +457,7 @@ void UPSMenuComponent::ShowTopScreen()
     ActiveWidget = CreateWidget<UPSMenuScreenWidget>(Player, ScreenWidgetClass);
     if (ActiveWidget)
     {
-        ActiveWidget->SetScreen(*Screen, this, GetCatalog().TransitionSeconds);
+        ActiveWidget->SetScreen(GetPresentedScreen(Stack->Top()), this, GetCatalog().TransitionSeconds);
         ActiveWidget->AddToViewport();
         ActiveWidget->FocusFirstOption(Player);
     }
