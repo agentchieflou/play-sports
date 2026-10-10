@@ -405,7 +405,12 @@ bool FPSTouchMatchesGamepadTest::RunTest(const FString& Parameters)
         { TEXT("ButtonUpperLeft"), EKeys::Gamepad_LeftShoulder },
         { TEXT("ButtonUpperRight"), EKeys::Gamepad_RightShoulder },
         { TEXT("Sprint"), EKeys::Gamepad_RightTrigger },
-        { TEXT("Pause"), EKeys::Gamepad_Special_Right }
+        { TEXT("TriggerLeft"), EKeys::Gamepad_LeftTrigger },
+        { TEXT("Pause"), EKeys::Gamepad_Special_Right },
+        { TEXT("DPadUp"), EKeys::Gamepad_DPad_Up },
+        { TEXT("DPadDown"), EKeys::Gamepad_DPad_Down },
+        { TEXT("DPadLeft"), EKeys::Gamepad_DPad_Left },
+        { TEXT("DPadRight"), EKeys::Gamepad_DPad_Right }
     };
     const TArray<FName> DepthContexts = { NAME_None, TEXT("PreSnap"), TEXT("Passing"), TEXT("BallCarrier"), TEXT("Defense") };
     for (const FName& Depth : DepthContexts)
@@ -450,6 +455,27 @@ bool FPSTouchMatchesGamepadTest::RunTest(const FString& Parameters)
             TestEqual(*FString::Printf(TEXT("%s: released"), *What), Touch->GatherActionSamples().Num(), 0);
             Clock += 1.0;
         }
+    }
+
+    // A held button never turns into a different press when its context changes, as a held key
+    // doesn't on the pad: the A-twin held from the hike must not throw to slot 5 when Passing
+    // comes on (the rule Epic 104.4's input buffer relies on).
+    Controller->SetDepthContext(NAME_None);
+    {
+        FVector2D Center;
+        float Radius = 0.f;
+        Touch->GetControlPlacement(TEXT("ButtonBottom"), Center, Radius);
+        Touch->TouchStarted(200, Center, Clock);
+        TestNotNull(TEXT("Held on the field, the A-twin confirms"), FindSample(Touch->GatherActionSamples(), TEXT("Confirm")));
+        Controller->SetDepthContext(TEXT("Passing"));
+        TestEqual(TEXT("When Passing comes on, the held button neither confirms nor throws"), Touch->GatherActionSamples().Num(), 0);
+        TestEqual(TEXT("...and stays silent while it is held"), Touch->GatherActionSamples().Num(), 0);
+        Touch->TouchEnded(200, Center, Clock + 0.3);
+        Touch->TouchStarted(201, Center, Clock + 0.5);
+        TestNotNull(TEXT("Pressed again, it throws to receiver 5"), FindSample(Touch->GatherActionSamples(), TEXT("PassTarget5")));
+        Touch->TouchEnded(201, Center, Clock + 0.6);
+        TestEqual(TEXT("Released"), Touch->GatherActionSamples().Num(), 0);
+        Clock += 1.0;
     }
 
     // Swipes: the carrier's moves, each equal to the pad button of the same move.

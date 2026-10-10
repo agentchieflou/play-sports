@@ -303,6 +303,7 @@ void UPSTouchInputComponent::TouchStarted(int32 FingerId, const FVector2D& Posit
 
     // A button first: the nearest one under the finger that an active context binds.
     const FPSTouchControlDef* Pressed = nullptr;
+    FName PressedAction;
     double PressedDistance = TNumericLimits<double>::Max();
     for (const FPSTouchControlDef& Control : CurrentLayout.TouchControls)
     {
@@ -317,6 +318,7 @@ void UPSTouchInputComponent::TouchStarted(int32 FingerId, const FVector2D& Posit
         if (Distance <= Control.Radius * SafeSize.Y && Distance < PressedDistance)
         {
             Pressed = &Control;
+            PressedAction = ActionId;
             PressedDistance = Distance;
         }
     }
@@ -324,6 +326,7 @@ void UPSTouchInputComponent::TouchStarted(int32 FingerId, const FVector2D& Posit
     {
         Pointer.Kind = EPSTouchControlKind::Button;
         Pointer.ControlId = Pressed->ControlId;
+        Pointer.LatchedAction = PressedAction;
         Pointers.Add(FingerId, Pointer);
         return;
     }
@@ -354,6 +357,7 @@ void UPSTouchInputComponent::TouchStarted(int32 FingerId, const FVector2D& Posit
         {
             Pointer.Kind = EPSTouchControlKind::Stick;
             Pointer.ControlId = StickControl->ControlId;
+            Pointer.LatchedAction = StickAction;
             Pointer.Origin = CurrentLayout.bFloatingStick ? Position : StickCenter;
             Pointers.Add(FingerId, Pointer);
             return;
@@ -446,23 +450,34 @@ TArray<FPSTouchActionSample> UPSTouchInputComponent::GatherActionSamples()
     GetSafeArea(SafeOrigin, SafeSize);
 
     TArray<FPSTouchActionSample> Candidates;
-    for (const TPair<int32, FPSTouchPointer>& Held : Pointers)
+    for (TPair<int32, FPSTouchPointer>& Held : Pointers)
     {
-        const FPSTouchPointer& Pointer = Held.Value;
-        FPSTouchActionSample Sample;
-        if (Pointer.Kind == EPSTouchControlKind::Stick && SafeSize.Y > 0.0)
+        FPSTouchPointer& Pointer = Held.Value;
+        if (Pointer.bSilenced || Pointer.Kind == EPSTouchControlKind::Swipe)
+        {
+            continue;
+        }
+
+        FInputActionValue RawValue(true);
+        if (Pointer.Kind == EPSTouchControlKind::Stick)
         {
             const FPSTouchControlDef* StickControl = PSTouchControls::FindControl(GetLayout(), Pointer.ControlId);
-            const FVector2D Deflection = PSTouchControls::StickValue((Pointer.Current - Pointer.Origin) / SafeSize.Y, StickControl ? StickControl->Radius : 0.f);
-            if (MakeSample(Pointer.ControlId, FInputActionValue(Deflection), Contexts, Sample))
-            {
-                Candidates.Add(Sample);
-            }
+            const FVector2D Deflection = SafeSize.Y > 0.0
+                ? PSTouchControls::StickValue((Pointer.Current - Pointer.Origin) / SafeSize.Y, StickControl ? StickControl->Radius : 0.f)
+                : FVector2D::ZeroVector;
+            RawValue = FInputActionValue(Deflection);
         }
-        else if (Pointer.Kind == EPSTouchControlKind::Button && MakeSample(Pointer.ControlId, FInputActionValue(true), Contexts, Sample))
+
+        // A held control whose meaning changed under it (a context came on or went off) stops
+        // driving its old action and stays silent until the finger lifts: a held button never
+        // turns into a different press, as a held key doesn't on the pad.
+        FPSTouchActionSample Sample;
+        if (!MakeSample(Pointer.ControlId, RawValue, Contexts, Sample) || Sample.ActionId != Pointer.LatchedAction)
         {
-            Candidates.Add(Sample);
+            Pointer.bSilenced = true;
+            continue;
         }
+        Candidates.Add(Sample);
     }
     Candidates.Append(PendingSwipes);
     PendingSwipes.Reset();

@@ -18,6 +18,12 @@ struct FPSTouchPointer
     /** The stick or button it holds; none for a swipe in progress. */
     FName ControlId;
 
+    /** The action the control drove when the finger landed. If a context change gives the
+     *  control another action, the finger goes silent until it lifts, as Enhanced Input ignores
+     *  a key held across a mapping change until it is released. */
+    FName LatchedAction;
+    bool bSilenced = false;
+
     /** Viewport pixels: where the finger landed (the stick's centre) and where it is now. */
     FVector2D Origin = FVector2D::ZeroVector;
     FVector2D Current = FVector2D::ZeroVector;

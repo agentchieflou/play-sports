@@ -80,7 +80,13 @@
                 { "ActionId": "Truck", "GlyphId": "Touch_Truck", "Label": "Truck" },
                 { "ActionId": "StiffArm", "GlyphId": "Touch_StiffArm", "Label": "Stiff Arm" },
                 { "ActionId": "Hurdle", "GlyphId": "Touch_Hurdle", "Label": "Hurdle" },
-                { "ActionId": "Slide", "GlyphId": "Touch_Slide", "Label": "Slide" }
+                { "ActionId": "Slide", "GlyphId": "Touch_Slide", "Label": "Slide" },
+                { "ActionId": "Audible", "GlyphId": "Touch_Audible", "Label": "Audible" },
+                { "ActionId": "PreSnapSelect", "GlyphId": "Touch_PreSnapSelect", "Label": "Select" },
+                { "ActionId": "HotRoute", "GlyphId": "Touch_HotRoute", "Label": "Hot Route" },
+                { "ActionId": "Motion", "GlyphId": "Touch_Motion", "Label": "Motion" },
+                { "ActionId": "SlideProtection", "GlyphId": "Touch_SlideProtection", "Label": "Protection" },
+                { "ActionId": "BlockRelease", "GlyphId": "Touch_BlockRelease", "Label": "Block" }
             ]
         }
     ]

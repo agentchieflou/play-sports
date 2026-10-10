@@ -1,5 +1,6 @@
 #include "PSDefenseController.h"
 #include "PSDefenderAIComponent.h"
+#include "PSRushMoveComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSGameMode.h"
 #include "BehaviorTree/BehaviorTree.h"
@@ -26,6 +27,7 @@ APSDefenseController::APSDefenseController()
     Blackboard = BlackboardComp;
 
     DefenderAI = CreateDefaultSubobject<UPSDefenderAIComponent>(TEXT("DefenderAI"));
+    RushMoves = CreateDefaultSubobject<UPSRushMoveComponent>(TEXT("RushMoves"));
 }
 
 void APSDefenseController::OnPossess(APawn* InPawn)

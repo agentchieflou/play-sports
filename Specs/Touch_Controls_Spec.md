@@ -40,6 +40,12 @@ finger ──> Slate touch event ──> UPSTouchInputComponent ──> catalog 
 4. **The value.** The stick gives its deflection (X right, Y forward, full at the throw radius,
    clamped to the unit circle). A held button gives `true` every frame. A swipe gives `true` for
    one frame.
+
+   A finger is **latched** to the action its control drove when it landed. If a context change
+   gives the control another meaning while it is held, the finger stops driving the old action
+   and stays silent until it lifts. A pad key behaves the same: Enhanced Input ignores a key held
+   across a mapping change until it is released. So the hike button held into `Passing` does
+   not throw to receiver 5 (the rule Epic 104.4's input buffer relies on).
 5. **Delivery.** The value goes to `APSPlayerController::InjectCatalogInput` together with the
    modifiers and triggers of **the gamepad mapping the catalog gives that action in that
    context**. Enhanced Input (`InjectInputForAction`) then treats it exactly as it would treat
@@ -49,9 +55,9 @@ finger ──> Slate touch event ──> UPSTouchInputComponent ──> catalog 
    - Move reaches `HandleMove`;
    - every Boolean action reaches `OnCatalogActionStarted` and `OnCatalogActionCompleted`.
 
-   The passing, carrier-move and play-call components therefore need no touch code. A hold is a
-   hold, so the passing component tells a touch pass (tap) from a bullet (hold) with the same
-   timing as on a pad.
+   The passing, carrier-move, pre-snap and play-call components, and the input buffer in front of
+   them, therefore need no touch code. A hold is a hold, so the passing component tells a touch
+   pass (tap) from a bullet (hold) with the same timing as on a pad.
 6. **Active device.** A touch switches `UPSInputDeviceComponent` to `EPSInputDevice::Touch`. The
    change is published as `InputDeviceChange`, so prompts switch to the `Touch` glyph set on
    their own. On a phone, a run starts on Touch, and a Bluetooth pad that disconnects falls back
@@ -94,14 +100,15 @@ action in the same place.
 
 ```
  +--------------------------------------------------------------------------+
- |                                 (Pause)                                   |
- |                                            [UpperLeft]       [UpperRight] |
- |                                                                           |
- |                                         .  .  . gesture zone .  .  .      |
- |                                                       [Top]               |
- | : : : : stick zone : : : : :                                              |
- | :                          :                 [Left]            [Right]    |
- | :      ( Stick )           :                                              |
+ |     [DUp]                       (Pause)                                  |
+ | [DLeft]  [DRight]              [TrigLeft] [UpperLeft]       [UpperRight] |
+ |     [DDown]                                                              |
+ |                                                                          |
+ |                                         .  .  . gesture zone .  .  .     |
+ |                                                       [Top]              |
+ | : : : : stick zone : : : : :                                             |
+ | :                          :                 [Left]            [Right]   |
+ | :      ( Stick )           :                                             |
  | :   floats where           :                         [Bottom]            |
  | :   the thumb lands        :          [Sprint]                           |
  +--------------------------------------------------------------------------+
@@ -109,7 +116,7 @@ action in the same place.
 
 | Control | Kind | Where (safe-area x, y) | Size | Pad twin |
 |---|---|---|---|---|
-| `Stick` | Virtual stick, floating in x 0-0.42, y 0.3-1 | rests at 0.16, 0.72 | full push at 0.16 heights (58 pt) | Left stick |
+| `Stick` | Virtual stick, floating in x 0-0.42, y 0.36-1 | rests at 0.16, 0.72 | full push at 0.16 heights (58 pt) | Left stick |
 | `ButtonBottom` | Button | 0.86, 0.80 | radius 0.08 (58 pt across) | A |
 | `ButtonRight` | Button | 0.95, 0.60 | 0.08 | B |
 | `ButtonLeft` | Button | 0.77, 0.60 | 0.08 | X |
@@ -118,9 +125,13 @@ action in the same place.
 | `ButtonUpperRight` | Button | 0.95, 0.18 | 0.07 | RB |
 | `Sprint` | Button | 0.68, 0.86 | 0.09 (65 pt) | RT |
 | `Pause` | Button | 0.50, 0.07 | 0.065 (47 pt) | Menu (Start) |
+| `TriggerLeft` | Button | 0.58, 0.18 | 0.07 | LT |
+| `DPadUp`, `DPadDown`, `DPadLeft`, `DPadRight` | Buttons, a cross at the top left, clear of the stick zone | 0.20, 0.07 / 0.20, 0.28 / 0.13, 0.175 / 0.27, 0.175 | 0.065 (47 pt) | D-pad |
 | `SwipeUp`, `SwipeDown`, `SwipeLeft`, `SwipeRight` | Swipe from anywhere in the gesture zone (x 0.45-1) that is not a button | — | at least 0.12 heights (43 pt), within 0.35 s | — |
 
-Every button is at least 44 pt across, Apple's minimum touch target. The stick floats, because
+Every button is at least 44 pt across, Apple's minimum touch target. Only the controls the active
+contexts bind are drawn. The D-pad and the LT twin appear only before the snap, the busiest moment
+(twelve buttons, while the play is not yet live); with the ball there are eight. The stick floats, because
 a phone has no physical stick to find by feel: the thumb lands anywhere in the left zone and
 steers from there.
 
@@ -131,19 +142,21 @@ always on during play; at most one depth context sits above it and takes over th
 binds. Touch mirrors the pad exactly: each button means what its pad twin means in the same
 context. The automation test checks this for every button in every gameplay context.
 
-| Control | `OnField` (pre-snap, `PreSnap`, `Defense`, off the ball) | `Passing` (QB with the ball behind the line) | `BallCarrier` (anyone else with the ball) |
-|---|---|---|---|
-| Stick | Move | Move (also places the pass) | Move (also picks the juke's side) |
-| Sprint | Sprint | Sprint | Sprint |
-| ButtonBottom | Confirm (hike, play call) | Throw to receiver 5 | Truck |
-| ButtonRight | Cancel | Throw to receiver 3 | Spin |
-| ButtonLeft | Switch player | Throw to receiver 1 | Juke |
-| ButtonTop | — | Throw to receiver 2 | Hurdle |
-| ButtonUpperLeft | Switch player | Pump fake | Slide |
-| ButtonUpperRight | — | Throw to receiver 4 | Stiff-arm |
-| Pause | Pause | Pause | Pause |
-| Swipe up / down | — | — | Hurdle / Slide |
-| Swipe left / right | — | — | Juke |
+| Control | `OnField` (`Defense`, and off the ball) | `PreSnap` (offense, before the snap) | `Passing` (QB with the ball behind the line) | `BallCarrier` (anyone else with the ball) |
+|---|---|---|---|---|
+| Stick | Move | Move | Move (also places the pass) | Move (also picks the juke's side) |
+| Sprint | Sprint | Sprint | Sprint | Sprint |
+| ButtonBottom | Confirm (hike, play call) | Confirm (hike) | Throw to receiver 5 | Truck |
+| ButtonRight | Cancel | Cancel | Throw to receiver 3 | Spin |
+| ButtonLeft | Switch player | Switch player | Throw to receiver 1 | Juke |
+| ButtonTop | — | — | Throw to receiver 2 | Hurdle |
+| ButtonUpperLeft | Switch player | Switch player | Pump fake | Slide |
+| ButtonUpperRight | — | Select receiver | Throw to receiver 4 | Stiff-arm |
+| TriggerLeft | — | Slide protection | — | — |
+| D-pad up / right / left / down | — | Audible / Hot route / Motion / Block or release | — | — |
+| Pause | Pause | Pause | Pause | Pause |
+| Swipe up / down | — | — | — | Hurdle / Slide |
+| Swipe left / right | — | — | — | Juke |
 
 - **Hidden controls.** A control no active context binds (a dash above) is not drawn and doesn't
   respond. A finger there can still swipe.
@@ -159,6 +172,15 @@ context. The automation test checks this for every button in every gameplay cont
 **Adding an action to one of these contexts** means adding its touch control and its `Touch`
 glyph in the same change. `tools/validate_data.py` and `PSTouchControls::ValidateLayout` refuse
 a listed context that touch can't fully reach.
+
+**Known gap: a press just before its context comes on.** The input buffer (Epic 104.4) replays a
+pad button pressed in the instant before its context came on, if that button meant nothing where
+it went down. It finds such presses through key state. Touch has no key state: a touch button
+pressed where no active context binds it isn't claimed at all, so that press is lost on touch.
+The buffer offers `KeyStateQuery` for exactly this. Wiring it means claiming unbound buttons as
+dormant presses and answering for their pad twins. It is small, but it touches the buffer, so it
+waits for its own change. Every other buffer behaviour (a press waiting for a busy carrier or
+passer) applies to touch already: those presses arrive as catalog actions like any other.
 
 Not covered by touch:
 

@@ -19,9 +19,12 @@ against FPassingInputTuningRow, including that each named action is a Boolean in
 catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
 DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
-"TouchControls" files against FPSTouchLayout (Epic 130), each bound action living in its context
-with the control's value type, every action of a listed context reachable by touch, and every
-touch-bound action drawn by the default Touch glyph set.
+"MaxQueued" files against FInputBufferTuningRow, each buffered action a Boolean catalog action;
+"RushMoves" files against FPSRushMoveCatalog; "HotRouteSets" files against FPreSnapTuningRow, each
+route in the route library and each action a Boolean in the PreSnap context; "TouchControls"
+files against FPSTouchLayout (Epic 130), each bound action living in its context with the
+control's value type, every action of a listed context reachable by touch, and every touch-bound
+action drawn by the default Touch glyph set.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -601,8 +604,8 @@ def validate_platform_tiers(path, payload):
 
 CARRIER_MOVES = {"Juke", "Spin", "Truck", "StiffArm", "Hurdle", "Slide"}
 CARRIER_MOVE_ATTRIBUTES = {"Agility", "Strength", "Speed"}
-CARRIER_MOVE_NUMBERS = ("MinAttribute", "WindowSeconds", "CooldownSeconds", "StaminaCost", "TackleChanceScale",
-                        "SpeedRetained", "LateralSpeed", "ForwardSpeed")
+CARRIER_MOVE_NUMBERS = ("MinAttribute", "WindowSeconds", "CommitSeconds", "CooldownSeconds", "StaminaCost",
+                        "TackleChanceScale", "SpeedRetained", "LateralSpeed", "ForwardSpeed")
 
 
 def validate_carrier_moves(path, payload, catalog):
@@ -650,6 +653,208 @@ def validate_carrier_moves(path, payload, catalog):
         extra = set(row) - set(CARRIER_MOVE_NUMBERS) - {"Move", "ActionId", "Attribute", "bGivesUp"}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
+def validate_input_buffer(path, payload, catalog):
+    """FInputBufferTuningRow (Data/input_buffer.json, Epic 104.4); mirrors
+    UPSInputBufferComponent::ValidateTuning plus the catalog cross-check."""
+    max_queued = payload.get("MaxQueued")
+    if isinstance(max_queued, bool) or not isinstance(max_queued, int) or max_queued < 1:
+        err(path, f"MaxQueued: '{max_queued}' must be a whole number, 1 or more")
+    extra = set(payload) - {"MaxQueued", "Actions"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FInputBufferTuningRow exactly")
+    rows = payload.get("Actions")
+    if not isinstance(rows, list):
+        err(path, "'Actions' must be an array")
+        return
+    actions = {a.get("ActionId"): a for a in (catalog or {}).get("Actions", []) if isinstance(a, dict)}
+    seen = set()
+    for idx, row in enumerate(rows):
+        where = f"Actions[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        action_id = row.get("ActionId")
+        if not isinstance(action_id, str) or not action_id or action_id in seen:
+            err(path, f"{where}.ActionId: empty or used twice")
+        seen.add(action_id)
+        window = row.get("BufferSeconds")
+        if not is_number(window) or window < 0:
+            err(path, f"{where}.BufferSeconds: '{window}' must be a number, 0 or more")
+        extra = set(row) - {"ActionId", "BufferSeconds"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+        if catalog is not None and isinstance(action_id, str) and action_id:
+            action = actions.get(action_id)
+            if action is None or action.get("ValueType") != "Boolean":
+                err(path, f"{where}.ActionId: '{action_id}' must be a Boolean action in input_actions.json")
+
+
+RUSH_MOVES = {"Bull", "Swim", "Rip", "Spin", "Club", "Split"}
+BLOCK_RESPONSES = {"Anchor", "Punch", "Mirror"}
+RUSH_ATTRIBUTES = {"Strength", "Agility", "Speed", "Awareness"}
+RUSH_MOVE_NUMBERS = ("MinAttribute", "BaseWinChance", "RatingScalar", "MoveSeconds", "StaminaCost", "WinBurstSpeed",
+                     "DoubleTeamWinScale")
+RUSH_CATALOG_NUMBERS = ("FirstMoveSeconds", "RecoverySeconds", "CounterBonus", "WinChanceMin", "WinChanceMax",
+                        "HistoryPriorWeight", "DoubleTeamRadius")
+
+
+def validate_rush_moves(path, payload):
+    """FPSRushMoveCatalog (Data/pass_rush_moves.json, Epic 70); mirrors
+    PSRushMoves::ValidateCatalog."""
+    for field in RUSH_CATALOG_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    low, high = payload.get("WinChanceMin"), payload.get("WinChanceMax")
+    if is_number(low) and is_number(high) and not low <= high <= 1:
+        err(path, f"WinChanceMin ({low}) <= WinChanceMax ({high}) <= 1 must hold")
+    if is_number(payload.get("CounterBonus")) and payload["CounterBonus"] > 1:
+        err(path, "CounterBonus is a chance: at most 1")
+    if is_number(payload.get("HistoryPriorWeight")) and payload["HistoryPriorWeight"] <= 0:
+        err(path, "HistoryPriorWeight must be positive")
+    extra = set(payload) - set(RUSH_CATALOG_NUMBERS) - {"RushMoves"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSRushMoveCatalog exactly")
+    moves = payload.get("RushMoves")
+    if not isinstance(moves, list) or not moves:
+        err(path, "'RushMoves' must be a non-empty array")
+        return
+    seen = set()
+    for idx, row in enumerate(moves):
+        where = f"RushMoves[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        move = row.get("Move")
+        if move not in RUSH_MOVES:
+            err(path, f"{where}.Move: '{move}' is not an EPSRushMove ({sorted(RUSH_MOVES)})")
+        elif move in seen:
+            err(path, f"{where}.Move: '{move}' is defined twice")
+        seen.add(move)
+        for field in ("Attribute", "BlockerAttribute"):
+            if row.get(field) not in RUSH_ATTRIBUTES:
+                err(path, f"{where}.{field}: '{row.get(field)}' must be one of {sorted(RUSH_ATTRIBUTES)}")
+        for field in RUSH_MOVE_NUMBERS:
+            value = row.get(field)
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.{field}: '{value}' must be a number, 0 or more")
+        if is_number(row.get("MinAttribute")) and row["MinAttribute"] > 100:
+            err(path, f"{where}.MinAttribute: ratings run 0-100")
+        for field in ("BaseWinChance", "DoubleTeamWinScale"):
+            if is_number(row.get(field)) and row[field] > 1:
+                err(path, f"{where}.{field}: at most 1")
+        if is_number(row.get("MoveSeconds")) and row["MoveSeconds"] <= 0:
+            err(path, f"{where}.MoveSeconds: must be positive")
+        response, counters = row.get("Response"), row.get("Counters")
+        if response not in BLOCK_RESPONSES:
+            err(path, f"{where}.Response: '{response}' must be one of {sorted(BLOCK_RESPONSES)} (what stops the move)")
+        if counters not in BLOCK_RESPONSES | {"None"}:
+            err(path, f"{where}.Counters: '{counters}' must be None or one of {sorted(BLOCK_RESPONSES)}")
+        elif counters == response:
+            err(path, f"{where}.Counters: a move can't counter the response that stops it")
+        if not isinstance(row.get("bDoubleTeamOnly"), bool):
+            err(path, f"{where}.bDoubleTeamOnly: must be true or false")
+        extra = set(row) - set(RUSH_MOVE_NUMBERS) - {"Move", "Attribute", "BlockerAttribute", "Response", "Counters",
+                                                     "bDoubleTeamOnly"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
+RECEIVER_ALIGNMENTS = {"Wide", "Slot", "Tight", "Backfield"}
+PRESNAP_NUMBERS = ("SlotMaxSplit", "MotionEndSplit", "MotionArrivalRadius", "ManTravelLateralRadius", "SlideAimOffset",
+                   "BoxWidth", "BoxDepth", "CpuReadMinAwareness")
+PRESNAP_COUNTS = ("HeavyBoxCount", "LightBoxCount")
+PRESNAP_FLAGS = ("bCpuKeepsBackInVsBlitz", "bCpuMotionOnPass")
+PRESNAP_ACTIONS = ("AudibleAction", "SelectAction", "HotRouteAction", "MotionAction", "SlideAction", "ProtectionAction")
+
+
+def load_route_ids():
+    """Route IDs in Data/sample_routes.json, or None when it is missing or broken."""
+    try:
+        routes = json.loads((DATA_DIR / "sample_routes.json").read_text(encoding="utf-8")).get("Routes")
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return None
+    if not isinstance(routes, list):
+        return None
+    return {r.get("RouteId") for r in routes if isinstance(r, dict)}
+
+
+def validate_presnap_tuning(path, payload, catalog, route_ids):
+    """FPreSnapTuningRow (Data/presnap_tuning.json, Epic 66)."""
+    sets = payload.get("HotRouteSets")
+    if not isinstance(sets, list):
+        err(path, "'HotRouteSets' must be an array")
+        sets = []
+    seen = set()
+    for idx, row in enumerate(sets):
+        where = f"HotRouteSets[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        alignment = row.get("Alignment")
+        if alignment not in RECEIVER_ALIGNMENTS:
+            err(path, f"{where}.Alignment: '{alignment}' is not an EPSReceiverAlignment ({sorted(RECEIVER_ALIGNMENTS)})")
+        elif alignment in seen:
+            err(path, f"{where}.Alignment: '{alignment}' has two sets")
+        seen.add(alignment)
+        routes = row.get("Routes")
+        if not isinstance(routes, list) or not routes or not all(isinstance(r, str) and r for r in routes):
+            err(path, f"{where}.Routes: must be a non-empty array of route IDs")
+            routes = []
+        elif len(set(routes)) != len(routes):
+            err(path, f"{where}.Routes: repeats a route")
+        named = list(routes) + [row.get("ReleaseRoute")]
+        if not isinstance(row.get("ReleaseRoute"), str) or not row.get("ReleaseRoute"):
+            err(path, f"{where}.ReleaseRoute: must name a route")
+        elif route_ids is not None:
+            for route in named:
+                if route not in route_ids:
+                    err(path, f"{where}: '{route}' is not a route in sample_routes.json")
+        extra = set(row) - {"Alignment", "Routes", "ReleaseRoute"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    missing = RECEIVER_ALIGNMENTS - seen
+    if missing:
+        err(path, f"HotRouteSets: no set for {sorted(missing)}")
+    for field in PRESNAP_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in PRESNAP_COUNTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    if isinstance(payload.get("LightBoxCount"), int) and isinstance(payload.get("HeavyBoxCount"), int) \
+            and payload["LightBoxCount"] >= payload["HeavyBoxCount"]:
+        err(path, "LightBoxCount must be below HeavyBoxCount")
+    if is_number(payload.get("CpuReadMinAwareness")) and payload["CpuReadMinAwareness"] > 100:
+        err(path, "CpuReadMinAwareness: ratings run 0-100")
+    for field in PRESNAP_FLAGS:
+        if not isinstance(payload.get(field), bool):
+            err(path, f"{field}: must be true or false")
+    blitz_route = payload.get("BlitzHotRoute")
+    if not isinstance(blitz_route, str) or (route_ids is not None and blitz_route and blitz_route not in route_ids):
+        err(path, f"BlitzHotRoute: '{blitz_route}' is not a route in sample_routes.json")
+    actions = {a.get("ActionId"): a for a in (catalog or {}).get("Actions", []) if isinstance(a, dict)}
+    named_actions = [payload.get(field) for field in PRESNAP_ACTIONS]
+    if len(set(named_actions)) != len(named_actions):
+        err(path, "the pre-snap actions must all differ")
+    for field in PRESNAP_ACTIONS:
+        action_id = payload.get(field)
+        if not isinstance(action_id, str) or not action_id:
+            err(path, f"{field}: must name an action")
+        elif catalog is not None:
+            action = actions.get(action_id)
+            if action is None:
+                err(path, f"{field}: '{action_id}' is not an action in input_actions.json")
+            elif action.get("ValueType") != "Boolean" or "PreSnap" not in (action.get("Contexts") or []):
+                err(path, f"{field}: '{action_id}' must be a Boolean action in the PreSnap context")
+    extra = set(payload) - set(PRESNAP_NUMBERS) - set(PRESNAP_COUNTS) - set(PRESNAP_FLAGS) - set(PRESNAP_ACTIONS) \
+        - {"HotRouteSets", "BlitzHotRoute"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPreSnapTuningRow exactly")
 
 
 TOUCH_KINDS = {"Stick", "Button", "Swipe"}
@@ -862,6 +1067,12 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "HotRouteSets" in payload:
+            validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
+        if isinstance(payload, dict) and "MaxQueued" in payload:
+            validate_input_buffer(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "RushMoves" in payload:
+            validate_rush_moves(path, payload)
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
     if errors:

@@ -17,6 +17,8 @@ class UPSPlayCallComponent;
 class UPSPlayContextComponent;
 class UPSPassingComponent;
 class UPSCarrierInputComponent;
+class UPSPreSnapInputComponent;
+class UPSInputBufferComponent;
 class UPSTouchInputComponent;
 class UInputModifier;
 class UInputTrigger;
@@ -47,7 +49,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * (Epic 104) is two components': UPSPlayContextComponent keeps the gameplay-depth context
  * (PreSnap, Passing, BallCarrier, Defense) matching the moment of the play,
  * UPSPassingComponent throws to receiver slots when the controlled QB passes, and
- * UPSCarrierInputComponent turns the move buttons into the carrier's moves.
+ * UPSCarrierInputComponent turns the move buttons into the carrier's moves. Both hear their
+ * buttons through UPSInputBufferComponent, which holds a press while its target is busy and
+ * carries a press into a depth context that came on just after it (Epic 104.4).
  *
  * Touch (Epic 130) is UPSTouchInputComponent's: its stick, buttons and swipes resolve to catalog
  * actions and come back here through InjectCatalogInput, so every handler below and every
@@ -97,6 +101,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSCarrierInputComponent* GetCarrierInputComponent() const { return CarrierInputComponent; }
 
+    /** The human offense's pre-snap buttons: audible, hot route, motion, protection (Epic 66). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSPreSnapInputComponent* GetPreSnapInputComponent() const { return PreSnapInputComponent; }
+
+    /** Buffers catalog presses whose target is busy (Epic 104.4). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSInputBufferComponent* GetInputBufferComponent() const { return InputBufferComponent; }
+
     /** The touch layer: virtual stick, on-screen buttons and swipes (Epic 130). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSTouchInputComponent* GetTouchInputComponent() const { return TouchInputComponent; }
@@ -106,7 +118,8 @@ public:
     FVector2D GetMoveInput() const { return MoveInput; }
 
     /** Puts ContextId on the stack as the one gameplay-depth context (Epic 104), above the
-     *  gameplay context, replacing the previous one; NAME_None clears it. */
+     *  gameplay context, replacing the previous one; NAME_None clears it. The input buffer
+     *  hears of the new context so a press made just before it counts there. */
     UFUNCTION(BlueprintCallable, Category = "Input")
     void SetDepthContext(FName ContextId);
 
@@ -241,6 +254,12 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSCarrierInputComponent* CarrierInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSPreSnapInputComponent* PreSnapInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSInputBufferComponent* InputBufferComponent;
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSTouchInputComponent* TouchInputComponent;

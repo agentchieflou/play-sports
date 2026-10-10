@@ -7,6 +7,8 @@
 #include "PSPlayContextComponent.h"
 #include "PSPassingComponent.h"
 #include "PSCarrierInputComponent.h"
+#include "PSPreSnapInputComponent.h"
+#include "PSInputBufferComponent.h"
 #include "PSTouchInputComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
@@ -45,6 +47,8 @@ APSPlayerController::APSPlayerController()
     PlayContextComponent = CreateDefaultSubobject<UPSPlayContextComponent>(TEXT("PlayContextComp"));
     PassingComponent = CreateDefaultSubobject<UPSPassingComponent>(TEXT("PassingComp"));
     CarrierInputComponent = CreateDefaultSubobject<UPSCarrierInputComponent>(TEXT("CarrierInputComp"));
+    PreSnapInputComponent = CreateDefaultSubobject<UPSPreSnapInputComponent>(TEXT("PreSnapInputComp"));
+    InputBufferComponent = CreateDefaultSubobject<UPSInputBufferComponent>(TEXT("InputBufferComp"));
     TouchInputComponent = CreateDefaultSubobject<UPSTouchInputComponent>(TEXT("TouchInputComp"));
 }
 
@@ -163,6 +167,11 @@ void APSPlayerController::OnUnPossess()
 {
     SetDepthContext(NAME_None);
     PopInputContext(GameplayContextId);
+    // Presses still waiting were for the player being let go.
+    if (InputBufferComponent)
+    {
+        InputBufferComponent->Flush();
+    }
 
     Super::OnUnPossess();
 }
@@ -393,6 +402,7 @@ void APSPlayerController::SetDepthContext(FName ContextId)
     {
         return;
     }
+    const TArray<FName> ContextsBefore = ActiveInputContexts;
     if (!DepthContextId.IsNone())
     {
         PopInputContext(DepthContextId);
@@ -404,6 +414,10 @@ void APSPlayerController::SetDepthContext(FName ContextId)
         if (IsInputContextActive(ContextId))
         {
             DepthContextId = ContextId;
+            if (InputBufferComponent)
+            {
+                InputBufferComponent->HandleContextEntered(ContextId, ContextsBefore);
+            }
         }
     }
 }

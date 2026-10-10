@@ -18,11 +18,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** The user (or AI) can audible, hot-route, motion, and adjust protection before the snap.
 **Depends on:** Core 14, Core 16
 
-- [ ] Audible system: swap to a compatible play from the same formation
-- [ ] Hot-route individual receivers (route swap from an allowed set per alignment)
-- [ ] Pre-snap motion with defensive reaction (man-indicator when a DB travels)
-- [ ] Protection adjustments: slide protection, RB/TE block-or-release
-- [ ] Crowd-noise interference on road audibles (consumes Epic 49's coupling)
+- [x] Audible system: swap to a compatible play from the same formation *(`UPSPreSnapSubsystem::Audible`/`AudibleToNext`: another play of the call's formation, made at `UPSPlayCallSubsystem` as a new call; the old call's changes go with it. A CPU QB with `CpuReadMinAwareness` checks a run out of a blitz or heavy box and a pass out of a light one. Three plays added so formations share plays. Tuning: `Data/presnap_tuning.json`)*
+- [x] Hot-route individual receivers (route swap from an allowed set per alignment) *(`HotRoute`/`CycleHotRoute`: wide, slot, tight and backfield sets in `HotRouteSets`; `UPSPlayOrchestrator` applies them at the snap. The CPU beats a blitz look with its slot on `BlitzHotRoute`)*
+- [x] Pre-snap motion with defensive reaction (man-indicator when a DB travels) *(`StartMotion`: across the formation; in man coverage the AI defender over him travels with him and the `PreSnap` bus event carries `bManIndicator`; the route starts where the motion ends)*
+- [x] Protection adjustments: slide protection, RB/TE block-or-release *(`SetSlide`: the game mode's line pairing now goes through `ComputeBlockingPairs`, slide side first, leaving the backside rusher to a back or tight end kept in (`SetProtection` Block/Release). Human buttons: `UPSPreSnapInputComponent`, PreSnap context)*
+- [ ] Crowd-noise interference on road audibles (consumes Epic 49's coupling) *(waits for Epic 49: there is no crowd-noise model to consume yet)*
 
 ### Epic 67: Defensive Pre-Snap Interaction
 
@@ -65,10 +65,21 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** Rushers win with technique, not just stats — swim, rip, bull, spin, and counters against blocker responses.
 **Depends on:** C3, C4, Core 9
 
-- [ ] Move library with attribute-gated success curves (swim/rip/bull/spin/club)
-- [ ] Counter-move chains (blocker anchors bull → rusher spins off)
-- [ ] Rush-plan AI: pick moves by matchup history within the game
-- [ ] Double-team recognition and split responsibilities
+- [x] Move library with attribute-gated success curves (swim/rip/bull/spin/club)
+  *As built: `UPSRushMoveComponent` on `APSDefenseController`, the library in
+  `Data/pass_rush_moves.json`; each move pits one rusher rating against one blocker rating, gated
+  by `MinAttribute` and clamped. A win ends `PairLinemen`'s engagement and bursts the rusher at
+  the passer; each resolved move goes on the bus (`PassRushMove`).*
+- [x] Counter-move chains (blocker anchors bull → rusher spins off)
+  *As built: a stopped move records the blocker's `Response` (Anchor, Punch, Mirror); the moves
+  that `Counter` it get `CounterBonus` on the next try.*
+- [x] Rush-plan AI: pick moves by matchup history within the game
+  *As built: the plan scores each move by its chance pulled toward its record against this
+  blocker this game (kept per blocker `PlayerId` across plays).*
+- [x] Double-team recognition and split responsibilities
+  *As built: a lineman engaged on the rusher, or a free one beside him, makes a double team:
+  every move's chance scales down and the `Split` move (double teams only) comes out. No
+  protection scheme calls double teams yet; that is offense-side work.*
 
 ### Epic 71: QB Pocket Play & Scramble System
 

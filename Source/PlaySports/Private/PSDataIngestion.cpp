@@ -336,7 +336,61 @@ bool UPSDataIngestion::LoadPlatformTiersFromJson(const FString& JsonFilePath, FP
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutCatalog, 0, 0);
 }
 
+bool UPSDataIngestion::LoadPreSnapTuningFromJson(const FString& JsonFilePath, FPreSnapTuningRow& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
 bool UPSDataIngestion::LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutCatalog, 0, 0);
+}
+
+bool UPSDataIngestion::LoadInputBufferTuningFromJson(const FString& JsonFilePath, FInputBufferTuningRow& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
+bool UPSDataIngestion::LoadRushMovesFromJson(const FString& JsonFilePath, FPSRushMoveCatalog& OutCatalog)
 {
     FString JsonString;
     if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
