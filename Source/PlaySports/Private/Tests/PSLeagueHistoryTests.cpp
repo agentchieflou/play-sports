@@ -469,7 +469,9 @@ bool FPSLegacyAwardsTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("The MVP alone is voted in"), Inducted.Num() == 1 && Inducted[0].Player.PlayerId == FName(TEXT("MVP_QB")));
 
     FPSLegacyTuning Broken = Tuning;
-    Broken.HallOfFame.AwardScores.Add(Broken.HallOfFame.AwardScores[0]);
+    // Copied first: adding an element of the array to itself asserts when the array grows.
+    const FPSHallOfFameAward Twice = Broken.HallOfFame.AwardScores[0];
+    Broken.HallOfFame.AwardScores.Add(Twice);
     TestTrue(TEXT("An award listed twice is reported"), UPSLeagueHistory::ValidateTuning(Broken).ContainsByPredicate([](const FString& Line) { return Line.Contains(TEXT("listed twice")); }));
     return true;
 }
