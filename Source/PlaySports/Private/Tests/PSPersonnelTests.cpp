@@ -229,7 +229,7 @@ bool FPSPersonnelCatalogTest::RunTest(const FString& Parameters)
         AddError(Problem);
     }
     TestEqual(TEXT("The shipped packages are sound"), Problems.Num(), 0);
-    TestEqual(TEXT("Nine packages ship"), Manager->GetCatalog().Packages.Num(), 9);
+    TestEqual(TEXT("Thirteen packages ship: nine for scrimmage downs, four special-teams units"), Manager->GetCatalog().Packages.Num(), 13);
     TestEqual(TEXT("11 personnel is the offense's default"), Manager->GetCatalog().DefaultOffensePackage, FName(TEXT("P11")));
     TestEqual(TEXT("Base 4-3 is the defense's default"), Manager->GetCatalog().DefaultDefensePackage, FName(TEXT("Base43")));
     TestTrue(TEXT("The fatigue threshold comes from data"), FMath::IsNearlyEqual(Manager->GetCatalog().FatigueSubstitutionThreshold, 0.3f));
@@ -250,6 +250,8 @@ bool FPSPersonnelCatalogTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Nickel is nickel"), Manager->GetPackageForFormation(TEXT("Nickel"), false), FName(TEXT("Nickel")));
     TestEqual(TEXT("The blitz package plays from nickel"), Manager->GetPackageForFormation(TEXT("Blitz Package"), false), FName(TEXT("Nickel")));
     TestEqual(TEXT("Goal Line is the goal-line package"), Manager->GetPackageForFormation(TEXT("Goal Line"), false), FName(TEXT("GoalLine")));
+    TestEqual(TEXT("A punt brings on the kicking unit"), Manager->GetPackageForFormation(TEXT("Punt"), true), FName(TEXT("KickingUnit")));
+    TestEqual(TEXT("A kick return brings on the return unit"), Manager->GetPackageForFormation(TEXT("Return Wall"), false), FName(TEXT("ReturnUnit")));
     TestEqual(TEXT("A formation no package lists brings the default on"), Manager->GetPackageForFormation(TEXT("Wishbone"), true), FName(TEXT("P11")));
     TestEqual(TEXT("...the default of the calling side"), Manager->GetPackageForFormation(TEXT("Ace"), false), FName(TEXT("Base43")));
 

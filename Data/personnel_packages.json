@@ -8,7 +8,7 @@
             "DisplayName": "11 Personnel",
             "bOffense": true,
             "RoleCounts": { "Quarterback": 1, "RunningBack": 1, "TightEnd": 1, "WideReceiver": 3, "OffensiveLineman": 5 },
-            "Formations": [ "Trips Right", "Trips Left", "Twins", "Shotgun" ]
+            "Formations": [ "Trips Right", "Trips Left", "Twins", "Shotgun", "Clock" ]
         },
         {
             "PackageId": "P12",
@@ -65,6 +65,34 @@
             "bOffense": false,
             "RoleCounts": { "DefensiveLineman": 6, "Linebacker": 2, "DefensiveBack": 3 },
             "Formations": [ "Goal Line" ]
+        },
+        {
+            "PackageId": "KickingUnit",
+            "DisplayName": "Kicking Unit",
+            "bOffense": true,
+            "RoleCounts": { "Quarterback": 1, "RunningBack": 2, "TightEnd": 2, "WideReceiver": 1, "OffensiveLineman": 5 },
+            "Formations": [ "Punt", "Field Goal", "Kickoff" ]
+        },
+        {
+            "PackageId": "ReturnUnit",
+            "DisplayName": "Return Unit",
+            "bOffense": false,
+            "RoleCounts": { "DefensiveLineman": 2, "Linebacker": 4, "DefensiveBack": 5 },
+            "Formations": [ "Return Wall", "Return Wedge", "Desperation" ]
+        },
+        {
+            "PackageId": "BlockUnit",
+            "DisplayName": "Block Unit",
+            "bOffense": false,
+            "RoleCounts": { "DefensiveLineman": 6, "Linebacker": 3, "DefensiveBack": 2 },
+            "Formations": [ "Kick Block" ]
+        },
+        {
+            "PackageId": "HandsTeam",
+            "DisplayName": "Hands Team",
+            "bOffense": false,
+            "RoleCounts": { "DefensiveLineman": 1, "Linebacker": 4, "DefensiveBack": 6 },
+            "Formations": [ "Hands Team" ]
         }
     ]
 }
