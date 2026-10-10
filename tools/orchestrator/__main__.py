@@ -4,6 +4,7 @@ Epic 135: `models`, `health`. Epic 136: `run`. Epic 137: `duel`.
 Epic 138: `graph`, `status`, `resume`, `check-parallel`.
 Core 25 (.env model router): `delegate`.
 Epic 119 (model router service): `routes`, `route`, `mcp`.
+Epic 82 (the game's model hooks, relayed through the router): `game-hooks`.
 """
 
 from __future__ import annotations
@@ -142,6 +143,14 @@ def cmd_mcp(config: OrchestratorConfig) -> int:
     return McpServer(RouterService(config)).serve()
 
 
+def cmd_game_hooks(config: OrchestratorConfig, args: argparse.Namespace) -> int:
+    from .game_hooks import AgenticLinkClient, GameHookRelay
+    from .service import RouterService
+
+    relay = GameHookRelay(AgenticLinkClient(args.url), RouterService(config))
+    return relay.serve(offense=args.offense, defense=args.defense, interval=args.interval, once=args.once)
+
+
 def cmd_check_parallel() -> int:
     from .supervisor.board import check_parallel, crawl, load_matrix
 
@@ -258,6 +267,13 @@ def main(argv: list[str] | None = None) -> int:
     route_parser.add_argument("--system", default="", help="an optional system prompt")
     route_parser.add_argument("--max-tokens", type=int, help="default: the task's")
     subparsers.add_parser("mcp", help="serve the model router service over MCP on stdio")
+    hooks_parser = subparsers.add_parser(
+        "game-hooks", help="answer the game's model requests (Epic 82) through the router, over AgenticLink")
+    hooks_parser.add_argument("--url", default="http://127.0.0.1:8790/mcp", help="AgenticLink's MCP endpoint")
+    hooks_parser.add_argument("--offense", action="store_true", help="call the CPU offense's plays")
+    hooks_parser.add_argument("--defense", action="store_true", help="call the CPU defense's plays")
+    hooks_parser.add_argument("--interval", type=float, default=0.5, help="seconds between polls")
+    hooks_parser.add_argument("--once", action="store_true", help="poll once and exit")
     args = parser.parse_args(argv)
 
     if args.command == "check-parallel":
@@ -276,6 +292,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_route(config, args)
     if args.command == "mcp":
         return cmd_mcp(config)
+    if args.command == "game-hooks":
+        return cmd_game_hooks(config, args)
     if args.command == "models":
         return cmd_models(config)
     if args.command == "run":

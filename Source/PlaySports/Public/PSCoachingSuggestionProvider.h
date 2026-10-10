@@ -11,10 +11,11 @@ class PLAYSPORTS_API UPSCoachingSuggestionProvider : public UInterface
     GENERATED_BODY()
 };
 
-/** Optional external play-call advisor, gated behind the Epic 25 AgenticLink bridge
- *  actually existing. UPSCoachingAI falls back to its internal situational weighting
- *  whenever no provider is registered (the bridge plugin is a stub today -- see
- *  Plugins/AgenticLink -- so nothing implements this interface yet). */
+/** Optional external play-call advisor, gated behind the Epic 25 AgenticLink bridge.
+ *  UPSGameIntelligenceSubsystem implements it (Epic 82): UPSPlayCallSubsystem registers it on
+ *  its coaching AI, and it suggests the play an outside model answered through the bridge.
+ *  UPSCoachingAI falls back to its internal situational weighting whenever the provider
+ *  suggests None or a play that isn't among its candidates. */
 class PLAYSPORTS_API IPSCoachingSuggestionProvider
 {
     GENERATED_BODY()

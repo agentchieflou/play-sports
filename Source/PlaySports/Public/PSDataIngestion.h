@@ -69,6 +69,7 @@
 #include "PSDeceptionSubsystem.h"
 #include "PSPerfTypes.h"
 #include "PSPlayArtTypes.h"
+#include "PSGameIntelligenceTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -419,6 +420,13 @@ public:
      *  malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPlayArtStyleFromJson(const FString& JsonFilePath, FPSPlayArtStyle& OutStyle);
+
+    /** Loads the hooks for outside models (Data/game_intelligence.json, Epic 82): the game
+     *  state's budget, the play-call timeout and each request's model-router task. False on a
+     *  missing file or malformed JSON; UPSGameIntelligenceSubsystem::ValidateTuning checks the
+     *  rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadGameIntelligenceTuningFromJson(const FString& JsonFilePath, FPSGameIntelligenceTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

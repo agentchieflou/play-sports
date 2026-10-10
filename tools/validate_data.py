@@ -84,9 +84,10 @@ FPSPlaybookGeneratorTuning (Epic 121): its concepts' routes in the route library
 personnel packages, each front in run_fits.json, each coverage shell in coverage_matchups.json and
 each flavor's scheme in coaching_staffs.json; "CombineDrills" files against FPSDraftTuning (Epic
 86): positive uncertainties and costs, 0-1 shares and guarantees, each drill reading a rating, a
-rookie deal no longer than contracts.json's MaxContractYears. Teams, the league config, the
-playbook, player rating ranges and every reference between files are tools/content_contracts.py's
-(Epic 125), run from here.
+rookie deal no longer than contracts.json's MaxContractYears; "PlayCallTimeoutSeconds" files against
+FPSGameIntelligenceTuning (Epic 82), each task one of tools/orchestrator/routing.json's. Teams, the
+league config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1153,6 +1154,58 @@ def validate_highlights(path, payload):
         "KindShots", "WinProbability"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSHighlightTuning exactly")
+
+
+
+GAME_INTELLIGENCE_COUNTS = ("MaxOpenRequests", "MaxAnswerChars", "MaxKeyPlays")
+GAME_INTELLIGENCE_TASKS = ("PlayCallTask", "DriveSummaryTask", "GameAnalysisTask")
+GAME_INTELLIGENCE_TEXTS = ("PlayCallInstructions", "DriveSummaryInstructions", "GameAnalysisInstructions")
+GAME_STATE_MIN_BUDGET = 1024  # PSGameStateSerializer::MinBudgetChars
+ROUTING_TABLE = REPO / "tools" / "orchestrator" / "routing.json"
+
+
+def validate_game_intelligence(path, payload):
+    """FPSGameIntelligenceTuning (Data/game_intelligence.json, Epic 82); mirrors
+    UPSGameIntelligenceSubsystem::ValidateTuning, and each task against Epic 119's routing table."""
+    budget = payload.get("ContextBudgetChars")
+    if not isinstance(budget, int) or isinstance(budget, bool) or budget < GAME_STATE_MIN_BUDGET:
+        err(path, f"ContextBudgetChars: '{budget}' must be a whole number, at least {GAME_STATE_MIN_BUDGET}")
+    timeout = payload.get("PlayCallTimeoutSeconds")
+    if not is_number(timeout) or timeout <= 0:
+        err(path, f"PlayCallTimeoutSeconds: '{timeout}' must be above 0")
+    for field in GAME_INTELLIGENCE_COUNTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            err(path, f"{field}: '{value}' must be a whole number, 1 or more")
+    leaders = payload.get("LeadersPerCategory")
+    if not isinstance(leaders, int) or isinstance(leaders, bool) or leaders < 0:
+        err(path, f"LeadersPerCategory: '{leaders}' must be a whole number, 0 or more")
+    if not isinstance(payload.get("bPostGameRequests"), bool):
+        err(path, "bPostGameRequests must be true or false")
+    for field in GAME_INTELLIGENCE_TEXTS:
+        if not isinstance(payload.get(field), str) or not payload.get(field).strip():
+            err(path, f"{field} must be a non-empty string")
+    try:
+        routes = json.loads(ROUTING_TABLE.read_text(encoding="utf-8")).get("tasks", {})
+    except (OSError, ValueError) as error:
+        err(path, f"can't read the model router's tasks from {ROUTING_TABLE.relative_to(REPO)}: {error}")
+        routes = None
+    for field in GAME_INTELLIGENCE_TASKS:
+        task = payload.get(field)
+        if not isinstance(task, str) or not task:
+            err(path, f"{field} must name a model-router task")
+        elif routes is not None and task not in routes:
+            err(path, f"{field}: '{task}' is not a task in tools/orchestrator/routing.json ({sorted(routes)})")
+    if routes is not None and all(payload.get(f) in routes for f in ("PlayCallTask", "DriveSummaryTask")):
+        play_call = routes[payload["PlayCallTask"]].get("min_capability", 0)
+        summary = routes[payload["DriveSummaryTask"]].get("min_capability", 0)
+        if play_call < summary:
+            err(path, f"PlayCallTask '{payload['PlayCallTask']}' routes to weaker models (min_capability {play_call}) "
+                      f"than DriveSummaryTask '{payload['DriveSummaryTask']}' ({summary}): strategy needs the better ones")
+    extra = set(payload) - {"ContextBudgetChars", "PlayCallTimeoutSeconds", "LeadersPerCategory", "bPostGameRequests"} \
+        - set(GAME_INTELLIGENCE_COUNTS) - set(GAME_INTELLIGENCE_TASKS) - set(GAME_INTELLIGENCE_TEXTS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSGameIntelligenceTuning exactly")
 
 
 TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks")
@@ -4819,6 +4872,8 @@ def main(root=None):
             validate_play_art(path, payload)
         if isinstance(payload, dict) and "CombineDrills" in payload:
             validate_draft(path, payload, load_contract_max_years())
+        if isinstance(payload, dict) and "PlayCallTimeoutSeconds" in payload:
+            validate_game_intelligence(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()
