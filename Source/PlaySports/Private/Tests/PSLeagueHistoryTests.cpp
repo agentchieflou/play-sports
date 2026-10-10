@@ -23,6 +23,7 @@
 #include "PSLeagueData.h"
 #include "PSLeagueHistory.h"
 #include "PSLegacyData.h"
+#include "PSRoster.h"
 #include "PSSaveSubsystem.h"
 #include "PSScheduleEngine.h"
 #include "PSStaffManager.h"
