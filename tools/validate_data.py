@@ -122,8 +122,10 @@ material named, #RRGGBB colors, positive line sizes and spacings. A player's opt
 "JerseyNumber" is 1-99 and unique on his roster. "PlayDemos" files against FPSPlayDemoCatalog
 (Data/play_demos.json, the live-play demos): a positive frame rate and limits, unique demo IDs,
 two different league teams per demo, and each call an offensive or defensive play the playbook has
-and its team's scheme keeps. Teams, the league config, the
-playbook, player rating ranges and every reference between files are
+and its team's scheme keeps. "PressedOpacity" files
+against FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1,
+#RRGGBB colors, positive sizes. Teams, the league config,
+the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -2263,6 +2265,43 @@ def validate_play_demos(path, payload):
         wanted = demo.get("WantedOutcome", "")
         if not isinstance(wanted, str) or (wanted and wanted not in PLAY_DEMO_OUTCOMES):
             err(path, f"{where}.WantedOutcome: '{wanted}' must be empty or one of {sorted(PLAY_DEMO_OUTCOMES)}")
+
+
+TOUCH_HUD_SHARES = ("RestOpacity", "PressedOpacity", "StickIdleFade")
+TOUCH_HUD_FRACTIONS = ("RingWidth", "KnobRadius", "SwipeArrowWidth", "SwipeArrowHead")
+TOUCH_HUD_POSITIVE = ("LabelSize", "SwipeArrowLength")
+TOUCH_HUD_COLORS = ("ControlColor", "PressedColor", "LabelColor")
+
+
+def validate_touch_hud(path, payload):
+    """FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): how UPSTouchHudWidget draws the touch
+    controls; mirrors PSTouchHud::ValidateStyle."""
+    for field in TOUCH_HUD_SHARES:
+        value = payload.get(field)
+        if not is_number(value) or value < 0 or value > 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    for field in TOUCH_HUD_FRACTIONS:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0 or value > 1:
+            err(path, f"{field}: '{value}' must be a number above 0 and at most 1")
+    for field in TOUCH_HUD_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    flash = payload.get("SwipeFlashSeconds")
+    if not is_number(flash) or flash < 0:
+        err(path, f"SwipeFlashSeconds: '{flash}' must be a number, 0 or more")
+    segments = payload.get("CircleSegments")
+    if not isinstance(segments, int) or isinstance(segments, bool) or segments < 3:
+        err(path, f"CircleSegments: '{segments}' must be a whole number, 3 or more")
+    for field in TOUCH_HUD_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    known = set(TOUCH_HUD_SHARES) | set(TOUCH_HUD_FRACTIONS) | set(TOUCH_HUD_POSITIVE) | set(TOUCH_HUD_COLORS) \
+        | {"SwipeFlashSeconds", "CircleSegments"}
+    extra = set(payload) - known
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTouchHudStyle exactly")
 
 
 PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
@@ -6152,6 +6191,8 @@ def main(root=None):
             validate_field_markings(path, payload)
         if isinstance(payload, dict) and "PlayDemos" in payload:
             validate_play_demos(path, payload)
+        if isinstance(payload, dict) and "PressedOpacity" in payload:
+            validate_touch_hud(path, payload)
         if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:

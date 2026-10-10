@@ -1,4 +1,5 @@
 #include "PSSaveSubsystem.h"
+#include "PSPlatformServices.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -21,20 +22,108 @@ FString UPSSaveSubsystem::MakeSlotName(EPSSaveCategory Category, const FString& 
     return FString::Printf(TEXT("%s_%s"), *CategoryEnum->GetNameStringByValue(static_cast<int64>(Category)), *Id);
 }
 
+void UPSSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+    Super::Initialize(Collection);
+    SetPlatformServices(Collection.InitializeDependency<UPSPlatformServices>());
+}
+
+void UPSSaveSubsystem::Deinitialize()
+{
+    FlushPendingWrites();
+    SetPlatformServices(nullptr);
+    Super::Deinitialize();
+}
+
+void UPSSaveSubsystem::SetPlatformServices(UPSPlatformServices* InServices)
+{
+    if (PlatformServices == InServices)
+    {
+        return;
+    }
+    UnbindLifecycle();
+    PlatformServices = InServices;
+    BindLifecycle();
+}
+
+void UPSSaveSubsystem::BindLifecycle()
+{
+    if (!PlatformServices)
+    {
+        return;
+    }
+    LifecycleHandle = PlatformServices->OnLifecycleMC.AddWeakLambda(this, [this](EPSPlatformLifecycle Lifecycle)
+    {
+        // The game may not run again (a suspended game can be closed): nothing in flight is lost.
+        if (Lifecycle == EPSPlatformLifecycle::Suspend || Lifecycle == EPSPlatformLifecycle::Constrained)
+        {
+            FlushPendingWrites();
+        }
+    });
+}
+
+void UPSSaveSubsystem::UnbindLifecycle()
+{
+    if (PlatformServices && LifecycleHandle.IsValid())
+    {
+        PlatformServices->OnLifecycleMC.Remove(LifecycleHandle);
+    }
+    LifecycleHandle.Reset();
+}
+
+FString UPSSaveSubsystem::MakeSlotPath(const FString& Root, const FString& SlotName)
+{
+    return Root / (SlotName + TEXT(".psav"));
+}
+
 FString UPSSaveSubsystem::GetSlotPath(const FString& SlotName)
 {
-    return FPaths::ProjectSavedDir() / TEXT("SaveGames") / (SlotName + TEXT(".psav"));
+    return MakeSlotPath(UPSPlatformServices::GetDefaultSaveStorageRoot(), SlotName);
+}
+
+FString UPSSaveSubsystem::GetStorageRoot() const
+{
+    return PlatformServices ? PlatformServices->GetSaveStorageRoot() : UPSPlatformServices::GetDefaultSaveStorageRoot();
+}
+
+FString UPSSaveSubsystem::GetSlotFilePath(const FString& SlotName) const
+{
+    return MakeSlotPath(GetStorageRoot(), SlotName);
+}
+
+void UPSSaveSubsystem::FlushPendingWrites()
+{
+    const int32 InFlight = GetPendingWriteCount();
+    for (TFuture<void>& Write : PendingWrites)
+    {
+        Write.Wait();
+    }
+    PendingWrites.Reset();
+    if (InFlight > 0)
+    {
+        UE_LOG(LogTemp, Display, TEXT("PSSaveSubsystem: flushed %d save write(s) in flight."), InFlight);
+    }
+}
+
+int32 UPSSaveSubsystem::GetPendingWriteCount() const
+{
+    int32 Count = 0;
+    for (const TFuture<void>& Write : PendingWrites)
+    {
+        Count += Write.IsReady() ? 0 : 1;
+    }
+    return Count;
 }
 
 bool UPSSaveSubsystem::DoesSlotExist(const FString& SlotName) const
 {
-    return FPaths::FileExists(GetSlotPath(SlotName));
+    return FPaths::FileExists(GetSlotFilePath(SlotName));
 }
 
 bool UPSSaveSubsystem::DeleteSlot(const FString& SlotName)
 {
     IPlatformFile& FileSystem = FPlatformFileManager::Get().GetPlatformFile();
-    const FString Path = GetSlotPath(SlotName);
+    const FString Path = GetSlotFilePath(SlotName);
     const FString BackupPath = Path + TEXT(".bak");
     FileSystem.DeleteFile(*BackupPath);
     FileSystem.DeleteFile(*Path);
@@ -164,14 +253,14 @@ bool UPSSaveSubsystem::SaveToSlot(UPSSaveGame* SaveObject, const FString& SlotNa
     {
         return false;
     }
-    return WriteFileWithBackup(GetSlotPath(SlotName), FileData);
+    return WriteFileWithBackup(GetSlotFilePath(SlotName), FileData);
 }
 
 UPSSaveGame* UPSSaveSubsystem::LoadFromSlot(const FString& SlotName)
 {
     TArray<uint8> FileData;
     TArray<uint8> Payload;
-    if (!ReadFileWithFallback(GetSlotPath(SlotName), FileData, Payload))
+    if (!ReadFileWithFallback(GetSlotFilePath(SlotName), FileData, Payload))
     {
         return nullptr;
     }
@@ -187,21 +276,22 @@ void UPSSaveSubsystem::SaveToSlotAsync(UPSSaveGame* SaveObject, const FString& S
         return;
     }
 
-    const FString Path = GetSlotPath(SlotName);
-    Async(EAsyncExecution::ThreadPool, [FileData = MoveTemp(FileData), Path, SlotName, OnComplete]()
+    const FString Path = GetSlotFilePath(SlotName);
+    PendingWrites.RemoveAll([](const TFuture<void>& Write) { return Write.IsReady(); });
+    PendingWrites.Add(Async(EAsyncExecution::ThreadPool, [FileData = MoveTemp(FileData), Path, SlotName, OnComplete]()
     {
         const bool bWritten = WriteFileWithBackup(Path, FileData);
         AsyncTask(ENamedThreads::GameThread, [SlotName, OnComplete, bWritten]()
         {
             OnComplete.ExecuteIfBound(SlotName, bWritten);
         });
-    });
+    }));
 }
 
 int32 UPSSaveSubsystem::LoadFromSlotAsync(const FString& SlotName, FPSSaveOpComplete OnComplete)
 {
     const int32 RequestId = NextAsyncLoadRequestId++;
-    const FString Path = GetSlotPath(SlotName);
+    const FString Path = GetSlotFilePath(SlotName);
     TWeakObjectPtr<UPSSaveSubsystem> WeakThis(this);
 
     Async(EAsyncExecution::ThreadPool, [WeakThis, Path, SlotName, OnComplete, RequestId]()

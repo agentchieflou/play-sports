@@ -7,6 +7,12 @@
 > to `ScoreboardWidgetClass` / `ChyronWidgetClass` and draw from the `OnScoreBugChanged` /
 > `OnChyronChanged` events. The binding below, which casts to `APSGameMode`, is retired
 > (Architecture rule 5).
+>
+> **No Widget Blueprint is needed (Epic 146.4, 2026-10-10).** Every HUD, menu and touch widget the
+> game shows by default is a C++ class that builds its own tree: the score bug, chyron, personnel
+> panels, badges, telestrator, AI debug overlay, touch controls (`UPSTouchHudWidget`) and every menu
+> screen (`UPSMenuScreenWidget`). `PlaySports.UI.DefaultWidgetsAreCodeBuilt` checks it. The
+> `BP_`/`WBP_` steps below are history; a Widget Blueprint remains an optional reskin.
 
 This document defines the requirements, design, and binding logic for creating the HUD user interface in the level editor Content Browser.
 

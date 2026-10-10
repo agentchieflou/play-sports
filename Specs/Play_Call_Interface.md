@@ -126,7 +126,7 @@ calls, and what makes the ball snap. This is also the editor handoff for the scr
    - the AI runs the called routes and coverages.
    With no human pawn (for example `bTakeDefaultControlOnBeginPlay` off), CPU plays CPU, snapping
    every down on its own.
-2. **Restyle.** The play-call screens use the same `UPSMenuScreenWidget` as every menu, so a
+2. **Restyle (optional; no Widget Blueprint is needed, Epic 146.4).** The play-call screens use the same `UPSMenuScreenWidget` as every menu, so a
    `WBP_MenuScreen` subclass restyles them too. Each option's `Detail` is the play's text line.
    A dedicated play-call widget (formation art, a play grid) can replace the screen by checking
    `GetScreen().Content`; it places a `UPSPlayDiagramWidget` per play and calls `ShowPlay` with

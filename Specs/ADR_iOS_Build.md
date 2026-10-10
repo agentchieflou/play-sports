@@ -125,7 +125,9 @@ The owner chose **Option B** with a **free Apple ID**:
   that Mac is done by hand (Option D) to prove signing, as recommended.
 - Signing uses the owner's free Apple ID (a Personal Team in Xcode on the runner Mac). Builds stop
   launching after 7 days and are reinstalled from that Mac; the iPhone is paired with it once.
-- TestFlight is deferred until the owner joins the Developer Program.
+- The iOS goal is playing on the owner's iPhone, not an App Store build. TestFlight and the App
+  Store are deferred to `roadmap/platform-release.md` Epic 154, after the owner joins the
+  Developer Program.
 - Still to come from the owner, when iOS work starts (`roadmap/platform-release.md`, 149.1): the
   Mac itself (model and chip, macOS version, free disk, able to stay on) and the runner
   registration.

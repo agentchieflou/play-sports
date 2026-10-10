@@ -219,6 +219,7 @@
 "Versus.Refused.NoSession","Not in a head-to-head game","Head to head: a pause refused outside a session"
 "Versus.Call.Choosing","Opponent is choosing a play","Head to head play calling: the other player has not called yet"
 "Versus.Call.Called","Opponent is ready","Head to head play calling: the other player has called (never which play)"
+"Platform.LocalUser","Player {Number}","A local player's name on a platform without accounts (a PC): the first is Player 1"
 "Broadcast.Quarter1","1st","Score bug: the quarter"
 "Broadcast.Quarter2","2nd","Score bug: the quarter"
 "Broadcast.Quarter3","3rd","Score bug: the quarter"

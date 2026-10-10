@@ -90,6 +90,7 @@ every CI build.
 | `photo_mode.json` | `FPSPhotoModeTuning` (single object) | `UPSDataIngestion::LoadPhotoModeTuningFromJson`, via `UPSPhotoModeSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
+| `touch_hud.json` | `FPSTouchHudStyle` (single object) | `UPSDataIngestion::LoadTouchHudStyleFromJson`, via `PSTouchHud::LoadStyle` (`UPSTouchHudWidget`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
@@ -1795,6 +1796,27 @@ control decides what it does. `PSTouchControls::ValidateLayout` and `tools/valid
 check all of this. **Adding an action means adding its touch control and its Touch glyph in
 the same change; adding a context means adding its touch button set (or listing it in
 `ContextsWithoutTouch`).**
+
+## Touch HUD schema (`FPSTouchHudStyle`)
+
+Single object: how `UPSTouchHudWidget` draws the touch controls while the active device is Touch
+(Epic 146.4, `Specs/Touch_Controls_Spec.md` section 6). Where each control is and what it drives is
+`touch_controls.json`'s; this file says only how it looks. Sizes are fractions of each control's own
+radius, so the look scales with the layout.
+
+- `RestOpacity`, `PressedOpacity` (0 to 1): a control at rest and while held. `StickIdleFade` (0 to
+  1): the stick at rest is drawn at `RestOpacity` times this.
+- Colours, `#RRGGBB`: `ControlColor` (rings), `PressedColor` (a held button, the stick's knob),
+  `LabelColor` (each button's touch glyph).
+- `RingWidth`, `KnobRadius` (above 0, at most 1): the ring's thickness and the held stick's knob, as
+  fractions of the control's radius. `LabelSize` (above 0): the label's type size, likewise.
+- `SwipeFlashSeconds` (0 or more): how long a recognised swipe's arrow shows; it fades out unless
+  reduced motion is on. `SwipeArrowLength` (above 0): the arrow's length as a fraction of the
+  screen's height; `SwipeArrowWidth` and `SwipeArrowHead` (above 0, at most 1): its line's thickness
+  and its head's length, as fractions of that length.
+- `CircleSegments` (a whole number, 3 or more): points round each ring.
+
+`PSTouchHud::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Defensive pre-snap schema (`FPSDefensivePreSnapTuning`)
 

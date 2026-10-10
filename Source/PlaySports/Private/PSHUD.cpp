@@ -5,6 +5,7 @@
 #include "PSOverlayScoreBugWidget.h"
 #include "PSPlatformTiers.h"
 #include "PSTelestratorWidget.h"
+#include "PSTouchHudWidget.h"
 
 APSHUD::APSHUD()
 {
@@ -16,6 +17,8 @@ APSHUD::APSHUD()
     PersonnelWidget = nullptr;
     BadgeWidgetClass = UPSOverlayBadgeWidget::StaticClass();
     BadgeWidget = nullptr;
+    TouchHudWidgetClass = UPSTouchHudWidget::StaticClass();
+    TouchHudWidget = nullptr;
     TelestratorWidgetClass = UPSTelestratorWidget::StaticClass();
     TelestratorWidget = nullptr;
     AIDebugWidgetClass = UPSAIDebugOverlayWidget::StaticClass();
@@ -73,6 +76,16 @@ void APSHUD::BeginPlay()
         if (ChyronWidget)
         {
             ChyronWidget->AddToViewport();
+        }
+    }
+
+    // The touch controls, over the broadcast package; drawn only while the player uses touch.
+    if (TouchHudWidgetClass)
+    {
+        TouchHudWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), TouchHudWidgetClass);
+        if (TouchHudWidget)
+        {
+            TouchHudWidget->AddToViewport();
         }
     }
 

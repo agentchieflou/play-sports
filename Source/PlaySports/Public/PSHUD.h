@@ -13,7 +13,8 @@
  * UPSOverlayBroadcastSubsystem. A designer can assign Widget Blueprints instead. The chyron
  * widget is left out on a tier whose OverlayDetail is Minimal. UPSOverlayBadgeWidget draws the
  * position badges over the players (Epic 28), and UPSTelestratorWidget is the telestrator's
- * drawing layer (Epic 44), on every tier: analysis is the player's own choice. In development
+ * drawing layer (Epic 44), on every tier: analysis is the player's own choice. UPSTouchHudWidget
+ * draws the touch controls while the active device is Touch (Epic 146.4). In development
  * builds UPSAIDebugOverlayWidget shows the AI debug overlay's cards (Epic 85.2) when it is on.
  */
 UCLASS(Blueprintable)
@@ -52,6 +53,13 @@ public:
 
     UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
     UUserWidget* BadgeWidget;
+
+    /** The on-screen touch controls (Epic 146.4): drawn while the active device is Touch. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
+    TSubclassOf<UUserWidget> TouchHudWidgetClass;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
+    UUserWidget* TouchHudWidget;
 
     /** The telestrator's drawing layer (Epic 44): idle until analysis mode is on. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")

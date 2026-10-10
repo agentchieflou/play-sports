@@ -150,7 +150,8 @@ editor handoff: what exists in code, and what an editor session adds.
 1. **Try it in PIE.** PIE starts the editor's map with its own game mode, so the front end
    doesn't show by default. Either set World Settings → GameMode Override to `PSMenuGameMode`
    on a menu map, or type `open GameMap?game=Menu` in the PIE console.
-2. **Restyle.** Create `WBP_MenuScreen` as a subclass of `UPSMenuScreenWidget`, build the
+2. **Restyle (optional).** No Widget Blueprint is needed: the code-built screens are the game's
+   UI (Epic 146.4). To reskin them, create `WBP_MenuScreen` as a subclass of `UPSMenuScreenWidget`, build the
    layout in the designer, and wire buttons to `ChooseOption(OptionId)` / `GoBack()`.
    Implement `OnScreenSet` to fill it from `GetScreen()`. Then set `ScreenWidgetClass` on the
    player controller's `MenuComp` (a Blueprint subclass of `APSPlayerController`). One class

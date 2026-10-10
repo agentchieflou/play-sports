@@ -125,9 +125,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Menu")
     void TogglePause();
 
-    /** Closes every screen and unpauses if this component paused the game. */
+    /** Closes every screen and unpauses if this component paused the game. After an
+     *  interruption's pause (PauseForInterruption) the screens under the pause screen stay. */
     UFUNCTION(BlueprintCallable, Category = "Menu")
     void Resume();
+
+    /** Pauses the game for something outside it (Epic 152: the platform suspending or
+     *  constraining the game): pauses and opens the pause screen over whatever screen is up, which
+     *  Resume brings back. A head-to-head game pauses by its etiquette instead (Epic 107). Nothing
+     *  happens in the front end (its root screen is open) or while the pause screen is open.
+     *  True when the game paused. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    bool PauseForInterruption();
 
     /** Keys that mean Back in menus: Cancel in the Menu context, plus Pause on the pause
      *  screen (so Start toggles it closed), all from the input catalog. */
@@ -232,5 +241,9 @@ private:
 
     bool bCatalogLoaded = false;
     bool bPausedByMenu = false;
+
+    /** How many screens were under the pause screen PauseForInterruption opened; INDEX_NONE
+     *  when no such pause is up. */
+    int32 InterruptedDepth = INDEX_NONE;
     bool bOpenRootOnBeginPlay = false;
 };

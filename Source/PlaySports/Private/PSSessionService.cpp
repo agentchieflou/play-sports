@@ -3,6 +3,7 @@
 #include "PSDataIngestion.h"
 #include "PSNetRandomStreams.h"
 #include "Engine/World.h"
+#include "HAL/PlatformProperties.h"
 #include "Misc/Paths.h"
 
 FString UPSSessionService::GetDefaultTuningPath()
@@ -182,19 +183,10 @@ bool UPSSessionService::IsDesktop(EPSSessionPlatform Platform)
 
 EPSSessionPlatform UPSSessionService::GetCurrentPlatform()
 {
-#if PLATFORM_WINDOWS
-    return EPSSessionPlatform::Windows;
-#elif PLATFORM_MAC
-    return EPSSessionPlatform::Mac;
-#elif PLATFORM_LINUX
-    return EPSSessionPlatform::Linux;
-#elif PLATFORM_IOS
-    return EPSSessionPlatform::IOS;
-#elif PLATFORM_ANDROID
-    return EPSSessionPlatform::Android;
-#else
-    return EPSSessionPlatform::Unknown;
-#endif
+    // The engine names the platform ("Windows", "IOS", ...), so gameplay code needs no #if
+    // PLATFORM_* (Epic 152; tools/lint_conventions.py). A platform the enum lacks is Unknown.
+    const int64 Value = StaticEnum<EPSSessionPlatform>()->GetValueByNameString(FPlatformProperties::IniPlatformName());
+    return Value == INDEX_NONE ? EPSSessionPlatform::Unknown : static_cast<EPSSessionPlatform>(Value);
 }
 
 bool UPSSessionService::ApplyMatchToWorld(const FPSSessionMatch& InMatch, UWorld* World)
