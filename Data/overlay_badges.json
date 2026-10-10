@@ -1,0 +1,31 @@
+{
+    "Groups": [
+        { "Group": "Receiver", "Color": "#F2F2F2", "TextColor": "#111111", "bPreSnap": true, "InPlay": "WhilePassing", "bEssential": true },
+        { "Group": "Back", "Color": "#F2C94C", "TextColor": "#111111", "bPreSnap": true, "InPlay": "WhilePassing", "bEssential": true },
+        { "Group": "Quarterback", "Color": "#9B9B9B", "TextColor": "#111111", "bPreSnap": false, "InPlay": "Hidden", "bEssential": false },
+        { "Group": "Line", "Color": "#6B6B6B", "TextColor": "#FFFFFF", "bPreSnap": false, "InPlay": "Hidden", "bEssential": false },
+        { "Group": "Defense", "Color": "#EB5757", "TextColor": "#FFFFFF", "bPreSnap": true, "InPlay": "Hidden", "bEssential": false }
+    ],
+    "RoleLabels": [
+        { "Role": "Quarterback", "Label": "QB" },
+        { "Role": "RunningBack", "Label": "RB" },
+        { "Role": "WideReceiver", "Label": "WR" },
+        { "Role": "TightEnd", "Label": "TE" },
+        { "Role": "OffensiveLineman", "Label": "OL" },
+        { "Role": "DefensiveLineman", "Label": "DL" },
+        { "Role": "Linebacker", "Label": "LB" },
+        { "Role": "DefensiveBack", "Label": "DB" }
+    ],
+    "HeadClearance": 30.0,
+    "BadgeWidth": 44.0,
+    "BadgeHeight": 32.0,
+    "FontSize": 18,
+    "ReferenceDistance": 2500.0,
+    "MinScale": 0.6,
+    "MaxScale": 1.25,
+    "BallClearance": 28.0,
+    "NudgeStep": 14.0,
+    "MaxNudges": 4,
+    "FadeInSeconds": 0.2,
+    "bBadgeControlledPlayer": false
+}
