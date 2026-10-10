@@ -302,3 +302,20 @@ void UPSTelemetryBus::PublishPassRushMove(const FPSTelemetryPassRushEvent& Event
     }
     OnPassRushMoveMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishPreSnap(const FPSTelemetryPreSnapEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPreSnapEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Tell = Event.bManIndicator ? FString::Printf(TEXT(" (%s travels: man)"), *Event.DefenderName) : FString();
+    FString Description = FString::Printf(TEXT("PreSnap: %s %s %s by %s%s"),
+        *UEnum::GetValueAsString(Event.Action), *Event.PlayerName, *Event.Detail.ToString(), Event.bHumanCall ? TEXT("human") : TEXT("CPU"), *Tell);
+    RecordHistory(EPSTelemetryEventType::PreSnap, Description, JsonPayload);
+
+    if (OnPreSnap.IsBound())
+    {
+        OnPreSnap.Broadcast(Event);
+    }
+    OnPreSnapMC.Broadcast(Event);
+}
