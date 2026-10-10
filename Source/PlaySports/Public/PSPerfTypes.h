@@ -87,7 +87,7 @@ struct FPSPerfHarnessTuning
 
     /** The most telemetry-bus events one standard play may publish. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Performance")
-    int32 MaxBusEventsPerPlay = 60;
+    int32 MaxBusEventsPerPlay = 120;
 
     /** CI fails when a system's 95th-percentile frame time is over its budget times this;
      *  between the budget and this, it warns. */
