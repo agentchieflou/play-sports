@@ -50,7 +50,9 @@ FPSPlayerDNA field, each binding a numeric field of its target's tuning file and
 pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
 "LeverageShade" files against FPSCoverageMatchupTuning (Epic 69): its shell rules (each coverage
 shell the playbook calls has one) and a press spot inside the route-running PressRadius;
-"ScoopClearRadius" files against FPSLooseBallTuning (Epic 17.4). Teams, the league config, the
+"ScoopClearRadius" files against FPSLooseBallTuning (Epic 17.4); "MeshRecognizeRadius" files against
+FPSDeceptionTuning (Epic 72): bite chances 0-1 with the floor under the ceiling, a discipline rating
+0-100. Teams, the league config, the
 playbook, player rating ranges and every reference between files are tools/content_contracts.py's
 (Epic 125), run from here.
 
@@ -2196,6 +2198,36 @@ def validate_loose_ball(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSLooseBallTuning exactly")
 
 
+DECEPTION_FIELDS = ("FakeSeconds", "BiteBaseChance", "BiteRunTendencyWeight", "BiteAwarenessWeight", "BiteMinChance",
+                    "BiteMaxChance", "BiteFreezeSeconds", "TendencyWindow", "MeshRideSeconds", "ReadMinSpeed",
+                    "KeyLineDepth", "PitchReadRadius",
+                    "PitchWindowDepth", "MeshRecognizeRadius", "DisciplineAwareness", "ScrapeRadius")
+
+
+def validate_deception(path, payload):
+    """FPSDeceptionTuning (Data/deception.json, Epic 72); mirrors UPSDeceptionSubsystem::ValidateTuning."""
+    for field in DECEPTION_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("BiteBaseChance", "BiteMinChance", "BiteMaxChance"):
+        value = payload.get(field)
+        if is_number(value) and value > 1:
+            err(path, f"{field}: {value} is a chance, 0 to 1")
+    low, high = payload.get("BiteMinChance"), payload.get("BiteMaxChance")
+    if is_number(low) and is_number(high) and low > high:
+        err(path, "BiteMinChance must not exceed BiteMaxChance")
+    discipline = payload.get("DisciplineAwareness")
+    if is_number(discipline) and discipline > 100:
+        err(path, f"DisciplineAwareness: {discipline} is a rating, 0-100")
+    window = payload.get("TendencyWindow")
+    if not isinstance(window, int) or isinstance(window, bool) or window < 1:
+        err(path, f"TendencyWindow: '{window}' must be a whole number of calls, 1 or more")
+    extra = set(payload) - set(DECEPTION_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSDeceptionTuning exactly")
+
+
 TOUCH_KINDS = {"Stick", "Button", "Swipe"}
 TOUCH_DIRECTIONS = {"Left", "Right", "Up", "Down"}
 TOUCH_LAYOUT_FIELDS = {"SafeZone", "LayoutAspect", "bFloatingStick", "StickZone", "GestureZone",
@@ -2970,6 +3002,8 @@ def main():
             validate_coverage_matchups(path, payload)
         if isinstance(payload, dict) and "ScoopClearRadius" in payload:
             validate_loose_ball(path, payload)
+        if isinstance(payload, dict) and "MeshRecognizeRadius" in payload:
+            validate_deception(path, payload)
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "Axes" in payload and "Bindings" in payload:

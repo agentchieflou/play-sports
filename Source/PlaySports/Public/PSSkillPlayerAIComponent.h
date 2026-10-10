@@ -14,6 +14,7 @@ class APSOffenseController;
 class APSPlayerPawn;
 class UPSRouteRunnerComponent;
 class UPSPocketComponent;
+class UPSDeceptionSubsystem;
 
 /** What an offensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -35,7 +36,10 @@ enum class EPSSkillPlayerAction : uint8
     Block,
     /** Going for a blocked kick's loose ball, or running down the defender who scooped it up
      *  (UPSLooseBallSubsystem, Epic 17.4). */
-    LooseBall
+    LooseBall,
+    /** Play-action: the QB carrying out his fake hand-off toward the back before the drop
+     *  (UPSDeceptionSubsystem, Epic 72). */
+    Fake
 };
 
 /** Offensive AI tuning (Data/skill_ai_tuning.json; Architecture rule 4). Distances in cm. */
@@ -227,6 +231,8 @@ private:
     APSOffenseController* GetOffenseController() const;
     UPSRouteRunnerComponent* GetRouteRunner() const;
     UPSPocketComponent* GetPocket() const;
+    /** The play's fake and reads (Epic 72). */
+    UPSDeceptionSubsystem* GetDeception() const;
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindTeammate(EPlayerRole Role) const;
     const TArray<APSPlayerPawn*>& GetFieldPawns() const;
