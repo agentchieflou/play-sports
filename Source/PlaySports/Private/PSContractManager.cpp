@@ -326,7 +326,7 @@ int32 UPSContractManager::SignRosterAtDemand(FName TeamId, const TArray<FPlayerA
         {
             continue;
         }
-        const FPSContractDemand Demand = GetDemand(MakeNegotiationContext(Player, Tuning.DefaultPlayerAge, 0.5f, TeamId));
+        const FPSContractDemand Demand = GetDemand(MakeNegotiationContext(Player, GetPlayerAge(Player), 0.5f, TeamId));
         FPSContractOffer Offer;
         Offer.TeamId = TeamId;
         Offer.Years = 1 + Index % FMath::Max(1, Demand.Years);
@@ -392,6 +392,11 @@ float UPSContractManager::GetLeagueCapSpaceFraction() const
         Sum += FMath::Clamp(static_cast<float>(GetCapSpace(TeamId)) / Ledger.SalaryCap, 0.f, 1.f);
     }
     return Sum / Ledger.TeamIds.Num();
+}
+
+int32 UPSContractManager::GetPlayerAge(const FPlayerAttributes& Player) const
+{
+    return Player.Age > 0 ? Player.Age : Tuning.DefaultPlayerAge;
 }
 
 FPSNegotiationContext UPSContractManager::MakeNegotiationContext(const FPlayerAttributes& Player, int32 Age, float Morale, FName CurrentTeamId) const

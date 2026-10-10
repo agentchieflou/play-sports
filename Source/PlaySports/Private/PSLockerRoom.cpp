@@ -253,7 +253,7 @@ TArray<FPSLockerRoomEvent> UPSLockerRoom::EvaluateTeam(FName TeamId, const UPSRo
         const FPSContract* Contract = Contracts ? Contracts->FindContract(PlayerId) : nullptr;
         if (Contract && Contract->TeamId == TeamId)
         {
-            const int32 Worth = Contracts->GetDemand(Contracts->MakeNegotiationContext(Player, Contracts->GetTuning().DefaultPlayerAge, Morale.Morale, TeamId)).AnnualValue;
+            const int32 Worth = Contracts->GetDemand(Contracts->MakeNegotiationContext(Player, Contracts->GetPlayerAge(Player), Morale.Morale, TeamId)).AnnualValue;
             PayRatio = Worth > 0 ? static_cast<float>(Contracts->GetCapHit(PlayerId, Contracts->GetLeagueYear())) / Worth : 1.f;
             if (PayRatio < Tuning.UnderpaidRatio)
             {

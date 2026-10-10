@@ -100,7 +100,7 @@ int32 UPSFreeAgency::ReleaseUnsignedToPool(const TMap<FName, int32>& AgeByPlayer
             if (Roster->RemovePlayer(PlayerId, Released))
             {
                 const int32* Age = AgeByPlayerId.Find(PlayerId);
-                if (AddFreeAgent(Released, Age ? *Age : Contracts->GetTuning().DefaultPlayerAge, 0.5f, TeamId))
+                if (AddFreeAgent(Released, Age ? *Age : Contracts->GetPlayerAge(Released), 0.5f, TeamId))
                 {
                     ++Moved;
                 }

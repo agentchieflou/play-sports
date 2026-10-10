@@ -3,12 +3,14 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Templates/Function.h"
 #include "PSPlayerAttributes.h"
 #include "PSRushMoveComponent.h"
 #include "PSPlayerDNA.generated.h"
 
-/** How tools/player_dna.py generates an axis from a player's ratings (Epic 79.3). The game reads
- *  a roster's DNA as written; only the generator uses these. */
+/** How an axis is generated from a player's ratings (Epic 79.3): by tools/player_dna.py for the
+ *  hand-written rosters and by PSPlayerDNA::GenerateProfile for generated leagues (Epic 122). The
+ *  game reads a roster's DNA as written; only the generators use these. */
 USTRUCT(BlueprintType)
 struct FPSDNAGenerator
 {
@@ -196,6 +198,21 @@ namespace PSPlayerDNA
 
     /** The string table key of a trait's text: Trait.<TraitId>.<Field> (Label or Description). */
     PLAYSPORTS_API FString TraitKey(FName TraitId, const FString& Field);
+
+    /** The rating gap Def's generator leans on: Player's HighAttribute less his LowAttribute (a
+     *  name that isn't a float field of FPlayerAttributes reads 0). */
+    PLAYSPORTS_API float GetGeneratorGap(const FPSDNAAxisDef& Def, const FPlayerAttributes& Player);
+
+    /** The average generator gap, per axis of Role, of the players of Role among Players: what
+     *  GenerateProfile treats as neutral for the role. Empty when Players has none of Role. */
+    PLAYSPORTS_API TMap<FName, float> GetGeneratorCenters(const FPSPlayerDNACatalog& Catalog, const TArray<FPlayerAttributes>& Players, EPlayerRole Role);
+
+    /** A generated style for Player (Epic 79.3's rule, the one tools/player_dna.py's
+     *  generate_profile follows): each axis of his role is RatingLean * (his gap - the role's
+     *  center in Centers, 0 when missing) plus Spread * NextStandardNormal(), clamped to -1..1 and
+     *  rounded to two places. Axes of other roles stay 0. The caller owns the randomness, so a
+     *  seeded generator (UPSLeagueGenerator) gets the same DNA from the same seed. */
+    PLAYSPORTS_API FPSPlayerDNA GenerateProfile(const FPSPlayerDNACatalog& Catalog, const FPlayerAttributes& Player, const TMap<FName, float>& Centers, TFunctionRef<float()> NextStandardNormal);
 
     /** Problems with Catalog, one line each (empty when sound): an axis FPSPlayerDNA doesn't
      *  have, listed twice or with no role; a trait without an ID or a name, or an ID used twice; a

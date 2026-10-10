@@ -5,7 +5,9 @@ validate_data.py already holds:
   - teams (FPSTeamInfo, Source/PlaySports/Public/PSLeagueData.h);
   - the league config (FPSLeagueConfig, same header);
   - the playbook (FPSPlayDefinition, PSPlaybookData.h);
-  - rating and body ranges on every player (FPlayerAttributes).
+  - rating, body and age ranges on every player (FPlayerAttributes);
+  - the no-real-person name policy (validate_name_policy, Epic 122), against the blocklist in
+    Data/league_generator.json that validate_data.py loads.
 The route library itself (FPSRoute) is validate_data.py's validate_routes (Epic 68).
 
 Also the references between files, which no single file can check:
@@ -26,6 +28,8 @@ from pathlib import Path
 
 RATING_FIELDS = ("Speed", "Agility", "Strength", "Acceleration", "Awareness", "Stamina")
 BODY_FIELDS = ("WeightKg", "HeightCm")
+# FPlayerAttributes::Age (Epic 122): 0 means unknown, otherwise a professional's age.
+AGE_RANGE = (18, 50)
 
 OFFENSE_ROLES = {"Quarterback", "RunningBack", "WideReceiver", "TightEnd", "OffensiveLineman"}
 DEFENSE_ROLES = {"DefensiveLineman", "Linebacker", "DefensiveBack"}
@@ -102,7 +106,8 @@ def check_vector(path, where, value, err):
 # ---------------------------------------------------------------------------
 
 def validate_player_ranges(path, players, err):
-    """FPlayerAttributes ranges: ratings 0-100, weight and height above 0."""
+    """FPlayerAttributes ranges: ratings 0-100, weight and height above 0, an age of 0 (unknown)
+    or AGE_RANGE."""
     for idx, row in enumerate(players):
         if not isinstance(row, dict):
             continue
@@ -115,6 +120,46 @@ def validate_player_ranges(path, players, err):
             value = row.get(field)
             if is_number(value) and value <= 0:
                 err(path, f"{where}.{field}: {value} must be above 0")
+        age = row.get("Age")
+        if is_number(age) and age != 0 and not AGE_RANGE[0] <= age <= AGE_RANGE[1]:
+            err(path, f"{where}.Age: {age} is outside {AGE_RANGE[0]}-{AGE_RANGE[1]} (0 means unknown)")
+
+
+def normalize_name(name):
+    """A name as the no-real-person policy compares it (PSLeagueGenerator::NormalizeName):
+    lowercase letters and digits and single spaces, a hyphen read as a space, other punctuation
+    dropped."""
+    letters = []
+    for char in name:
+        if char.isalnum():
+            letters.append(char.lower())
+        elif char.isspace() or char == "-":
+            letters.append(" ")
+    return " ".join("".join(letters).split())
+
+
+def blocked_name_forms(blocklist):
+    """Every form of the blocklist's names a DisplayName must not take: each normalized, and its
+    initial form ("j allen" for "Josh Allen")."""
+    forms = set()
+    for entry in blocklist:
+        name = normalize_name(entry) if isinstance(entry, str) else ""
+        if not name:
+            continue
+        forms.add(name)
+        if " " in name:
+            forms.add(name[0] + name[name.index(" "):])
+    return forms
+
+
+def validate_name_policy(path, players, forms, err):
+    """The no-real-person policy (Epic 122): no DisplayName is a blocklisted real person's name,
+    in full or initial form. forms comes from blocked_name_forms."""
+    for idx, row in enumerate(players):
+        name = row.get("DisplayName") if isinstance(row, dict) else None
+        if isinstance(name, str) and normalize_name(name) in forms:
+            err(path, f"Players[{idx}] '{row.get('PlayerId')}'.DisplayName: '{name}' is a real person's name "
+                      "(league_generator.json's NameBlocklist) - players are fictional")
 
 
 def validate_teams(path, teams, err):

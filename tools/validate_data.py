@@ -61,14 +61,21 @@ and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover t
 player of its scenario (Epic 85); "StadiumCapacity" files against FPSEconomyTuning (Epic 95):
 ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBudgetFraction;
 "UnownedColor" files against FPSGapOverlayStyle (Epic 81); "TradeRequestWeeks" files against
-FPSMoraleTuning (Epic 91): 0-1 thresholds, each chemistry unit's role, games and bonus. Teams, the
+FPSMoraleTuning (Epic 91): 0-1 thresholds, each chemistry unit's role, games and bonus;
+"RoleProfiles" + "NameCultures" files against FPSLeagueGeneratorTuning (Epic 122): a profile per
+EPlayerRole with a curve for every float field of FPlayerAttributes, name pools and the real-person
+NameBlocklist, which every roster's DisplayNames are checked against; "PeakAgeStart" files against
+FPSProgressionTuning (the age curve; Epic 122); a player's optional "Age" is a whole number. Teams, the
 league config, the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
+With --root DIR, checks DIR/Data instead (a generated league laid out like the repo, e.g. the one
+the league generator's automation test writes); the catalogs it is checked against stay the repo's.
 """
 
+import argparse
 import json
 import math
 import re
@@ -100,6 +107,8 @@ PLAYER_FIELDS = {
     "Awareness": (int, float),
     "Stamina": (int, float),
 }
+# Optional FPlayerAttributes fields: Age (Epic 122), 0 or missing meaning unknown.
+PLAYER_OPTIONAL_FIELDS = {"Age": int}
 
 INPUT_VALUE_TYPES = {"Boolean", "Axis1D", "Axis2D", "Axis3D"}
 INPUT_CONTEXT_FIELDS = {"ContextId": str, "Priority": int, "Description": str, "bRemappable": bool}
@@ -111,7 +120,11 @@ errors = []
 
 
 def err(path, message):
-    errors.append(f"{path.relative_to(REPO)}: {message}")
+    try:
+        shown = Path(path).resolve().relative_to(REPO)
+    except ValueError:
+        shown = path
+    errors.append(f"{shown}: {message}")
 
 
 def validate_players(path, players, dna_catalog=None):
@@ -126,7 +139,10 @@ def validate_players(path, players, dna_catalog=None):
                 err(path, f"{where}: missing field '{field}'")
             elif not isinstance(row[field], ftype):
                 err(path, f"{where}.{field}: expected {ftype}, got {type(row[field]).__name__}")
-        extra = set(row) - set(PLAYER_FIELDS) - {"DNA"}
+        for field, ftype in PLAYER_OPTIONAL_FIELDS.items():
+            if field in row and (isinstance(row[field], bool) or not isinstance(row[field], ftype)):
+                err(path, f"{where}.{field}: expected a whole number, got {type(row[field]).__name__}")
+        extra = set(row) - set(PLAYER_FIELDS) - set(PLAYER_OPTIONAL_FIELDS) - {"DNA"}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPlayerAttributes exactly")
         role = row.get("Role")
@@ -3460,6 +3476,188 @@ def validate_morale(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSChemistryUnit exactly")
 
 
+LEAGUE_GENERATOR_FIELDS = {
+    "LeagueName": str, "NumTeams": int, "NumWeeks": int, "ByeWeekNumbers": list, "NumPlayoffTeams": int,
+    "Divisions": list, "PlaceholderTeamName": str, "PlaceholderColors": list, "TeamTalentSpread": (int, float),
+    "TalentPerExperienceYear": (int, float), "MaxExperienceTalent": (int, float), "EntryAgeMin": int,
+    "EntryAgeMax": int, "RoleProfiles": list, "NameCultures": list, "NameBlocklist": list, "MaxNameAttempts": int,
+    "DraftClass": dict,
+}
+ROLE_PROFILE_FIELDS = {"Role": str, "RosterCount": int, "IdCode": str, "Attrition": (int, float), "MaxAge": int,
+                       "Attributes": list}
+ATTRIBUTE_CURVE_FIELDS = {"Attribute": str, "Mean": (int, float), "StdDev": (int, float), "Min": (int, float),
+                          "Max": (int, float), "TalentWeight": (int, float)}
+NAME_CULTURE_FIELDS = {"Culture": str, "Weight": (int, float), "FirstNames": list, "LastNames": list}
+DRAFT_CLASS_FIELDS = {"ProspectsPerTeam": int, "TalentShift": (int, float), "TalentSpread": (int, float)}
+PROGRESSION_FIELDS = {"PeakAgeStart": int, "PeakAgeEnd": int, "GrowthPerYear": (int, float),
+                      "DeclinePerYear": (int, float), "LowSnapShareThreshold": (int, float)}
+
+
+def check_typed(path, where, row, fields, struct):
+    """Every field present with its type, and no unknown names: a generator's tuning has no
+    defaults to fall back on, so a missing field is a mistake. False when row is not an object."""
+    if not isinstance(row, dict):
+        err(path, f"{where}: not an object")
+        return False
+    for field, ftype in fields.items():
+        if field not in row:
+            err(path, f"{where}: missing field '{field}'")
+        elif isinstance(row[field], bool) or not isinstance(row[field], ftype):
+            err(path, f"{where}.{field}: expected {getattr(ftype, '__name__', 'number')}, got {type(row[field]).__name__}")
+    extra = set(row) - set(fields)
+    if extra:
+        err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match {struct} exactly")
+    return True
+
+
+def validate_league_generator(path, payload):
+    """FPSLeagueGeneratorTuning (Data/league_generator.json, Epic 122); mirrors
+    PSLeagueGenerator::ValidateTuning, and also rejects a name listed twice in one pool."""
+    if not check_typed(path, "generator tuning", payload, LEAGUE_GENERATOR_FIELDS, "FPSLeagueGeneratorTuning"):
+        return
+
+    def num(field):
+        value = payload.get(field)
+        return value if is_number(value) else None
+
+    teams, weeks, playoff = num("NumTeams"), num("NumWeeks"), num("NumPlayoffTeams")
+    if teams is not None and teams < 2:
+        err(path, "NumTeams: a league needs 2 or more")
+    if weeks is not None and weeks < 1:
+        err(path, "NumWeeks: 1 or more")
+    byes = payload.get("ByeWeekNumbers") if isinstance(payload.get("ByeWeekNumbers"), list) else []
+    for week in byes:
+        whole = isinstance(week, int) and not isinstance(week, bool)
+        if not whole or (weeks is not None and not 1 <= week <= weeks) or byes.count(week) > 1:
+            err(path, f"ByeWeekNumbers: week {week!r} is outside the season or listed twice")
+    if playoff is not None and teams is not None and not 2 <= playoff <= teams:
+        err(path, f"NumPlayoffTeams: {playoff} must be from 2 to NumTeams ({teams})")
+    divisions = payload.get("Divisions") if isinstance(payload.get("Divisions"), list) else []
+    if not divisions:
+        err(path, "Divisions: a league needs at least one")
+    for division in divisions:
+        if not isinstance(division, str) or not division.strip() or divisions.count(division) > 1:
+            err(path, f"Divisions: {division!r} is empty or listed twice")
+    if isinstance(payload.get("PlaceholderTeamName"), str) and not payload["PlaceholderTeamName"].strip():
+        err(path, "PlaceholderTeamName: empty")
+    for color in payload.get("PlaceholderColors") or []:
+        if not (isinstance(color, str) and HEX_COLOR.match(color)):
+            err(path, f"PlaceholderColors: {color!r} is not #RRGGBB")
+    for field in ("TeamTalentSpread", "TalentPerExperienceYear", "MaxExperienceTalent"):
+        if num(field) is not None and num(field) < 0:
+            err(path, f"{field}: 0 or more")
+    entry_min, entry_max = num("EntryAgeMin"), num("EntryAgeMax")
+    if entry_min is not None and entry_max is not None and (entry_min < 18 or entry_max < entry_min):
+        err(path, "EntryAgeMin, EntryAgeMax: 18 or more, the minimum first")
+    if num("MaxNameAttempts") is not None and num("MaxNameAttempts") < 1:
+        err(path, "MaxNameAttempts: 1 or more")
+
+    attributes = set(content_contracts.RATING_FIELDS) | set(content_contracts.BODY_FIELDS)
+    roles_seen = set()
+    for idx, profile in enumerate(payload.get("RoleProfiles") or []):
+        where = f"RoleProfiles[{idx}]"
+        if not check_typed(path, where, profile, ROLE_PROFILE_FIELDS, "FPSRoleProfile"):
+            continue
+        role = profile.get("Role")
+        where = f"RoleProfiles[{idx}] '{role}'"
+        if role not in PLAYER_ROLES:
+            err(path, f"{where}.Role: not an EPlayerRole")
+        elif role in roles_seen:
+            err(path, f"{where}: listed twice")
+        roles_seen.add(role)
+        if isinstance(profile.get("RosterCount"), int) and profile["RosterCount"] < 1:
+            err(path, f"{where}.RosterCount: 1 or more")
+        code = profile.get("IdCode")
+        if isinstance(code, str) and not (code and code.isascii() and code.isalnum()):
+            err(path, f"{where}.IdCode: '{code}' must be letters and digits")
+        if is_number(profile.get("Attrition")) and not 0 < profile["Attrition"] < 1:
+            err(path, f"{where}.Attrition: above 0, below 1")
+        if isinstance(profile.get("MaxAge"), int) and entry_max is not None and not entry_max <= profile["MaxAge"] <= 50:
+            err(path, f"{where}.MaxAge: from EntryAgeMax to 50")
+        curves = set()
+        for cidx, curve in enumerate(profile.get("Attributes") or []):
+            cwhere = f"{where}.Attributes[{cidx}]"
+            if not check_typed(path, cwhere, curve, ATTRIBUTE_CURVE_FIELDS, "FPSAttributeCurve"):
+                continue
+            name = curve.get("Attribute")
+            cwhere = f"{where}.Attributes '{name}'"
+            if name not in attributes:
+                err(path, f"{cwhere}: not a float field of FPlayerAttributes ({sorted(attributes)})")
+            elif name in curves:
+                err(path, f"{cwhere}: listed twice")
+            curves.add(name)
+            low, mean, high, spread, weight = (curve.get(f) for f in ("Min", "Mean", "Max", "StdDev", "TalentWeight"))
+            if all(is_number(v) for v in (low, mean, high, spread)) and (spread < 0 or not low <= mean <= high):
+                err(path, f"{cwhere}: StdDev 0 or more, and Min <= Mean <= Max")
+            if is_number(low) and is_number(high):
+                if name in content_contracts.BODY_FIELDS and low <= 0:
+                    err(path, f"{cwhere}: a body measure is above 0")
+                if name in content_contracts.RATING_FIELDS and (low < 0 or high > 100):
+                    err(path, f"{cwhere}: a rating runs 0-100")
+            if is_number(weight) and not 0 <= weight <= 1:
+                err(path, f"{cwhere}.TalentWeight: 0 to 1")
+        for name in sorted(attributes - curves):
+            err(path, f"{where}: no curve for {name}")
+    for role in sorted(PLAYER_ROLES - roles_seen):
+        err(path, f"RoleProfiles: no profile for {role}, so rosters would have none")
+
+    cultures = payload.get("NameCultures") or []
+    if not cultures:
+        err(path, "NameCultures: at least one")
+    for idx, culture in enumerate(cultures):
+        where = f"NameCultures[{idx}]"
+        if not check_typed(path, where, culture, NAME_CULTURE_FIELDS, "FPSNameCulture"):
+            continue
+        where = f"NameCultures[{idx}] '{culture.get('Culture')}'"
+        if is_number(culture.get("Weight")) and culture["Weight"] <= 0:
+            err(path, f"{where}.Weight: above 0")
+        for field in ("FirstNames", "LastNames"):
+            names = culture.get(field) if isinstance(culture.get(field), list) else []
+            if not names:
+                err(path, f"{where}.{field}: empty")
+            for name in names:
+                if not isinstance(name, str) or not content_contracts.normalize_name(name):
+                    err(path, f"{where}.{field}: {name!r} has no letters")
+                elif names.count(name) > 1:
+                    err(path, f"{where}.{field}: '{name}' is listed twice")
+    for entry in payload.get("NameBlocklist") or []:
+        if not isinstance(entry, str) or not content_contracts.normalize_name(entry):
+            err(path, f"NameBlocklist: {entry!r} has no letters")
+    draft = payload.get("DraftClass")
+    if check_typed(path, "DraftClass", draft, DRAFT_CLASS_FIELDS, "FPSDraftClassTuning"):
+        if isinstance(draft.get("ProspectsPerTeam"), int) and draft["ProspectsPerTeam"] < 1:
+            err(path, "DraftClass.ProspectsPerTeam: 1 or more")
+        if is_number(draft.get("TalentSpread")) and draft["TalentSpread"] <= 0:
+            err(path, "DraftClass.TalentSpread: above 0")
+
+
+def validate_progression(path, payload):
+    """FPSProgressionTuning (Data/player_progression.json): the age curve players grow and decline
+    along (UPSPlayerProgression), which the league generator walks generated players along."""
+    if not check_typed(path, "progression tuning", payload, PROGRESSION_FIELDS, "FPSProgressionTuning"):
+        return
+    start, end = payload.get("PeakAgeStart"), payload.get("PeakAgeEnd")
+    if isinstance(start, int) and isinstance(end, int) and not 18 <= start <= end <= 50:
+        err(path, "PeakAgeStart, PeakAgeEnd: 18 to 50, the start first")
+    for field in ("GrowthPerYear", "DeclinePerYear"):
+        if is_number(payload.get(field)) and payload[field] < 0:
+            err(path, f"{field}: 0 or more")
+    threshold = payload.get("LowSnapShareThreshold")
+    if is_number(threshold) and not 0 <= threshold <= 1:
+        err(path, "LowSnapShareThreshold: 0 to 1")
+
+
+def load_name_forms():
+    """The blocked forms of Data/league_generator.json's NameBlocklist (empty when the file is
+    missing or broken; its own checks report that)."""
+    try:
+        tuning = json.loads((DATA_DIR / "league_generator.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return set()
+    blocklist = tuning.get("NameBlocklist") if isinstance(tuning, dict) else None
+    return content_contracts.blocked_name_forms(blocklist if isinstance(blocklist, list) else [])
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -3470,11 +3668,15 @@ def load_input_catalog():
     return catalog if isinstance(catalog, dict) else None
 
 
-def main():
-    if not DATA_DIR.is_dir():
-        print("validate_data: no Data/ directory - nothing to check")
+def main(root=None):
+    """Checks root's Data/ (the repo's by default) and returns the exit code."""
+    repo = Path(root).resolve() if root else REPO
+    data_dir = repo / "Data"
+    if not data_dir.is_dir():
+        print(f"validate_data: no Data/ directory under {repo} - nothing to check")
         return 0
-    files = sorted(DATA_DIR.rglob("*.json"))
+    files = sorted(data_dir.rglob("*.json"))
+    name_forms = load_name_forms()
     parsed = {}
     for path in files:
         try:
@@ -3489,6 +3691,7 @@ def main():
                 err(path, "'Players' must be an array")
             else:
                 validate_players(path, payload["Players"], load_dna_catalog())
+                content_contracts.validate_name_policy(path, payload["Players"], name_forms, err)
         if isinstance(payload, dict) and "Contexts" in payload and "Actions" in payload:
             validate_input_catalog(path, payload)
         if isinstance(payload, dict) and "StickDeadZoneLower" in payload:
@@ -3599,8 +3802,13 @@ def main():
             validate_gap_overlay(path, payload)
         if isinstance(payload, dict) and "TradeRequestWeeks" in payload:
             validate_morale(path, payload)
-    content_contracts.check_references(REPO, parsed, err)
-    validate_ui_text()
+        if isinstance(payload, dict) and "RoleProfiles" in payload and "NameCultures" in payload:
+            validate_league_generator(path, payload)
+        if isinstance(payload, dict) and "PeakAgeStart" in payload and "GrowthPerYear" in payload:
+            validate_progression(path, payload)
+    content_contracts.check_references(repo, parsed, err)
+    if root is None:
+        validate_ui_text()
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:
@@ -3611,4 +3819,6 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser(description="Validate Data/ against the content contracts.")
+    parser.add_argument("--root", help="check this directory's Data/ instead of the repo's")
+    sys.exit(main(parser.parse_args().root))

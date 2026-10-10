@@ -65,6 +65,16 @@ jobs:
           $Json = Get-Content $Index -Raw
           if ($Json -match '"failed"\s*:\s*[1-9]' -or $Json -match '"state"\s*:\s*"fail') { throw "Automation report contains failed test(s)" }
 
+      - name: Validate the generated league
+        # Epic 122: PlaySports.Content.LeagueGenerator.WritesValidContent writes a generated
+        # 32-team league to Saved/GeneratedLeague. It must pass every content contract, and the
+        # content report must find nothing to warn about (no league of 99s, no repeated names).
+        shell: powershell
+        run: |
+          if (-not (Test-Path "Saved/GeneratedLeague/Data/sample_league_config.json")) { throw "The league generator's test wrote no league" }
+          python tools/content.py check --root Saved/GeneratedLeague --strict
+          if ($LASTEXITCODE -ne 0) { throw "The generated league fails the content contracts or the content report" }
+
       - name: Summarize crash reports
         # Epic 117: a crash during the build or the tests leaves Saved/Crashes/<id>; print its
         # scrubbed call stack and game state here. Informational: it always exits 0.

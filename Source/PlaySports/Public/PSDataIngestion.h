@@ -55,6 +55,8 @@
 #include "PSVersusTypes.h"
 #include "PSAIDecisionTypes.h"
 #include "PSDefenderGapOverlayTypes.h"
+#include "PSLeagueGeneratorData.h"
+#include "PSPlayerProgression.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -330,6 +332,18 @@ public:
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadGapOverlayStyleFromJson(const FString& JsonFilePath, FPSGapOverlayStyle& OutStyle);
+
+    /** Loads the roster and league generator's tuning (Data/league_generator.json, Epic 122).
+     *  False on a missing file, malformed JSON or an unknown Role; PSLeagueGenerator::ValidateTuning
+     *  checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadLeagueGeneratorTuningFromJson(const FString& JsonFilePath, FPSLeagueGeneratorTuning& OutTuning);
+
+    /** Loads the age curve players grow and decline along (Data/player_progression.json, Epic 19;
+     *  the league generator walks generated players along it, Epic 122). False on a missing file
+     *  or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadProgressionTuningFromJson(const FString& JsonFilePath, FPSProgressionTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
