@@ -379,8 +379,9 @@ from. The same seed and tuning always make the same league. Every field is requi
   curve for every float field of `FPlayerAttributes` at a player's prime: `Attribute`, `Mean`,
   `StdDev`, `Min`, `Max` (0-100 for a rating, above 0 for `WeightKg`/`HeightCm`) and
   `TalentWeight` (0-1: how much of the spread is his talent, shared by his ratings; 0 for his
-  body). The age curve (`player_progression.json`) then takes a younger player below his prime and
-  an older one past his decline, so ratings and ages agree.
+  body). His role's age curve (`legacy.json`'s `RoleCurves`, else `player_progression.json`, read
+  through `UPSPlayerAging::GetCurve`) then takes a younger player below his prime and an older one
+  past his decline, so ratings and ages agree, and agree with how he will go on to age.
 - Names: `NameCultures[]` (`Culture`, `Weight`, `FirstNames`, `LastNames`: a player's first and
   last names come from one culture), `NameBlocklist` (real people no player is named after) and
   `MaxNameAttempts` (draws for a new, unblocked name before a middle initial separates the last).
