@@ -1,7 +1,9 @@
 #include "PSOverlayBroadcastSubsystem.h"
+#include "PSPerfBudget.h"
 #include "PSCoachingData.h"
 #include "PSDataIngestion.h"
 #include "PSGameStateEvents.h"
+#include "PSLocalization.h"
 #include "PSPlayCallSubsystem.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
@@ -18,26 +20,58 @@ namespace PSOverlayBroadcastPrivate
         return Parsed;
     }
 
+    // Every string the broadcast shows is localized here, as it is made (Epic 106): the code's
+    // own words from Data/ui_text.csv, the theme's from the generated data table, and names
+    // through Verbatim. The widgets only show what they are given.
+
+    /** A kind of score as the HUD's banner names it ("Touchdown" -> TOUCHDOWN); a kind it
+     *  doesn't know is shown as it came, in capitals. */
+    FString ScoreTypeHeadline(const FString& ScoreType)
+    {
+        const FString Key = FString::Printf(TEXT("HUD.Score.%s"), *ScoreType.Replace(TEXT(" "), TEXT("")));
+        return (UPSLocalization::HasText(Key) ? UPSLocalization::GetText(Key) : UPSLocalization::Verbatim(ScoreType.ToUpper())).ToString();
+    }
+
     /** What points on the board were, by how many there were. */
     FString ScoreHeadline(int32 Points)
     {
         switch (Points)
         {
-        case 1:  return TEXT("EXTRA POINT");
-        case 2:  return TEXT("SAFETY");
-        case 3:  return TEXT("FIELD GOAL");
-        default: return Points >= 6 ? TEXT("TOUCHDOWN") : TEXT("SCORE");
+        case 1:  return ScoreTypeHeadline(TEXT("ExtraPoint"));
+        case 2:  return ScoreTypeHeadline(TEXT("Safety"));
+        case 3:  return ScoreTypeHeadline(TEXT("FieldGoal"));
+        default: return Points >= 6 ? ScoreTypeHeadline(TEXT("Touchdown")) : UPSLocalization::GetText(TEXT("Broadcast.Score")).ToString();
         }
     }
 
     /** "12-yard gain", "loss of 3", "no gain". */
     FString GainText(int32 Yards)
     {
+        if (Yards == 0)
+        {
+            return UPSLocalization::GetText(TEXT("Broadcast.NoGain")).ToString();
+        }
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Yards"), FText::AsNumber(FMath::Abs(Yards)));
         if (Yards > 0)
         {
-            return FString::Printf(TEXT("%d-yard gain"), Yards);
+            return UPSLocalization::Format(TEXT("Broadcast.Gain"), Arguments).ToString();
         }
-        return Yards < 0 ? FString::Printf(TEXT("loss of %d"), -Yards) : FString(TEXT("no gain"));
+        return UPSLocalization::Format(TEXT("Broadcast.Loss"), Arguments).ToString();
+    }
+
+    /** How a drive ended, as the simulation says it ("Turnover on Downs"); a result with no
+     *  words of its own is shown as it came. */
+    FString DriveResultText(const FString& Result)
+    {
+        const FString Key = FString::Printf(TEXT("Broadcast.DriveResult.%s"), *Result.Replace(TEXT(" "), TEXT("")));
+        return (UPSLocalization::HasText(Key) ? UPSLocalization::GetText(Key) : UPSLocalization::Verbatim(Result)).ToString();
+    }
+
+    /** A name, marked as not ours to translate. */
+    FString Name(const FString& Text)
+    {
+        return UPSLocalization::Verbatim(Text).ToString();
     }
 }
 
@@ -225,8 +259,11 @@ void UPSOverlayBroadcastSubsystem::RefreshTeams()
 {
     const FPSTeamSummary* Home = FindTeam(HomeTeamId);
     const FPSTeamSummary* Away = FindTeam(AwayTeamId);
-    ScoreBug.HomeLabel = Home && !Home->Abbreviation.IsEmpty() ? Home->Abbreviation : Theme.HomeLabel;
-    ScoreBug.AwayLabel = Away && !Away->Abbreviation.IsEmpty() ? Away->Abbreviation : Theme.AwayLabel;
+    // A team's abbreviation is a name; the theme's stand-ins are words of the generated table.
+    ScoreBug.HomeLabel = Home && !Home->Abbreviation.IsEmpty() ? PSOverlayBroadcastPrivate::Name(Home->Abbreviation)
+        : UPSLocalization::GetDataText(TEXT("Broadcast.HomeLabel"), Theme.HomeLabel).ToString();
+    ScoreBug.AwayLabel = Away && !Away->Abbreviation.IsEmpty() ? PSOverlayBroadcastPrivate::Name(Away->Abbreviation)
+        : UPSLocalization::GetDataText(TEXT("Broadcast.AwayLabel"), Theme.AwayLabel).ToString();
     ScoreBug.HomeColor = Home && Theme.bUseTeamColors ? Home->PrimaryColor : PSOverlayBroadcastPrivate::ParseOr(Theme.HomeColor, FLinearColor::Blue);
     ScoreBug.AwayColor = Away && Theme.bUseTeamColors ? Away->PrimaryColor : PSOverlayBroadcastPrivate::ParseOr(Theme.AwayColor, FLinearColor::Red);
 }
@@ -251,14 +288,14 @@ void UPSOverlayBroadcastSubsystem::RefreshDerived()
     }
     ScoreBug.QuarterText = PSGameStateEvents::QuarterLabel(ScoreBug.Quarter);
     ScoreBug.GameClockText = PSGameStateEvents::ClockText(ScoreBug.GameClockSeconds);
-    ScoreBug.PlayClockText = ScoreBug.bPlayClockRunning ? FString::FromInt(FMath::Max(0, FMath::CeilToInt(ScoreBug.PlayClockSeconds))) : FString();
+    ScoreBug.PlayClockText = ScoreBug.bPlayClockRunning ? FText::AsNumber(FMath::Max(0, FMath::CeilToInt(ScoreBug.PlayClockSeconds))).ToString() : FString();
     ScoreBug.bTwoMinute = (ScoreBug.Quarter == 2 || ScoreBug.Quarter == 4) && ScoreBug.GameClockSeconds <= Theme.TwoMinuteSeconds;
 
     const bool bKickoff = ScoreBug.Phase == TEXT("Kickoff") || LastGameState.bKickoff;
     ScoreBug.bRedZone = !bKickoff && LastGameState.YardLine >= Theme.RedZoneYardLine;
     if (bKickoff)
     {
-        ScoreBug.SituationText = TEXT("Kickoff");
+        ScoreBug.SituationText = UPSLocalization::GetText(TEXT("Broadcast.Kickoff")).ToString();
     }
     else
     {
@@ -275,7 +312,59 @@ void UPSOverlayBroadcastSubsystem::RefreshDerived()
 
 FString UPSOverlayBroadcastSubsystem::ScoreLine() const
 {
-    return FString::Printf(TEXT("%s %d - %s %d"), *ScoreBug.HomeLabel, ScoreBug.HomeScore, *ScoreBug.AwayLabel, ScoreBug.AwayScore);
+    return MakeScoreLine(ScoreBug.HomeLabel, ScoreBug.HomeScore, ScoreBug.AwayLabel, ScoreBug.AwayScore);
+}
+
+FString UPSOverlayBroadcastSubsystem::MakeScoreLine(const FString& HomeLabel, int32 HomeScore, const FString& AwayLabel, int32 AwayScore)
+{
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Home"), UPSLocalization::FromLocalized(HomeLabel));
+    Arguments.Add(TEXT("HomeScore"), FText::AsNumber(HomeScore));
+    Arguments.Add(TEXT("Away"), UPSLocalization::FromLocalized(AwayLabel));
+    Arguments.Add(TEXT("AwayScore"), FText::AsNumber(AwayScore));
+    return UPSLocalization::Format(TEXT("Broadcast.ScoreLine"), Arguments).ToString();
+}
+
+FString UPSOverlayBroadcastSubsystem::MakeDriveHeadline(const FString& TeamLabel)
+{
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Team"), UPSLocalization::FromLocalized(TeamLabel));
+    return UPSLocalization::Format(TEXT("Broadcast.DriveHeadline"), Arguments).ToString();
+}
+
+FString UPSOverlayBroadcastSubsystem::MakeDriveDetail(int32 Plays, int32 Yards, const FString& Result)
+{
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Plays"), FText::AsNumber(Plays));
+    Arguments.Add(TEXT("Yards"), FText::AsNumber(Yards));
+    const FText Drive = UPSLocalization::Format(TEXT("Broadcast.DriveDetail"), Arguments);
+    if (Result.IsEmpty())
+    {
+        return Drive.ToString();
+    }
+    FFormatNamedArguments WithResult;
+    WithResult.Add(TEXT("Drive"), Drive);
+    WithResult.Add(TEXT("Result"), UPSLocalization::FromLocalized(PSOverlayBroadcastPrivate::DriveResultText(Result)));
+    return UPSLocalization::Format(TEXT("Broadcast.DriveDetailWithResult"), WithResult).ToString();
+}
+
+FString UPSOverlayBroadcastSubsystem::MakeScoreHeadline(int32 Points, const FString& ScoreType)
+{
+    return ScoreType.IsEmpty() ? PSOverlayBroadcastPrivate::ScoreHeadline(Points) : PSOverlayBroadcastPrivate::ScoreTypeHeadline(ScoreType);
+}
+
+FString UPSOverlayBroadcastSubsystem::MakeGainText(int32 Yards)
+{
+    return PSOverlayBroadcastPrivate::GainText(Yards);
+}
+
+FString UPSOverlayBroadcastSubsystem::MakeSackDetail(const FString& TacklerName, const FString& CarrierName, int32 Yards)
+{
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Tackler"), UPSLocalization::Verbatim(TacklerName));
+    Arguments.Add(TEXT("Carrier"), UPSLocalization::Verbatim(CarrierName));
+    Arguments.Add(TEXT("Gain"), UPSLocalization::FromLocalized(PSOverlayBroadcastPrivate::GainText(Yards)));
+    return UPSLocalization::Format(TEXT("Broadcast.SackDetail"), Arguments).ToString();
 }
 
 void UPSOverlayBroadcastSubsystem::HandleGameState(const FPSTelemetryGameStateEvent& Event)
@@ -313,7 +402,7 @@ void UPSOverlayBroadcastSubsystem::HandleGameState(const FPSTelemetryGameStateEv
     {
         const bool bNewDrive = Event.CompletedDrives > Previous.CompletedDrives;
         const bool bDriveScored = bNewDrive && (Event.LastDriveResult == TEXT("Touchdown") || Event.LastDriveResult == TEXT("Safety"));
-        const FString Headline = bDriveScored ? Event.LastDriveResult.ToUpper() : PSOverlayBroadcastPrivate::ScoreHeadline(Points);
+        const FString Headline = MakeScoreHeadline(Points, bDriveScored ? Event.LastDriveResult : FString());
         PushChyron(EPSChyronKind::ScoreAlert, Headline, ScoreLine());
     }
     AnnouncedHomeScore = Event.HomeScore;
@@ -323,20 +412,14 @@ void UPSOverlayBroadcastSubsystem::HandleGameState(const FPSTelemetryGameStateEv
     if (Event.CompletedDrives > Previous.CompletedDrives)
     {
         const FString& Team = Previous.bHomeHasPossession ? ScoreBug.HomeLabel : ScoreBug.AwayLabel;
-        FString Detail = FString::Printf(TEXT("%d plays, %d yards"), Event.LastDrivePlays, Event.LastDriveYards);
-        if (!Event.LastDriveResult.IsEmpty())
-        {
-            Detail += FString::Printf(TEXT(", %s"), *Event.LastDriveResult);
-        }
-        PushChyron(EPSChyronKind::DriveSummary, FString::Printf(TEXT("%s DRIVE"), *Team), Detail);
+        PushChyron(EPSChyronKind::DriveSummary, MakeDriveHeadline(Team), MakeDriveDetail(Event.LastDrivePlays, Event.LastDriveYards, Event.LastDriveResult));
     }
 }
 
 void UPSOverlayBroadcastSubsystem::HandleScore(const FPSTelemetryScoreEvent& Event)
 {
-    const FString Headline = Event.ScoreType.IsEmpty() ? PSOverlayBroadcastPrivate::ScoreHeadline(Event.Points) : Event.ScoreType.ToUpper();
-    PushChyron(EPSChyronKind::ScoreAlert, Headline, FString::Printf(TEXT("%s %d - %s %d"),
-        *ScoreBug.HomeLabel, Event.HomeScore, *ScoreBug.AwayLabel, Event.AwayScore));
+    PushChyron(EPSChyronKind::ScoreAlert, MakeScoreHeadline(Event.Points, Event.ScoreType),
+        MakeScoreLine(ScoreBug.HomeLabel, Event.HomeScore, ScoreBug.AwayLabel, Event.AwayScore));
     AnnouncedHomeScore = Event.HomeScore;
     AnnouncedAwayScore = Event.AwayScore;
 }
@@ -346,7 +429,8 @@ void UPSOverlayBroadcastSubsystem::HandleCatch(const FPSTelemetryCatchEvent& Eve
     // A catch's line comes with the tackle that ends the play; a pick is its own moment.
     if (Event.bIsInterception)
     {
-        PushChyron(EPSChyronKind::PlayStat, TEXT("INTERCEPTION"), Event.ReceiverName);
+        PushChyron(EPSChyronKind::PlayStat, UPSLocalization::GetText(TEXT("Broadcast.Interception")).ToString(),
+            PSOverlayBroadcastPrivate::Name(Event.ReceiverName));
     }
 }
 
@@ -354,16 +438,17 @@ void UPSOverlayBroadcastSubsystem::HandleTackle(const FPSTelemetryTackleEvent& E
 {
     if (Event.bIsSack)
     {
-        PushChyron(EPSChyronKind::PlayStat, TEXT("SACK"), FString::Printf(TEXT("%s on %s, %s"),
-            *Event.TacklerName, *Event.BallCarrierName, *PSOverlayBroadcastPrivate::GainText(Event.YardsGained)));
+        PushChyron(EPSChyronKind::PlayStat, UPSLocalization::GetText(TEXT("Broadcast.Sack")).ToString(),
+            MakeSackDetail(Event.TacklerName, Event.BallCarrierName, Event.YardsGained));
         return;
     }
-    PushChyron(EPSChyronKind::PlayStat, Event.BallCarrierName, PSOverlayBroadcastPrivate::GainText(Event.YardsGained));
+    PushChyron(EPSChyronKind::PlayStat, PSOverlayBroadcastPrivate::Name(Event.BallCarrierName), MakeGainText(Event.YardsGained));
 }
 
 bool UPSOverlayBroadcastSubsystem::PushStatLine(const FString& PlayerName, const FString& StatText)
 {
-    return PushChyron(EPSChyronKind::StatLine, PlayerName, StatText);
+    // The player is a name; the stat line comes localized from its source.
+    return PushChyron(EPSChyronKind::StatLine, PSOverlayBroadcastPrivate::Name(PlayerName), StatText);
 }
 
 bool UPSOverlayBroadcastSubsystem::PushChyron(EPSChyronKind Kind, const FString& Headline, const FString& Detail)
@@ -437,6 +522,7 @@ bool UPSOverlayBroadcastSubsystem::GetCurrentChyron(FPSChyron& OutChyron) const
 
 void UPSOverlayBroadcastSubsystem::AdvanceTime(float DeltaSeconds)
 {
+    PS_PERF_SCOPE(Overlays);
     if (DeltaSeconds <= 0.f)
     {
         return;

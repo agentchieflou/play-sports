@@ -5,14 +5,19 @@
 #include "UObject/Object.h"
 #include "PSStaffData.h"
 #include "PSContractData.h"
+#include "PSEconomyData.h"
+#include "PSLockerRoomData.h"
 #include "PSFranchiseFlow.generated.h"
 
 class UPSContractManager;
 class UPSFranchiseSeason;
 class UPSFreeAgency;
+class UPSLockerRoom;
+class UPSOwnerEconomy;
 class UPSMatchSetup;
 class UPSRoster;
 class UPSStaffManager;
+class UPSStatsEngine;
 
 /**
  * UPSFranchiseFlow runs a franchise from week to week. It owns no league facts itself: the
@@ -23,11 +28,13 @@ class UPSStaffManager;
  *  - BuildUserMatch: the player's game this week, from the schedule, as a UPSMatchSetup.
  *  - SimulateWeek: the week's unplayed games through the quick sim (UPSQuickSimRunner), each
  *    team playing with its coaching staff's scheme fit (UPSMatchSetup::ApplyStaffs), results
- *    recorded in the season.
+ *    recorded in the season and, with a statistics engine (Epic 92), every play in its box
+ *    score.
  *  - AdvanceWeek: on to the next week; once the last week's games are all played, the season
  *    ends.
  *  - EndSeason: the off-season, once per season. The coaching carousel
- *    (UPSStaffManager::RunCarousel) runs on the final standings; then, with a contract manager
+ *    (UPSStaffManager::RunCarousel) runs on the final standings, the statistics engine (Epic 92)
+ *    archives the season, the owner economy (Epic 95) closes the books; then, with a contract manager
  *    (UPSContractManager, Epic 87), the league year rolls over, CPU teams over the new cap cut
  *    back under it, and free agency (UPSFreeAgency) opens with every player whose deal ran out or
  *    who was cut. The player's team bids there; GetFreeAgency()->AdvanceDay() runs its days.
@@ -49,6 +56,46 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSContractManager* GetContracts() const { return Contracts; }
+
+    /** The league's statistics (Epic 92): every simulated game's plays are recorded in it, and the
+     *  season is archived when it ends. A book with no season yet starts at the contract
+     *  manager's league year (set contracts first), else season 1. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetStats(UPSStatsEngine* InStats);
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSStatsEngine* GetStats() const { return Stats; }
+
+    /** The league's business (Epic 95): every simulated game's gate and fans, and the books at
+     *  the season's end (with the contract manager's payroll when there is one). */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetEconomy(UPSOwnerEconomy* InEconomy) { Economy = InEconomy; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSOwnerEconomy* GetEconomy() const { return Economy; }
+
+    /** The league's locker rooms (Epic 91): every simulated game's lineups make chemistry and its
+     *  players play at their morale and cohesion (a holdout sits); each week's AdvanceWeek
+     *  re-evaluates morale; at season end released players take their morale into free agency
+     *  and the new league year's holdouts begin. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetLockerRoom(UPSLockerRoom* InLockerRoom) { LockerRoom = InLockerRoom; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSLockerRoom* GetLockerRoom() const { return LockerRoom; }
+
+    /** Re-evaluates every team's locker room with its record from the standings; bNewLeagueYear
+     *  lets holdouts begin. Returns (and keeps) what happened. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    TArray<FPSLockerRoomEvent> EvaluateLockerRooms(bool bNewLeagueYear);
+
+    /** Everything that has happened in the locker rooms, in order. */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    const TArray<FPSLockerRoomEvent>& GetLockerRoomEvents() const { return LockerRoomEvents; }
+
+    /** Every team's books for the season that just ended (empty before then). */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    const TArray<FPSEconomySeasonReport>& GetEconomyReports() const { return EconomyReports; }
 
     /** A new franchise's contracts: every team with a roster signs its players at their demands
      *  (UPSContractManager::SignRosterAtDemand). Returns the contracts signed. */
@@ -134,6 +181,21 @@ private:
 
     UPROPERTY(Transient)
     UPSFreeAgency* FreeAgency = nullptr;
+
+    UPROPERTY(Transient)
+    UPSStatsEngine* Stats = nullptr;
+
+    UPROPERTY(Transient)
+    UPSOwnerEconomy* Economy = nullptr;
+
+    UPROPERTY(Transient)
+    TArray<FPSEconomySeasonReport> EconomyReports;
+
+    UPROPERTY(Transient)
+    UPSLockerRoom* LockerRoom = nullptr;
+
+    UPROPERTY(Transient)
+    TArray<FPSLockerRoomEvent> LockerRoomEvents;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;

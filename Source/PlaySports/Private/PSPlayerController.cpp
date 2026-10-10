@@ -62,6 +62,7 @@ APSPlayerController::APSPlayerController()
     SprintActionId = TEXT("Sprint");
     SwitchPlayerActionId = TEXT("SwitchPlayer");
     PauseActionId = TEXT("Pause");
+    HumanIndex = 0;
     HumanSide = EPSTeamSide::Offense;
     DefaultControlRole = EPlayerRole::Quarterback;
     bTakeDefaultControlOnBeginPlay = true;
@@ -220,6 +221,12 @@ bool APSPlayerController::TakeControlOf(APSPlayerPawn* Target)
     if (GetPawn() == Target)
     {
         return true;
+    }
+    // Two humans on one machine each keep their own player (Epic 107).
+    const APlayerController* OtherHuman = Cast<APlayerController>(Target->GetController());
+    if (OtherHuman && OtherHuman != this)
+    {
+        return false;
     }
 
     // Moving between football pawns hands the old one back to its AI first; a non-football
@@ -463,6 +470,7 @@ void APSPlayerController::PublishControlChange(const APSPlayerPawn* PlayerPawn, 
     Event.PlayerName = Attributes.DisplayName;
     Event.PlayerId = Attributes.PlayerId;
     Event.bHumanControlled = bHumanControlled;
+    Event.HumanIndex = HumanIndex;
     Bus->PublishControlChange(Event);
 }
 

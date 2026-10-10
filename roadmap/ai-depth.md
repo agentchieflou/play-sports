@@ -16,10 +16,26 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** The AI notices your tendencies within and across games and counters them.
 **Depends on:** Core 18, 26
 
-- [ ] Tendency tracker: user play-calling distributions by situation (down/distance/personnel)
-- [ ] Counter-selection: defensive call weighting shifts against observed tendencies
-- [ ] In-game adjustment moments (halftime adaptation step-change)
-- [ ] Guardrails: adaptation strength as a difficulty dial, never psychic (only observed data)
+- [x] Tendency tracker: user play-calling distributions by situation (down/distance/personnel)
+  *As built: `UPSOpponentModel` (world subsystem) counts each play the human calls and runs,
+  from the bus: by his side, the down, the distance bucket, the offense's personnel and the
+  category. `ReadTendency` reads the narrowest situation with `MinSamples` calls behind it. Earlier
+  games' calls are kept in the profile save and count at `PriorGameWeight`
+  (`Data/opponent_model.json`).*
+- [x] Counter-selection: defensive call weighting shifts against observed tendencies
+  *As built: when `UPSPlayCallSubsystem` calls for the CPU against a human, the side's tendency
+  gets `CounterWeights` from the data's `Counters`. Against the run the defense stays in base and
+  out of prevent; against deep shots it plays prevent. The other way round, against a blitzing
+  human defense the CPU offense screens. `UPSCoachingAI` weighs them, with the reason "Countering
+  your tendencies".*
+- [x] In-game adjustment moments (halftime adaptation step-change)
+  *As built: the CPU leans on its read at `FirstHalfStrength` until `HalftimeQuarter`, then at
+  `SecondHalfStrength`. Its first call that leans harder announces the adjustment on the bus
+  (`OpponentAdjustment`: the side, the strengths and what it saw most).*
+- [x] Guardrails: adaptation strength as a difficulty dial, never psychic (only observed data)
+  *As built: everything scales by `SetAdaptationDial` (0 never adapts; Epic 84's difficulty sets
+  it), and no counter leaves `MinMultiplier`..`MaxMultiplier`. A call counts only at its snap, so
+  the CPU's own call for a play never sees it: tested.*
 
 ### Epic 79: Player DNA & Individual Tendency Profiles
 
@@ -84,9 +100,12 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
   free linebacker scrapes into it and the two swap gaps (once per gap per play).*
 - [ ] Integrity telemetry: visualize gap coverage live (consumes Track A iconography for debug)
   *Telemetry half built: `GetIntegrity()` gives every gap's owner and whether it is filled, and a
-  `GapIntegrity` bus event fires whenever the open gaps change or an exchange happens. The live
-  visualization is still to do: it needs Track A's iconography and an editor session to
-  verify.*
+  `GapIntegrity` bus event fires whenever the open gaps change or an exchange happens. Overlay
+  code built: `UPSDefenderGapOverlaySubsystem` keeps a marker per gap on its spot (filled,
+  blocked, open or unowned; colors in `Data/gap_overlay.json`). It emphasizes the owner of an
+  open gap through Epic 36's `UPSOverlayEmphasisSubsystem`. Development builds draw the markers
+  as debug rings; `ps.Overlay.GapIntegrity 1` turns it on. Still open, so unticked: the
+  editor-made marker and a PIE check (`Specs/Gap_Integrity_Overlay_Spec.md`).*
 
 ### Epic 82: LLM Game-Intelligence Hooks
 
@@ -117,9 +136,22 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** Skill levels and assist options make the game playable from novice to sicko without fake stat-cheating feel.
 **Depends on:** 78, 79
 
-- [ ] Difficulty tiers built from AI capability dials (recognition speed, adaptation, execution variance) — not stat inflation
-- [ ] Assist options: pass-lead help, auto-slide protection, suggested play highlighting
-- [ ] Rubber-band policy: explicitly none, or transparent and off-by-default
+- [x] Difficulty tiers built from AI capability dials (recognition speed, adaptation, execution variance) — not stat inflation
+  *As built: `Data/difficulty.json` holds four tiers (Rookie, Pro, All-Pro, Legend), the
+  `Difficulty` setting's choices. `UPSDifficultySubsystem` gives the CPU's players the tier as
+  each play starts, after their style (Epic 79): recognition (how fast defenders react, how far
+  the quarterback anticipates and how open he needs a man), the opponent model's adaptation dial
+  (Epic 78) and a passer's scatter. Ratings are never touched, and the human's own players play as
+  tuned. A world with no player settings has no tier, so every AI test runs the AI as tuned.*
+- [x] Assist options: pass-lead help, auto-slide protection, suggested play highlighting
+  *As built: three Gameplay settings. Pass lead (on by default): the human's throws lead the
+  receiver; off, they go at him and the stick does the leading. Auto-slide (off by default): his
+  quarterback slides when a tackler closes on him past the line, by the CPU quarterback's slide
+  read. Suggested play (on by default): the coaching AI's top play and its formation are
+  highlighted on the play-call screens, in the player's color vision setting.*
+- [x] Rubber-band policy: explicitly none, or transparent and off-by-default
+  *As built: none. Nothing in the difficulty or the opponent model reads the score; a test pins
+  it at every tier, leading or trailing by four scores.*
 
 ### Epic 85: AI Observability & Debug Tooling
 
@@ -127,7 +159,30 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** Every AI decision is inspectable — the debugging surface that makes Epics 78–84 maintainable by agents.
 **Depends on:** Core 14, Core 15, 26
 
-- [ ] Decision log: per-agent, per-tick reasoning records (considered options, chosen, why)
+- [x] Decision log: per-agent, per-tick reasoning records (considered options, chosen, why)
+  *As built: `UPSAIDecisionLog` (world subsystem) records an `FPSAIDecisionRecord` for every
+  decision tick of `UPSSkillPlayerAIComponent` and `UPSDefenderAIComponent`, every rush-move choice
+  and every CPU play call. Each record holds the player, play and time, his assignment, the action,
+  the target and the reason. Where the AI weighed options, they come with their scores and the one
+  chosen: the QB's receivers by separation, the rush plan's moves, the coaching AI's plays by
+  weight. It is off by default (`Data/ai_debug.json`; console variable `ps.AI.DecisionLog`) and
+  costs nothing while off. Recording never changes a decision.*
 - [ ] On-field debug overlay: live BT state, target, assignment above any pawn (reuses Track A badge rendering)
-- [ ] Play post-mortem dump: one file per play with all 22 decision streams, replay-linked (41)
-- [ ] Scriptable scenario runner: place 22 players in a state, run one decision cycle, assert outputs (extends Epic 24's gym)
+  *Model half built: with `ps.AI.DebugOverlay` on, each player's latest decision is drawn above
+  him as debug text (`DescribeForOverlay`: player, assignment, action, target and reason), with a
+  line to his target. Still to do: drawing it through Epic 28's badge widget (which hides players
+  during the play, so needs an always-on debug layer), and an editor or PIE session to check how
+  it reads.*
+- [x] Play post-mortem dump: one file per play with all 22 decision streams, replay-linked (41)
+  *As built: when a play ends (Scoring, or the next snap), `Saved/AIPostMortems/Play_<time>_<play>.json`
+  holds the snap's situation, both calls, the bus events from the snap on, and every player's
+  decision stream. The bus sequence numbers of the snap and the last event are the join key to the
+  event history Epic 41's replay is built from. It is written with `ps.AI.PostMortem` or the
+  data's switch, and the newest `MaxPostMortemFiles` are kept.*
+- [x] Scriptable scenario runner: place 22 players in a state, run one decision cycle, assert outputs (extends Epic 24's gym)
+  *As built: `UPSAIScenarioRunner` places a scenario's players (any number, up to all 22) under
+  their AI, each with his ratings, DNA, ball, route or assignment. It snaps, runs the decision
+  cycles and checks each expectation (action, target, heading) against the decision log.
+  Scenarios are data (`Data/ai_scenarios.json`), and `PlaySports.Gym.AIScenarios` runs them
+  headlessly. The gym map's functional test (24.1, editor) can call `RunScenario` on its own
+  world.*

@@ -21,9 +21,10 @@ the code:
   - every key the code names exists in Data/ui_text.csv;
   - every remappable input action has an Input.Action.<ActionId> name, and each of its
     contexts an Input.Context.<ContextId> name (the key remapping screen shows them);
-  - UI code (Private/PSUI*, PSMenu*, PSHUD*, PSLoading*, PSSettings*, PSPlayCall*) builds no
-    FText from raw strings: its text comes through UPSLocalization (GetText, Format,
-    GetDataText, Verbatim, FromLocalized).
+  - UI code (Private/PSUI*, PSMenu*, PSHUD*, PSLoading*, PSSettings*, PSPlayCall*, and the
+    broadcast overlays' PSOverlay* and PSGameStateEvents*) builds no FText from raw strings:
+    its text comes through UPSLocalization (GetText, Format, GetDataText, Verbatim,
+    FromLocalized).
 
 Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones):
   Menu.<ScreenId>.Title | Body
@@ -35,6 +36,11 @@ Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones
   Trait.<TraitId>.Label | Description     (PSPlayerDNA::TraitKey)
   Adjustment.<AdjustmentId>.Label | Description
   Hint.<HintId>
+  Broadcast.HomeLabel | AwayLabel                        (UPSOverlayBroadcastSubsystem)
+  BallFlight.GoodLabel | WideLeftLabel | WideRightLabel | ShortLabel
+  Badge.Role.<Role>                                      (UPSOverlayBadgeComponent)
+  Personnel.Role.<Role>, Personnel.OffenseNameFormat, Personnel.DefenseName.<Backs>,
+  Personnel.DefenseNameFallback, Personnel.Package.<PackageId>  (UPSOverlayPersonnelSubsystem)
 """
 
 import csv
@@ -49,7 +55,7 @@ DATA_DIR = REPO / "Data"
 UI_TEXT = DATA_DIR / "ui_text.csv"
 UI_TEXT_DATA = DATA_DIR / "ui_text_data.csv"
 SOURCE_DIR = REPO / "Source"
-GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings", "PSPlayCall")
+GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings", "PSPlayCall", "PSOverlay", "PSGameStateEvents")
 RAW_TEXT = re.compile(r"\bFText::FromString\(|\bFText::AsCultureInvariant\(|\bN?S?LOCTEXT\(|\bINVTEXT\(")
 KEY_USE = re.compile(r"(?<![\w:])(?:UPSLocalization::)?(?:GetText|Format)\(\s*TEXT\(\"([^\"]+)\"\)")
 
@@ -125,6 +131,42 @@ def data_rows():
     for hint in hints.get("Hints", []) if isinstance(hints, dict) else []:
         if isinstance(hint, dict):
             add(f"Hint.{hint.get('HintId', '')}", hint.get("Text"), f"ui_hints.json: first-time hint ({hint.get('Trigger', '')})")
+
+    # The Track A broadcast overlays' words (Epic 106): their styles' labels and names.
+    broadcast = _load("broadcast_overlay.json") or {}
+    if isinstance(broadcast, dict):
+        add("Broadcast.HomeLabel", broadcast.get("HomeLabel"), "broadcast_overlay.json: the score bug's home side when its team isn't known")
+        add("Broadcast.AwayLabel", broadcast.get("AwayLabel"), "broadcast_overlay.json: the score bug's away side when its team isn't known")
+
+    ball_flight = _load("ball_flight_overlay.json") or {}
+    if isinstance(ball_flight, dict):
+        for field in ("GoodLabel", "WideLeftLabel", "WideRightLabel", "ShortLabel"):
+            add(f"BallFlight.{field}", ball_flight.get(field), "ball_flight_overlay.json: the kick readout over the uprights")
+
+    badges = _load("overlay_badges.json") or {}
+    for row in badges.get("RoleLabels", []) if isinstance(badges, dict) else []:
+        if isinstance(row, dict):
+            add(f"Badge.Role.{row.get('Role', '')}", row.get("Label"), "overlay_badges.json: the position badge of a player without a pass button")
+
+    panel = _load("personnel_panel.json") or {}
+    if isinstance(panel, dict):
+        for field in ("OffenseRoles", "DefenseRoles"):
+            for row in panel.get(field, []) or []:
+                if isinstance(row, dict):
+                    add(f"Personnel.Role.{row.get('Role', '')}", row.get("Label"), "personnel_panel.json: a position on the personnel panel")
+        add("Personnel.OffenseNameFormat", panel.get("OffenseNameFormat"),
+            "personnel_panel.json: an offensive package's name; each {Label} is a position's count (keep them)")
+        for row in panel.get("DefenseNames", []) or []:
+            if isinstance(row, dict):
+                add(f"Personnel.DefenseName.{row.get('DefensiveBacks', '')}", row.get("Name"),
+                    f"personnel_panel.json: a defensive package with {row.get('DefensiveBacks', '')} defensive backs")
+        add("Personnel.DefenseNameFallback", panel.get("DefenseNameFallback"),
+            "personnel_panel.json: any other defensive package; each {Label} is a position's count (keep them)")
+
+    packages = _load("personnel_packages.json") or {}
+    for package in packages.get("Packages", []) if isinstance(packages, dict) else []:
+        if isinstance(package, dict):
+            add(f"Personnel.Package.{package.get('PackageId', '')}", package.get("DisplayName"), "personnel_packages.json: a personnel package's name")
     return rows
 
 

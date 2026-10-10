@@ -1,4 +1,5 @@
 #include "PSGameStateEvents.h"
+#include "PSLocalization.h"
 
 bool PSGameStateEvents::IsGameClockRunning(const FPlayState& State)
 {
@@ -63,19 +64,29 @@ FPlayState PSGameStateEvents::ToPlayState(const FPSTelemetryGameStateEvent& Even
 
 FString PSGameStateEvents::QuarterLabel(int32 Quarter)
 {
+    // The ordinals are each language's own (Data/ui_text.csv).
+    if (Quarter > 4)
+    {
+        return UPSLocalization::GetText(TEXT("Broadcast.Overtime")).ToString();
+    }
     switch (Quarter)
     {
-    case 1:  return TEXT("1st");
-    case 2:  return TEXT("2nd");
-    case 3:  return TEXT("3rd");
-    case 4:  return TEXT("4th");
-    default: return Quarter > 4 ? TEXT("OT") : TEXT("1st");
+    case 2:  return UPSLocalization::GetText(TEXT("Broadcast.Quarter2")).ToString();
+    case 3:  return UPSLocalization::GetText(TEXT("Broadcast.Quarter3")).ToString();
+    case 4:  return UPSLocalization::GetText(TEXT("Broadcast.Quarter4")).ToString();
+    default: return UPSLocalization::GetText(TEXT("Broadcast.Quarter1")).ToString();
     }
 }
 
 FString PSGameStateEvents::ClockText(float Seconds)
 {
     // A clock reads the whole seconds left, so 0.4 s left still shows 0:01 until it runs out.
+    // The HUD clock's pattern, in the culture's digits.
     const int32 Whole = FMath::Max(0, FMath::CeilToInt(Seconds));
-    return FString::Printf(TEXT("%d:%02d"), Whole / 60, Whole % 60);
+    FNumberFormattingOptions TwoDigits = FNumberFormattingOptions::DefaultNoGrouping();
+    TwoDigits.SetMinimumIntegralDigits(2);
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Minutes"), FText::AsNumber(Whole / 60, &FNumberFormattingOptions::DefaultNoGrouping()));
+    Arguments.Add(TEXT("Seconds"), FText::AsNumber(Whole % 60, &TwoDigits));
+    return UPSLocalization::Format(TEXT("HUD.GameClock"), Arguments).ToString();
 }

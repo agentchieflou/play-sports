@@ -22,6 +22,7 @@
 #include "PSPlayerLeveling.h"
 #include "PSMatchSetup.h"
 #include "PSStaffManager.h"
+#include "PSStatsEngine.h"
 #include "PSUITeamCatalog.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -69,6 +70,7 @@ APSGameMode::APSGameMode()
     PlayerLeveling = nullptr;
     MatchSetup = nullptr;
     StaffManager = nullptr;
+    MatchStats = nullptr;
 
     HUDClass = APSHUD::StaticClass();
     PlayerControllerClass = APSPlayerController::StaticClass();
@@ -187,6 +189,11 @@ void APSGameMode::StartPlay()
                     Bus->OnDeath.AddDynamic(this, &APSGameMode::OnBusDeathEvent);
                     UE_LOG(LogTemp, Display, TEXT("PSGameMode: Subscribed scoring/catch/death handlers to TelemetryBus."));
                 }
+
+                // The match's box score, from the plays the simulation announces (Epic 92).
+                MatchStats = NewObject<UPSStatsEngine>(this);
+                MatchStats->BindToBus(Bus);
+                MatchStats->BeginGame(MatchSetup->GetSeasonWeek(), MatchSetup->GetHomeTeamId(), MatchSetup->GetAwayTeamId());
 
                 // Give the simulation its world ref so it can subscribe to bus events (C2)
                 PlaySimulation->InitializeWithWorld(GetWorld());

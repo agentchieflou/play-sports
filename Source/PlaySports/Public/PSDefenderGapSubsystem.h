@@ -231,6 +231,10 @@ public:
     /** Gap's spot on the line now; zero when the line can't be read. */
     FVector GetGapSpot(EPSRunGap Gap);
 
+    /** Every gap's spot on the line now, indexed by EPSRunGap (None unused); false when the line
+     *  can't be read. */
+    bool GetGapSpots(TArray<FVector>& OutSpots) { return ReadGapSpots(OutSpots); }
+
     /** Where Defender should be to fit his gap against Carrier, or false when he should just
      *  attack: no gap, no line to read, the carrier past the line or coming through his gap. */
     bool GetFitTarget(const APSPlayerPawn* Defender, const APSPlayerPawn* Carrier, FVector& OutTarget);

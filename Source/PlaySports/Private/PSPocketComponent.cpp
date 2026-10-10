@@ -1,4 +1,5 @@
 #include "PSPocketComponent.h"
+#include "PSDifficultySubsystem.h"
 #include "PSBall.h"
 #include "PSBallActionComponent.h"
 #include "PSCarrierMoveComponent.h"
@@ -104,13 +105,21 @@ void UPSPocketComponent::SetTuning(const FPocketTuningRow& InTuning)
     bTuningLoaded = true;
 }
 
-void UPSPocketComponent::ApplyPlayerDNA(const FPlayerAttributes& Passer)
+void UPSPocketComponent::ApplyPlayTuning(const APSPlayerPawn* Passer)
 {
     GetTuning();
     Tuning = BaseTuning;
+    if (!Passer)
+    {
+        return;
+    }
     if (UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld()))
     {
-        DNA->ApplyTo(Passer, TEXT("Pocket"), Tuning);
+        DNA->ApplyTo(Passer->GetAttributes(), TEXT("Pocket"), Tuning);
+    }
+    if (UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld()))
+    {
+        Difficulty->ApplyTo(Passer, TEXT("Pocket"), Tuning);
     }
 }
 
@@ -344,24 +353,33 @@ bool UPSPocketComponent::MaybeSlide(APSPlayerPawn* Passer, const TArray<APSPlaye
     {
         return false;
     }
-    const FPocketTuningRow& Settings = GetTuning();
-    const FVector Location = Passer->GetActorLocation();
-    if (Location.X - LineOfScrimmage.X < Settings.SlideMinGain)
-    {
-        return false;
-    }
-    float Distance = TNumericLimits<float>::Max();
-    const APSPlayerPawn* Tackler = PSFieldReads::NearestOpponent(Pawns, Passer->TeamSide, Location, &Distance);
-    if (!Tackler || Distance > Settings.SlideTriggerRadius || Tackler->GetActorLocation().X < Location.X)
-    {
-        return false;
-    }
-    if (!Moves->TryMove(EPSCarrierMove::Slide, FVector2D::ZeroVector))
+    const APSPlayerPawn* Tackler = FindSlideThreat(GetTuning(), Passer, Pawns, LineOfScrimmage);
+    if (!Tackler || !Moves->TryMove(EPSCarrierMove::Slide, FVector2D::ZeroVector))
     {
         return false;
     }
     Publish(EPSPocketEventKind::Slide, Passer, Tackler, true);
     return true;
+}
+
+const APSPlayerPawn* UPSPocketComponent::FindSlideThreat(const FPocketTuningRow& Settings, const APSPlayerPawn* Carrier, const TArray<APSPlayerPawn*>& Pawns, const FVector& LineOfScrimmage)
+{
+    if (!Carrier)
+    {
+        return nullptr;
+    }
+    const FVector Location = Carrier->GetActorLocation();
+    if (Location.X - LineOfScrimmage.X < Settings.SlideMinGain)
+    {
+        return nullptr;
+    }
+    float Distance = TNumericLimits<float>::Max();
+    const APSPlayerPawn* Tackler = PSFieldReads::NearestOpponent(Pawns, Carrier->TeamSide, Location, &Distance);
+    if (!Tackler || Distance > Settings.SlideTriggerRadius || Tackler->GetActorLocation().X < Location.X)
+    {
+        return nullptr;
+    }
+    return Tackler;
 }
 
 void UPSPocketComponent::Publish(EPSPocketEventKind Kind, const APSPlayerPawn* Passer, const APSPlayerPawn* Defender, bool bSuccess)

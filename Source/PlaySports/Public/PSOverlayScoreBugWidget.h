@@ -24,6 +24,18 @@ class PLAYSPORTS_API UPSOverlayScoreBugWidget : public UUserWidget
 {
     GENERATED_BODY()
 
+public:
+    // What the bug writes, through the string tables (Epic 106). Label arrives localized.
+
+    /** A side's label and score, with the possession marker when it has the ball. */
+    static FText MakeTeamScoreText(const FString& Label, int32 Score, bool bHasBall);
+
+    /** The timeout pips: Count of them. */
+    static FText MakeTimeoutPips(int32 Count);
+
+    /** The play clock (":39"); empty while it doesn't run. */
+    static FText MakePlayClockText(const FString& Seconds);
+
 protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;

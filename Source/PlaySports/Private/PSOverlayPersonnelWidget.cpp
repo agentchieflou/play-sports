@@ -1,4 +1,5 @@
 #include "PSOverlayPersonnelWidget.h"
+#include "PSLocalization.h"
 #include "PSOverlayPersonnelSubsystem.h"
 #include "PSUITeamCatalog.h"
 #include "Blueprint/WidgetTree.h"
@@ -174,10 +175,11 @@ void UPSOverlayPersonnelWidget::ApplyPanel(FPanelWidgets& Widgets, const FPSPers
 
     Widgets.Frame->SetBrushColor(FMath::Lerp(Fill, Flash, Panel.FlashAlpha * FlashStrength));
     Widgets.TeamBar->SetBrushColor(Panel.TeamColor);
-    Widgets.Team->SetText(FText::FromString(Panel.TeamLabel));
+    // The panel's strings come localized from the subsystem (Epic 106).
+    Widgets.Team->SetText(UPSLocalization::FromLocalized(Panel.TeamLabel));
     Widgets.Team->SetColorAndOpacity(FSlateColor(Text));
     SetFontSize(*Widgets.Team, Style.FontSize);
-    Widgets.Package->SetText(FText::FromString(Panel.PackageName));
+    Widgets.Package->SetText(UPSLocalization::FromLocalized(Panel.PackageName));
     Widgets.Package->SetColorAndOpacity(FSlateColor(Text));
     SetFontSize(*Widgets.Package, Style.TitleFontSize);
 
@@ -189,6 +191,7 @@ void UPSOverlayPersonnelWidget::ApplyPanel(FPanelWidgets& Widgets, const FPSPers
         Widgets.Counts.Add(Block);
         Built.Add(Block);
     }
+    const FString Separator = UPSOverlayPersonnelSubsystem::CountSeparator();
     for (int32 Index = 0; Index < Widgets.Counts.Num(); ++Index)
     {
         UTextBlock* Block = Widgets.Counts[Index];
@@ -198,8 +201,7 @@ void UPSOverlayPersonnelWidget::ApplyPanel(FPanelWidgets& Widgets, const FPSPers
             continue;
         }
         const FPSPersonnelRoleCount& Count = Panel.Counts[Index];
-        const FString Separator = Index + 1 < Panel.Counts.Num() ? TEXT(" | ") : TEXT("");
-        Block->SetText(FText::FromString(FString::Printf(TEXT("%s %d%s"), *Count.Label, Count.Count, *Separator)));
+        Block->SetText(UPSLocalization::FromLocalized(Index + 1 < Panel.Counts.Num() ? Count.Text + Separator : Count.Text));
         Block->SetColorAndOpacity(FSlateColor(Count.bChanged && Panel.FlashAlpha > 0.f ? FMath::Lerp(Text, Flash, Panel.FlashAlpha) : Text));
         SetFontSize(*Block, Style.FontSize);
         Block->SetVisibility(ESlateVisibility::HitTestInvisible);

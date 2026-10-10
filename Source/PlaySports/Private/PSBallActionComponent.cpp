@@ -3,12 +3,12 @@
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSGameMode.h"
-#include "PSPlaySimulation.h"
 #include "PSHealthComponent.h"
 #include "PSCombatRulesModel.h"
 #include "PSBallResolutionHelpers.h"
 #include "PSCarrierMoveComponent.h"
 #include "PSDefenderTechniqueComponent.h"
+#include "PSDifficultySubsystem.h"
 #include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -48,6 +48,11 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
     if (OwnerPawn->GetAttributes().Awareness < 100.f)
     {
         float AccuracyError = (100.f - OwnerPawn->GetAttributes().Awareness) * 2.f; // Max error up to 200cm
+        // A CPU passer's execution varies with the difficulty tier (Epic 84); his rating doesn't.
+        if (UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld()))
+        {
+            AccuracyError *= Difficulty->GetThrowScatterScale(OwnerPawn);
+        }
         FVector ErrorOffset = FMath::VRand() * FMath::FRandRange(0.f, AccuracyError);
         ErrorOffset.Z = 0.f; // Keep error on 2D plane
         ScatterTarget += ErrorOffset;
@@ -316,11 +321,11 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         return false;
     }
 
-    APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
-    if (!GM)
-    {
-        return false;
-    }
+    // The archetype tuning is the game mode's when there is one; a world without one (headless
+    // tests) resolves the hit with the defaults, as the pawn's hitpoints do.
+    const APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
+    static const FPSArchetypeTuning DefaultArchetypeTuning;
+    const FPSArchetypeTuning& ArchetypeTuning = GM ? GM->ArchetypeTuningSettings : DefaultArchetypeTuning;
 
     FPlayerAttributes CarrierAttr = OwnerPawn->GetAttributes();
     FPlayerAttributes DefenderAttr = Defender->GetAttributes();
@@ -386,7 +391,7 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         if (CarrierHealth && !bGaveUp)
         {
             UPSCombatRulesModel* CombatRules = NewObject<UPSCombatRulesModel>(this);
-            const float Damage = CombatRules->ResolveTackleDamage(CarrierAttr, DefenderAttr, GM->ArchetypeTuningSettings);
+            const float Damage = CombatRules->ResolveTackleDamage(CarrierAttr, DefenderAttr, ArchetypeTuning);
             bCarrierDowned = CarrierHealth->ApplyDamage(Damage);
 
             if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
@@ -409,9 +414,21 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
 
         if (bCarrierDowned)
         {
-            if (GM->PlaySimulation)
+            // The tackle goes out on the bus (rule 5): the play simulation, the outcome authority,
+            // records it from there (one path, rule 6), and the stats, cameras, rumble, overlays
+            // and controllers hear the same event. The spot is the yard line he went down on
+            // (the game mode places the line of scrimmage at YardLine * 100 cm).
+            if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
             {
-                GM->PlaySimulation->RecordTackle(YardsGained);
+                FPSTelemetryTackleEvent TackleEvt;
+                TackleEvt.TacklerName = DefenderAttr.DisplayName;
+                TackleEvt.BallCarrierName = CarrierAttr.DisplayName;
+                TackleEvt.YardLine = FMath::Clamp(FMath::RoundToInt(OwnerPawn->GetActorLocation().X / 100.f), 0, 100);
+                TackleEvt.YardsGained = YardsGained;
+                // A quarterback still holding the ball, brought down behind where he lined up
+                // (itself behind the line), was sacked.
+                TackleEvt.bIsSack = CarrierAttr.Role == EPlayerRole::Quarterback && YardsGained < 0;
+                Bus->PublishTackle(TackleEvt);
             }
         }
         else

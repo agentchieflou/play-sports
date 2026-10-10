@@ -65,6 +65,9 @@ every CI build.
 | `pocket_tuning.json` | `FPocketTuningRow` (single object) | `UPSDataIngestion::LoadPocketTuningFromJson`, via `UPSPocketComponent` and `UPSPlayOrchestrator` |
 | `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
 | `blown_coverage.json` | `FBlownCoverageTuningRow` (single object) | `UPSDataIngestion::LoadBlownCoverageTuningFromJson`, via `UPSBlownCoverageSubsystem` |
+| `loose_ball.json` | `FPSLooseBallTuning` (single object) | `UPSDataIngestion::LoadLooseBallTuningFromJson`, via `UPSLooseBallSubsystem` |
+| `deception.json` | `FPSDeceptionTuning` (single object) | `UPSDataIngestion::LoadDeceptionTuningFromJson`, via `UPSDeceptionSubsystem` |
+| `coverage_matchups.json` | `FPSCoverageMatchupTuning` (single object: tuning, `Shells`, `DefaultShell`) | `UPSDataIngestion::LoadCoverageMatchupTuningFromJson`, via `UPSCoverageMatchupSubsystem` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `defensive_techniques.json` | `FDefensiveTechniqueTuningRow` (single object) | `UPSDataIngestion::LoadDefensiveTechniquesFromJson`, via `UPSDefenderTechniqueComponent` |
@@ -81,11 +84,15 @@ every CI build.
 | `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
 | `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
 | `replay.json` | `FPSReplayTuning` (single object) | `UPSDataIngestion::LoadReplayTuningFromJson`, via `UPSReplaySubsystem` |
+| `highlights.json` | `FPSHighlightTuning` (single object) | `UPSDataIngestion::LoadHighlightTuningFromJson`, via `UPSHighlightSubsystem` |
+| `telestrator.json` | `FPSTelestratorTuning` (single object) | `UPSDataIngestion::LoadTelestratorTuningFromJson`, via `UPSTelestratorSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
+| `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
+| `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
 | `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
@@ -97,6 +104,13 @@ every CI build.
 | `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
 | `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
 | `defensive_presnap.json` | `FPSDefensivePreSnapTuning` (single object) | `UPSDataIngestion::LoadDefensivePreSnapTuningFromJson`, via `UPSDefenderPreSnapSubsystem` |
+| `opponent_model.json` | `FPSOpponentModelTuning` (single object: distance buckets, read and strength tuning, `Counters`) | `UPSDataIngestion::LoadOpponentModelTuningFromJson`, via `UPSOpponentModel` |
+| `versus_rules.json` | `FPSVersusRules` (single object) | `UPSDataIngestion::LoadVersusRulesFromJson`, via `UPSVersusSubsystem` |
+| `ai_debug.json` | `FPSAIDebugTuning` (single object: switches, post-mortem folder and limits, overlay placement) | `UPSDataIngestion::LoadAIDebugTuningFromJson`, via `UPSAIDecisionLog` |
+| `ai_scenarios.json` | `FPSAIScenarioCatalog` (single object: `Scenarios`) | `UPSDataIngestion::LoadAIScenariosFromJson`, via `UPSAIScenarioRunner` |
+| `gap_overlay.json` | `FPSGapOverlayStyle` (single object) | `UPSDataIngestion::LoadGapOverlayStyleFromJson`, via `UPSDefenderGapOverlaySubsystem` |
+| `difficulty.json` | `FPSDifficultyCatalog` (single object: `DifficultyTiers`, the assists' setting IDs, `SuggestedPlayAccent`) | `UPSDataIngestion::LoadDifficultyCatalogFromJson`, via `UPSDifficultySubsystem` |
+| `perf_harness.json` | `FPSPerfHarnessTuning` (single object) | `UPSDataIngestion::LoadPerfHarnessTuningFromJson`, via `UPSPerfHarness`; also read by `tools/perf_budget.py` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -156,6 +170,86 @@ Single object (Epic 79; per-athlete style, so two players rated alike play diffe
 `PSPlayerDNA::ValidateCatalog` and `tools/validate_data.py` check it; `validate_data.py` also checks
 every player's `DNA` against it.
 
+## Opponent model schema (`FPSOpponentModelTuning`)
+
+Single object (Epic 78; how the CPU learns the human's play-calling and counters it):
+- `DistanceBuckets`: rising yards to go, the top of each bucket but the last (`[3, 7]`: short,
+  medium, long). The human's calls are counted by his side, the down, the bucket, the offense's
+  personnel and the category, once each play is snapped.
+- `MinSamples` (1 or more): a read needs this many calls. It comes from the narrowest situation
+  with enough: down, distance and personnel; down and distance; down; or everything.
+- `PriorGameWeight` (0-1): what a call from an earlier game counts for (the profile save keeps
+  them).
+- `FirstHalfStrength`, `SecondHalfStrength` (0-1) and `HalftimeQuarter` (2 or more): how hard the
+  CPU leans on its read before and after its halftime adjustments, times the adaptation dial
+  (`DefaultAdaptationDial`, 0-1, until the difficulty sets one).
+- `MinMultiplier` (above 0, at most 1) and `MaxMultiplier` (1 or more): no counter moves a
+  category's weight outside them.
+- `Counters[]`: `bOffense` (the human's side), `Observed` (a category he calls: `Run`,
+  `ShortPass`, `DeepPass`, `PlayAction`, `Screen` on offense; `Base`, `Blitz`, `Prevent` on
+  defense), `Counter` (a category of the CPU's side) and `Weight`. The CPU multiplies Counter's
+  weight by `1 + strength * (Observed's share - an even share) * Weight`, summed over its
+  counters. Only categories some counter observes are tracked.
+
+`PSOpponentModel::ValidateTuning` and `tools/validate_data.py` check it.
+
+## AI debug schema (`FPSAIDebugTuning`)
+
+Single object (Epic 85; the AI's decision log, overlay and post-mortems, `UPSAIDecisionLog`):
+- `bLogDecisions`, `bWritePostMortems`: on without the console variables (`ps.AI.DecisionLog`,
+  `ps.AI.PostMortem`; `ps.AI.DebugOverlay` draws the overlay). Shipped off: logging costs nothing
+  while off.
+- `PostMortemDirectory`: a folder under `Saved/` (no `..`) for one `Play_<time>_<play>.json` per
+  play; `MaxPostMortemFiles` (above 0) of them are kept, the newest.
+- `MaxRecordsPerPlay` (above 0): a play keeps at most this many decisions.
+- `OverlayHeightCm`, `OverlayFontScale` (above 0): where the overlay's text sits above a player,
+  and its size.
+
+## AI scenario schema (`FPSAIScenarioCatalog`)
+
+Single object (Epic 85; scripted scenarios for `UPSAIScenarioRunner`, run by the automation test
+`PlaySports.Gym.AIScenarios`):
+- `Scenarios[]`, each with a unique `ScenarioId`, a `Description`, the offense's `OffenseCategory`
+  (an offensive play category), `Down`, `Distance`, and the decision cycle: `Steps` (1 or more) of
+  `StepSeconds` (above 0) each.
+- `Players[]`: a unique `PlayerId`, an `EPlayerRole` `Role`, a `Location` (`X`/`Y`/`Z`; the line of
+  scrimmage is X = 0, the offense going +X), a `Rating` (0-100, every rating; default 70), an
+  optional `DNA` (as a roster's), `bHasBall`; on offense a `Route` of offsets from his spot (none:
+  he blocks, or reads as QB); on defense an `Assignment` (`PassRush`, `Contain`, `ManCoverage`,
+  `ZoneCoverage`, `RunFit` or `Block`), the `CoverTarget` he covers (a player of the scenario) and a
+  `ZoneOffset` from his spot.
+- `Expectations[]`: a player of the scenario (`PlayerId`) and the `Action` his latest decision
+  must be (`FPSAIDecisionRecord::Action`: his state, or the act -- `Throw`, `Scramble`, `HandOff`,
+  ...). Optionally its `Target`, and a `Heading` (`X`/`Y`/`Z`) he must be steered within
+  `MaxAngleDegrees` (default 45) of.
+
+`UPSAIScenarioRunner::ValidateScenario` and `tools/validate_data.py` check them.
+
+## Difficulty schema (`FPSDifficultyCatalog`)
+
+Single object (Epic 84; how hard the CPU plays and how much the game helps, `UPSDifficultySubsystem`):
+- `DifficultyTiers[]`, easiest first: a unique `TierId`, a `Label` (the tiers' labels are the
+  `Difficulty` setting's `Choices` in `ui_settings.json`, in the same order), and the CPU's
+  capability dials, never a rating:
+  - `AdaptationDial` (0-1): how far the CPU counters the human's play-calling (the opponent
+    model's dial; 0 never adapts).
+  - `ThrowScatterScale` (above 0): execution variance, how many times as far a CPU passer's throws
+    scatter as his Awareness alone makes them.
+  - `Scales[]`: recognition and execution dials. `Dial` names the capability, `Target` the AI
+    tuning (`SkillAI`, `Pocket`, `DefenderAI` or `RouteRunning`, as in `player_dna.json`), `Field`
+    one of its numbers and `Scale` (above 0) what it is multiplied by for the CPU's players, after
+    their style. Each field once per tier.
+- `DifficultySetting`, `PassLeadSetting`, `AutoSlideSetting`, `SuggestedPlaySetting`: the settings
+  that pick the tier and switch each assist (a `Choice`, then three `Toggle`s, in
+  `ui_settings.json`'s Gameplay category).
+- `SuggestedPlayAccent` (`#RRGGBB`): the suggested play's highlight on the play-call screens,
+  drawn in the player's color vision setting.
+
+Only the CPU's players get a tier: those on a side no human controls. A world without player
+settings (a headless test, the scenario gym) has no tier and plays the AI as tuned. There is no
+rubber band: nothing reads the score. `PSDifficulty::ValidateCatalog` and
+`tools/validate_data.py` check it.
+
 ## Personnel package schema (`FPSPersonnelCatalog`)
 
 Who takes the field (Epic 19.5). `UPSPersonnelManager` picks each side's players from the roster's
@@ -212,6 +306,17 @@ are:
 - `PlayCategory` may also be a clock play, `Spike` or `Kneel` (Epic 76), which the simulation
   resolves at the snap.
 - The route library's own rules are under "Route schema extras" below.
+- An offensive play may carry a `Deception` object (`FPSDeceptionDef`, Epic 72; omitted means
+  `None`):
+  - `Type`: `None`, `PlayAction`, `RPO`, `ZoneRead` or `TripleOption`.
+  - `PlaySide`: `1` (right of the ball) or `-1` (left); the option's keys are on that side.
+  - `PassRole`: the RPO's pass option, the first player of this role on a route.
+  - `PitchRole`: the triple option's pitch man, not the QB or the RB.
+
+  `PlayAction` goes on a pass play, not a `Run`, `Screen` or special-teams one. The run options
+  are `Run` plays with a `RunningBack` on a `Route` (the QB meets him at the mesh). An RPO's
+  `PassRole` must run a route, and a triple option's `PitchRole` must be in the play. Tuning is
+  `deception.json` below; `tools/content_contracts.py` checks the rules.
 
 Two `PlayCategory` values are clock plays (Epic 76): `Spike` and `Kneel` (the `Clock` formation).
 The CPU calls them only when the clock does (`UPSSituationAI::DecideClockPlay`), and
@@ -403,6 +508,12 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
     sampler halves its rate.
   - `ReplayPoseRateHz` (0 or more): how often a replay (Epic 41) re-poses the players and the
     ball, per second; 0 is every frame.
+  - `TargetFrameRate` (above 0): the frame rate the tier is budgeted for (Epic 114).
+  - `SystemBudgets[]`: `System` (`Simulation`, `AI`, `Telemetry`, `Overlays`, `UI`, `Animation`,
+    `Crowd`, `Audio`) and `BudgetMs` (0 or more), the game-thread ms per frame that system may use.
+    Exactly one per system; together they fit in a frame (1000 / `TargetFrameRate`), and the
+    `Telemetry` budget covers `TelemetrySampleBudgetMs`. The profiling harness and CI hold the
+    measured times to them (`Specs/Platform_Audit.md` section 7).
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -589,13 +700,21 @@ reads them.
   `UPSLocalization::Format(TEXT("Menu.Option"), Arguments)`. Families the code builds:
   `Input.Action.<ActionId>` (one per remappable action), `Input.Context.<ContextId>`,
   `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`, `PlayCall.Category.<PlayCategory>` (a
-  category without a row shows its ID split into words).
+  category without a row shows its ID split into words), `Broadcast.DriveResult.<Result>` (a
+  drive result without a row is shown as the simulation wrote it). The broadcast overlays'
+  own words are `Broadcast.*` (the score bug and its chyrons) and `Personnel.Count*`.
 - `ui_text_data.csv` (table `PSUIData`) is **generated** from the user-facing strings of
-  `ui_menus.json`, `ui_settings.json`, `loading_tips.json`, `defensive_adjustments.json` and
-  `ui_hints.json`. Don't edit it. After changing one of those files, run `python tools/ui_text.py --write`.
+  `ui_menus.json`, `ui_settings.json`, `loading_tips.json`, `defensive_adjustments.json`,
+  `ui_hints.json` and the broadcast overlays' data (`broadcast_overlay.json`,
+  `ball_flight_overlay.json`, `overlay_badges.json`, `personnel_panel.json`,
+  `personnel_packages.json`). Don't edit it. After changing one of those files, run `python tools/ui_text.py --write`.
   Keys: `Menu.<ScreenId>.Title|Body`, `Menu.<ScreenId>.<OptionId>.Label|Detail`,
   `Setting.Category.<CategoryId>`, `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`,
-  `Tip.<TipId>`, `Adjustment.<AdjustmentId>.Label|Description`, `Hint.<HintId>`.
+  `Tip.<TipId>`, `Adjustment.<AdjustmentId>.Label|Description`, `Hint.<HintId>`,
+  `Broadcast.HomeLabel|AwayLabel`, `BallFlight.<Verdict>Label`, `Badge.Role.<Role>`,
+  `Personnel.Role.<Role>`, `Personnel.OffenseNameFormat`, `Personnel.DefenseName.<Backs>`,
+  `Personnel.DefenseNameFallback`, `Personnel.Package.<PackageId>`. A name pattern's
+  `{Label}` placeholders are the style's own labels; a translation keeps them.
 - Not translated, shown through `UPSLocalization::Verbatim`:
   - names: team, player, play, formation, front, coverage and route names;
   - button glyph labels (`input_glyphs.json`) and the engine's key names;
@@ -610,7 +729,8 @@ reads them.
 - a remappable action, or one of its contexts, without a name row;
 - duplicate or empty keys, or unbalanced placeholders;
 - FText built from a raw string in UI code (`Private/PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`,
-  `PSSettings*`, `PSPlayCall*`).
+  `PSSettings*`, `PSPlayCall*`, and the broadcast overlays' `PSOverlay*` and
+  `PSGameStateEvents*`).
 
 The `Units` setting (`ui_settings.json`, Gameplay) picks feet and pounds or centimeters and
 kilograms for `WeightKg`/`HeightCm` wherever they are shown (`UPSLocalization::FormatWeight`,
@@ -727,6 +847,46 @@ numbers): `255000` is a $255 million cap. The contracts themselves live in the f
 `tools/validate_data.py` checks it: every role has one market, the bounds are ordered and the
 offer ratios run walk-away <= accept <= instant.
 
+## Morale schema (`FPSMoraleTuning`)
+
+Single object (Epic 91), read by `UPSLockerRoom`. Morale runs 0-1 (0.5 neutral): 0.5 plus each input,
+eased from last week's by `MoraleInertia`. Each player's morale and flags and each unit's lineup live
+in the franchise save (`UPSFranchiseSaveGame::LockerRoom`). How many start at a role comes from the
+default packages in `personnel_packages.json`, not from here.
+- Inputs: `StarterBonus`, `BackupPenalty`, `BetterThanStarterPenalty` (playing time);
+  `TeamSuccessWeight` x (win% - 0.5); `UnderpaidRatio`, `UnderpaidPenalty`, `WellPaidBonus`,
+  `ContractYearPenalty` (pay against his worth, his demand from `contracts.json`); `LeaderBoost` per
+  leader in the room, up to `MaxLeaders`.
+- Effects: `PerformanceSwing` (ratings up or down by this much at morale 1 or 0).
+- Events: a trade request after `TradeRequestWeeks` weeks under `TradeRequestMorale`; a holdout at a
+  new league year by a player rated `StarRating`+, paid under `HoldoutPayRatio` of his worth, with
+  morale under `HoldoutMorale`; a leader: a starter with `LeaderAwareness`+ on a team winning
+  `LeaderWinPercentage`+, with morale `LeaderMorale`+.
+- `Units[]` (chemistry): `Unit`, `Role` (its starters), `FullCohesionGames`, `MaxBonus`.
+
+`tools/validate_data.py` checks it: fractions at most 1, inertia and swing below 1, each unit's role,
+games and bonus.
+
+## Owner economics schema (`FPSEconomyTuning`)
+
+Single object (Epic 95), read by `UPSOwnerEconomy`. Team money is in thousands of dollars, as the
+salary cap's; ticket prices and concessions are in dollars. Each team's price, fans, budget and
+revenue live in the franchise save (`UPSFranchiseSaveGame::Economy`), not here.
+- The gate: `StadiumCapacity`; `BaseTicketPrice` and the owner's range `MinTicketPrice`..`MaxTicketPrice`;
+  the crowd fills `BaseFillRate` of the stadium, plus `WinFillWeight` x (win% - 0.5), plus
+  `SatisfactionFillWeight` x (satisfaction - 0.5), less `PriceElasticity` x (price / base - 1), at
+  least `MinFillRate`; `ConcessionsPerFan`.
+- `MediaRevenuePerTeam`: each team's media share a season.
+- Fans (0-1): `StartingSatisfaction`, `WinSatisfactionGain`, `LossSatisfactionLoss`,
+  `PriceSatisfactionLoss` (a home game at a price above the base), `WinningSeasonSatisfactionGain`,
+  `LosingSeasonSatisfactionLoss`; relocation pressure after `RelocationLosingSeasons` losing
+  seasons in a row with fans below `RelocationSatisfactionThreshold`.
+- Budget: `MaxBudgetFraction` of revenue at most, all departments; `DefaultBudget`
+  (`ScoutingFraction`, `TrainingFraction`, `StaffFraction`).
+
+`tools/validate_data.py` checks it: ordered prices and fill rates, fractions at most 1, the default
+budget within `MaxBudgetFraction`.
+
 ## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
 
 Single object (Epic 26; how `UPSTelemetrySamplingSubsystem` records every pawn's position,
@@ -821,6 +981,97 @@ Single object (Epic 17.4; the defense's reaction to a receiver running free,
   line with every defender this far from him is running free.
 - `HelpRadius`: the nearest defender playing a zone (or in man with nobody to cover) within this
   distance of him leaves his zone to cover him. Each receiver and each helper once per play.
+
+`tools/validate_data.py` checks it.
+
+## Coverage matchup schema (`FPSCoverageMatchupTuning`)
+
+Single object (Epic 69; the coverage matchup engine, `UPSCoverageMatchupSubsystem`). Every number
+is 0 or more; distances are cm, shares and chances 0-1:
+- Press: `PressDepth`, `PressShade`: a pressing back lines up this far in front of his receiver
+  and this far to his leverage side (the spot must be inside `route_running.json`'s
+  `PressRadius`, or the release contest would not find him). `PressAlignWidth`: the receiver he is
+  over is the nearest within this distance across the field. `PressMinJamChance`: the CPU presses
+  only when the back's chance to win the jam (one minus the receiver's release chance) is at least
+  this. `PreSnapArrivalRadius`: walking up, this close is there. `PressCushion`: a back who won his
+  jam trails this close (in place of `ManCushion`); `PressBeatenSeconds`: one who lost it is out of
+  phase this long.
+- Leverage: `LeverageShade`: a man defender plays this far to his leverage side.
+  `LeverageLostMargin` / `LeverageRegainMargin`: the receiver this far across his face takes it;
+  the defender this far back on his side has it again. `LeverageBiteBonus`: added to a double
+  move's bite chance for a fake toward the leverage (taken off for one away). `BreakMinLateral`:
+  a break (or fake) whose leg is at least this much across the field counts as toward or away.
+  `IntoLeverageSeparationScale`: the share of a break's separation (Epic 68) kept when it goes into
+  the leverage; `AwayFromLeverageBonus`: added when it goes away. `SeparationRecoverySpeed` (above
+  0): the defender is out of phase for the separation over this, at most `MaxOutOfPhaseSeconds`.
+- Zones: `CarryMargin`: a zone defender keeps his receiver until he is this far outside the zone
+  (`defense_ai_tuning.json`'s `ZoneRadius`), playing `ZoneCarryCushion` downfield of him;
+  `VerticalCarryDepth`: one leaving this far past the defender's spot is carried on (vertical)
+  when no deeper zone is free to take him; any other is passed off.
+- Safety help: `DeepZoneDepth`: a zone this far past the line is deep. `OverTopCushion`,
+  `DeepHelpWidth`, `DeepShadeWeight`: a deep defender stays this far deeper than the deepest
+  receiver within `DeepHelpWidth` across of his spot, shaded this share toward him.
+  `FieldWidth` (above 0): when a deep defender leaves the deep zones, the rest split this evenly.
+  `FreeDeepDepth`: a free deep-middle defender's depth; `RobberDepth`, `RobberRadius`,
+  `RobberJumpWeight`: a robber's depth, the window he reads, and how far he jumps the nearest
+  receiver in it.
+- Pass interference: `ContactRadius`, `TrailMargin`: a defender this close to the targeted
+  receiver while the ball is in the air, and this much further from where it comes down than the
+  receiver, is playing through him; `FlagChance`: how often the officials flag it.
+- `Shells`: one rule per coverage shell (`FPSPlayDefinition::CoverageShell`) -- `Shell`,
+  `Leverage` (`Inside` toward the ball, `Outside` toward the sideline), `bPress`, and `FreeRoles`
+  (`DeepMiddle`, `Robber`), the jobs its left-over man defenders take, deepest first. Every shell a
+  `Base`, `Blitz` or `Prevent` play in `sample_playbook.json` calls needs one; names are unique.
+  `DefaultShell` is the rule for any other.
+
+`tools/validate_data.py` checks it.
+
+## Loose-ball schema (`FPSLooseBallTuning`)
+
+Single object (Epic 17.4; the players play a blocked kick's loose ball, `UPSLooseBallSubsystem`).
+Every number is 0 or more; distances are cm:
+- `BlockedFieldGoalYards` (whole yards): a blocked field goal comes loose this far behind the line,
+  at the hold (a blocked punt's recoil is `special_teams.json`'s `BlockedPuntRecoilYards`).
+- `ChaseRadius`: the players this close to the loose ball go for it, whatever their call; after a
+  scoop, the kicking team's players this close to the returner run him down.
+- `RecoverRadius` (at most `ChaseRadius`): the nearest player this close tries to take it, with his
+  fumble-recovery chance (`catch_tuning.json`'s `FumbleRecovery*`).
+- `ScoopClearRadius`: a defender with no opponent this close scoops it up and returns it; one with an
+  opponent on him, or anyone on the kicking team, falls on it.
+- `SquirtDistance`, `RetrySeconds`: a muffed ball squirts this far, and the player who muffed it
+  waits this long before trying again.
+- `MaxLooseSeconds`, `MaxReturnSeconds` (above 0): the officials blow it dead where it lies (the
+  defense's ball) when nobody has it by then, and a return still going after its time where the
+  returner is.
+
+`tools/validate_data.py` checks it.
+
+## Deception schema (`FPSDeceptionTuning`)
+
+Single object (Epic 72; play-action, RPO and option football, `UPSDeceptionSubsystem`). Every
+number is 0 or more; distances are cm, chances 0-1, ratings 0-100:
+- `FakeSeconds`: the QB carries out a play-action fake hand-off this long before his drop.
+- `BiteBaseChance`, `BiteRunTendencyWeight`, `BiteAwarenessWeight`, `BiteMinChance`,
+  `BiteMaxChance` (min at most max): a run-fit defender bites on the fake with chance
+  `Base + RunTendencyWeight * (RunShare - 0.5) * 2 - AwarenessWeight * Awareness / 100`, held
+  between min and max. `RunShare` is the share of runs in the offense's last `TendencyWindow`
+  (whole, 1 or more) scrimmage calls.
+- `BiteFreezeSeconds`: a defender who bites holds this long instead of dropping.
+- `MeshRideSeconds`: on a run option the QB rides the mesh with the back this long after the snap
+  before he reads his key.
+- `ReadMinSpeed` (cm/s): a key moving at least this fast is read by whom he is heading for (the
+  back or the QB, the run or the pass option); slower, by whom he is nearer.
+- `KeyLineDepth`: a defender this close to the line is on it. The end man on the line, on the
+  play side, is the zone read's key and the triple option's dive key.
+- `PitchReadRadius`, `PitchWindowDepth`: the triple option's QB, keeping it, pitches once the pitch
+  key is this close to him (and nearer him than the pitch man), until he is `PitchWindowDepth`
+  past the line.
+- `MeshRecognizeRadius`: the QB with the ball this close to the back, behind the line, is a mesh.
+  The defense sees the option and hands out option jobs.
+- `DisciplineAwareness` (0-100): a defender this aware plays his option job (the read key takes the
+  QB, the pitch key the pitch man). One less aware chases the ball.
+- `ScrapeRadius`: when the read key crashes on the dive, an aware linebacker this close to him
+  scrapes over to the QB.
 
 `tools/validate_data.py` checks it.
 
@@ -1043,6 +1294,43 @@ replay re-poses the field is per platform tier (`ReplayPoseRateHz` in `platform_
 
 `UPSReplaySubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 
+## Highlights schema (`FPSHighlightTuning`)
+
+Single object (Epic 42; how `UPSHighlightSubsystem` scores plays and plays the reel):
+- `YardWeight`, `PointsWeight`, `TurnoverWeight`, `BrokenTackleWeight`, `WinProbabilityWeight` (0 or
+  more): a play's importance is its yards (either way), points, turnover, broken tackles and swing
+  in the home team's chance of winning (0 to 1), each by its weight. `MinImportance`: less is never
+  a highlight.
+- `ReelSize` (1 or more): the game's reel keeps its most important plays. `SeasonHighlightsKept`
+  (1 or more): a franchise season keeps its most important.
+- `KindShots[]`: exactly one `Shot` (an `EPSDirectorShot`) for each `Kind` (`Score`, `Turnover`,
+  `BigPlay`): the angle a highlight of that kind opens on.
+- `BeatLeadSeconds`, `BeatSeconds` (0 or more), `BeatPlaybackRate` (above 0, at most 1): the slow-
+  motion beat, starting before the play's key moment; the rest plays in real time.
+- `ClipGapSeconds`: each clip holds its end this long. `SettleAfterWhistleSeconds` (above 0): a play
+  counts as over this long after its whistle when no game state has said so.
+- `bPlayReelAtGameEnd`, `GameEndReelDelaySeconds`: the reel plays by itself after the final whistle.
+- `WinProbability`: `MarginScale`, `TimeFloor`, `GameSeconds`, `QuarterSeconds` (above 0),
+  `PossessionPoints` (0 or more): the home team's chance of winning is a logistic of the margin
+  plus what the ball is worth where it is (`PossessionPoints` on the opponent's goal line, scaled
+  by the yard line), divided by the square root of the share of the game left (at least
+  `TimeFloor`).
+
+`UPSHighlightSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Telestrator schema (`FPSTelestratorTuning`)
+
+Single object (Epic 44; how `UPSTelestratorSubsystem` keeps drawings on a paused replay or the film
+view):
+- `FieldHeightCm`: the field's height in the world; drawings are pinned to this plane.
+- `MinPointSpacing` (0 or more, a fraction of the screen): a freehand point closer than this to
+  the last one kept is dropped. `MaxStrokePoints` (2 or more): the most one stroke keeps.
+- `PlayerPickRadius` (above 0, a fraction of the screen): a player tap picks the player within
+  this of it.
+- `MaxMarks` (1 or more): the most marks on one frame.
+
+`UPSTelestratorSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
 ## Ball-flight overlay schema (`FPSBallFlightStyle`)
 
 Single object (Epic 32; the pass and kick indicators, `UPSOverlayBallFlightSubsystem`, drawn by
@@ -1163,3 +1451,64 @@ across the field from its centre:
   `DisguiseShell`, `Creep`), on while he controls a defender before the snap.
 
 `UPSDefenderPreSnapSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Head-to-head rules schema (`FPSVersusRules`)
+
+Single object (Epic 107; local head-to-head, `UPSVersusSubsystem`). House rules for two players on
+one machine:
+- `OffenseControlRole` (an offensive role), `DefenseControlRole` (a defensive one): the player each
+  seat controls at the start of a down on that side.
+- `bResetControlEachDown`: every new down puts both players back on those roles; off, a player
+  keeps whoever they had while their side is unchanged.
+- `bDefenseSwitchDuringPlay`: the defending player may switch after the snap; off, they keep the
+  defender they had at the snap (a takeaway's ball carrier is still theirs to take).
+- `bDefensePreSnapPicks`: the defending player may use the pre-snap pick buttons.
+- `Screen` (`Shared` or `Split`): one view both players watch, or one each.
+- `RouteArtAudience`, `DefensiveIconsAudience` (`Everyone`, `OwnerOnly`, `Nobody`): who may see the
+  offense's route art (Epic 27) and the defense's assignment icons (Epic 31) before the snap.
+  `OwnerOnly` is that side's own view on a split screen and nobody on a shared one.
+- `PausesPerHalf` (-1 for no limit, else 0 or more): pauses each player may call per half.
+- `bPauseOnlyBetweenPlays`: no pausing while the ball is live (a disconnect still pauses).
+- `bResumeNeedsBoth`: play resumes once both players are ready; off, the player who paused
+  resumes alone. `ResumeCountdownSeconds` (0 or more) then counts down, still paused.
+- `bPauseOnDisconnect`: a seat's controller disconnecting pauses the game, which can't resume
+  until it is back. `bQuitForfeits`: quitting forfeits the game to the other player.
+
+`UPSVersusSubsystem::ValidateRules` and `tools/validate_data.py` check it.
+
+## Gap integrity overlay schema (`FPSGapOverlayStyle`)
+
+Single object (Epic 81; the run defense's gap integrity shown live,
+`UPSDefenderGapOverlaySubsystem`):
+- `bEnabledByDefault`: shown from the start. Otherwise `ps.Overlay.GapIntegrity 1` at the console
+  (or `SetEnabled`) shows it.
+- `RefreshSeconds` (above 0): how often the markers follow the line as it moves. Their states
+  change with each `GapIntegrity` bus event.
+- `MarkerHeight` (cm, 0 or more) above the gap's spot, `MarkerRadius` (cm, above 0).
+- `FilledColor`, `BlockedColor`, `OpenColor`, `UnownedColor` (`#RRGGBB`): a gap whose owner is in
+  it; in it but engaged with a blocker; somewhere else; and one nobody owns.
+- `bEmphasizeOpenOwners`, `OpenOwnerEmphasis` (`Highlight`, `Mismatch` or `Focus`): the owner of
+  an open gap is emphasized with this look (`UPSOverlayEmphasisSubsystem`).
+- `bDrawDebug`: development builds draw the markers as debug rings until the editor-made marker
+  exists (`Specs/Gap_Integrity_Overlay_Spec.md`).
+
+`UPSDefenderGapOverlaySubsystem::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Profiling harness schema (`FPSPerfHarnessTuning`)
+
+Single object (Epic 114; `UPSPerfHarness`, and `tools/perf_budget.py` in CI). The per-system
+budgets themselves are per tier, in `platform_tiers.json`.
+- `FrameSeconds` (above 0): seconds per simulated frame of the standard play.
+- `WarmupFrames` (0 or more): pre-snap frames run before the capture starts.
+- `PassFrames`, `PursuitFrames` (1 or more), `PreSnapFrames` (0 or more): the captured play, from
+  the snap to the catch, from the catch to the tackle, and the next down's pre-snap.
+- `HistogramBucketMs` (above 0), `HistogramBucketCount` (1 or more): each system's frame-time
+  histogram. Times are reported to the bucket width.
+- `MaxBusEventsPerPlay` (1 or more): the most bus events the standard play may record.
+- `HardFailMultiplier` (1 or more): CI fails when a system's 95th-percentile frame time is over
+  its budget times this, and warns between the budget and this.
+- `RegressionTolerance`, `MinRegressionMs` (0 or more), `TrendWindow` (1 or more): CI warns of a
+  regression when a system's 95th percentile is this fraction, and at least this many ms, over
+  the median of its last `TrendWindow` runs recorded on main.
+
+`UPSPerfHarness::ValidateTuning` and `tools/validate_data.py` check it.

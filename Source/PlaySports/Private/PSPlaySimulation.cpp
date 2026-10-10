@@ -1,4 +1,5 @@
 #include "PSPlaySimulation.h"
+#include "PSPerfBudget.h"
 #include "PSGameStateEvents.h"
 #include "PSRulesConfig.h"
 #include "PSSpecialTeamsModel.h"
@@ -62,6 +63,9 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     ActivePenalty = EPSPenaltyType::None;
     bPenaltyDeclined = false;
     PhaseTimer = 0.f;
+    PlayLog = FPSTelemetryPlayResultEvent();
+    bPlayLogOpen = false;
+    PlaysAnnounced = 0;
     PublishGameStateIfChanged();
 }
 
@@ -69,6 +73,7 @@ void UPSPlaySimulation::TriggerSnap()
 {
     if (CurrentState.Phase == EPlayPhase::PreSnap)
     {
+        OpenPlayLog();
         // The snap comes at the call's tempo mark (Epic 76): a running game clock also runs
         // off what the play clock had left above it.
         if (CurrentState.bIsClockRunning && PendingSnapPlayClock >= 0.f && CurrentState.PlayClockSeconds > PendingSnapPlayClock)
@@ -145,6 +150,7 @@ void UPSPlaySimulation::ResolveClockPlay()
 
 void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
 {
+    PS_PERF_SCOPE(Simulation);
     CurrentState.GameTimeSeconds += DeltaSeconds;
     PhaseTimer += DeltaSeconds;
 
@@ -224,7 +230,8 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         }
         break;
     case EPlayPhase::BallCarrierMovement:
-        if (PhaseTimer >= 3.0f)
+        // A blocked kick's loose ball ends when it is blown dead (Epic 17.4).
+        if (PhaseTimer >= 3.0f && !bLooseBallLive)
         {
             // In quick-sim mode the statistical resolver drives the outcome;
             // in physical-play mode outcomes arrive via bus events (OnBusCatch/OnBusTackle).
@@ -308,6 +315,9 @@ void UPSPlaySimulation::ResolvePlayResult()
     CompletionChance = FMath::Clamp(CompletionChance, 0.10f, 0.95f);
 
     float RandomRoll = FMath::FRand();
+    PlayLog.bPass = true;
+    PlayLog.PasserId = Passer.PlayerId;
+    PlayLog.ReceiverId = Receiver.PlayerId;
     if (RandomRoll > CompletionChance)
     {
         CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
@@ -321,6 +331,7 @@ void UPSPlaySimulation::ResolvePlayResult()
         int32 Yards = FMath::Clamp(FMath::RoundToInt(BaseYards), -5, 99);
 
         CurrentPlayResult.YardsGained = Yards;
+        PlayLog.bComplete = true;
 
         // Determine if it was a Touchdown or a Tackle
         float TouchdownChance = 0.05f + (Receiver.Speed - Defender.Speed) * 0.01f + (Yards * 0.005f);
@@ -333,12 +344,16 @@ void UPSPlaySimulation::ResolvePlayResult()
         else
         {
             CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+            PlayLog.TacklerId = Defender.PlayerId;
         }
     }
 }
 
 void UPSPlaySimulation::EndPlayAndPrepareNext()
 {
+    // The state the play is resolved from: its result is announced against it (Epic 92).
+    const FPlayState AtSnap = CurrentState;
+
     // A kick's outcome is the special-teams model's (Epic 75): no penalty or yardage rule changes it.
     const bool bKickResult = CurrentPlayResult.ResultType == EPlayResultType::KickoffResult || CurrentPlayResult.ResultType == EPlayResultType::PuntResult
         || CurrentPlayResult.ResultType == EPlayResultType::FieldGoalGood || CurrentPlayResult.ResultType == EPlayResultType::FieldGoalMissed;
@@ -384,6 +399,24 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
             else
             {
                 UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Holding penalty DECLINED. Result stands."));
+            }
+        }
+        else if (ActivePenalty == EPSPenaltyType::PassInterference)
+        {
+            // A spot foul (Epic 69): the ball at the spot, never past the 1, and a first down --
+            // declined when the play itself gained more.
+            const int32 SpotYards = FMath::Min(PassInterferenceYards, 99 - CurrentState.YardLine);
+            if (CurrentPlayResult.ResultType != EPlayResultType::Touchdown && CurrentPlayResult.YardsGained < SpotYards)
+            {
+                CurrentPlayResult.YardsGained = SpotYards;
+                CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+                CurrentPlayResult.bOutOfBounds = false;
+                CurrentState.YardLineToGain = FMath::Min(CurrentState.YardLineToGain, CurrentState.YardLine + SpotYards);
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Pass interference ACCEPTED (%d yards, first down)."), SpotYards);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Pass interference DECLINED. Result stands."));
             }
         }
 
@@ -609,6 +642,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     {
         NextPhase = EPlayPhase::Kickoff;
     }
+    AnnouncePlayResult(AtSnap, bTurnover);
     SetPlayPhase(NextPhase);
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
@@ -655,9 +689,14 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnCatch.AddDynamic(this, &UPSPlaySimulation::OnBusCatchEvent);
     Bus->OnTackle.AddDynamic(this, &UPSPlaySimulation::OnBusTackleEvent);
     Bus->OnScore.AddDynamic(this, &UPSPlaySimulation::OnBusScoreEvent);
+    Bus->OnThrow.AddDynamic(this, &UPSPlaySimulation::OnBusThrowEvent);
     // Epic 104.5: the human kicker's meter and the human defender's jump at the snap
     Bus->OnKick.AddDynamic(this, &UPSPlaySimulation::OnBusKickEvent);
     Bus->OnJumpSnap.AddDynamic(this, &UPSPlaySimulation::OnBusJumpSnapEvent);
+    // Epic 69: the coverage contest's pass interference
+    Bus->OnCoverage.AddDynamic(this, &UPSPlaySimulation::OnBusCoverageEvent);
+    // Epic 17.4: a blocked kick's loose ball, played out on the field
+    Bus->OnLooseBall.AddDynamic(this, &UPSPlaySimulation::OnBusLooseBallEvent);
     Bus->OnPlayCall.AddDynamic(this, &UPSPlaySimulation::OnBusPlayCallEvent);
     Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
 
@@ -674,6 +713,21 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
         return;
     }
 
+    if (!IsBallDead())
+    {
+        const FName CatcherId = FindPlayerIdByName(Event.ReceiverName);
+        PlayLog.bInterception = Event.bIsInterception;
+        PlayLog.bComplete = !Event.bIsInterception;
+        if (Event.bIsInterception)
+        {
+            PlayLog.InterceptorId = CatcherId;
+        }
+        else
+        {
+            PlayLog.ReceiverId = CatcherId;
+        }
+    }
+
     if (CurrentState.Phase == EPlayPhase::PassRush || CurrentState.Phase == EPlayPhase::Snap)
     {
         SetPlayPhase(EPlayPhase::BallCarrierMovement);
@@ -683,14 +737,27 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
 
 void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
 {
-    // Physical tackle resolves the play, unless the whistle already blew.
-    if (bQuickSimMode || IsBallDead())
+    // Physical tackle resolves the play, unless the whistle already blew. A loose ball's return
+    // ends through its own dead ball (Epic 17.4).
+    if (bQuickSimMode || IsBallDead() || bLooseBallLive)
     {
         return;
     }
 
     CurrentPlayResult.ResultType = EPlayResultType::Tackle;
     CurrentPlayResult.YardsGained = Event.YardsGained;
+    const FName CarrierId = FindPlayerIdByName(Event.BallCarrierName);
+    PlayLog.TacklerId = FindPlayerIdByName(Event.TacklerName);
+    if (Event.bIsSack)
+    {
+        PlayLog.bSack = true;
+        PlayLog.bPass = true;
+        PlayLog.PasserId = CarrierId;
+    }
+    else if (!PlayLog.bPass)
+    {
+        PlayLog.RusherId = CarrierId;
+    }
     SetPlayPhase(EPlayPhase::Scoring);
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusTackle — %s tackled by %s for %d yards."),
         *Event.BallCarrierName, *Event.TacklerName, Event.YardsGained);
@@ -704,6 +771,79 @@ void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
     CurrentState.HomeScore = Event.HomeScore;
     CurrentState.AwayScore = Event.AwayScore;
     PublishGameStateIfChanged();
+}
+
+void UPSPlaySimulation::OnBusThrowEvent(const FPSTelemetryThrowEvent& Event)
+{
+    if (bQuickSimMode || IsBallDead())
+    {
+        return;
+    }
+    PlayLog.bPass = true;
+    PlayLog.PasserId = FindPlayerIdByName(Event.PasserName);
+    PlayLog.ReceiverId = FindPlayerIdByName(Event.TargetReceiverName);
+}
+
+void UPSPlaySimulation::OpenPlayLog()
+{
+    PlayLog = FPSTelemetryPlayResultEvent();
+    PlayLog.bHomeOffense = CurrentState.bHomeHasPossession;
+    PlayLog.Quarter = CurrentState.Quarter;
+    PlayLog.GameClockSeconds = CurrentState.GameClockSeconds;
+    PlayLog.Down = CurrentState.Down;
+    PlayLog.Distance = CurrentState.Distance;
+    PlayLog.YardLine = CurrentState.YardLine;
+    bPlayLogOpen = true;
+}
+
+FName UPSPlaySimulation::FindPlayerIdByName(const FString& DisplayName) const
+{
+    if (DisplayName.IsEmpty())
+    {
+        return NAME_None;
+    }
+    const auto Named = [&DisplayName](const FPlayerAttributes& Player) { return Player.DisplayName == DisplayName; };
+    const FPlayerAttributes* Found = OffenseRoster.FindByPredicate(Named);
+    if (!Found)
+    {
+        Found = DefenseRoster.FindByPredicate(Named);
+    }
+    return Found ? Found->PlayerId : NAME_None;
+}
+
+void UPSPlaySimulation::AnnouncePlayResult(const FPlayState& AtSnap, bool bTurnover)
+{
+    // A play that began without a snap (a kick the simulation went straight to) is announced
+    // against the state it was resolved from.
+    if (!bPlayLogOpen)
+    {
+        PlayLog.bHomeOffense = AtSnap.bHomeHasPossession;
+        PlayLog.Quarter = AtSnap.Quarter;
+        PlayLog.GameClockSeconds = AtSnap.GameClockSeconds;
+        PlayLog.Down = AtSnap.Down;
+        PlayLog.Distance = AtSnap.Distance;
+        PlayLog.YardLine = AtSnap.YardLine;
+    }
+
+    const EPlayResultType Result = CurrentPlayResult.ResultType;
+    const bool bKick = Result == EPlayResultType::KickoffResult || Result == EPlayResultType::PuntResult
+        || Result == EPlayResultType::FieldGoalGood || Result == EPlayResultType::FieldGoalMissed;
+    PlayLog.PlayNumber = ++PlaysAnnounced;
+    PlayLog.Result = StaticEnum<EPlayResultType>()->GetNameStringByValue(static_cast<int64>(Result));
+    PlayLog.YardsGained = CurrentPlayResult.YardsGained;
+    PlayLog.HomePoints = CurrentState.HomeScore - AtSnap.HomeScore;
+    PlayLog.AwayPoints = CurrentState.AwayScore - AtSnap.AwayScore;
+    PlayLog.bTurnoverOnDowns = bTurnover && !bKick && !PlayLog.bInterception;
+    PlayLog.bFirstDown = !bKick && (Result == EPlayResultType::Touchdown
+        || (Result != EPlayResultType::Safety && !bTurnover && AtSnap.YardLine + CurrentPlayResult.YardsGained >= AtSnap.YardLineToGain));
+
+    OnPlayResolved.Broadcast(PlayLog);
+    if (UPSTelemetryBus* Bus = CachedWorld ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    {
+        Bus->PublishPlayResult(PlayLog);
+    }
+    PlayLog = FPSTelemetryPlayResultEvent();
+    bPlayLogOpen = false;
 }
 
 void UPSPlaySimulation::OnBusPlayCallEvent(const FPSTelemetryPlayCallEvent& Event)
@@ -816,6 +956,45 @@ void UPSPlaySimulation::ResolveKick(float KickRoll)
     PendingSpecialTeams = FPSSpecialTeamsCall();
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: %s: %s (%d yards)."), *UEnum::GetValueAsString(CurrentState.Phase),
         *UEnum::GetValueAsString(LastSpecialTeamsOutcome.Result), LastSpecialTeamsOutcome.Yards);
+
+    // A block on a live field is the players' to finish (Epic 17.4): announced, and if the ball is
+    // taken live (a Loose event in answer) the play goes on until it is blown dead.
+    bLooseBallLive = false;
+    const bool bBlocked = LastSpecialTeamsOutcome.Result == EPSSpecialTeamsResult::Blocked || LastSpecialTeamsOutcome.Result == EPSSpecialTeamsResult::BlockedTouchdown;
+    UPSTelemetryBus* Bus = bBlocked && CachedWorld && !bQuickSimMode ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (Bus)
+    {
+        FPSTelemetryLooseBallEvent Block;
+        Block.Kind = EPSLooseBallEventKind::Blocked;
+        Block.KickType = CurrentState.Phase == EPlayPhase::Punt ? TEXT("Punt") : TEXT("FieldGoal");
+        Block.YardsBehindLine = CurrentState.Phase == EPlayPhase::Punt ? Model->GetTuning().BlockedPuntRecoilYards : 0;
+        Bus->PublishLooseBall(Block);
+    }
+    SetPlayPhase(bLooseBallLive ? EPlayPhase::BallCarrierMovement : EPlayPhase::Scoring);
+}
+
+void UPSPlaySimulation::OnBusLooseBallEvent(const FPSTelemetryLooseBallEvent& Event)
+{
+    // Taken live in answer to the block, while the kick is still being resolved.
+    const EPlayPhase Phase = CurrentState.Phase;
+    if (Event.Kind == EPSLooseBallEventKind::Loose && (Phase == EPlayPhase::Punt || Phase == EPlayPhase::FieldGoal))
+    {
+        bLooseBallLive = true;
+        return;
+    }
+    if (Event.Kind != EPSLooseBallEventKind::Dead || !bLooseBallLive)
+    {
+        return;
+    }
+    // The dead ball is the kick's outcome: the ball goes over at the spot (the kicking team
+    // falling on it behind the line on its kicking down turns it over too), or the defense scored.
+    bLooseBallLive = false;
+    LastSpecialTeamsOutcome.Result = Event.bTouchdown ? EPSSpecialTeamsResult::BlockedTouchdown : EPSSpecialTeamsResult::Blocked;
+    LastSpecialTeamsOutcome.bTouchdown = Event.bTouchdown;
+    LastSpecialTeamsOutcome.bPossessionChanges = true;
+    LastSpecialTeamsOutcome.NextYardLine = FMath::Clamp(100 - Event.YardLine, 1, 99);
+    LastSpecialTeamsOutcome.Yards = Event.YardLine - CurrentState.YardLine;
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Blocked kick dead at the %d (%s)."), Event.YardLine, Event.bTouchdown ? TEXT("touchdown") : TEXT("defense's ball"));
     SetPlayPhase(EPlayPhase::Scoring);
 }
 
@@ -844,6 +1023,17 @@ void UPSPlaySimulation::OnBusJumpSnapEvent(const FPSTelemetryJumpSnapEvent& Even
         ActivePenalty = EPSPenaltyType::Offsides;
         bPenaltyDeclined = false;
         UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! %s jumped offside."), *Event.DefenderName);
+    }
+}
+
+void UPSPlaySimulation::OnBusCoverageEvent(const FPSTelemetryCoverageEvent& Event)
+{
+    if (Event.Kind == EPSCoverageEventKind::PassInterference && ActivePenalty == EPSPenaltyType::None && !IsBallDead())
+    {
+        ActivePenalty = EPSPenaltyType::PassInterference;
+        bPenaltyDeclined = false;
+        PassInterferenceYards = FMath::Max(1, Event.YardsPastLine);
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Pass interference on %s, %d yards past the line."), *Event.DefenderName, PassInterferenceYards);
     }
 }
 

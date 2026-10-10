@@ -1,4 +1,6 @@
 #include "PSRushMoveComponent.h"
+#include "PSAIDecisionLog.h"
+#include "PSPerfBudget.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
@@ -183,6 +185,7 @@ void UPSRushMoveComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 
 void UPSRushMoveComponent::TickRush(float DeltaSeconds)
 {
+    PS_PERF_SCOPE_NESTED(AI);
     Clock += DeltaSeconds;
     APSPlayerPawn* Blocker = GetBlocker();
     if (!Blocker || !IsRushing())
@@ -237,6 +240,11 @@ EPSRushMove UPSRushMoveComponent::ChooseMove()
     // His style (Epic 79): a power rusher leans to power moves, a finesse rusher to finesse ones.
     UPSPlayerDNASubsystem* DNA = RusherAttributes.DNA.IsNeutral() ? nullptr : UPSPlayerDNASubsystem::Get(GetWorld());
 
+    // The decision log (Epic 85) hears every move he weighed, while it listens.
+    UPSAIDecisionLog* DecisionLog = UPSAIDecisionLog::Get(GetWorld());
+    const bool bLogging = DecisionLog && DecisionLog->IsLogging();
+    FPSAIDecisionRecord Decision;
+
     // The best score wins; on a tie, the move listed first.
     EPSRushMove Best = EPSRushMove::None;
     float BestScore = 0.f;
@@ -254,11 +262,37 @@ EPSRushMove UPSRushMoveComponent::ChooseMove()
         const FPSRushMoveRecord* Record = Matchup ? Matchup->Records.Find(Def.Move) : nullptr;
         const float Score = PSRushMoves::ScoreMove(Chance, Record ? *Record : FPSRushMoveRecord(), Library.HistoryPriorWeight)
             * (DNA ? DNA->GetRushMoveScale(RusherAttributes, Def.Move) : 1.f);
+        if (bLogging)
+        {
+            FPSAIDecisionOption Option;
+            Option.Option = PSRushMovePrivate::MoveName(Def.Move);
+            Option.Score = Score;
+            Option.Note = FString::Printf(TEXT("chance %.2f, %d of %d won"), Chance, Record ? Record->Wins : 0, Record ? Record->Attempts : 0);
+            Decision.Options.Add(Option);
+        }
         if (Score > BestScore)
         {
             BestScore = Score;
             Best = Def.Move;
         }
+    }
+
+    if (bLogging)
+    {
+        const FString BestName = PSRushMovePrivate::MoveName(Best);
+        for (FPSAIDecisionOption& Option : Decision.Options)
+        {
+            Option.bChosen = Option.Option == BestName;
+        }
+        Decision.AgentId = RusherAttributes.PlayerId;
+        Decision.System = TEXT("RushMove");
+        Decision.Assignment = TEXT("PassRush");
+        Decision.Action = Best == EPSRushMove::None ? FString(TEXT("NoMove")) : BestName;
+        Decision.Reason = Best == EPSRushMove::None ? FString(TEXT("No move he can make now"))
+            : FString::Printf(TEXT("Best score against %s%s"), *BlockerAttributes.DisplayName, bDoubleTeamed ? TEXT(" (double team)") : TEXT(""));
+        Decision.Target = BlockerAttributes.DisplayName;
+        Decision.TargetLocation = Blocker->GetActorLocation();
+        DecisionLog->Record(Decision);
     }
     return Best;
 }

@@ -17,6 +17,7 @@
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSUIColorAccessibility.h"
 #include "PSUIHintSubsystem.h"
+#include "PSVersusSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Blueprint/UserWidget.h"
@@ -298,7 +299,10 @@ bool UPSMenuComponent::HandleBack()
     const FName Top = Stack->Top();
     if (Top == GetCatalog().PauseScreen && Stack->Depth() == 1)
     {
-        Resume();
+        if (!DeferResumeToVersus())
+        {
+            Resume();
+        }
         return true;
     }
 
@@ -338,6 +342,15 @@ void UPSMenuComponent::ChooseOption(FName OptionId)
 
 void UPSMenuComponent::TogglePause()
 {
+    // A head-to-head game pauses by its etiquette (Epic 107).
+    if (UPSVersusSubsystem* Versus = GetActiveVersus())
+    {
+        if (Versus->HandlePausePressed(Cast<APSPlayerController>(GetOwner())))
+        {
+            return;
+        }
+    }
+
     if (IsMenuOpen())
     {
         if (GetTopScreenId() == GetCatalog().PauseScreen)
@@ -494,6 +507,9 @@ FString UPSMenuComponent::BuildTravelOptions(EPSMenuCommand Command, FName Paylo
     // The match's teams travel in UPSMatchSetup's options; the game mode reads them back there.
     case EPSMenuCommand::StartPlayNow:
         return UPSMatchSetup::BuildOptions(EPSMatchMode::PlayNow, Payload);
+    case EPSMenuCommand::StartVersus:
+        // Which local seat plays home (Epic 107); home= is UPSMatchSetup's team ID.
+        return Payload.IsNone() ? FString(TEXT("mode=Versus")) : FString::Printf(TEXT("mode=Versus?homeseat=%s"), *Payload.ToString());
     case EPSMenuCommand::StartFranchise:
         return UPSMatchSetup::BuildOptions(EPSMatchMode::Franchise, NAME_None);
     case EPSMenuCommand::StartPractice:
@@ -510,12 +526,23 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
     switch (Command)
     {
     case EPSMenuCommand::Resume:
-        Resume();
+        if (!DeferResumeToVersus())
+        {
+            Resume();
+        }
+        break;
+    case EPSMenuCommand::QuitToMainMenu:
+        // Quitting a head-to-head game forfeits it (Epic 107).
+        if (UPSVersusSubsystem* Versus = GetActiveVersus())
+        {
+            Versus->HandleQuitPressed(Cast<APSPlayerController>(GetOwner()));
+        }
+        BeginTravel(Command, Payload);
         break;
     case EPSMenuCommand::StartPlayNow:
     case EPSMenuCommand::StartFranchise:
     case EPSMenuCommand::StartPractice:
-    case EPSMenuCommand::QuitToMainMenu:
+    case EPSMenuCommand::StartVersus:
         BeginTravel(Command, Payload);
         break;
     case EPSMenuCommand::QuitGame:
@@ -582,6 +609,19 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
     default:
         break;
     }
+}
+
+UPSVersusSubsystem* UPSMenuComponent::GetActiveVersus() const
+{
+    const UWorld* World = GetWorld();
+    UPSVersusSubsystem* Versus = World ? World->GetSubsystem<UPSVersusSubsystem>() : nullptr;
+    return Versus && Versus->IsSessionActive() ? Versus : nullptr;
+}
+
+bool UPSMenuComponent::DeferResumeToVersus()
+{
+    UPSVersusSubsystem* Versus = GetActiveVersus();
+    return Versus && Versus->HandleResumePressed(Cast<APSPlayerController>(GetOwner()));
 }
 
 void UPSMenuComponent::BeginTravel(EPSMenuCommand Command, FName Payload)

@@ -53,8 +53,26 @@ rating and guarantee bounds, offer ratios walk-away <= accept <= instant; "Shell
 against FPSDefensivePreSnapTuning (Epic 67), each action a Boolean in the DefensePreSnap context;
 "Hints" files against FPSHintCatalog (Epic 105.4); "PlaybackRates" files against FPSReplayTuning
 (Epic 41), each camera a named one or a rig in camera_all22.json; "DefenseNameFallback" files
-against FPSPersonnelPanelStyle (Epic 29). Teams, the league config, the playbook, player rating
-ranges and every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+against FPSPersonnelPanelStyle (Epic 29); "MinSamples" files against FPSOpponentModelTuning, each
+counter pairing a play category the human calls with one the CPU answers on the other side (Epic
+78); "PausesPerHalf" files against FPSVersusRules (Epic 107): control roles on their sides, screen
+and overlay audiences, pause and resume etiquette; "bLogDecisions" files against FPSAIDebugTuning
+and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover target naming a
+player of its scenario (Epic 85); "StadiumCapacity" files against FPSEconomyTuning (Epic 95):
+ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBudgetFraction;
+"UnownedColor" files against FPSGapOverlayStyle (Epic 81); "TradeRequestWeeks" files against
+FPSMoraleTuning (Epic 91): 0-1 thresholds, each chemistry unit's role, games and bonus; "ReelSize"
+files against FPSHighlightTuning (Epic 42); "PlayerPickRadius" files against FPSTelestratorTuning
+(Epic 44); "LeverageShade" files against FPSCoverageMatchupTuning (Epic 69): its shell rules (each
+coverage shell the playbook calls has one) and a press spot inside the route-running PressRadius;
+"ScoopClearRadius" files against FPSLooseBallTuning (Epic 17.4); "DifficultyTiers" files against
+FPSDifficultyCatalog, each scale a numeric field of its AI tuning file, the tiers the Difficulty
+setting's choices in order and each assist a toggle in ui_settings.json (Epic 84);
+"MeshRecognizeRadius" files against FPSDeceptionTuning (Epic 72): bite chances 0-1 with the floor
+under the ceiling, a discipline rating 0-100; "HardFailMultiplier" files against
+FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system, within its
+frame. Teams, the league config, the playbook, player rating ranges and every reference between
+files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -221,7 +239,7 @@ def validate_input_catalog(path, payload):
 
 
 MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay", "ApplyAdjustment",
-                 "StepSetting", "ResetSettings", "BeginRemap", "ResetRemaps"}
+                 "StepSetting", "ResetSettings", "BeginRemap", "ResetRemaps", "StartVersus"}
 MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays", "PlayCallRecent",
                  "PlayCallFavorites", "PlayCallAdjustments", "Settings", "SettingsCategory", "InputRemap"}
 TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
@@ -618,6 +636,44 @@ TIER_TELEMETRY_NUMBERS = ("TelemetrySampleRateHz", "TelemetrySampleBudgetMs")
 OVERLAY_DETAILS = {"Full", "Simplified", "Minimal"}
 
 
+PERF_SYSTEMS = ("Simulation", "AI", "Telemetry", "Overlays", "UI", "Animation", "Crowd", "Audio")
+
+
+def validate_system_budgets(path, where, tier):
+    """A tier's TargetFrameRate and SystemBudgets (Epic 114); mirrors
+    PSPlatformTiers::ValidateSystemBudgets."""
+    fps = tier.get("TargetFrameRate")
+    if not is_number(fps) or fps <= 0:
+        err(path, f"{where}.TargetFrameRate: '{fps}' must be a number above 0")
+        return
+    budgets = tier.get("SystemBudgets")
+    if not isinstance(budgets, list):
+        err(path, f"{where}.SystemBudgets: must be an array")
+        return
+    total = 0.0
+    by_system = {}
+    for idx, budget in enumerate(budgets):
+        if not isinstance(budget, dict) or budget.get("System") not in PERF_SYSTEMS:
+            err(path, f"{where}.SystemBudgets[{idx}]: System must be one of {list(PERF_SYSTEMS)}")
+            continue
+        ms = budget.get("BudgetMs")
+        if not is_number(ms) or ms < 0:
+            err(path, f"{where}.SystemBudgets[{idx}].BudgetMs: '{ms}' must be a number, 0 or more")
+            continue
+        by_system.setdefault(budget["System"], []).append(ms)
+        total += ms
+    for system in PERF_SYSTEMS:
+        if len(by_system.get(system, [])) != 1:
+            err(path, f"{where}.SystemBudgets: needs exactly one budget for {system}")
+    frame_ms = 1000.0 / fps
+    if total > frame_ms + 1e-6:
+        err(path, f"{where}.SystemBudgets: add up to {total:.2f} ms, more than a {fps} fps frame ({frame_ms:.2f} ms)")
+    telemetry = by_system.get("Telemetry", [None])[0]
+    sample = tier.get("TelemetrySampleBudgetMs")
+    if is_number(telemetry) and is_number(sample) and telemetry + 1e-6 < sample:
+        err(path, f"{where}.SystemBudgets: the Telemetry budget is below TelemetrySampleBudgetMs, which it includes")
+
+
 def validate_platform_tiers(path, payload):
     """FPSPlatformTierCatalog (Data/platform_tiers.json, Epic 129); mirrors
     PSPlatformTiers::ValidateCatalog plus the device-profile cross-check."""
@@ -650,8 +706,9 @@ def validate_platform_tiers(path, payload):
             err(path, f"{where}.ReplayPoseRateHz: '{pose_rate}' must be a number, 0 (every frame) or more")
         if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
             err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
+        validate_system_budgets(path, where, tier)
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
-                             "ReplayPoseRateHz", *TIER_TELEMETRY_NUMBERS}
+                             "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -1008,6 +1065,85 @@ def validate_replay_tuning(path, payload, rig_ids):
     extra = set(payload) - set(REPLAY_FIELDS) - {"ReplayPoseRateHz"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSReplayTuning exactly")
+
+
+HIGHLIGHT_WEIGHTS = ("YardWeight", "PointsWeight", "TurnoverWeight", "BrokenTackleWeight", "WinProbabilityWeight",
+                     "MinImportance")
+HIGHLIGHT_TIMES = ("BeatLeadSeconds", "BeatSeconds", "ClipGapSeconds", "GameEndReelDelaySeconds")
+HIGHLIGHT_KINDS = ("Score", "Turnover", "BigPlay")
+WIN_PROBABILITY_FIELDS = ("MarginScale", "PossessionPoints", "TimeFloor", "GameSeconds", "QuarterSeconds")
+
+
+def validate_highlights(path, payload):
+    """FPSHighlightTuning (Data/highlights.json, Epic 42); mirrors UPSHighlightSubsystem::ValidateTuning."""
+    for field in HIGHLIGHT_WEIGHTS + HIGHLIGHT_TIMES:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("ReelSize", "SeasonHighlightsKept"):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            err(path, f"{field}: '{value}' must be a whole number, 1 or more")
+    rate = payload.get("BeatPlaybackRate")
+    if not is_number(rate) or not 0 < rate <= 1:
+        err(path, f"BeatPlaybackRate: '{rate}' must be above 0 and at most 1")
+    settle = payload.get("SettleAfterWhistleSeconds")
+    if not is_number(settle) or settle <= 0:
+        err(path, f"SettleAfterWhistleSeconds: '{settle}' must be above 0")
+    if not isinstance(payload.get("bPlayReelAtGameEnd"), bool):
+        err(path, "bPlayReelAtGameEnd must be true or false")
+    shots = payload.get("KindShots")
+    if not isinstance(shots, list):
+        err(path, "'KindShots' must be an array")
+        shots = []
+    kinds = [s.get("Kind") for s in shots if isinstance(s, dict)]
+    for kind in HIGHLIGHT_KINDS:
+        if kinds.count(kind) != 1:
+            err(path, f"KindShots: '{kind}' must have exactly one shot")
+    for idx, shot in enumerate(shots):
+        if not isinstance(shot, dict) or shot.get("Kind") not in HIGHLIGHT_KINDS:
+            err(path, f"KindShots[{idx}]: needs a Kind of {list(HIGHLIGHT_KINDS)}")
+        elif shot.get("Shot") not in DIRECTOR_SHOTS:
+            err(path, f"KindShots[{idx}].Shot: '{shot.get('Shot')}' is not an EPSDirectorShot ({list(DIRECTOR_SHOTS)})")
+    win = payload.get("WinProbability")
+    if not isinstance(win, dict):
+        err(path, "'WinProbability' must be an object")
+    else:
+        for field in WIN_PROBABILITY_FIELDS:
+            value = win.get(field)
+            low_ok = value >= 0 if field == "PossessionPoints" and is_number(value) else (is_number(value) and value > 0)
+            if not is_number(value) or not low_ok:
+                err(path, f"WinProbability.{field}: '{value}' must be a number above 0" + (" (or 0)" if field == "PossessionPoints" else ""))
+        extra = set(win) - set(WIN_PROBABILITY_FIELDS)
+        if extra:
+            err(path, f"WinProbability: unknown field(s) {sorted(extra)}")
+    extra = set(payload) - set(HIGHLIGHT_WEIGHTS) - set(HIGHLIGHT_TIMES) - {
+        "ReelSize", "SeasonHighlightsKept", "BeatPlaybackRate", "SettleAfterWhistleSeconds", "bPlayReelAtGameEnd",
+        "KindShots", "WinProbability"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSHighlightTuning exactly")
+
+
+TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks")
+
+
+def validate_telestrator(path, payload):
+    """FPSTelestratorTuning (Data/telestrator.json, Epic 44); mirrors UPSTelestratorSubsystem::ValidateTuning."""
+    if not is_number(payload.get("FieldHeightCm")):
+        err(path, f"FieldHeightCm: '{payload.get('FieldHeightCm')}' must be a number")
+    spacing = payload.get("MinPointSpacing")
+    if not is_number(spacing) or spacing < 0:
+        err(path, f"MinPointSpacing: '{spacing}' must be a number, 0 or more")
+    radius = payload.get("PlayerPickRadius")
+    if not is_number(radius) or radius <= 0:
+        err(path, f"PlayerPickRadius: '{radius}' must be a number above 0")
+    for field, low in (("MaxStrokePoints", 2), ("MaxMarks", 1)):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < low:
+            err(path, f"{field}: '{value}' must be a whole number, {low} or more")
+    extra = set(payload) - set(TELESTRATOR_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelestratorTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -2210,6 +2346,149 @@ def validate_pocket_tuning(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPocketTuningRow exactly")
 
 
+COVERAGE_MATCHUP_FIELDS = ("PressDepth", "PressShade", "PressAlignWidth", "PressMinJamChance", "PreSnapArrivalRadius",
+                           "PressCushion", "PressBeatenSeconds", "LeverageShade", "LeverageLostMargin",
+                           "LeverageRegainMargin", "LeverageBiteBonus", "BreakMinLateral", "IntoLeverageSeparationScale",
+                           "AwayFromLeverageBonus", "SeparationRecoverySpeed", "MaxOutOfPhaseSeconds", "CarryMargin",
+                           "ZoneCarryCushion", "VerticalCarryDepth", "DeepZoneDepth", "OverTopCushion", "DeepHelpWidth",
+                           "DeepShadeWeight", "FieldWidth", "FreeDeepDepth", "RobberDepth", "RobberRadius",
+                           "RobberJumpWeight", "ContactRadius", "TrailMargin", "FlagChance")
+COVERAGE_MATCHUP_SHARES = ("PressMinJamChance", "LeverageBiteBonus", "BreakMinLateral", "IntoLeverageSeparationScale",
+                           "DeepShadeWeight", "RobberJumpWeight", "FlagChance")
+COVERAGE_LEVERAGES = {"Inside", "Outside"}
+COVERAGE_FREE_ROLES = {"DeepMiddle", "Robber"}
+COVERAGE_SHELL_FIELDS = {"Shell", "Leverage", "bPress", "FreeRoles"}
+
+
+def validate_coverage_shell(path, where, rule):
+    if not isinstance(rule, dict):
+        err(path, f"{where}: must be an object")
+        return
+    if not isinstance(rule.get("Shell"), str):
+        err(path, f"{where}.Shell: must be a string")
+    if rule.get("Leverage") not in COVERAGE_LEVERAGES:
+        err(path, f"{where}.Leverage: '{rule.get('Leverage')}' is not an EPSLeverage ({sorted(COVERAGE_LEVERAGES)})")
+    if not isinstance(rule.get("bPress"), bool):
+        err(path, f"{where}.bPress: must be true or false")
+    roles = rule.get("FreeRoles")
+    if not isinstance(roles, list) or any(role not in COVERAGE_FREE_ROLES for role in roles):
+        err(path, f"{where}.FreeRoles: must be an array of {sorted(COVERAGE_FREE_ROLES)}")
+    extra = set(rule) - COVERAGE_SHELL_FIELDS
+    if extra:
+        err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
+def validate_coverage_matchups(path, payload):
+    """FPSCoverageMatchupTuning (Data/coverage_matchups.json, Epic 69); mirrors
+    UPSCoverageMatchupSubsystem::ValidateTuning, plus its shells against the playbook and its press spot
+    against the route-running model's PressRadius."""
+    for field in COVERAGE_MATCHUP_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in COVERAGE_MATCHUP_SHARES:
+        if is_number(payload.get(field)) and payload[field] > 1:
+            err(path, f"{field}: {payload[field]} is a share or chance, at most 1")
+    for field in ("SeparationRecoverySpeed", "FieldWidth"):
+        if is_number(payload.get(field)) and payload[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    shells = payload.get("Shells")
+    names = set()
+    if not isinstance(shells, list):
+        err(path, "'Shells' must be an array")
+        shells = []
+    for idx, rule in enumerate(shells):
+        validate_coverage_shell(path, f"Shells[{idx}]", rule)
+        name = rule.get("Shell") if isinstance(rule, dict) else None
+        if isinstance(name, str):
+            if not name:
+                err(path, f"Shells[{idx}].Shell: must not be empty")
+            elif name in names:
+                err(path, f"Shells[{idx}].Shell: '{name}' is listed twice")
+            names.add(name)
+    validate_coverage_shell(path, "DefaultShell", payload.get("DefaultShell"))
+    extra = set(payload) - set(COVERAGE_MATCHUP_FIELDS) - {"Shells", "DefaultShell"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCoverageMatchupTuning exactly")
+
+    # Every coverage shell a scrimmage defense (Base, Blitz, Prevent) calls has its rule; the kicking
+    # game's returns and blocks play the default.
+    try:
+        plays = json.loads((DATA_DIR / "sample_playbook.json").read_text(encoding="utf-8")).get("Plays", [])
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        plays = []
+    for play in plays if isinstance(plays, list) else []:
+        if not isinstance(play, dict) or play.get("bIsOffensivePlay", True) or play.get("PlayCategory") not in ("Base", "Blitz", "Prevent"):
+            continue
+        shell = play.get("CoverageShell")
+        if shell and shell not in names:
+            err(path, f"Shells: no rule for '{shell}', the coverage of {play.get('PlayId')} in sample_playbook.json")
+
+    # A pressing defender must stand inside the release contest's PressRadius (Epic 68).
+    try:
+        press_radius = json.loads((DATA_DIR / "route_running.json").read_text(encoding="utf-8")).get("PressRadius")
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        press_radius = None
+    depth, shade = payload.get("PressDepth"), payload.get("PressShade")
+    if is_number(press_radius) and is_number(depth) and is_number(shade) and math.hypot(depth, shade) > press_radius:
+        err(path, f"PressDepth/PressShade: the press spot ({math.hypot(depth, shade):.0f} cm off the receiver) is outside "
+                  f"route_running.json's PressRadius ({press_radius}): a pressing defender would not contest the release")
+
+
+LOOSE_BALL_FIELDS = ("BlockedFieldGoalYards", "ChaseRadius", "RecoverRadius", "ScoopClearRadius", "SquirtDistance",
+                     "RetrySeconds", "MaxLooseSeconds", "MaxReturnSeconds")
+
+
+def validate_loose_ball(path, payload):
+    """FPSLooseBallTuning (Data/loose_ball.json, Epic 17.4); mirrors UPSLooseBallSubsystem::ValidateTuning."""
+    for field in LOOSE_BALL_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    yards = payload.get("BlockedFieldGoalYards")
+    if not isinstance(yards, int) or isinstance(yards, bool):
+        err(path, "BlockedFieldGoalYards: must be a whole number of yards")
+    for field in ("MaxLooseSeconds", "MaxReturnSeconds"):
+        if is_number(payload.get(field)) and payload[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    recover, chase = payload.get("RecoverRadius"), payload.get("ChaseRadius")
+    if is_number(recover) and is_number(chase) and recover > chase:
+        err(path, "RecoverRadius must not exceed ChaseRadius: a player close enough to take the ball must be chasing it")
+    extra = set(payload) - set(LOOSE_BALL_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSLooseBallTuning exactly")
+
+
+DECEPTION_FIELDS = ("FakeSeconds", "BiteBaseChance", "BiteRunTendencyWeight", "BiteAwarenessWeight", "BiteMinChance",
+                    "BiteMaxChance", "BiteFreezeSeconds", "TendencyWindow", "MeshRideSeconds", "ReadMinSpeed",
+                    "KeyLineDepth", "PitchReadRadius",
+                    "PitchWindowDepth", "MeshRecognizeRadius", "DisciplineAwareness", "ScrapeRadius")
+
+
+def validate_deception(path, payload):
+    """FPSDeceptionTuning (Data/deception.json, Epic 72); mirrors UPSDeceptionSubsystem::ValidateTuning."""
+    for field in DECEPTION_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("BiteBaseChance", "BiteMinChance", "BiteMaxChance"):
+        value = payload.get(field)
+        if is_number(value) and value > 1:
+            err(path, f"{field}: {value} is a chance, 0 to 1")
+    low, high = payload.get("BiteMinChance"), payload.get("BiteMaxChance")
+    if is_number(low) and is_number(high) and low > high:
+        err(path, "BiteMinChance must not exceed BiteMaxChance")
+    discipline = payload.get("DisciplineAwareness")
+    if is_number(discipline) and discipline > 100:
+        err(path, f"DisciplineAwareness: {discipline} is a rating, 0-100")
+    window = payload.get("TendencyWindow")
+    if not isinstance(window, int) or isinstance(window, bool) or window < 1:
+        err(path, f"TendencyWindow: '{window}' must be a whole number of calls, 1 or more")
+    extra = set(payload) - set(DECEPTION_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSDeceptionTuning exactly")
+
+
 TOUCH_KINDS = {"Stick", "Button", "Swipe"}
 TOUCH_DIRECTIONS = {"Left", "Right", "Up", "Down"}
 TOUCH_LAYOUT_FIELDS = {"SafeZone", "LayoutAspect", "bFloatingStick", "StickZone", "GestureZone",
@@ -3096,6 +3375,389 @@ def validate_personnel_panel(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPersonnelPanelStyle exactly")
 
 
+OPPONENT_MODEL_FIELDS = ("DistanceBuckets", "MinSamples", "PriorGameWeight", "FirstHalfStrength", "SecondHalfStrength",
+                         "HalftimeQuarter", "DefaultAdaptationDial", "MinMultiplier", "MaxMultiplier", "Counters")
+# The categories the coaching AI weights (not the clock's or special teams' calls, which the
+# situation calls for): the ones a tendency can be read in and countered with.
+WEIGHTED_OFFENSE_CATEGORIES = {"Run", "ShortPass", "DeepPass", "PlayAction", "Screen"}
+WEIGHTED_DEFENSE_CATEGORIES = {"Base", "Blitz", "Prevent"}
+
+
+def validate_opponent_model(path, payload):
+    """FPSOpponentModelTuning (Data/opponent_model.json, Epic 78); mirrors
+    PSOpponentModel::ValidateTuning."""
+    extra = set(payload) - set(OPPONENT_MODEL_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOpponentModelTuning exactly")
+    buckets = payload.get("DistanceBuckets")
+    if (not isinstance(buckets, list) or any(not isinstance(b, int) or isinstance(b, bool) or b < 1 for b in buckets)
+            or any(b <= a for a, b in zip(buckets, buckets[1:]))):
+        err(path, f"DistanceBuckets: '{buckets}' must be rising whole numbers of yards, 1 or more")
+    if not is_number(payload.get("MinSamples")) or payload["MinSamples"] < 1:
+        err(path, "MinSamples: a number, 1 or more")
+    for field in ("PriorGameWeight", "FirstHalfStrength", "SecondHalfStrength", "DefaultAdaptationDial"):
+        if not is_number(payload.get(field)) or not 0 <= payload[field] <= 1:
+            err(path, f"{field}: '{payload.get(field)}' must be a number from 0 to 1")
+    quarter = payload.get("HalftimeQuarter")
+    if not isinstance(quarter, int) or isinstance(quarter, bool) or quarter < 2:
+        err(path, f"HalftimeQuarter: '{quarter}' must be a whole number, 2 or more")
+    low, high = payload.get("MinMultiplier"), payload.get("MaxMultiplier")
+    if not is_number(low) or not 0 < low <= 1 or not is_number(high) or high < 1:
+        err(path, "MinMultiplier must be above 0 and at most 1, MaxMultiplier at least 1")
+    counters = payload.get("Counters")
+    if not isinstance(counters, list):
+        err(path, "'Counters' must be an array")
+        return
+    seen = set()
+    for idx, counter in enumerate(counters):
+        where = f"Counters[{idx}]"
+        if not isinstance(counter, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        offense = counter.get("bOffense")
+        if not isinstance(offense, bool):
+            err(path, f"{where}.bOffense: must be true or false (the human's side)")
+            continue
+        observed_set = WEIGHTED_OFFENSE_CATEGORIES if offense else WEIGHTED_DEFENSE_CATEGORIES
+        counter_set = WEIGHTED_DEFENSE_CATEGORIES if offense else WEIGHTED_OFFENSE_CATEGORIES
+        if counter.get("Observed") not in observed_set:
+            err(path, f"{where}.Observed: '{counter.get('Observed')}' must be one of {sorted(observed_set)}")
+        if counter.get("Counter") not in counter_set:
+            err(path, f"{where}.Counter: '{counter.get('Counter')}' must be one of {sorted(counter_set)} (the CPU's side)")
+        if not is_number(counter.get("Weight")):
+            err(path, f"{where}.Weight: must be a number")
+        key = (offense, counter.get("Observed"), counter.get("Counter"))
+        if key in seen:
+            err(path, f"{where}: {key[1]} -> {key[2]} is listed twice")
+        seen.add(key)
+        if set(counter) - {"bOffense", "Observed", "Counter", "Weight"}:
+            err(path, f"{where}: unknown field(s) {sorted(set(counter) - {'bOffense', 'Observed', 'Counter', 'Weight'})}")
+
+
+VERSUS_SCREENS = {"Shared", "Split"}
+VERSUS_AUDIENCES = {"Everyone", "OwnerOnly", "Nobody"}
+VERSUS_FLAGS = ("bResetControlEachDown", "bDefenseSwitchDuringPlay", "bDefensePreSnapPicks", "bPauseOnlyBetweenPlays",
+                "bResumeNeedsBoth", "bPauseOnDisconnect", "bQuitForfeits")
+VERSUS_FIELDS = {"OffenseControlRole", "DefenseControlRole", "Screen", "RouteArtAudience", "DefensiveIconsAudience",
+                 "PausesPerHalf", "ResumeCountdownSeconds"} | set(VERSUS_FLAGS)
+
+
+def validate_versus_rules(path, payload):
+    """FPSVersusRules (Data/versus_rules.json, Epic 107); mirrors UPSVersusSubsystem::ValidateRules."""
+    offense_role, defense_role = payload.get("OffenseControlRole"), payload.get("DefenseControlRole")
+    if offense_role not in OFFENSIVE_ROLES:
+        err(path, f"OffenseControlRole: '{offense_role}' must be an offensive role ({sorted(OFFENSIVE_ROLES)})")
+    if defense_role not in DEFENSIVE_ROLES:
+        err(path, f"DefenseControlRole: '{defense_role}' must be a defensive role ({sorted(DEFENSIVE_ROLES)})")
+    for flag in VERSUS_FLAGS:
+        if not isinstance(payload.get(flag), bool):
+            err(path, f"{flag}: must be true or false")
+    if payload.get("Screen") not in VERSUS_SCREENS:
+        err(path, f"Screen: '{payload.get('Screen')}' must be one of {sorted(VERSUS_SCREENS)}")
+    for field in ("RouteArtAudience", "DefensiveIconsAudience"):
+        if payload.get(field) not in VERSUS_AUDIENCES:
+            err(path, f"{field}: '{payload.get(field)}' must be one of {sorted(VERSUS_AUDIENCES)}")
+    pauses = payload.get("PausesPerHalf")
+    if not isinstance(pauses, int) or isinstance(pauses, bool) or pauses < -1:
+        err(path, f"PausesPerHalf: '{pauses}' must be a whole number, -1 (no limit) or 0 or more")
+    countdown = payload.get("ResumeCountdownSeconds")
+    if not is_number(countdown) or countdown < 0:
+        err(path, f"ResumeCountdownSeconds: '{countdown}' must be a number, 0 or more")
+    extra = set(payload) - VERSUS_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSVersusRules exactly")
+
+
+AI_DEBUG_FIELDS = {"bLogDecisions": bool, "bWritePostMortems": bool, "PostMortemDirectory": str, "MaxPostMortemFiles": int,
+                   "MaxRecordsPerPlay": int, "OverlayHeightCm": (int, float), "OverlayFontScale": (int, float)}
+DEFENSIVE_ASSIGNMENTS = {"PassRush", "Contain", "ManCoverage", "ZoneCoverage", "RunFit", "Block"}
+SCENARIO_FIELDS = {"ScenarioId", "Description", "OffenseCategory", "Down", "Distance", "StepSeconds", "Steps", "Players", "Expectations"}
+SCENARIO_PLAYER_FIELDS = {"PlayerId", "Role", "Location", "Rating", "DNA", "bHasBall", "Route", "Assignment", "CoverTarget", "ZoneOffset"}
+SCENARIO_EXPECTATION_FIELDS = {"PlayerId", "Action", "Target", "Heading", "MaxAngleDegrees"}
+
+
+def validate_ai_debug(path, payload):
+    """FPSAIDebugTuning (Data/ai_debug.json, Epic 85)."""
+    for field, ftype in AI_DEBUG_FIELDS.items():
+        value = payload.get(field)
+        if field not in payload or (ftype is int and isinstance(value, bool)) or not isinstance(value, ftype):
+            err(path, f"{field}: '{value}' has the wrong type")
+    for field in ("MaxPostMortemFiles", "MaxRecordsPerPlay", "OverlayFontScale"):
+        if is_number(payload.get(field)) and payload[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    directory = payload.get("PostMortemDirectory")
+    if isinstance(directory, str) and (not directory.strip() or ".." in directory or directory.startswith(("/", "\\"))):
+        err(path, "PostMortemDirectory: a folder under Saved/, without '..'")
+    extra = set(payload) - set(AI_DEBUG_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSAIDebugTuning exactly")
+
+
+def is_vector(value):
+    return isinstance(value, dict) and set(value) <= {"X", "Y", "Z"} and all(is_number(v) for v in value.values())
+
+
+def validate_ai_scenarios(path, payload, dna_catalog):
+    """FPSAIScenarioCatalog (Data/ai_scenarios.json, Epic 85); mirrors
+    UPSAIScenarioRunner::ValidateScenario."""
+    scenarios = payload.get("Scenarios")
+    if not isinstance(scenarios, list) or not scenarios:
+        err(path, "'Scenarios' must be a non-empty array")
+        return
+    ids = set()
+    for idx, scenario in enumerate(scenarios):
+        where = f"Scenarios[{idx}]"
+        if not isinstance(scenario, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        sid = scenario.get("ScenarioId")
+        if not isinstance(sid, str) or not sid or sid in ids:
+            err(path, f"{where}.ScenarioId: '{sid}' must be a unique, non-empty name")
+        ids.add(sid)
+        where = f"Scenarios[{idx}] '{sid}'"
+        if set(scenario) - SCENARIO_FIELDS:
+            err(path, f"{where}: unknown field(s) {sorted(set(scenario) - SCENARIO_FIELDS)}")
+        if scenario.get("OffenseCategory", "ShortPass") not in content_contracts.OFFENSE_CATEGORIES:
+            err(path, f"{where}.OffenseCategory: '{scenario.get('OffenseCategory')}' is not an offensive play category")
+        step_seconds = scenario.get("StepSeconds", 0.1)
+        if not is_number(step_seconds) or step_seconds <= 0:
+            err(path, f"{where}.StepSeconds: must be above 0")
+        steps = scenario.get("Steps", 1)
+        if not isinstance(steps, int) or isinstance(steps, bool) or steps < 1:
+            err(path, f"{where}.Steps: a whole number, 1 or more")
+        players = scenario.get("Players") if isinstance(scenario.get("Players"), list) else []
+        if not players:
+            err(path, f"{where}.Players: must place at least one player")
+        names = set()
+        for pidx, player in enumerate(players):
+            pwhere = f"{where}.Players[{pidx}]"
+            if not isinstance(player, dict):
+                err(path, f"{pwhere}: must be an object")
+                continue
+            if set(player) - SCENARIO_PLAYER_FIELDS:
+                err(path, f"{pwhere}: unknown field(s) {sorted(set(player) - SCENARIO_PLAYER_FIELDS)}")
+            pid = player.get("PlayerId")
+            if not isinstance(pid, str) or not pid or pid in names:
+                err(path, f"{pwhere}.PlayerId: '{pid}' must be a unique, non-empty name")
+            names.add(pid)
+            if player.get("Role") not in PLAYER_ROLES:
+                err(path, f"{pwhere}.Role: '{player.get('Role')}' is not an EPlayerRole")
+            if not is_vector(player.get("Location")):
+                err(path, f"{pwhere}.Location: must be an X/Y/Z object")
+            if "Rating" in player and (not is_number(player["Rating"]) or not 0 <= player["Rating"] <= 100):
+                err(path, f"{pwhere}.Rating: ratings run 0-100")
+            if "DNA" in player:
+                validate_player_dna(path, pwhere, player, dna_catalog)
+            if "Assignment" in player and player["Assignment"] not in DEFENSIVE_ASSIGNMENTS:
+                err(path, f"{pwhere}.Assignment: '{player['Assignment']}' must be one of {sorted(DEFENSIVE_ASSIGNMENTS)}")
+            if "Route" in player and (not isinstance(player["Route"], list) or not all(is_vector(v) for v in player["Route"])):
+                err(path, f"{pwhere}.Route: must be a list of X/Y/Z offsets")
+            if "ZoneOffset" in player and not is_vector(player["ZoneOffset"]):
+                err(path, f"{pwhere}.ZoneOffset: must be an X/Y/Z object")
+        for pidx, player in enumerate(players):
+            if isinstance(player, dict) and "CoverTarget" in player and player["CoverTarget"] not in names:
+                err(path, f"{where}.Players[{pidx}].CoverTarget: '{player['CoverTarget']}' isn't a player in the scenario")
+        expectations = scenario.get("Expectations") if isinstance(scenario.get("Expectations"), list) else []
+        if not expectations:
+            err(path, f"{where}.Expectations: must expect something")
+        for eidx, expectation in enumerate(expectations):
+            ewhere = f"{where}.Expectations[{eidx}]"
+            if not isinstance(expectation, dict):
+                err(path, f"{ewhere}: must be an object")
+                continue
+            if set(expectation) - SCENARIO_EXPECTATION_FIELDS:
+                err(path, f"{ewhere}: unknown field(s) {sorted(set(expectation) - SCENARIO_EXPECTATION_FIELDS)}")
+            if expectation.get("PlayerId") not in names:
+                err(path, f"{ewhere}.PlayerId: '{expectation.get('PlayerId')}' isn't a player in the scenario")
+            if not isinstance(expectation.get("Action"), str) or not expectation.get("Action"):
+                err(path, f"{ewhere}.Action: must name the decision expected")
+            if "Heading" in expectation and not is_vector(expectation["Heading"]):
+                err(path, f"{ewhere}.Heading: must be an X/Y/Z object")
+
+
+ECONOMY_FIELDS = {
+    "StadiumCapacity": int, "BaseTicketPrice": float, "MinTicketPrice": float, "MaxTicketPrice": float,
+    "BaseFillRate": float, "WinFillWeight": float, "SatisfactionFillWeight": float, "PriceElasticity": float,
+    "MinFillRate": float, "ConcessionsPerFan": float, "MediaRevenuePerTeam": int, "StartingSatisfaction": float,
+    "WinSatisfactionGain": float, "LossSatisfactionLoss": float, "PriceSatisfactionLoss": float,
+    "WinningSeasonSatisfactionGain": float, "LosingSeasonSatisfactionLoss": float,
+    "RelocationSatisfactionThreshold": float, "RelocationLosingSeasons": int, "MaxBudgetFraction": float,
+}
+ECONOMY_FRACTIONS = {
+    "BaseFillRate", "MinFillRate", "StartingSatisfaction", "WinSatisfactionGain", "LossSatisfactionLoss",
+    "PriceSatisfactionLoss", "WinningSeasonSatisfactionGain", "LosingSeasonSatisfactionLoss",
+    "RelocationSatisfactionThreshold", "MaxBudgetFraction",
+}
+BUDGET_FIELDS = ("ScoutingFraction", "TrainingFraction", "StaffFraction")
+
+
+def validate_owner_economics(path, payload):
+    """FPSEconomyTuning (Data/owner_economics.json, Epic 95); mirrors UPSOwnerEconomy::ValidateTuning."""
+    for field, ftype in ECONOMY_FIELDS.items():
+        value = payload.get(field)
+        if ftype is int:
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+        elif not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+        elif field in ECONOMY_FRACTIONS and value > 1:
+            err(path, f"{field}: a fraction, at most 1")
+    extra = set(payload) - set(ECONOMY_FIELDS) - {"DefaultBudget"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSEconomyTuning exactly")
+
+    def num(field):
+        value = payload.get(field)
+        return value if is_number(value) else None
+
+    for field in ("StadiumCapacity", "MinTicketPrice", "RelocationLosingSeasons"):
+        if num(field) == 0:
+            err(path, f"{field}: must be above 0")
+    for low, high in (("MinTicketPrice", "BaseTicketPrice"), ("BaseTicketPrice", "MaxTicketPrice"), ("MinFillRate", "BaseFillRate")):
+        if num(low) is not None and num(high) is not None and num(low) > num(high):
+            err(path, f"{low} must not exceed {high}")
+
+    budget = payload.get("DefaultBudget")
+    if not isinstance(budget, dict):
+        err(path, "'DefaultBudget' must be an object of ScoutingFraction, TrainingFraction, StaffFraction")
+        return
+    total = 0
+    for field in BUDGET_FIELDS:
+        value = budget.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"DefaultBudget.{field}: '{value}' must be a number, 0 or more")
+        else:
+            total += value
+    extra = set(budget) - set(BUDGET_FIELDS)
+    if extra:
+        err(path, f"DefaultBudget: unknown field(s) {sorted(extra)} - names must match FPSTeamBudget exactly")
+    if num("MaxBudgetFraction") is not None and total > num("MaxBudgetFraction") + 1e-6:
+        err(path, f"DefaultBudget: its shares total {total:g}, over MaxBudgetFraction")
+
+
+GAP_OVERLAY_COLORS = ("FilledColor", "BlockedColor", "OpenColor", "UnownedColor")
+GAP_OVERLAY_FLAGS = ("bEnabledByDefault", "bEmphasizeOpenOwners", "bDrawDebug")
+
+
+def validate_gap_overlay(path, payload):
+    """FPSGapOverlayStyle (Data/gap_overlay.json, Epic 81); mirrors
+    UPSDefenderGapOverlaySubsystem::ValidateStyle."""
+    refresh = payload.get("RefreshSeconds")
+    if not is_number(refresh) or refresh <= 0:
+        err(path, f"RefreshSeconds: '{refresh}' must be a number above 0")
+    height, radius = payload.get("MarkerHeight"), payload.get("MarkerRadius")
+    if not is_number(height) or height < 0:
+        err(path, f"MarkerHeight: '{height}' must be a number, 0 or more")
+    if not is_number(radius) or radius <= 0:
+        err(path, f"MarkerRadius: '{radius}' must be a number above 0")
+    for field in GAP_OVERLAY_COLORS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not HEX_COLOR.match(value):
+            err(path, f"{field}: '{value}' must be #RRGGBB")
+    for field in GAP_OVERLAY_FLAGS:
+        if not isinstance(payload.get(field), bool):
+            err(path, f"{field}: must be true or false")
+    if payload.get("OpenOwnerEmphasis") not in EMPHASIS_KINDS:
+        err(path, f"OpenOwnerEmphasis: '{payload.get('OpenOwnerEmphasis')}' must be one of {list(EMPHASIS_KINDS)}")
+    extra = set(payload) - set(GAP_OVERLAY_COLORS) - set(GAP_OVERLAY_FLAGS) \
+        - {"RefreshSeconds", "MarkerHeight", "MarkerRadius", "OpenOwnerEmphasis"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSGapOverlayStyle exactly")
+
+
+MORALE_FLOAT_FIELDS = {
+    "StarterBonus", "BackupPenalty", "BetterThanStarterPenalty", "TeamSuccessWeight", "UnderpaidRatio",
+    "UnderpaidPenalty", "WellPaidBonus", "ContractYearPenalty", "LeaderBoost", "MoraleInertia",
+    "PerformanceSwing", "TradeRequestMorale", "StarRating", "HoldoutPayRatio", "HoldoutMorale",
+    "LeaderAwareness", "LeaderWinPercentage", "LeaderMorale",
+}
+MORALE_INT_FIELDS = {"MaxLeaders", "TradeRequestWeeks"}
+MORALE_FRACTIONS = {
+    "UnderpaidRatio", "TradeRequestMorale", "HoldoutPayRatio", "HoldoutMorale", "LeaderWinPercentage",
+    "LeaderMorale",
+}
+MORALE_UNIT_FIELDS = {"Unit", "Role", "FullCohesionGames", "MaxBonus"}
+
+
+def validate_morale(path, payload):
+    """FPSMoraleTuning (Data/morale.json, Epic 91); mirrors UPSLockerRoom::ValidateTuning."""
+    for field in sorted(MORALE_FLOAT_FIELDS):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+        elif field in MORALE_FRACTIONS and value > 1:
+            err(path, f"{field}: a fraction, at most 1")
+    for field in sorted(MORALE_INT_FIELDS):
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    if payload.get("TradeRequestWeeks") == 0:
+        err(path, "TradeRequestWeeks: must be at least 1")
+    for field in ("MoraleInertia", "PerformanceSwing"):
+        if is_number(payload.get(field)) and payload[field] >= 1:
+            err(path, f"{field}: must be below 1")
+    for field in ("StarRating", "LeaderAwareness"):
+        if is_number(payload.get(field)) and payload[field] > 100:
+            err(path, f"{field}: ratings run 0-100")
+    extra = set(payload) - MORALE_FLOAT_FIELDS - MORALE_INT_FIELDS - {"Units"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSMoraleTuning exactly")
+
+    units = payload.get("Units")
+    if not isinstance(units, list):
+        err(path, "'Units' must be an array")
+        return
+    seen = set()
+    for idx, unit in enumerate(units):
+        where = f"Units[{idx}]"
+        if not isinstance(unit, dict):
+            err(path, f"{where}: not an object")
+            continue
+        name = unit.get("Unit")
+        if not isinstance(name, str) or not name or name in seen:
+            err(path, f"{where}.Unit: empty or duplicate '{name}'")
+        seen.add(name)
+        if unit.get("Role") not in PLAYER_ROLES:
+            err(path, f"{where}.Role: '{unit.get('Role')}' is not a valid EPlayerRole")
+        games = unit.get("FullCohesionGames")
+        if isinstance(games, bool) or not isinstance(games, int) or games < 1:
+            err(path, f"{where}.FullCohesionGames: '{games}' must be a whole number, 1 or more")
+        bonus = unit.get("MaxBonus")
+        if not is_number(bonus) or not 0 <= bonus < 1:
+            err(path, f"{where}.MaxBonus: '{bonus}' must be a number in [0, 1)")
+        extra = set(unit) - MORALE_UNIT_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSChemistryUnit exactly")
+
+
+PERF_HARNESS_POSITIVE = ("FrameSeconds", "HistogramBucketMs", "HardFailMultiplier")
+PERF_HARNESS_NON_NEGATIVE = ("RegressionTolerance", "MinRegressionMs")
+PERF_HARNESS_COUNTS = {"WarmupFrames": 0, "PassFrames": 1, "PursuitFrames": 1, "PreSnapFrames": 0,
+                       "HistogramBucketCount": 1, "MaxBusEventsPerPlay": 1, "TrendWindow": 1}
+
+
+def validate_perf_harness(path, payload):
+    """FPSPerfHarnessTuning (Data/perf_harness.json, Epic 114); mirrors
+    UPSPerfHarness::ValidateTuning."""
+    for field in PERF_HARNESS_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in PERF_HARNESS_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field, floor in PERF_HARNESS_COUNTS.items():
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < floor:
+            err(path, f"{field}: '{value}' must be a whole number, {floor} or more")
+    if is_number(payload.get("HardFailMultiplier")) and payload["HardFailMultiplier"] < 1:
+        err(path, "HardFailMultiplier: must be 1 or more (it multiplies the budget)")
+    extra = set(payload) - set(PERF_HARNESS_POSITIVE) - set(PERF_HARNESS_NON_NEGATIVE) - set(PERF_HARNESS_COUNTS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPerfHarnessTuning exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -3104,6 +3766,94 @@ def load_input_catalog():
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return None
     return catalog if isinstance(catalog, dict) else None
+
+
+DIFFICULTY_FIELDS = ("DifficultyTiers", "DifficultySetting", "PassLeadSetting", "AutoSlideSetting",
+                     "SuggestedPlaySetting", "SuggestedPlayAccent")
+DIFFICULTY_TIER_FIELDS = {"TierId", "Label", "AdaptationDial", "ThrowScatterScale", "Scales"}
+DIFFICULTY_SCALE_FIELDS = {"Dial", "Target", "Field", "Scale"}
+
+
+def validate_difficulty(path, payload):
+    """FPSDifficultyCatalog (Data/difficulty.json, Epic 84); mirrors PSDifficulty::ValidateCatalog,
+    plus the settings it names in ui_settings.json."""
+    extra = set(payload) - set(DIFFICULTY_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSDifficultyCatalog exactly")
+    target_fields = {}
+    for target, filename in DNA_BINDING_TARGETS.items():
+        try:
+            tuning = json.loads((DATA_DIR / filename).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        if isinstance(tuning, dict):
+            target_fields[target] = {k for k, v in tuning.items() if is_number(v)}
+    tiers = payload.get("DifficultyTiers")
+    if not isinstance(tiers, list) or not tiers:
+        err(path, "'DifficultyTiers' must be a non-empty array")
+        tiers = []
+    ids, labels = set(), []
+    for idx, tier in enumerate(tiers):
+        where = f"DifficultyTiers[{idx}]"
+        if not isinstance(tier, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        tier_id, label = tier.get("TierId"), tier.get("Label")
+        if not isinstance(tier_id, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*", tier_id) or tier_id in ids:
+            err(path, f"{where}.TierId: '{tier_id}' must be an identifier used once")
+        ids.add(tier_id)
+        if not isinstance(label, str) or not label.strip():
+            err(path, f"{where}.Label: must be a non-empty string")
+        labels.append(label)
+        dial = tier.get("AdaptationDial")
+        if not is_number(dial) or not 0 <= dial <= 1:
+            err(path, f"{where}.AdaptationDial: '{dial}' must be a number from 0 to 1")
+        scatter = tier.get("ThrowScatterScale")
+        if not is_number(scatter) or scatter <= 0:
+            err(path, f"{where}.ThrowScatterScale: '{scatter}' must be a multiplier above 0")
+        scaled = set()
+        scales = tier.get("Scales")
+        if not isinstance(scales, list):
+            err(path, f"{where}.Scales: must be an array")
+            scales = []
+        for sidx, scale in enumerate(scales):
+            swhere = f"{where}.Scales[{sidx}]"
+            if not isinstance(scale, dict):
+                err(path, f"{swhere}: must be an object")
+                continue
+            target, field = scale.get("Target"), scale.get("Field")
+            if not isinstance(scale.get("Dial"), str) or not scale["Dial"].strip():
+                err(path, f"{swhere}.Dial: must name the capability it turns")
+            if target not in DNA_BINDING_TARGETS:
+                err(path, f"{swhere}.Target: '{target}' must be one of {sorted(DNA_BINDING_TARGETS)} (an AI tuning, never a rating)")
+            elif target in target_fields and field not in target_fields[target]:
+                err(path, f"{swhere}.Field: '{field}' is not a number in {DNA_BINDING_TARGETS[target]}")
+            if (target, field) in scaled:
+                err(path, f"{swhere}: {target}.{field} is scaled twice")
+            scaled.add((target, field))
+            if not is_number(scale.get("Scale")) or scale["Scale"] <= 0:
+                err(path, f"{swhere}.Scale: '{scale.get('Scale')}' must be a multiplier above 0")
+            if set(scale) - DIFFICULTY_SCALE_FIELDS:
+                err(path, f"{swhere}: unknown field(s) {sorted(set(scale) - DIFFICULTY_SCALE_FIELDS)}")
+        if set(tier) - DIFFICULTY_TIER_FIELDS:
+            err(path, f"{where}: unknown field(s) {sorted(set(tier) - DIFFICULTY_TIER_FIELDS)}")
+    accent = payload.get("SuggestedPlayAccent")
+    if not isinstance(accent, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", accent):
+        err(path, f"SuggestedPlayAccent: '{accent}' must be \"#RRGGBB\"")
+    try:
+        settings = json.loads((DATA_DIR / "ui_settings.json").read_text(encoding="utf-8"))
+        rows = {s.get("SettingId"): s for s in settings.get("Settings", []) if isinstance(s, dict)}
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return
+    difficulty = rows.get(payload.get("DifficultySetting"))
+    if not difficulty or difficulty.get("Kind") != "Choice":
+        err(path, f"DifficultySetting: '{payload.get('DifficultySetting')}' must be a Choice setting in ui_settings.json")
+    elif difficulty.get("Choices") != labels:
+        err(path, f"DifficultySetting: ui_settings.json's choices {difficulty.get('Choices')} must be the tiers' labels in order {labels}")
+    for field in ("PassLeadSetting", "AutoSlideSetting", "SuggestedPlaySetting"):
+        row = rows.get(payload.get(field))
+        if not row or row.get("Kind", "Toggle") != "Toggle":
+            err(path, f"{field}: '{payload.get(field)}' must be a Toggle setting in ui_settings.json")
 
 
 def main():
@@ -3211,6 +3961,12 @@ def main():
             validate_skycam(path, payload)
         if isinstance(payload, dict) and "Packages" in payload and "DefaultOffensePackage" in payload:
             validate_personnel_catalog(path, payload)
+        if isinstance(payload, dict) and "LeverageShade" in payload:
+            validate_coverage_matchups(path, payload)
+        if isinstance(payload, dict) and "ScoopClearRadius" in payload:
+            validate_loose_ball(path, payload)
+        if isinstance(payload, dict) and "MeshRecognizeRadius" in payload:
+            validate_deception(path, payload)
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "Axes" in payload and "Bindings" in payload:
@@ -3221,6 +3977,28 @@ def main():
             validate_defensive_presnap(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "PlaybackRates" in payload:
             validate_replay_tuning(path, payload, load_all22_rig_ids())
+        if isinstance(payload, dict) and "Counters" in payload and "MinSamples" in payload:
+            validate_opponent_model(path, payload)
+        if isinstance(payload, dict) and "PausesPerHalf" in payload:
+            validate_versus_rules(path, payload)
+        if isinstance(payload, dict) and "bLogDecisions" in payload:
+            validate_ai_debug(path, payload)
+        if isinstance(payload, dict) and "Scenarios" in payload:
+            validate_ai_scenarios(path, payload, load_dna_catalog())
+        if isinstance(payload, dict) and "StadiumCapacity" in payload:
+            validate_owner_economics(path, payload)
+        if isinstance(payload, dict) and "UnownedColor" in payload:
+            validate_gap_overlay(path, payload)
+        if isinstance(payload, dict) and "TradeRequestWeeks" in payload:
+            validate_morale(path, payload)
+        if isinstance(payload, dict) and "ReelSize" in payload:
+            validate_highlights(path, payload)
+        if isinstance(payload, dict) and "PlayerPickRadius" in payload:
+            validate_telestrator(path, payload)
+        if isinstance(payload, dict) and "DifficultyTiers" in payload:
+            validate_difficulty(path, payload)
+        if isinstance(payload, dict) and "HardFailMultiplier" in payload:
+            validate_perf_harness(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

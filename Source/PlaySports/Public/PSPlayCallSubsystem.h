@@ -26,7 +26,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSHumanCallNeededMC, bool /* bOffense */);
  *  - The playbook (Data/sample_playbook.json, routes in Data/sample_routes.json) loads
  *    through UPSPlaybookIngestion.
  *  - APSGameMode opens a call window at every scrimmage down (OpenPlayCall) and snaps when
- *    PollReadyToSnap says so. A side no human controls is called by UPSCoachingAI; a side a
+ *    PollReadyToSnap says so. A side no human controls is called by UPSCoachingAI -- against a
+ *    human, with UPSOpponentModel's counters to what it has seen him call (Epic 78); a side a
  *    human controls waits for that player's call (the play-call screens, UPSPlayCallComponent).
  *    A CPU offense snaps CpuSnapDelaySeconds after both calls are in; a human offense snaps
  *    when its player hikes (RequestSnap).
@@ -42,6 +43,12 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSHumanCallNeededMC, bool /* bOffense */);
  * sideline intent. When a window opens, a CPU side that needs to stop a running clock calls
  * a timeout (Timeout on the bus; the simulation charges it); a human side asks with
  * RequestTimeout.
+ *
+ * Head-to-head (Epic 107): with humans on both sides, each side waits for its own player's
+ * call, the offense hikes only once both are in, and nothing here shows a side the other's
+ * call. The recent list, the tendency readout and a hurry-up rerun then use only the calling
+ * team's own history, so one player never sees (or reruns) the other's plays after the ball
+ * changes hands.
  *
  * Scheme identity (Epic 89): each team can carry a plan (FPSTeamPlan, built by UPSStaffManager
  * from its coaching staff). The team on each side calls only the plays its playbook keeps, and
@@ -99,8 +106,9 @@ public:
     /** The route library plays resolve against. */
     const UDataTable* GetRouteLibrary();
 
-    /** Menu options for the play-call screens (Epic 101's screen stack): one per formation,
-     *  opening PlaysScreenId with the formation as payload ... */
+    /** Menu options for the play-call screens (Epic 101's screen stack), the suggested play and
+     *  its formation highlighted while that assist is on (Epic 84): one per formation, opening
+     *  PlaysScreenId with the formation as payload ... */
     TArray<FPSMenuOptionDef> BuildFormationOptions(bool bOffense, FName PlaysScreenId);
 
     /** ... and one per play in Formation, calling it. */
@@ -140,11 +148,19 @@ public:
     /** The coaching AI, which holds the situational read (UPSSituationAI). */
     UPSCoachingAI* GetCoachingAI() const { return CoachingAI; }
 
-    /** Distinct plays the human called and ran for the side, most recent first. */
+    /** Distinct plays the human called and ran for the side, most recent first. Head to head,
+     *  only the calling team's own. */
     TArray<FName> GetRecentCalls(bool bOffense, int32 MaxCount) const;
 
-    /** "Your calls: Run 67% / Short pass 33%" over the side's history; empty without one. */
+    /** "Your calls: Run 67% / Short pass 33%" over the side's history (head to head, the
+     *  calling team's own); empty without one. */
     FString DescribeTendencies(bool bOffense) const;
+
+    /** True while humans control pawns on both sides: a local head-to-head game (Epic 107). */
+    bool IsHeadToHead() const { return IsHumanSide(true) && IsHumanSide(false); }
+
+    /** Whether the team calling for a side at this down is the home team. */
+    bool IsHomeTeamCalling(bool bOffense) const { return bOffense == Situation.bHomeHasPossession; }
 
     const TArray<FPSPlayCallRecord>& GetCallHistory() const { return CallHistory; }
 
@@ -221,7 +237,8 @@ public:
     bool IsWaitingForHuman(bool bOffense) const;
 
     /** The human offense hikes. False unless the window is open and a human made the
-     *  offense's call. */
+     *  offense's call; head to head, also while the defending player has yet to call (the hike
+     *  is refused, not held, so the defense always gets to line up). */
     bool RequestSnap();
 
     /** Called every pre-snap tick by the game mode: fills CPU calls for sides no human
@@ -244,6 +261,10 @@ private:
     void SaveFavorites();
     UPSSaveSubsystem* GetSaveSubsystem() const;
     FPSMenuOptionDef MakePlayOption(const FPSPlayDefinition& Play, const FString& Label);
+
+    /** The suggested-play assist (Epic 84): while it is on, the coaching AI's top play for the
+     *  side, and its formation, get the highlight among Options. */
+    void HighlightSuggestion(bool bOffense, TArray<FPSMenuOptionDef>& Options);
     void CallForCpu(bool bOffense);
     /** A human offense in a rerun tempo calls its last play again; true when it did. */
     bool RerunLastHumanCall();
@@ -251,6 +272,9 @@ private:
     void SetCall(const FPSPlayDefinition& Play, EPSPlayCaller Caller);
     void Distribute(const FVector& LineOfScrimmage);
     APSPlayerPawn* FindPawnByPlayerId(FName PlayerId) const;
+    /** Whether Record belongs in the side's history as it is shown now: the same side and,
+     *  head to head, the calling team's. */
+    bool IsOwnRecord(const FPSPlayCallRecord& Record, bool bOffense) const;
 
     UPROPERTY(Transient)
     UDataTable* PlaysTable;

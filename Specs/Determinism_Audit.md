@@ -149,3 +149,30 @@ One JSON document per recorded play: `FPSReplayRecording = Header + InitialState
    the current version.
 4. Documents with a version **newer** than the reader are rejected, never guessed at.
 5. Enums are serialized by name; unknown `EventType` strings are skipped by players, not fatal.
+
+## Record/playback round trip (story 4)
+
+`UPSReplayRecorder` is the recorder D1 asks for: it copies every event off a `UPSTelemetryBus`
+as it is published (so a run longer than the bus's 100-event history is recorded whole), stamps
+each with the driving step's integer tick (R5 at the recorder, not the bus), and writes the event
+type by name. It starts from a `MakeRecording` header and initial state.
+
+`UPSQuickSimRunner` uses it for the one simulation that is Mode 2 today, the quick sim:
+
+- `RecordGame` plays the game `SimulateGame` would, with the global stream seeded (A1 is still
+  open, so the seed is the global stream's, as in the Epic 24 harness), and records the
+  `GameState` events the simulation publishes. The header carries the seed and the step.
+- `ReplayGame` re-simulates a loaded recording from what it holds alone (rosters, initial state,
+  seed, step) and records the rerun the same way. It refuses, with the reason, a recording with
+  no seed or no fixed step (Mode 1 only), one that starts mid-game (the simulation has no way to
+  be put into an arbitrary `FPlayState`), and a world with a game mode (a live game: the run
+  would publish on its bus and reset its pawns).
+
+`PlaySports.Replay.RoundTrip.*` records whole games, saves them to JSON, loads them and plays
+them back: `UPSDeterminism::FindFirstDivergence` finds no difference, event for event, and the
+final score matches the unrecorded quick sim's for the same seed. A recording edited after the
+fact, or played back with a changed roster, is reported at its first differing event, by index,
+tick and field.
+
+The live, physical game is still not re-simulable (findings B1 to B5 stand). Its replay is state
+playback of Epic 26's snapshots (Epic 41), not re-simulation.

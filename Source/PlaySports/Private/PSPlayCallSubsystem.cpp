@@ -1,7 +1,10 @@
 #include "PSPlayCallSubsystem.h"
+#include "PSAIDecisionLog.h"
+#include "PSOpponentModel.h"
 #include "PSCoachingAI.h"
 #include "PSDataIngestion.h"
 #include "PSLocalization.h"
+#include "PSDifficultySubsystem.h"
 #include "PSPlaybookIngestion.h"
 #include "PSPlayOrchestrator.h"
 #include "PSPlayerPawn.h"
@@ -308,6 +311,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildFormationOptions(bool bOffen
         Option.Payload = FName(*Formation);
         Options.Add(Option);
     }
+    HighlightSuggestion(bOffense, Options);
     return Options;
 }
 
@@ -326,6 +330,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildPlayOptions(const FString& F
             ? UPSLocalization::Format(TEXT("PlayCall.PlayWithCategory"), Arguments).ToString()
             : UPSLocalization::Format(TEXT("PlayCall.PlayWithDefense"), Arguments).ToString()));
     }
+    HighlightSuggestion(bOffense, Options);
     return Options;
 }
 
@@ -341,6 +346,32 @@ FPSMenuOptionDef UPSPlayCallSubsystem::MakePlayOption(const FPSPlayDefinition& P
     Option.Command = EPSMenuCommand::CallPlay;
     Option.Payload = Play.PlayId;
     return Option;
+}
+
+void UPSPlayCallSubsystem::HighlightSuggestion(bool bOffense, TArray<FPSMenuOptionDef>& Options)
+{
+    UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld());
+    if (Options.Num() == 0 || !Difficulty || !Difficulty->IsSuggestedPlayHighlightOn())
+    {
+        return;
+    }
+    const TArray<FPSPlaySuggestion> Ranked = RankPlays(bOffense);
+    FPSPlayDefinition Suggested;
+    if (Ranked.Num() == 0 || !FindPlay(Ranked[0].PlayId, Suggested))
+    {
+        return;
+    }
+    const FLinearColor Accent = Difficulty->GetSuggestedPlayAccent();
+    const FName Formation(*Suggested.Formation);
+    for (FPSMenuOptionDef& Option : Options)
+    {
+        const bool bCallsIt = Option.Command == EPSMenuCommand::CallPlay && Option.Payload == Suggested.PlayId;
+        const bool bItsFormation = Option.Command != EPSMenuCommand::CallPlay && Option.Payload == Formation;
+        if (bCallsIt || bItsFormation)
+        {
+            Option.AccentColor = Accent;
+        }
+    }
 }
 
 TArray<FPSPlaySuggestion> UPSPlayCallSubsystem::RankPlays(bool bOffense)
@@ -393,6 +424,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildRecentOptions(bool bOffense)
         }
         Options.Add(MakePlayOption(Play, PSPlayCallPrivate::PlayWithFormation(Play)));
     }
+    HighlightSuggestion(bOffense, Options);
     return Options;
 }
 
@@ -407,6 +439,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildFavoriteOptions(bool bOffens
             Options.Add(MakePlayOption(Play, PSPlayCallPrivate::PlayWithFormation(Play)));
         }
     }
+    HighlightSuggestion(bOffense, Options);
     return Options;
 }
 
@@ -706,12 +739,21 @@ TArray<FName> UPSPlayCallSubsystem::GetRecentCalls(bool bOffense, int32 MaxCount
     TArray<FName> Recent;
     for (int32 Index = CallHistory.Num() - 1; Index >= 0 && Recent.Num() < MaxCount; --Index)
     {
-        if (CallHistory[Index].bOffense == bOffense)
+        if (IsOwnRecord(CallHistory[Index], bOffense))
         {
             Recent.AddUnique(CallHistory[Index].PlayId);
         }
     }
     return Recent;
+}
+
+bool UPSPlayCallSubsystem::IsOwnRecord(const FPSPlayCallRecord& Record, bool bOffense) const
+{
+    if (Record.bOffense != bOffense)
+    {
+        return false;
+    }
+    return !IsHeadToHead() || Record.bHomeTeam == IsHomeTeamCalling(bOffense);
 }
 
 FString UPSPlayCallSubsystem::DescribeTendencies(bool bOffense) const
@@ -721,7 +763,7 @@ FString UPSPlayCallSubsystem::DescribeTendencies(bool bOffense) const
     int32 Total = 0;
     for (const FPSPlayCallRecord& Record : CallHistory)
     {
-        if (Record.bOffense != bOffense)
+        if (!IsOwnRecord(Record, bOffense))
         {
             continue;
         }
@@ -835,7 +877,7 @@ bool UPSPlayCallSubsystem::RerunLastHumanCall()
     {
         const FPSPlayCallRecord& Record = CallHistory[Index];
         FPSPlayDefinition Play;
-        if (Record.bOffense && PSSituation::ClockPlayFromCategory(Record.PlayCategory) == EPSClockPlay::None && FindPlay(Record.PlayId, Play))
+        if (IsOwnRecord(Record, true) && PSSituation::ClockPlayFromCategory(Record.PlayCategory) == EPSClockPlay::None && FindPlay(Record.PlayId, Play))
         {
             SetCall(Play, EPSPlayCaller::Human);
             return true;
@@ -961,11 +1003,42 @@ void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
     }
 
     const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
-    const FPSTendencyProfile& Tendency = bOffense ? Plan.OffenseTendency : Plan.DefenseTendency;
+    FPSTendencyProfile Tendency = bOffense ? Plan.OffenseTendency : Plan.DefenseTendency;
+    // Against a human, the CPU counters what it has seen him call (Epic 78).
+    UPSOpponentModel* Opponent = GetWorld() ? GetWorld()->GetSubsystem<UPSOpponentModel>() : nullptr;
+    if (Opponent && IsHumanSide(!bOffense))
+    {
+        Tendency = Opponent->CounterTendency(bOffense, Situation, Tendency);
+    }
     const FName Chosen = bOffense
         ? CoachingAI->SelectOffensivePlay(Situation, Tendency, Candidates)
         : CoachingAI->SelectDefensivePlay(Situation, Tendency, Candidates);
     const FPSPlayDefinition* Play = Candidates.FindByPredicate([Chosen](const FPSPlayDefinition& Candidate) { return Candidate.PlayId == Chosen; });
+
+    // The decision log (Epic 85): every play weighed, the pick and its reasons.
+    UPSAIDecisionLog* DecisionLog = UPSAIDecisionLog::Get(GetWorld());
+    if (DecisionLog && DecisionLog->IsLogging())
+    {
+        FPSAIDecisionRecord Decision;
+        Decision.AgentId = bOffense ? TEXT("CPUOffense") : TEXT("CPUDefense");
+        Decision.System = TEXT("PlayCall");
+        Decision.Action = (Play ? Play->PlayId : Candidates[0].PlayId).ToString();
+        for (const FPSPlaySuggestion& Suggestion : CoachingAI->RankPlays(Situation, Tendency, Candidates, bOffense))
+        {
+            FPSAIDecisionOption Option;
+            Option.Option = Suggestion.PlayId.ToString();
+            Option.Score = Suggestion.Weight;
+            Option.Note = Suggestion.Category;
+            Option.bChosen = Option.Option == Decision.Action;
+            if (Option.bChosen)
+            {
+                Decision.Target = Suggestion.Category;
+                Decision.Reason = Suggestion.Reasons.Num() > 0 ? FString::Join(Suggestion.Reasons, TEXT("; ")) : FString(TEXT("A weighted pick from the playbook"));
+            }
+            Decision.Options.Add(Option);
+        }
+        DecisionLog->Record(Decision);
+    }
     SetCall(Play ? *Play : Candidates[0], EPSPlayCaller::CPU);
 }
 
@@ -999,7 +1072,7 @@ bool UPSPlayCallSubsystem::IsWaitingForHuman(bool bOffense) const
 
 bool UPSPlayCallSubsystem::RequestSnap()
 {
-    if (!bWindowOpen || OffenseCall.Caller != EPSPlayCaller::Human)
+    if (!bWindowOpen || OffenseCall.Caller != EPSPlayCaller::Human || IsWaitingForHuman(false))
     {
         return false;
     }
@@ -1069,6 +1142,7 @@ void UPSPlayCallSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
             Record.PlayId = Ran.PlayId;
             Record.PlayCategory = Ran.PlayCategory;
             Record.bOffense = bOffense;
+            Record.bHomeTeam = IsHomeTeamCalling(bOffense);
             CallHistory.Add(Record);
         }
     }

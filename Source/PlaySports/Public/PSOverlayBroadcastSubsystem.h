@@ -84,13 +84,38 @@ public:
     int32 GetQueuedChyronCount() const { return ChyronQueue.Num(); }
 
     /** Queues a chyron with its kind's priority and time from the theme. False when chyrons
-     *  are off (a Minimal tier) or the text is empty. */
+     *  are off (a Minimal tier) or the text is empty. Headline and Detail arrive localized
+     *  (UPSLocalization, Epic 106): the widget shows them as they are. */
     UFUNCTION(BlueprintCallable, Category = "Broadcast")
     bool PushChyron(EPSChyronKind Kind, const FString& Headline, const FString& Detail);
 
-    /** A player's line from a stats source, e.g. "5 catches, 72 yards" (Epic 92). */
+    /** A player's line from a stats source, e.g. "5 catches, 72 yards" (Epic 92). The player
+     *  is shown as a name; StatText arrives localized. */
     UFUNCTION(BlueprintCallable, Category = "Broadcast")
     bool PushStatLine(const FString& PlayerName, const FString& StatText);
+
+    /** The chyrons waiting, best first. */
+    const TArray<FPSChyron>& GetQueuedChyrons() const { return ChyronQueue; }
+
+    // The broadcast's words, localized (Epic 106). Labels passed in are already localized.
+
+    /** "HOME 7 - AWAY 3". */
+    static FString MakeScoreLine(const FString& HomeLabel, int32 HomeScore, const FString& AwayLabel, int32 AwayScore);
+
+    /** "HOME DRIVE". */
+    static FString MakeDriveHeadline(const FString& TeamLabel);
+
+    /** "8 plays, 75 yards, Touchdown"; Result is the simulation's word for how it ended. */
+    static FString MakeDriveDetail(int32 Plays, int32 Yards, const FString& Result);
+
+    /** "TOUCHDOWN": by ScoreType when given (the HUD banner's kinds), else by Points. */
+    static FString MakeScoreHeadline(int32 Points, const FString& ScoreType);
+
+    /** "12-yard gain", "loss of 3", "no gain". */
+    static FString MakeGainText(int32 Yards);
+
+    /** "DE_1 on QB_1, loss of 7". */
+    static FString MakeSackDetail(const FString& TacklerName, const FString& CarrierName, int32 Yards);
 
     /** One step: the clocks run on, chyrons come and go. The tick calls this; headless tests
      *  call it directly. */

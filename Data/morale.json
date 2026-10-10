@@ -1,0 +1,26 @@
+{
+    "StarterBonus": 0.1,
+    "BackupPenalty": 0.05,
+    "BetterThanStarterPenalty": 0.1,
+    "TeamSuccessWeight": 0.2,
+    "UnderpaidRatio": 0.8,
+    "UnderpaidPenalty": 0.15,
+    "WellPaidBonus": 0.05,
+    "ContractYearPenalty": 0.05,
+    "LeaderBoost": 0.03,
+    "MaxLeaders": 2,
+    "MoraleInertia": 0.5,
+    "PerformanceSwing": 0.04,
+    "TradeRequestMorale": 0.3,
+    "TradeRequestWeeks": 3,
+    "StarRating": 85.0,
+    "HoldoutPayRatio": 0.7,
+    "HoldoutMorale": 0.45,
+    "LeaderAwareness": 85.0,
+    "LeaderWinPercentage": 0.6,
+    "LeaderMorale": 0.6,
+    "Units": [
+        { "Unit": "OffensiveLine", "Role": "OffensiveLineman", "FullCohesionGames": 6, "MaxBonus": 0.04 },
+        { "Unit": "Secondary", "Role": "DefensiveBack", "FullCohesionGames": 6, "MaxBonus": 0.03 }
+    ]
+}

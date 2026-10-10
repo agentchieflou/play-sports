@@ -2,6 +2,7 @@
 #include "PSBall.h"
 #include "PSBallActionComponent.h"
 #include "PSDataIngestion.h"
+#include "PSDifficultySubsystem.h"
 #include "PSFieldReads.h"
 #include "PSInputBufferComponent.h"
 #include "PSPlayerController.h"
@@ -163,12 +164,15 @@ bool UPSPassingComponent::ThrowToSlot(int32 Slot, float HeldSeconds, FVector2D P
         return false;
     }
 
-    // The receiver's lead point, moved by the stick in the view's frame.
+    // The receiver's lead point (with the pass-lead assist, Epic 84; without it, the receiver
+    // himself), moved by the stick in the view's frame.
     const FPassingInputTuningRow& Settings = GetTuning();
     const APSPlayerController* Controller = GetPlayerController();
     const FRotationMatrix YawMatrix(FRotator(0.f, Controller ? Controller->GetControlRotation().Yaw : 0.f, 0.f));
     const FVector2D Stick(FMath::Clamp(Placement.X, -1.f, 1.f), FMath::Clamp(Placement.Y, -1.f, 1.f));
-    FVector Target = PSFieldReads::LeadPoint(Passer->GetActorLocation(), Receiver, Settings.LeadSpeed);
+    UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld());
+    const bool bLead = !Difficulty || Difficulty->IsPassLeadOn();
+    FVector Target = bLead ? PSFieldReads::LeadPoint(Passer->GetActorLocation(), Receiver, Settings.LeadSpeed) : Receiver->GetActorLocation();
     Target += YawMatrix.GetUnitAxis(EAxis::X) * (Stick.Y * Settings.PlacementDepth);
     Target += YawMatrix.GetUnitAxis(EAxis::Y) * (Stick.X * Settings.PlacementWidth);
 

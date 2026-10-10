@@ -3,8 +3,12 @@
 #include "CoreMinimal.h"
 #include "PSSaveGame.h"
 #include "PSLeagueData.h"
+#include "PSSeasonHighlights.h"
 #include "PSStaffData.h"
 #include "PSContractData.h"
+#include "PSStatsData.h"
+#include "PSEconomyData.h"
+#include "PSLockerRoomData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -44,4 +48,24 @@ public:
      *  (Epic 87; UPSContractManager). LeagueYear 0 in a save from before contracts. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSContractLedger ContractLedger;
+
+    /** This season's box scores, past seasons' totals and the record book (Epic 92;
+     *  UPSStatsEngine). Season 0 in a save from before statistics. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSStatBook StatBook;
+
+    /** Every team's ticket price, fans, budget and revenue (Epic 95; UPSOwnerEconomy). No teams
+     *  in a save from before owner mode. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSLeagueEconomy Economy;
+
+    /** Every player's morale and flags, and each unit's lineup (Epic 91; UPSLockerRoom). Empty in
+     *  a save from before the locker room. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSLockerRoomState LockerRoom;
+
+    /** The season's highlights so far, its most important (Epic 42; UPSHighlightSubsystem::
+     *  ArchiveForSeason). Track G shows them. Empty in a save from before highlights. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    TArray<FPSSeasonHighlight> SeasonHighlights;
 };

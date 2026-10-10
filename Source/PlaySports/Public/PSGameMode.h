@@ -17,6 +17,7 @@ class UPSPersonnelManager;
 class UPSPlayerLeveling;
 class UPSMatchSetup;
 class UPSStaffManager;
+class UPSStatsEngine;
 
 /**
  * GameMode subclass for PlaySports which orchestrates play simulation and roster loading.
@@ -104,6 +105,11 @@ public:
      *  take over at kickoff through MatchSetup. */
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Match")
     UPSStaffManager* StaffManager;
+
+    /** This game's statistics (Epic 92): every play the simulation resolves, from the bus, into
+     *  the match's box score (MatchStats->GetCurrentGame()). */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Match")
+    UPSStatsEngine* MatchStats;
 
     /** Increments once per play in ResetPawnPositions; the play index a downed ball
      *  carrier's sit-out is measured against (Epic 139). */

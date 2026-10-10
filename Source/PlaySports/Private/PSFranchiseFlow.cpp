@@ -3,12 +3,15 @@
 #include "PSDataIngestion.h"
 #include "PSFranchiseSeason.h"
 #include "PSFreeAgency.h"
+#include "PSLockerRoom.h"
 #include "PSLeagueData.h"
 #include "PSMatchSetup.h"
+#include "PSOwnerEconomy.h"
 #include "PSPlayerAttributes.h"
 #include "PSQuickSimRunner.h"
 #include "PSRoster.h"
 #include "PSStaffManager.h"
+#include "PSStatsEngine.h"
 #include "Engine/DataTable.h"
 #include "Misc/Paths.h"
 
@@ -18,9 +21,20 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     Staffs = InStaffs;
     UserTeamId = InUserTeamId;
     CarouselEvents.Reset();
+    EconomyReports.Reset();
+    LockerRoomEvents.Reset();
     FreeAgency = nullptr;
     LastRollover = FPSLeagueYearRollover();
     bSeasonEnded = false;
+}
+
+void UPSFranchiseFlow::SetStats(UPSStatsEngine* InStats)
+{
+    Stats = InStats;
+    if (Stats && Stats->GetSeason() <= 0)
+    {
+        Stats->StartSeason(Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear() : 1);
+    }
 }
 
 int32 UPSFranchiseFlow::SignLeagueContracts()
@@ -129,6 +143,11 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
     const int32 Week = Season->GetCurrentWeek();
     UPSQuickSimRunner* Runner = NewObject<UPSQuickSimRunner>(this);
     UPSMatchSetup* Match = NewObject<UPSMatchSetup>(this);
+    if (Stats)
+    {
+        // Every simulated play goes into the game's box score (Epic 92).
+        Runner->OnPlayResolved.AddUObject(Stats, &UPSStatsEngine::RecordPlay);
+    }
     for (const FPSWeekMatchup& Matchup : Season->GetMatchupsForWeek(Week))
     {
         const bool bUserGame = !UserTeamId.IsNone() && (Matchup.HomeTeamId == UserTeamId || Matchup.AwayTeamId == UserTeamId);
@@ -149,11 +168,43 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
         TArray<FPlayerAttributes> HomePlayers = HomeRoster->GetFullRoster();
         TArray<FPlayerAttributes> AwayPlayers = AwayRoster->GetFullRoster();
         Match->ApplyStaffs(Staffs, nullptr, HomePlayers, AwayPlayers);
+        if (LockerRoom)
+        {
+            // Epic 91: the starters' units gel, holdouts sit, everyone plays at his morale.
+            LockerRoom->RecordLineup(Matchup.HomeTeamId, HomeRoster);
+            LockerRoom->RecordLineup(Matchup.AwayTeamId, AwayRoster);
+            for (TPair<FName, TArray<FPlayerAttributes>*> Side : { TPair<FName, TArray<FPlayerAttributes>*>(Matchup.HomeTeamId, &HomePlayers),
+                TPair<FName, TArray<FPlayerAttributes>*>(Matchup.AwayTeamId, &AwayPlayers) })
+            {
+                Side.Value->RemoveAll([this](const FPlayerAttributes& Player) { return LockerRoom->IsHoldingOut(Player.PlayerId); });
+                for (FPlayerAttributes& Player : *Side.Value)
+                {
+                    Player = LockerRoom->ApplyEffects(Side.Key, Player);
+                }
+            }
+        }
 
+        if (Stats)
+        {
+            Stats->BeginGame(Week, Matchup.HomeTeamId, Matchup.AwayTeamId);
+        }
         const FPSQuickSimResult Result = Runner->SimulateGame(HomePlayers, AwayPlayers);
+        if (Stats)
+        {
+            Stats->FinishGame();
+        }
+        // The home crowd comes for the record the team brought into the game (Epic 95).
+        const TArray<FPSTeamStanding> Standings = Season->GetStandings();
+        const FPSTeamStanding* HomeRecord = Standings.FindByPredicate([&Matchup](const FPSTeamStanding& Standing) { return Standing.TeamId == Matchup.HomeTeamId; });
+        const bool bHomePlayed = HomeRecord && HomeRecord->Wins + HomeRecord->Losses + HomeRecord->Ties > 0;
+        const float HomeWinPercentage = bHomePlayed ? HomeRecord->GetWinPercentage() : 0.5f;
         if (Season->RecordGameResult(Week, Matchup.HomeTeamId, Matchup.AwayTeamId, Result.HomeScore, Result.AwayScore))
         {
             ++Played;
+            if (Economy)
+            {
+                Economy->RecordGame(Matchup.HomeTeamId, Matchup.AwayTeamId, Result.HomeScore, Result.AwayScore, HomeWinPercentage);
+            }
         }
     }
     return Played;
@@ -188,12 +239,31 @@ bool UPSFranchiseFlow::IsRegularSeasonComplete() const
     return true;
 }
 
+TArray<FPSLockerRoomEvent> UPSFranchiseFlow::EvaluateLockerRooms(bool bNewLeagueYear)
+{
+    TArray<FPSLockerRoomEvent> Events;
+    if (!LockerRoom || !Season)
+    {
+        return Events;
+    }
+    const TArray<FPSTeamStanding> Standings = Season->GetStandings();
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        const FPSTeamStanding* Record = Standings.FindByPredicate([&Team](const FPSTeamStanding& Standing) { return Standing.TeamId == Team.Key; });
+        const bool bPlayed = Record && Record->Wins + Record->Losses + Record->Ties > 0;
+        Events.Append(LockerRoom->EvaluateTeam(Team.Key, Team.Value, bPlayed ? Record->GetWinPercentage() : 0.5f, Contracts, bNewLeagueYear));
+    }
+    LockerRoomEvents.Append(Events);
+    return Events;
+}
+
 bool UPSFranchiseFlow::AdvanceWeek()
 {
     if (!Season || bSeasonEnded)
     {
         return false;
     }
+    EvaluateLockerRooms(false);
     Season->AdvanceWeek();
     return Season->GetCurrentWeek() > GetFinalWeek() && EndSeason();
 }
@@ -213,6 +283,16 @@ bool UPSFranchiseFlow::EndSeason()
         {
             UE_LOG(LogTemp, Display, TEXT("UPSFranchiseFlow: Carousel: %s"), *Event.Description);
         }
+    }
+
+    if (Stats)
+    {
+        Stats->EndSeason();
+    }
+    if (Economy)
+    {
+        // The books close on the league year just played, before the rollover below.
+        EconomyReports = Economy->EndSeason(Season->GetStandings(), Contracts);
     }
 
     // The league year turns over (Epic 87): deals run out, CPU teams get under the new cap, and
@@ -246,7 +326,21 @@ bool UPSFranchiseFlow::EndSeason()
         {
             FreeAgency->AddFreeAgent(Released[Index], Contracts->GetTuning().DefaultPlayerAge, 0.5f, ReleasedBy[Index]);
         }
+        if (LockerRoom)
+        {
+            // Each free agent brings his morale to his old team's offers (Epic 91).
+            for (const FPSFreeAgent& FreeAgent : TArray<FPSFreeAgent>(FreeAgency->GetPool()))
+            {
+                FreeAgency->SetFreeAgentMorale(FreeAgent.Player.PlayerId, LockerRoom->GetMorale(FreeAgent.Player.PlayerId));
+            }
+        }
         FreeAgency->BeginPeriod();
+    }
+
+    // The new league year in the locker rooms: an underpaid, unhappy star may hold out (Epic 91).
+    if (LockerRoom)
+    {
+        EvaluateLockerRooms(true);
     }
     return true;
 }

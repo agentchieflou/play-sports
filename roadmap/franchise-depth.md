@@ -74,10 +74,10 @@ its own persistence or event capture.
 **Goal:** Players respond to usage, winning, contracts, and each other — a human layer over the roster.
 **Depends on:** Core 19, 87
 
-- [ ] Morale model: inputs (playing time, team success, contract status, role) → effects (performance variance, FA willingness)
-- [ ] Chemistry: unit cohesion from lineup stability (OL continuity bonus)
-- [ ] Event system: trade requests, holdouts, leadership emergence
-- [ ] Transparency surface so effects are readable, never mysterious
+- [x] Morale model: inputs (playing time, team success, contract status, role) → effects (performance variance, FA willingness) *(`UPSLockerRoom::EvaluateTeam` over `Data/morale.json` (`FPSMoraleTuning`), weekly: starter or backup by the roster's depth chart (starters per role from the default personnel packages), a backup rated above a starter, the team's win percentage, pay against his worth (his demand, Epic 87) and a deal's last year, the room's leaders; eased by `MoraleInertia`. Effects: ratings up to `PerformanceSwing` either way (`ApplyEffects`, on the simulation's copies), and his morale goes to free agency (`UPSFreeAgency::SetFreeAgentMorale`) where it prices his old team's offers. `UPSFranchiseFlow` evaluates every week and applies the effects in its quick sims; the state persists in `UPSFranchiseSaveGame::LockerRoom`)*
+- [x] Chemistry: unit cohesion from lineup stability (OL continuity bonus) *(`RecordLineup` per game: each unit's starters (`Units` in the data: the offensive line, the secondary) and games together; cohesion = games / `FullCohesionGames`, worth up to `MaxBonus` on the unit's starters; a lineup change starts over)*
+- [x] Event system: trade requests, holdouts, leadership emergence *(trade request after `TradeRequestWeeks` miserable weeks (withdrawn when he cheers up); a holdout at a new league year by an underpaid, unhappy star, who sits out the quick sims until paid (`HoldoutEnded`); a leader emerges on a winning team and lifts his teammates; `FPSLockerRoomEvent`s, kept by the flow)*
+- [x] Transparency surface so effects are readable, never mysterious *(each player's morale keeps its factors with their effect and a reason (`FPSMoraleFactor`); `DescribePlayer` reads them out with his performance swing and flags, `DescribeTeamChemistry` each unit's games, cohesion and bonus. No locker-room screen yet (Track I))*
 
 ### Epic 92: Statistics Engine & Record Book
 
@@ -85,11 +85,11 @@ its own persistence or event capture.
 **Goal:** Every play feeds a queryable statistical universe — box scores, season leaders, career totals, records.
 **Depends on:** 26, Core 20
 
-- [ ] Stat event pipeline from telemetry (26) → per-play attribution (passer/rusher/receiver/tacklers)
-- [ ] Aggregation layers: game box score, season, career, franchise, league
-- [ ] Leaderboards and record book with broken-record events (feeds 93, Track H commentary)
-- [ ] Persistence in the save architecture (Epic 116) and query API for UI/overlays
-- [ ] Advanced derived metrics (per-attempt efficiencies, situational splits)
+- [x] Stat event pipeline from telemetry (26) → per-play attribution (passer/rusher/receiver/tacklers) *(`UPSPlaySimulation`, the outcome authority, announces every play as a `PlayResult` bus event (`FPSTelemetryPlayResultEvent`: the situation at the snap, the result, the points, and the passer, receiver, rusher, tackler and interceptor by PlayerId, from the Throw/Catch/Tackle events by display name, or the quick sim's rolled players) and through `OnPlayResolved` for world-less quick sims (`UPSQuickSimRunner::OnPlayResolved`). `UPSStatsEngine::RecordPlay` attributes each play once. A played game's tackles don't reach the bus yet (`UPSBallActionComponent` calls `RecordTackle` directly), so live runs and tacklers go unattributed; the quick sim throws every play)*
+- [x] Aggregation layers: game box score, season, career, franchise, league *(`FPSBoxScore` per game; season totals summed from this season's box scores and kept as `FPSSeasonStats` totals at `EndSeason`; `GetPlayerCareer`, `GetFranchiseTotals`, `GetLeagueTotals`. `UPSFranchiseFlow` records every simulated game and archives the season at its end; `APSGameMode::MatchStats` keeps a played game's box score from the bus)*
+- [x] Leaderboards and record book with broken-record events (feeds 93, Track H commentary) *(`GetLeaders` for any `EPSStatCategory` over single games, a season or careers (team categories over a team's history); the record book sets a first mark quietly, then announces a fall as a `RecordBroken` bus event and `OnRecordBroken`: a single-game record whenever beaten, a season or career record when a new holder passes it, or the season holder sets it again in a later season)*
+- [x] Persistence in the save architecture (Epic 116) and query API for UI/overlays *(`FPSStatBook` in `UPSFranchiseSaveGame::StatBook`: this season's box scores, past seasons' totals, the records; queries by game, player season, career, team season, franchise, league, leaders and records. No stats screen or overlay reads it yet (Tracks I and A))*
+- [x] Advanced derived metrics (per-attempt efficiencies, situational splits) *(`ComputePlayerMetrics`: completion and touchdown/interception percentages, yards per attempt, the NFL passer rating, yards per carry and catch, catch rate; `ComputeTeamMetrics` from the down and red-zone splits each team line keeps: third-down and red-zone touchdown rates, yards per play, field-goal percentage, turnover margin)*
 
 ### Epic 93: League Narrative & Storyline Generator
 
@@ -119,6 +119,6 @@ its own persistence or event capture.
 **Goal:** A light economic layer above GM play — revenue, pricing, staff budgets, relocation pressure.
 **Depends on:** 87, Core 20
 
-- [ ] Revenue model (attendance from team success/pricing, media share)
-- [ ] Budget allocation: scouting (86), training (90), staff (89) funded from revenue
-- [ ] Fan-satisfaction pressure with long-losing consequences (kept simple; this is a garnish epic)
+- [x] Revenue model (attendance from team success/pricing, media share) *(`UPSOwnerEconomy` over `Data/owner_economics.json` (`FPSEconomyTuning`): each home game draws a crowd from the home team's record coming in, its fans' satisfaction and its ticket price (`SetTicketPrice`, `PredictAttendance` for a pricing preview), paying the gate and concessions; an equal media share at the season's end. `EndSeason` closes each team's books: revenue less payroll (the cap its contracts used, Epic 87) and budget is profit. `UPSFranchiseFlow` records every simulated game and the season's books; the economy persists in `UPSFranchiseSaveGame::Economy`)*
+- [x] Budget allocation: scouting (86), training (90), staff (89) funded from revenue *(`SetBudget`: shares of revenue per `EPSBudgetDepartment`, within `MaxBudgetFraction`; `GetDepartmentFunding` (the share of last season's revenue) and `GetFundingIndex` (against the league's average) are what those systems read. Epics 86 and 90 don't exist yet, and Epic 89's carousel doesn't read its funding yet)*
+- [x] Fan-satisfaction pressure with long-losing consequences (kept simple; this is a garnish epic) *(wins and losses, prices above the base and winning or losing seasons move a team's 0-1 satisfaction, which fills (or empties) its stadium; `RelocationLosingSeasons` losing seasons in a row with fans under `RelocationSatisfactionThreshold` put it under relocation pressure, flagged in its season report. No owner screen yet (Track I))*
