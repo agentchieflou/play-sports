@@ -646,6 +646,20 @@ async function loadStatic()
     }
     if (!gltf)
     {
+        // Hosts that don't serve .glb (the Artifact host) get the same model as base64 text.
+        try
+        {
+            const text = (await fetchText("assets/standin.glb.b64.txt")).trim();
+            const bytes = Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
+            gltf = await loader.parseAsync(bytes.buffer, "");
+        }
+        catch (err)
+        {
+            gltf = null;
+        }
+    }
+    if (!gltf)
+    {
         throw new Error("The player model (assets/standin.glb) could not be loaded.");
     }
     const model = gltf.scene;

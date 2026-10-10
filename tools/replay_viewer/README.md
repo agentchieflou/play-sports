@@ -32,6 +32,7 @@ Saved/FilmRoom/
   app.js loader.js gait.js field.js replay_schema.json
   data/field_dimensions.json data/sample_teams.json     copies of Data/
   assets/standin.glb assets/LICENSE                     RawAssets/world/people/ (CC0)
+  assets/standin.glb.b64.txt                            the model as base64 text (the Artifact host serves no .glb)
   recordings/index.json                                 the index, as downloaded
   recordings/<play>.json ...                            each play it lists
 ```

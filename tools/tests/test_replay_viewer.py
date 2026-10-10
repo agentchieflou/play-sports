@@ -297,7 +297,7 @@ class StageTests(unittest.TestCase):
         files = self.quiet(self.tmp / "out", recordings=self.recordings(["sack_seed7.json"]))
         out = self.tmp / "out"
         for published in ["index.html", "app.js", "loader.js", "gait.js", "field.js", "replay_schema.json",
-                          "data/field_dimensions.json", "data/sample_teams.json", "assets/standin.glb", "assets/LICENSE",
+                          "data/field_dimensions.json", "data/sample_teams.json", "assets/standin.glb", "assets/standin.glb.b64.txt", "assets/LICENSE",
                           "recordings/index.json", "recordings/sack_seed7.json"]:
             self.assertTrue((out / published).is_file(), published)
             self.assertIn(published, files)
