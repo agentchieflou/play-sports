@@ -43,10 +43,10 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Floating letter badges (X, Y, A, B, RB, …) track above assigned players in world space.
 **Depends on:** 26
 
-- [ ] Screen-space badge widget anchored to pawn head position with distance-based scaling
-- [ ] Badge assignment from play data (receiver designations) and role fallback (RB, QB)
-- [ ] Occlusion/overlap handling so badges never collide or block the ball
-- [ ] Color semantics (eligible receivers vs. backs vs. defense) as a data-driven style table
+- [x] Screen-space badge widget anchored to pawn head position with distance-based scaling *(`UPSOverlayBadgeWidget`, shown by `APSHUD`, draws what `UPSOverlayBadgeComponent` on the player controller lays out each frame for the player's camera: above each head, scaled by distance between `MinScale` and `MaxScale`. Look polish and glyph icons are an editor pass, `Specs/Position_Badges_Spec.md`)*
+- [x] Badge assignment from play data (receiver designations) and role fallback (RB, QB) *(the designations are the human QB's receiver slots, left to right as the play's formation lines them up (`UPSPassingComponent`); each wears its slot button's glyph on the device in use, "X", "Y", "B", "RB", "A" on a gamepad, so a remapped key shows. Everyone else wears his role's label. A per-play letter field is Epic 35's annotation schema)*
+- [x] Occlusion/overlap handling so badges never collide or block the ball *(pass buttons placed first, then nearer before farther; a badge in the way of another or of the ball moves up a step at a time, and one with no room isn't drawn)*
+- [x] Color semantics (eligible receivers vs. backs vs. defense) as a data-driven style table *(`Data/overlay_badges.json`: per group (receivers, backs, QB, line, defense) colors, when they show before the snap and in play, and whether a Minimal tier keeps them)*
 
 ### Epic 29: Personnel Package HUD Panels
 

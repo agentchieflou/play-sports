@@ -31,7 +31,8 @@ FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json; "ReticleSt
 FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuningRow, each pick
 action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files against
 FPSBroadcastOverlayTheme; "Settings" files against FPSSettingsCatalog (Epic 103.1);
-"CatenaryParameterCm" files against FPSSkycamTuning. Teams, the league config, the playbook, player
+"CatenaryParameterCm" files against FPSSkycamTuning; "RoleLabels" files against
+FPSOverlayBadgeStyle. Teams, the league config, the playbook, player
 rating ranges and every reference between files are tools/content_contracts.py's (Epic 125), run
 from here.
 
@@ -1770,6 +1771,93 @@ def validate_skycam(path, payload):
         err(path, f"MinHeightCm ({payload['MinHeightCm']}) must be below the cables' ceiling over midfield ({ceiling:.0f})")
 
 
+BADGE_GROUPS = ("Receiver", "Back", "Quarterback", "Line", "Defense")
+BADGE_IN_PLAY = {"Hidden", "WhilePassing", "Always"}
+BADGE_POSITIVE = ("BadgeWidth", "BadgeHeight", "ReferenceDistance", "MinScale", "MaxScale", "NudgeStep")
+BADGE_NON_NEGATIVE = ("HeadClearance", "BallClearance", "FadeInSeconds")
+BADGE_FIELDS = {"Groups", "RoleLabels", "FontSize", "MaxNudges", "bBadgeControlledPlayer", *BADGE_POSITIVE,
+                *BADGE_NON_NEGATIVE}
+BADGE_GROUP_FIELDS = {"Group", "Color", "TextColor", "bPreSnap", "InPlay", "bEssential"}
+
+
+def validate_overlay_badges(path, payload):
+    """FPSOverlayBadgeStyle (Data/overlay_badges.json, Epic 28); mirrors
+    UPSOverlayBadgeComponent::ValidateStyle."""
+    groups = payload.get("Groups")
+    if not isinstance(groups, list):
+        err(path, "'Groups' must be an array")
+        groups = []
+    seen = {}
+    for idx, row in enumerate(groups):
+        where = f"Groups[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        group = row.get("Group")
+        if group not in BADGE_GROUPS:
+            err(path, f"{where}.Group: '{group}' must be one of {list(BADGE_GROUPS)}")
+        seen[group] = seen.get(group, 0) + 1
+        for field in ("Color", "TextColor"):
+            if not isinstance(row.get(field), str) or not HEX_COLOR.match(row[field]):
+                err(path, f"{where}.{field}: '{row.get(field)}' must be #RRGGBB")
+        for field in ("bPreSnap", "bEssential"):
+            if not isinstance(row.get(field), bool):
+                err(path, f"{where}.{field}: must be true or false")
+        in_play = row.get("InPlay")
+        if in_play not in BADGE_IN_PLAY:
+            err(path, f"{where}.InPlay: '{in_play}' must be one of {sorted(BADGE_IN_PLAY)}")
+        extra = set(row) - BADGE_GROUP_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for group in BADGE_GROUPS:
+        count = seen.get(group, 0)
+        if count != 1:
+            err(path, f"Groups: '{group}' is listed {count} times; it needs exactly one entry")
+    labels = payload.get("RoleLabels")
+    if not isinstance(labels, list):
+        err(path, "'RoleLabels' must be an array")
+        labels = []
+    labelled = set()
+    for idx, row in enumerate(labels):
+        where = f"RoleLabels[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        role = row.get("Role")
+        if role not in PLAYER_ROLES:
+            err(path, f"{where}.Role: '{role}' is not an EPlayerRole")
+        elif role in labelled:
+            err(path, f"{where}.Role: '{role}' is listed twice")
+        labelled.add(role)
+        if not isinstance(row.get("Label"), str) or not row["Label"]:
+            err(path, f"{where}.Label: must be a non-empty string")
+        extra = set(row) - {"Role", "Label"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for role in sorted(set(PLAYER_ROLES) - labelled):
+        err(path, f"RoleLabels: no label for '{role}'")
+    for field in BADGE_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in BADGE_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    low, high = payload.get("MinScale"), payload.get("MaxScale")
+    if is_number(low) and is_number(high) and high < low:
+        err(path, "MaxScale must not be below MinScale")
+    for field, floor in (("FontSize", 1), ("MaxNudges", 0)):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < floor:
+            err(path, f"{field}: '{value}' must be a whole number, {floor} or more")
+    if not isinstance(payload.get("bBadgeControlledPlayer"), bool):
+        err(path, "bBadgeControlledPlayer: must be true or false")
+    extra = set(payload) - BADGE_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOverlayBadgeStyle exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1837,6 +1925,8 @@ def main():
             validate_control_handoff(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "ChyronKinds" in payload:
             validate_broadcast_overlay(path, payload)
+        if isinstance(payload, dict) and "RoleLabels" in payload:
+            validate_overlay_badges(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "PressRadius" in payload:

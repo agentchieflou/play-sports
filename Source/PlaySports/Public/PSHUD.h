@@ -11,7 +11,8 @@
  * By default it shows the broadcast package (Epic 33): UPSOverlayScoreBugWidget, which
  * replaces Epic 5's debug scoreboard, and UPSOverlayChyronWidget, both drawing
  * UPSOverlayBroadcastSubsystem. A designer can assign Widget Blueprints instead. The chyron
- * widget is left out on a tier whose OverlayDetail is Minimal.
+ * widget is left out on a tier whose OverlayDetail is Minimal. UPSOverlayBadgeWidget draws the
+ * position badges over the players (Epic 28).
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSHUD : public AHUD
@@ -35,6 +36,13 @@ public:
 
     UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
     UUserWidget* ChyronWidget;
+
+    /** The position badge widget class (Epic 28). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
+    TSubclassOf<UUserWidget> BadgeWidgetClass;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
+    UUserWidget* BadgeWidget;
 
 protected:
     virtual void BeginPlay() override;

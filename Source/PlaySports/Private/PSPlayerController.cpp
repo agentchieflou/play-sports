@@ -14,6 +14,7 @@
 #include "PSSettingsComponent.h"
 #include "PSControlHandoffComponent.h"
 #include "PSOverlayReticleComponent.h"
+#include "PSOverlayBadgeComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -78,6 +79,7 @@ APSPlayerController::APSPlayerController()
     SettingsComponent = CreateDefaultSubobject<UPSSettingsComponent>(TEXT("SettingsComp"));
     ControlHandoffComponent = CreateDefaultSubobject<UPSControlHandoffComponent>(TEXT("ControlHandoffComp"));
     OverlayReticleComponent = CreateDefaultSubobject<UPSOverlayReticleComponent>(TEXT("OverlayReticleComp"));
+    OverlayBadgeComponent = CreateDefaultSubobject<UPSOverlayBadgeComponent>(TEXT("OverlayBadgeComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()
