@@ -1,8 +1,8 @@
 """CLI for the orchestrator: python -m tools.orchestrator <command>.
 
-Epic 135 implements `models` and `health`; Epic 136 implements `run`;
-`duel` (137) and `graph`/`status`/`resume`/`check-parallel` (138) are stubs
-until their epics land.
+Epic 135: `models`, `health`. Epic 136: `run`. Epic 137: `duel`.
+Epic 138: `graph`, `status`, `resume`, `check-parallel`.
+Core 25 (.env model router): `delegate`.
 """
 
 from __future__ import annotations
@@ -12,12 +12,6 @@ import sys
 
 from .config import REPO_ROOT, OrchestratorConfig
 
-PENDING = {
-    "graph": "Epic 138 (supervisor graph mode)",
-    "status": "Epic 138 (supervisor graph mode)",
-    "resume": "Epic 138 (supervisor graph mode)",
-    "check-parallel": "Epic 138 (supervisor graph mode)",
-}
 
 
 def cmd_models(config: OrchestratorConfig) -> int:
@@ -25,7 +19,10 @@ def cmd_models(config: OrchestratorConfig) -> int:
         print(f"{tier}:")
         for index, spec in enumerate(specs):
             role = "primary" if index == 0 else f"fallback[{index}]"
-            key_state = "key set" if spec.api_key else "KEY MISSING"
+            if spec.provider == "ollama":
+                key_state = f"host {spec.base_url}" if spec.base_url else "HOST MISSING (OLLAMA_HOST)"
+            else:
+                key_state = "key set" if spec.api_key else "KEY MISSING"
             print(f"  {role}: {spec.label} [{key_state}]")
     return 0
 
@@ -44,21 +41,8 @@ def cmd_health(config: OrchestratorConfig) -> int:
 
 
 def cmd_run(config: OrchestratorConfig, args: argparse.Namespace) -> int:
-    from .models.router import ModelRouter
+    from .models.router import ModelRouter, TierClient
     from .worker.run import run_story
-
-    class TierClient:
-        """Adapter so the harness sees one client but gets router fallback."""
-
-        def __init__(self, router: ModelRouter, tier: str):
-            self._router = router
-            self._tier = tier
-            self.label = f"tier:{tier}"
-
-        def chat(self, messages, tools=None, temperature=0.2, max_tokens=8192):
-            return self._router.chat(self._tier, messages, tools=tools,
-                                     temperature=temperature,
-                                     max_tokens=max_tokens)
 
     client = TierClient(ModelRouter(config), "worker")
     outcome = run_story(
@@ -103,6 +87,80 @@ def cmd_duel(config: OrchestratorConfig, args: argparse.Namespace) -> int:
     return 0 if result.winner in ("a", "b") else 1
 
 
+def cmd_delegate(config: OrchestratorConfig, args: argparse.Namespace) -> int:
+    from .delegate import delegate
+    from .models.router import ModelRouter
+
+    prompt = args.prompt if args.prompt is not None else sys.stdin.read()
+    result = delegate(ModelRouter(config), prompt, tier=args.tier, system=args.system,
+                      max_tokens=args.max_tokens)
+    if not result.ok:
+        print(f"delegate: {result.error}", file=sys.stderr)
+        return 1
+    print(result.text)
+    print(f"[answered by {result.model}]", file=sys.stderr)
+    return 0
+
+
+def cmd_check_parallel() -> int:
+    from .supervisor.board import check_parallel, crawl, load_matrix
+
+    problems = check_parallel(crawl(REPO_ROOT), load_matrix(REPO_ROOT))
+    for problem in problems:
+        print(problem)
+    print(f"check-parallel: {len(problems)} problem(s)" if problems
+          else "check-parallel: roadmap/PARALLEL.md matches the roadmap")
+    return 1 if problems else 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    from .supervisor.state import RunState, RunStateError, default_run_dir
+
+    try:
+        state = RunState.load_run(default_run_dir(REPO_ROOT), args.run_id)
+    except RunStateError as error:
+        print(error)
+        return 1
+    print("\n".join(state.summary_lines()))
+    return 0
+
+
+def cmd_graph(config: OrchestratorConfig, args: argparse.Namespace) -> int:
+    from .models.router import ModelRouter, TierClient, build_client
+    from .supervisor.board import load_matrix
+    from .supervisor.graph import GraphRunner, resume_cleanup
+    from .supervisor.state import RunState, RunStateError, default_run_dir
+
+    run_dir = default_run_dir(REPO_ROOT)
+    try:
+        if args.command == "resume":
+            state = RunState.load_run(run_dir, args.run_id)
+            reset = resume_cleanup(REPO_ROOT, state)
+            print(f"resuming run {state.run_id}; reset to pending: {', '.join(reset) or 'none'}")
+        else:
+            state = RunState.create(run_dir, mode="graph",
+                                    matrix_sha=load_matrix(REPO_ROOT).sha256,
+                                    run_id=args.run_id)
+            print(f"run {state.run_id}: {state.path}")
+    except RunStateError as error:
+        print(error)
+        return 1
+
+    supervisor_spec = config.supervisor_spec()
+    supervisor = build_client(supervisor_spec) if supervisor_spec.api_key else None
+    if supervisor is None:
+        print("no GEMINI_API_KEY: the program's own order picks the stories")
+    router = ModelRouter(config)
+    runner = GraphRunner(
+        REPO_ROOT, state, worker_client_factory=lambda assignment: TierClient(router, "worker"),
+        supervisor_client=supervisor, max_workers=args.workers, dry_run=args.dry_run,
+        max_stories=args.max_stories, max_iterations=args.max_iterations,
+        allow_xl=args.allow_xl)
+    runner.run()
+    print("\n".join(state.summary_lines()))
+    return 1 if state.halted else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m tools.orchestrator",
@@ -130,15 +188,40 @@ def main(argv: list[str] | None = None) -> int:
     duel_parser.add_argument("--dry-run", action="store_true",
                              help="score and record; no push, no PR")
     duel_parser.add_argument("--max-iterations", type=int)
-    for name in PENDING:
-        subparsers.add_parser(name)
+    for name in ("graph", "resume"):
+        graph_parser = subparsers.add_parser(name)
+        graph_parser.add_argument("--run-id", help="resume: the run (default: the latest)"
+                                  if name == "resume" else "name for the new run")
+        graph_parser.add_argument("--workers", type=int, default=2)
+        graph_parser.add_argument("--max-stories", type=int,
+                                  help="stop dispatching after this many stories")
+        graph_parser.add_argument("--max-iterations", type=int)
+        graph_parser.add_argument("--dry-run", action="store_true",
+                                  help="diffs only; no push, no PR")
+        graph_parser.add_argument("--allow-xl", action="store_true",
+                                  help="dispatch XL epics' stories too")
+    status_parser = subparsers.add_parser("status")
+    status_parser.add_argument("--run-id", help="default: the latest run")
+    subparsers.add_parser("check-parallel")
+    delegate_parser = subparsers.add_parser(
+        "delegate", help="send one task to a free-tier model and print the answer")
+    delegate_parser.add_argument("prompt", nargs="?", help="the task (default: read stdin)")
+    delegate_parser.add_argument("--tier", default="bridge",
+                                 choices=["bridge", "worker", "supervisor"])
+    delegate_parser.add_argument("--system", default="", help="an optional system prompt")
+    delegate_parser.add_argument("--max-tokens", type=int, default=2048)
     args = parser.parse_args(argv)
 
-    if args.command in PENDING:
-        print(f"'{args.command}' lands in {PENDING[args.command]} - not implemented yet.")
-        return 2
+    if args.command == "check-parallel":
+        return cmd_check_parallel()
+    if args.command == "status":
+        return cmd_status(args)
 
     config = OrchestratorConfig.load()
+    if args.command in ("graph", "resume"):
+        return cmd_graph(config, args)
+    if args.command == "delegate":
+        return cmd_delegate(config, args)
     if args.command == "models":
         return cmd_models(config)
     if args.command == "run":
