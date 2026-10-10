@@ -1,4 +1,5 @@
 #include "PSGameStateEvents.h"
+#include "PSFieldDimensions.h"
 #include "PSLocalization.h"
 
 bool PSGameStateEvents::IsGameClockRunning(const FPlayState& State)
@@ -13,8 +14,9 @@ bool PSGameStateEvents::IsPlayClockRunning(const FPlayState& State)
 
 FVector PSGameStateEvents::LineOfScrimmageFor(int32 YardLine)
 {
-    // One yard is 100 cm, and the offense always drives toward +X from its goal line at X = 0.
-    return FVector(YardLine * 100.f, 0.f, 0.f);
+    // The field's one frame (PSField): the offense always drives toward +X from its goal line at
+    // X = 0, in the middle of the field.
+    return PSField::YardLineToWorld(static_cast<float>(YardLine));
 }
 
 FPSTelemetryGameStateEvent PSGameStateEvents::MakeEvent(const FPlayState& State, const FDriveSummary& LastDrive, int32 CompletedDrives, int32 MaxTimeouts)

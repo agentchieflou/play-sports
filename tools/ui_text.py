@@ -21,8 +21,9 @@ the code:
   - every key the code names exists in Data/ui_text.csv;
   - every remappable input action has an Input.Action.<ActionId> name, and each of its
     contexts an Input.Context.<ContextId> name (the key remapping screen shows them);
-  - UI code (Private/PSUI*, PSMenu*, PSHUD*, PSLoading*, PSSettings*, PSPlayCall*, and the
-    broadcast overlays' PSOverlay* and PSGameStateEvents*) builds no FText from raw strings:
+  - UI code (Private/PSUI*, PSMenu*, PSHUD*, PSLoading*, PSSettings*, PSPlayCall*, the
+    broadcast overlays' PSOverlay* and PSGameStateEvents*, and the commentary booth's
+    PSCommentary*) builds no FText from raw strings:
     its text comes through UPSLocalization (GetText, Format, GetDataText, Verbatim,
     FromLocalized).
 
@@ -55,7 +56,8 @@ DATA_DIR = REPO / "Data"
 UI_TEXT = DATA_DIR / "ui_text.csv"
 UI_TEXT_DATA = DATA_DIR / "ui_text_data.csv"
 SOURCE_DIR = REPO / "Source"
-GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings", "PSPlayCall", "PSOverlay", "PSGameStateEvents")
+GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings", "PSPlayCall", "PSOverlay", "PSGameStateEvents",
+                  "PSCommentary")
 RAW_TEXT = re.compile(r"\bFText::FromString\(|\bFText::AsCultureInvariant\(|\bN?S?LOCTEXT\(|\bINVTEXT\(")
 KEY_USE = re.compile(r"(?<![\w:])(?:UPSLocalization::)?(?:GetText|Format)\(\s*TEXT\(\"([^\"]+)\"\)")
 

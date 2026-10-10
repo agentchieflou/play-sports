@@ -46,8 +46,9 @@ struct FPSTouchPointer
  *    every OnCatalogActionStarted consumer receive it exactly as they receive a gamepad.
  *
  * Fingers arrive from a Slate input pre-processor that only observes (never consumes) touch
- * events, in viewport pixels. While a menu is open the layer stands down: menus take taps
- * through their own widgets. APSPlayerController owns one.
+ * events, in viewport pixels. While a menu is open, or the telestrator's analysis mode is on
+ * (Epic 44), the layer stands down: menus take taps through their own widgets, and the
+ * telestrator's drawing layer takes every finger. APSPlayerController owns one.
  */
 UCLASS(ClassGroup = "PlaySports", BlueprintType, meta = (BlueprintSpawnableComponent))
 class PLAYSPORTS_API UPSTouchInputComponent : public UActorComponent
@@ -89,7 +90,7 @@ public:
     void TouchEnded(int32 FingerId, const FVector2D& Position, double TimeSeconds);
 
     /** The action values touch drives this frame: the held stick and buttons, plus each swipe
-     *  once. At most one sample per action. Empty while a menu is open. Public so tests can
+     *  once. At most one sample per action. Empty while the layer stands down. Public so tests can
      *  read a frame without a tick. */
     TArray<FPSTouchActionSample> GatherActionSamples();
 

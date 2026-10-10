@@ -244,7 +244,7 @@ namespace PSReplaySystemTests
             else if (Step == 25)
             {
                 FPSTelemetryTackleEvent Tackle;
-                Tackle.YardsGained = 9;
+                Tackle.YardLine = 29;
                 Bus->PublishTackle(Tackle);
             }
             else if (Step == 26)

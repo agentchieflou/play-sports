@@ -23,7 +23,9 @@ class UPSWeeklyPreparation;
  *    fallen under LowRating, when he ends the season hurt (Epic 90's preparation) or unhappy (Epic
  *    91's locker room); at ForcedAge he goes. At most MaxRetirementShare of a roster retires a
  *    season, the likeliest first, so the draft (Epic 86) can refill it. A retiree leaves his roster,
- *    his contract is cut (Epic 87), and the league's history records his career (UPSLeagueHistory).
+ *    his contract ends (UPSContractManager::RetirePlayer: the guarantees he hasn't earned end with
+ *    it, the bonus already paid stays as dead money), and the league's history records his career
+ *    (UPSLeagueHistory).
  *  - Aging: everyone else ages a year along his role's curve, Core 19's progression model
  *    (UPSPlayerProgression) at that role's ages: a running back peaks early and falls fast, a
  *    quarterback late. A player's snap share is his place on the depth chart (1 for the first, a
@@ -63,8 +65,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Legacy")
     float GetRetirementChance(const FPlayerAttributes& Player, int32 Age, float Morale, bool bInjured, FString& OutReason) const;
 
-    /** TeamId's off-season after Season: its retirements (rolled, capped, recorded in History and cut
-     *  from Contracts when given), then everyone else a year older along his curve. Stats, the
+    /** TeamId's off-season after Season: its retirements (rolled, capped, recorded in History, their
+     *  deals ended in Contracts when given), then everyone else a year older along his curve. Stats, the
      *  preparation and the locker room may be null. Returns the retirements. */
     UFUNCTION(BlueprintCallable, Category = "Legacy")
     TArray<FPSRetirementDecision> RunOffseason(FName TeamId, UPSRoster* Roster, int32 Season, UPSContractManager* Contracts, const UPSStatsEngine* Stats,

@@ -43,6 +43,11 @@ enum class EPSTelemetryEventType : uint8
     LooseBall,
     Deception,
     BoundaryCrossed,
+    Recognition,
+    Penalty,
+    Crowd,
+    Commentary,
+    Trade,
     BallGrounded
 };
 
@@ -194,6 +199,16 @@ enum class EPSDeceptionEventKind : uint8
     Assignment
 };
 
+/** What the defense recognized (Epic 80), as UPSPlayRecognitionSubsystem reads it. */
+UENUM(BlueprintType)
+enum class EPSRecognitionEventKind : uint8
+{
+    /** The offense's formation, read from its alignment at the snap. */
+    Formation,
+    /** A defender diagnosed the play: Read "Run" or "Pass", from Key. */
+    Diagnosis
+};
+
 /** A loose ball the players play (Epic 17.4: a blocked kick), as UPSLooseBallSubsystem runs it. */
 UENUM(BlueprintType)
 enum class EPSLooseBallEventKind : uint8
@@ -218,6 +233,91 @@ enum class EPSInputDevice : uint8
     KeyboardMouse,
     Gamepad,
     Touch
+};
+
+/** A flag's two moments (Epic 23): thrown during the play, then accepted or declined as the play
+ *  is scored. */
+UENUM(BlueprintType)
+enum class EPSPenaltyEventKind : uint8
+{
+    Flag,
+    Accepted,
+    Declined
+};
+
+/** How loud the stadium is (Epic 23.2), as UPSCrowdExcitementSubsystem rates its excitement,
+ *  quietest first. */
+UENUM(BlueprintType)
+enum class EPSCrowdLevel : uint8
+{
+    /** Stunned quiet, under the resting level. */
+    Hush,
+    Murmur,
+    Buzz,
+    Roar,
+    Eruption
+};
+
+/** The crowd's reaction to a moment (Epic 23.2): the stinger a reaction plays. */
+UENUM(BlueprintType)
+enum class EPSCrowdReaction : uint8
+{
+    None,
+    Cheer,
+    Roar,
+    Eruption,
+    Gasp,
+    Groan,
+    Boo,
+    /** The home crowd's silence after the visitors score. */
+    Stunned
+};
+
+/** What a Crowd event announces. */
+UENUM(BlueprintType)
+enum class EPSCrowdEventKind : uint8
+{
+    /** The crowd's level changed. */
+    Level,
+    /** The crowd reacted to a moment. */
+    Reaction
+};
+
+/** A moment of the game the commentary hooks describe (Epic 23.5), as UPSCommentaryEventModel
+ *  reads it from the bus. */
+UENUM(BlueprintType)
+enum class EPSCommentaryMoment : uint8
+{
+    /** The first game state of a game. */
+    GameStart,
+    /** The ball is snapped (the situation it is snapped in). */
+    Snap,
+    /** A pass is in the air; Detail is Deep or Short. */
+    Pass,
+    Catch,
+    Interception,
+    Sack,
+    /** A hit of at least the hooks' BigHitDamage. */
+    BigHit,
+    Fumble,
+    /** A receiver running free downfield (Epic 17's blown coverage). */
+    OpenReceiver,
+    /** A ball carrier crossed into the end zone his team attacks. */
+    GoalLine,
+    /** A flag was thrown; Detail is the foul. */
+    Flag,
+    /** The play is over, as the simulation resolved it; Detail is the result. */
+    PlayResult,
+    /** The play scored; Detail is Touchdown, FieldGoalGood or Safety. */
+    Score,
+    Timeout,
+    TwoMinuteWarning,
+    /** A quarter ended; Quarter is the one that ended. */
+    QuarterEnd,
+    /** The final whistle. */
+    GameEnd,
+    /** A record fell (Epic 92). */
+    RecordBroken
 };
 
 USTRUCT(BlueprintType)
@@ -289,6 +389,10 @@ struct FPSTelemetryCatchEvent
     bool bIsInterception = false;
 };
 
+/** A ball carrier was brought down (UPSBallActionComponent::ResolveTackle): who, where, and
+ *  whether it was a sack. The play's yards are not here: the play simulation, the outcome
+ *  authority (rule 6), measures them from the line of scrimmage to YardLine and announces them
+ *  with the play's result (FPSTelemetryPlayResultEvent::YardsGained), penalties included. */
 USTRUCT(BlueprintType)
 struct FPSTelemetryTackleEvent
 {
@@ -300,14 +404,14 @@ struct FPSTelemetryTackleEvent
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     FString BallCarrierName;
 
+    /** Where he went down, in the offense's yard lines (0 its goal line, 100 the goal it
+     *  attacks). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     int32 YardLine = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
-    int32 YardsGained = 0;
-
-    /** The carrier was the quarterback, down behind the line before throwing. The publisher
-     *  (the play-outcome authority) decides; subscribers such as rumble only read it. */
+    /** The carrier was the quarterback, still holding the ball, brought down behind the snap's
+     *  line of scrimmage. The publisher decides; the simulation and subscribers such as rumble
+     *  only read it. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bIsSack = false;
 };
@@ -333,6 +437,66 @@ struct FPSTelemetryBoundaryCrossedEvent
     /** Into an end zone, not out of bounds. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bEndZone = false;
+};
+
+/** A trade was made (Epic 88): UPSTradeMarket announces each one, for the news, the screens and
+ *  the league-wide tuning of the market. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryTradeEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 TradeId = 0;
+
+    /** The contracts' league year and the week (0 in the off-season). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 LeagueYear = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Week = 0;
+
+    /** The team that proposed it and the team that accepted. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName FromTeamId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName ToTeamId;
+
+    /** Each team's stance then: Contender, Balanced or Rebuilder. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString FromStance;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString ToStance;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PlayersMoved = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PicksMoved = 0;
+
+    /** The league's neutral values of what each side gave, and their imbalance (0 = even). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float NeutralFrom = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float NeutralTo = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Imbalance = 0.f;
+
+    /** The deadline's urgency then (0-1). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float DeadlineUrgency = 0.f;
+
+    /** The player's team was in it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bUserTeam = false;
+
+    /** "Hawks get BEARS_WR_02 (WR, 30); Bears get 2027 round 2 (Hawks)". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Description;
 };
 
 /** A ball in the air -- thrown or kicked, not fumbled -- touched the ground (APSBall). The ball only
@@ -913,6 +1077,11 @@ struct FPSTelemetrySpeechEvent
     /** How long it is spoken; 0 lets the caption time it from its length. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     float DurationSeconds = 0.f;
+
+    /** The commentary line spoken (Epic 96's library), for its recorded voice-over; None for
+     *  anything else. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName LineId;
 };
 
 /** The quarterback's pocket play (Epic 71): an escape (the scramble drill's trigger), a
@@ -1195,6 +1364,47 @@ struct FPSTelemetryDeceptionEvent
     float Seconds = 0.f;
 };
 
+/** What the defense recognized (Epic 80): the offense's formation at the snap, or a defender's
+ *  diagnosis of the play from his keys. UPSPlayRecognitionSubsystem decides these; the defense AI
+ *  plays them, and a debug overlay or the booth can show them. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryRecognitionEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSRecognitionEventKind Kind = EPSRecognitionEventKind::Formation;
+
+    /** A diagnosis: the defender; empty for the formation. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** The formation class the offense lined up in. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Formation;
+
+    /** The formation's personnel, e.g. "11". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Personnel;
+
+    /** A diagnosis: "Run" or "Pass" ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Read;
+
+    /** ... from this key: "Handoff", "Drop", "LineFire", "PassSet" or "Flow". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Key;
+
+    /** How likely a run the defense thinks it is, 0-1 (the formation's lean, then what it
+     *  expects this play). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float RunLean = 0.5f;
+
+    /** A diagnosis: seconds after the snap he read it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Seconds = 0.f;
+};
+
 /** A loose ball (Epic 17.4): a blocked kick's ball on the ground, a muff, a recovery and the dead
  *  ball. UPSPlaySimulation announces the block; UPSLooseBallSubsystem runs the rest, and the
  *  simulation takes the dead ball as the kick's outcome. */
@@ -1279,6 +1489,178 @@ struct FPSTelemetryCoverageEvent
     int32 YardsPastLine = 0;
 };
 
+/** A flag (Epic 23): thrown during the play (Flag), then accepted or declined as the play is
+ *  scored. UPSPlaySimulation, the authority on penalties, announces both; the audio, the crowd and
+ *  the commentary hooks hear it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPenaltyEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSPenaltyEventKind Kind = EPSPenaltyEventKind::Flag;
+
+    /** The foul, as UPSPlaySimulation's EPSPenaltyType names it: Offsides, Holding,
+     *  PassInterference. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Penalty;
+
+    /** The defense fouled (else the offense). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bOnDefense = false;
+
+    /** The home team fouled. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHomeTeam = false;
+
+    /** The player flagged, when the call names one. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** Accepted: the yards the play now gains (negative when the offense is pushed back). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Yards = 0;
+};
+
+/** The crowd's level changed or it reacted to a moment (Epic 23.2). UPSCrowdExcitementSubsystem,
+ *  the one authority on the crowd's excitement, publishes it; the audio plays its bed and
+ *  stingers from it (Epic 97 layers them), and the crowd's behavior (Epic 49) reads the same. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryCrowdEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSCrowdEventKind Kind = EPSCrowdEventKind::Level;
+
+    /** The crowd's level now. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSCrowdLevel Level = EPSCrowdLevel::Murmur;
+
+    /** A reaction: what the crowd does (its stinger); None for a level change. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSCrowdReaction Reaction = EPSCrowdReaction::None;
+
+    /** What it reacted to: an EPSCrowdStimulus by name (PSCrowdTypes.h); None for a level change. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Stimulus;
+
+    /** Its excitement after it, 0-1. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Excitement = 0.f;
+
+    /** A reaction: the moment went the home team's way. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHomeFavoured = true;
+};
+
+/** A moment of the game, structured for commentary (Epic 23.5): what happened, who did it, and
+ *  the situation it happened in. UPSCommentaryEventModel reads it from the bus and publishes it;
+ *  the commentary engine (Epic 96) and outside models (through Epic 82's bridge) describe it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryCommentaryEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSCommentaryMoment Moment = EPSCommentaryMoment::Snap;
+
+    /** The plays snapped this game, from 1; 0 before the first snap. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PlayNumber = 0;
+
+    /** The situation: the latest game state, or (a play's result) the snap's. YardLine runs
+     *  from the offense's own goal line (0) to the opponent's (100). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Quarter = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float GameClockSeconds = 900.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Down = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Distance = 10;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 YardLine = 20;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHomeOffense = true;
+
+    /** The score after the moment. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 HomeScore = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 AwayScore = 0;
+
+    /** Who: the passer, receiver, carrier, tackler, interceptor or flagged player the moment is
+     *  about, by display name and (when known) PlayerId. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PrimaryName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PrimaryId;
+
+    /** The other player in it: the target, the passer, the tackler, the recoverer. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString SecondaryName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName SecondaryId;
+
+    /** Yards gained (a catch, a sack's loss, the play's). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Yards = 0;
+
+    /** Points scored. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Points = 0;
+
+    /** How big: a hit's damage, a pass's air yards, an open receiver's separation in yards, a
+     *  record's value. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Magnitude = 0.f;
+
+    /** The moment went the home team's way. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHomeFavoured = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bFirstDown = false;
+
+    /** The ball changed hands. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bTurnover = false;
+
+    /** The moment's kind within its kind: Deep or Short, a result, a foul, a score's kind. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Detail;
+
+    /** The Sequence of the bus event it describes. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 SourceSequence = 0;
+
+    /** How much the moment matters, 0-1 (Epic 96): late in the game, a close score, a big down,
+     *  the red zone, points, a turnover. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Stakes = 0.f;
+
+    /** How unusual it is, 0-1 (Epic 96): the first of its kind this game, a big play, a record. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Novelty = 0.f;
+
+    /** The statistic the primary player's moment adds to (an EPSStatCategory by name; None
+     *  without one), and his total in it this game with this play (Epic 92's box score). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PrimaryStat;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PrimaryGameTotal = 0;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -1339,6 +1721,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageSignature, const
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallSignature, const FPSTelemetryLooseBallEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionSignature, const FPSTelemetryDeceptionEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBoundaryCrossedSignature, const FPSTelemetryBoundaryCrossedEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecognitionSignature, const FPSTelemetryRecognitionEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPenaltySignature, const FPSTelemetryPenaltyEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCrowdSignature, const FPSTelemetryCrowdEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentarySignature, const FPSTelemetryCommentaryEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeSignature, const FPSTelemetryTradeEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedSignature, const FPSTelemetryBallGroundedEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
@@ -1379,6 +1766,11 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageMC, const FPSTelemetryCo
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallMC, const FPSTelemetryLooseBallEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionMC, const FPSTelemetryDeceptionEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBoundaryCrossedMC, const FPSTelemetryBoundaryCrossedEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecognitionMC, const FPSTelemetryRecognitionEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPenaltyMC, const FPSTelemetryPenaltyEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCrowdMC, const FPSTelemetryCrowdEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentaryMC, const FPSTelemetryCommentaryEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeMC, const FPSTelemetryTradeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedMC, const FPSTelemetryBallGroundedEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
@@ -1495,6 +1887,22 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishBoundaryCrossed(const FPSTelemetryBoundaryCrossedEvent& Event);
+
+    /** A trade, from UPSTradeMarket (Epic 88). */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishTrade(const FPSTelemetryTradeEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishRecognition(const FPSTelemetryRecognitionEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPenalty(const FPSTelemetryPenaltyEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishCrowd(const FPSTelemetryCrowdEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishCommentary(const FPSTelemetryCommentaryEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishBallGrounded(const FPSTelemetryBallGroundedEvent& Event);
@@ -1631,6 +2039,21 @@ public:
     FPSTelemetryBoundaryCrossedSignature OnBoundaryCrossed;
 
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryRecognitionSignature OnRecognition;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPenaltySignature OnPenalty;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryCrowdSignature OnCrowd;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryCommentarySignature OnCommentary;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryTradeSignature OnTrade;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryBallGroundedSignature OnBallGrounded;
 
     FPSTelemetrySnapMC OnSnapMC;
@@ -1672,6 +2095,11 @@ public:
     FPSTelemetryLooseBallMC OnLooseBallMC;
     FPSTelemetryDeceptionMC OnDeceptionMC;
     FPSTelemetryBoundaryCrossedMC OnBoundaryCrossedMC;
+    FPSTelemetryRecognitionMC OnRecognitionMC;
+    FPSTelemetryPenaltyMC OnPenaltyMC;
+    FPSTelemetryCrowdMC OnCrowdMC;
+    FPSTelemetryCommentaryMC OnCommentaryMC;
+    FPSTelemetryTradeMC OnTradeMC;
     FPSTelemetryBallGroundedMC OnBallGroundedMC;
 
 private:

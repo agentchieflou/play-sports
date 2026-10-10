@@ -66,7 +66,7 @@ TArray<FString> PSDifficulty::ValidateCatalog(const FPSDifficultyCatalog& Catalo
             const UScriptStruct* Struct = PSPlayerDNA::FindTargetStruct(Scale.Target);
             if (!Struct)
             {
-                Problems.Add(FString::Printf(TEXT("%s %s: unknown target (SkillAI, Pocket, DefenderAI or RouteRunning)"), *Where, *Field));
+                Problems.Add(FString::Printf(TEXT("%s %s: unknown target (SkillAI, Pocket, DefenderAI, RouteRunning or Recognition)"), *Where, *Field));
             }
             else if (!FindFProperty<FFloatProperty>(Struct, Scale.Field))
             {

@@ -18,13 +18,18 @@ struct FPSFormationSpawnPoint
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
     float ScrimmageYardOffset = 0.0f;
 
-    // Offset in yards laterally relative to the center of the field width (26.6667 yards)
+    // Offset in yards laterally relative to the center of the field width
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
     float LateralYardOffset = 0.0f;
 };
 
 /**
- * Field coordinate helper that handles coordinate transformations between yard-line dimensions and world-space positions.
+ * The field in the level: its end zones and boundary volumes, and yard-line coordinates. Every
+ * position is in the field's one frame (PSField, Data/field_dimensions.json) -- yard line N at
+ * X = N * CentimetresPerYard, the offense's own goal line at X = 0, Y = 0 the middle of the field
+ * -- which is where the game mode lines up and snaps, so a volume's goal line is the game's.
+ * The frame is the world's, wherever this actor stands; the game mode spawns one when the
+ * level has none.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSFieldGrid : public AActor
@@ -34,7 +39,15 @@ class PLAYSPORTS_API APSFieldGrid : public AActor
 public:
     APSFieldGrid();
 
-    // Converts a field coordinate (YardLine, LateralYard) to a world space position (FVector)
+    /** Spawns the end zones (goal line to end line, sideline to sideline) and the
+     *  out-of-bounds volumes past the sidelines and end lines, on the field's frame. BeginPlay
+     *  calls it; headless tests call it. Once: later calls return the same volumes. */
+    const TArray<AActor*>& SpawnBoundaryVolumes();
+
+    /** The volumes SpawnBoundaryVolumes made. */
+    const TArray<AActor*>& GetBoundaryVolumes() const { return BoundaryVolumes; }
+
+    // Converts a field coordinate (YardLine, LateralYard from the left sideline) to a world space position (FVector)
     UFUNCTION(BlueprintCallable, Category = "Field")
     FVector GetWorldPositionFromFieldCoordinate(float YardLine, float LateralYard) const;
 
@@ -68,7 +81,7 @@ public:
      * Returns the list of spawned pawns so the caller can cache them.
      *
      * @param Roster       Player attribute rows to spawn.
-     * @param ScrimmageX   World-space X position of the line of scrimmage (yards * 100).
+     * @param ScrimmageX   World-space X position of the line of scrimmage (PSField::YardLineToWorld).
      * @param World        UWorld to spawn into.
      * @return             Array of spawned APSPlayerPawn pointers.
      */
@@ -79,6 +92,9 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+
+    UPROPERTY(Transient)
+    TArray<AActor*> BoundaryVolumes;
 
 public:
     /** The side a role plays on: linemen, linebackers and backs of the defense defend. */

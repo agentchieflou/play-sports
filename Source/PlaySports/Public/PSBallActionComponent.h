@@ -7,6 +7,8 @@
 
 class APSPlayerPawn;
 class APSBall;
+class UPSTelemetryBus;
+struct FPSTelemetrySnapEvent;
 
 /**
  * UPSBallActionComponent encapsulates ball-action mechanics (passing, handoffs, lateral tosses,
@@ -25,7 +27,10 @@ public:
      *  published on the TelemetryBus as the pass's intended receiver (Epic 140: an
      *  interception on this pass auto-kills IntendedTarget, not whoever the ball
      *  happens to hit). SpeedScale (0-1] throws softer than the passer's full arm: a touch
-     *  pass (Epic 104); a target out of reach that softly is thrown at full speed. */
+     *  pass (Epic 104); a target out of reach that softly is thrown at full speed. The ball
+     *  comes down off target by the passer's inaccuracy (his Awareness, the CPU difficulty's
+     *  scale), rolled on his stream of the play's seeded streams (UPSNetRandomStreams, Epic 108):
+     *  the same match seed and snap throw the same ball. */
     UFUNCTION(BlueprintCallable, Category = "BallAction")
     bool ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr, float SpeedScale = 1.f);
 
@@ -51,9 +56,30 @@ public:
     void FumbleBall();
 
     /** Resolves a physical tackle contest against an incoming defender. A carrier it downs is
-     *  announced as a Tackle event on the telemetry bus (tackler, carrier, spot, yards, sack);
-     *  the play simulation records the play from that event. True when the tackle succeeded,
-     *  even if the carrier survived the hit or fumbled. */
+     *  announced as a Tackle event on the telemetry bus (tackler, carrier, spot, sack); the
+     *  play simulation, the outcome authority, rules on the play from that event and measures
+     *  its yards from the line of scrimmage. True when the tackle succeeded, even if the
+     *  carrier survived the hit or fumbled. */
     UFUNCTION(BlueprintCallable, Category = "BallAction")
     bool ResolveTackle(APSPlayerPawn* Defender);
+
+    /** Hears the snap's line of scrimmage on the bus, for the sack call. BeginPlay binds;
+     *  headless tests call it. Idempotent. */
+    void BindToBus();
+
+    void UnbindFromBus();
+
+protected:
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+private:
+    void HandleSnap(const FPSTelemetrySnapEvent& Event);
+
+    /** The last snap's line of scrimmage (world X; the offense attacks +X), once one is heard.
+     *  A quarterback with the ball brought down behind it is sacked. */
+    float LineOfScrimmageX = 0.f;
+    bool bHasLineOfScrimmage = false;
+
+    TWeakObjectPtr<UPSTelemetryBus> BoundBus;
 };

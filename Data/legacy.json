@@ -15,6 +15,14 @@
             { "Category": "Tackles", "CareerValue": 1300 },
             { "Category": "Sacks", "CareerValue": 110 },
             { "Category": "Interceptions", "CareerValue": 50 }
+        ],
+        "AwardScores": [
+            { "Award": "MostValuablePlayer", "Score": 0.5 },
+            { "Award": "OffensivePlayerOfYear", "Score": 0.3 },
+            { "Award": "DefensivePlayerOfYear", "Score": 0.3 },
+            { "Award": "RookieOfYear", "Score": 0.1 },
+            { "Award": "OffensivePlayerOfWeek", "Score": 0.02 },
+            { "Award": "DefensivePlayerOfWeek", "Score": 0.02 }
         ]
     },
     "LeaderCategories": [

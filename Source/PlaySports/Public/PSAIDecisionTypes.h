@@ -107,6 +107,111 @@ struct FPSAIDebugTuning
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
     float OverlayFontScale = 1.f;
+
+    // --- The overlay's cards (UPSAIDebugOverlayWidget, Epic 85.2). Sizes are Slate units at a
+    // distance scale of 1 (Epic 28's badges' ReferenceDistance); the badges' MinScale and
+    // MaxScale bound it. ---
+
+    /** The text's type size, times OverlayFontScale. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    int32 OverlayFontSize = 11;
+
+    /** A character is this wide, and a line this tall, as shares of the type size: the card is
+     *  sized from them. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    float OverlayCharWidth = 0.6f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    float OverlayLineHeight = 1.3f;
+
+    /** Room round the text inside the card. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    float OverlayPadding = 4.f;
+
+    /** Longer lines wrap at a space. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    int32 OverlayMaxLineChars = 48;
+
+    /** The cards' colors by side, and their text's ("#RRGGBB") ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    FString OverlayOffenseColor = TEXT("#1F6FEB");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    FString OverlayDefenseColor = TEXT("#C2410C");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    FString OverlayTextColor = TEXT("#FFFFFF");
+
+    /** ... drawn this opaque (0-1), or this opaque when no nudge found a card room clear of the
+     *  others (it is drawn where it was anyway: a debug view hides nothing). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    float OverlayOpacity = 0.8f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    float OverlayCrowdedOpacity = 0.3f;
+
+    /** A card in another's way moves up this far (times its scale), at most OverlayMaxNudges
+     *  times (Epic 28's overlap rule). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    float OverlayNudgeStep = 12.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    int32 OverlayMaxNudges = 6;
+
+    /** The line from a player to his target. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AIDebug")
+    float OverlayTargetLineWidth = 2.f;
+};
+
+/** One player's card on the AI debug overlay (Epic 85.2): his latest decision over his head, laid
+ *  out for a camera in viewport pixels (origin top left), as Epic 28 lays out badges. */
+USTRUCT(BlueprintType)
+struct FPSAIDebugCard
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    FName PlayerId;
+
+    /** UPSAIDecisionLog::DescribeForOverlay, wrapped to OverlayMaxLineChars. */
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    FString Text;
+
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    bool bOffense = true;
+
+    /** The card's bottom centre, after any nudge. */
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    FVector2D ScreenPosition = FVector2D::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    FVector2D Size = FVector2D::ZeroVector;
+
+    /** By distance from the camera (the badges' rule). */
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    float Scale = 1.f;
+
+    /** The text's type size at that scale, in Slate units. */
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    int32 FontSize = 11;
+
+    /** In front of the camera and wholly on the screen. */
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    bool bVisible = false;
+
+    /** No nudge found it room clear of the nearer cards; it stays where it was. */
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    bool bCrowdedOut = false;
+
+    /** The player and his target on the screen, for the line between them. */
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    bool bHasTarget = false;
+
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    FVector2D PlayerScreen = FVector2D::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly, Category = "AIDebug")
+    FVector2D TargetScreen = FVector2D::ZeroVector;
 };
 
 /** One player in a scripted scenario (Epic 85.4). */

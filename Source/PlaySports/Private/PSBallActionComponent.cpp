@@ -9,6 +9,8 @@
 #include "PSCarrierMoveComponent.h"
 #include "PSDefenderTechniqueComponent.h"
 #include "PSDifficultySubsystem.h"
+#include "PSNetRandomStreams.h"
+#include "PSFieldDimensions.h"
 #include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -17,6 +19,46 @@
 UPSBallActionComponent::UPSBallActionComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
+}
+
+void UPSBallActionComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    BindToBus();
+}
+
+void UPSBallActionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    UnbindFromBus();
+    Super::EndPlay(EndPlayReason);
+}
+
+void UPSBallActionComponent::BindToBus()
+{
+    UWorld* World = GetWorld();
+    UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Bus || BoundBus.Get() == Bus)
+    {
+        return;
+    }
+    UnbindFromBus();
+    Bus->OnSnapMC.AddUObject(this, &UPSBallActionComponent::HandleSnap);
+    BoundBus = Bus;
+}
+
+void UPSBallActionComponent::UnbindFromBus()
+{
+    if (UPSTelemetryBus* Bus = BoundBus.Get())
+    {
+        Bus->OnSnapMC.RemoveAll(this);
+    }
+    BoundBus.Reset();
+}
+
+void UPSBallActionComponent::HandleSnap(const FPSTelemetrySnapEvent& Event)
+{
+    LineOfScrimmageX = Event.LineOfScrimmage.X;
+    bHasLineOfScrimmage = true;
 }
 
 bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc, APSPlayerPawn* IntendedTarget, float SpeedScale)
@@ -53,7 +95,23 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
         {
             AccuracyError *= Difficulty->GetThrowScatterScale(OwnerPawn);
         }
-        FVector ErrorOffset = FMath::VRand() * FMath::FRandRange(0.f, AccuracyError);
+        // The miss is the passer's own roll on the play's seeded stream (Epic 108): the same match
+        // seed and snap throw the same ball. Direction, then distance, as two statements: one
+        // stream drawn twice in one expression is drawn in whichever order the compiler picks.
+        FVector ErrorDirection;
+        float ErrorDistance = 0.f;
+        if (UPSNetRandomStreams* Streams = UPSNetRandomStreams::Get(this))
+        {
+            const FName PasserId = OwnerPawn->GetAttributes().PlayerId;
+            ErrorDirection = Streams->RollUnitVector(TEXT("ThrowScatter"), PasserId);
+            ErrorDistance = Streams->RollRange(TEXT("ThrowScatter"), 0.f, AccuracyError, PasserId);
+        }
+        else
+        {
+            ErrorDirection = FMath::VRand();
+            ErrorDistance = FMath::FRandRange(0.f, AccuracyError);
+        }
+        FVector ErrorOffset = ErrorDirection * ErrorDistance;
         ErrorOffset.Z = 0.f; // Keep error on 2D plane
         ScatterTarget += ErrorOffset;
     }
@@ -304,7 +362,8 @@ void UPSBallActionComponent::FumbleBall()
     if (Ball)
     {
         FVector FumbleVelocity = OwnerPawn->GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f);
-        FumbleVelocity += FMath::VRand() * 100.f;
+        // Which way it squirts is the fumbler's roll on the play's seeded streams (Epic 108).
+        FumbleVelocity += UPSNetRandomStreams::RollUnitVectorFor(this, TEXT("FumbleBounce"), OwnerPawn->GetAttributes().PlayerId) * 100.f;
         FumbleVelocity.Z = FMath::Max(50.f, FumbleVelocity.Z);
 
         Ball->Fumble(FumbleVelocity);
@@ -342,7 +401,9 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
     const float TackleChance = bGaveUp ? 1.f
         : PSBallResolutionHelpers::ComputeTackleChance(CarrierAttr, DefenderAttr, CarrierSpeed, DefenderSpeed, OddsMultiplier);
 
-    float Roll = FMath::FRand();
+    // The contest's rolls are the carrier's, on the play's seeded streams (Epic 108).
+    const FName CarrierId = CarrierAttr.PlayerId;
+    float Roll = UPSNetRandomStreams::RollFor(this, TEXT("Tackle"), CarrierId);
     if (Roll <= TackleChance)
     {
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Tackle SUCCESS! Defender %s tackled carrier %s (Roll: %.2f <= Chance: %.2f)"), 
@@ -350,7 +411,7 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
 
         // Fumble chance check (a slide protects the ball; a strip attempt rips at it)
         const float FumbleChance = PSBallResolutionHelpers::ComputeFumbleChance(DefenderSpeed, Technique ? Technique->GetFumbleChanceBonus() : 0.f);
-        if (!bGaveUp && FMath::FRand() <= FumbleChance)
+        if (!bGaveUp && UPSNetRandomStreams::RollFor(this, TEXT("TackleFumble"), CarrierId) <= FumbleChance)
         {
             FumbleBall();
             return true;
@@ -380,8 +441,6 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
             OwnerPawn->GetFloatingMovementComponent()->StopActiveMovement();
         }
 
-        int32 YardsGained = FMath::RoundToInt((OwnerPawn->GetActorLocation().X - OwnerPawn->GetStartingLocation().X) / 100.f);
-
         // Hitpoint resolution (Epic 139): a successful tackle deals damage rather than
         // automatically ending the play -- the snap isn't over until the carrier is
         // downed (hitpoints reach 0). A carrier who survives the hit has broken the
@@ -390,7 +449,10 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         UPSHealthComponent* CarrierHealth = OwnerPawn->GetHealthComponent();
         if (CarrierHealth && !bGaveUp)
         {
+            // A fresh model's stream starts at seed 0, so unseeded every hit drew the same spread;
+            // seeded from the carrier's stream, each hit draws its own, the same on a replay.
             UPSCombatRulesModel* CombatRules = NewObject<UPSCombatRulesModel>(this);
+            CombatRules->SeedDeterminism(UPSNetRandomStreams::RollSeedFor(this, TEXT("TackleDamage"), CarrierId));
             const float Damage = CombatRules->ResolveTackleDamage(CarrierAttr, DefenderAttr, ArchetypeTuning);
             bCarrierDowned = CarrierHealth->ApplyDamage(Damage);
 
@@ -415,19 +477,20 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         if (bCarrierDowned)
         {
             // The tackle goes out on the bus (rule 5): the play simulation, the outcome authority,
-            // records it from there (one path, rule 6), and the stats, cameras, rumble, overlays
-            // and controllers hear the same event. The spot is the yard line he went down on
-            // (the game mode places the line of scrimmage at YardLine * 100 cm).
+            // records it from there (one path, rule 6) and measures the play's yards from the
+            // line of scrimmage; the stats, cameras, rumble, overlays and controllers hear the
+            // same event, and the play's yards with its result. The spot is the yard line he went
+            // down on, on the field's one frame (PSField), where the game mode lines up.
             if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
             {
                 FPSTelemetryTackleEvent TackleEvt;
                 TackleEvt.TacklerName = DefenderAttr.DisplayName;
                 TackleEvt.BallCarrierName = CarrierAttr.DisplayName;
-                TackleEvt.YardLine = FMath::Clamp(FMath::RoundToInt(OwnerPawn->GetActorLocation().X / 100.f), 0, 100);
-                TackleEvt.YardsGained = YardsGained;
-                // A quarterback still holding the ball, brought down behind where he lined up
-                // (itself behind the line), was sacked.
-                TackleEvt.bIsSack = CarrierAttr.Role == EPlayerRole::Quarterback && YardsGained < 0;
+                TackleEvt.YardLine = PSField::WorldToSpot(OwnerPawn->GetActorLocation());
+                // A quarterback still holding the ball, brought down behind the snap's line of
+                // scrimmage, was sacked.
+                TackleEvt.bIsSack = CarrierAttr.Role == EPlayerRole::Quarterback && bHasLineOfScrimmage
+                    && OwnerPawn->GetActorLocation().X < LineOfScrimmageX;
                 Bus->PublishTackle(TackleEvt);
             }
         }

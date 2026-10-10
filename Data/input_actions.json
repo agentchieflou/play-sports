@@ -55,6 +55,12 @@
             "ContextId": "PhotoMode",
             "Priority": 5,
             "Description": "Photo mode is on (Epic 45): UPSPhotoModeSubsystem pushes it on every player controller over whatever they had, and takes the Replay context off meanwhile. The Move stick flies the free camera; every other button here is photo mode's, except Start, which still opens the pause menu."
+        },
+        {
+            "ContextId": "Telestrator",
+            "Priority": 6,
+            "bRemappable": false,
+            "Description": "The telestrator's drawing layer (Epic 44), while analysis mode is on. Like Menu it is not pushed on Enhanced Input: UPSTelestratorWidget takes the keys through Slate (UI input mode, so nothing reaches the camera or the pawn under the drawing) and reads which mean what from these rows. The mouse and a finger draw directly; the Move stick or the arrows move a cursor that A or Space draws at. Touch uses the layer's own toolbar."
         }
     ],
     "Actions": [
@@ -802,6 +808,102 @@
             "ValueType": "Boolean",
             "Description": "Leave photo mode: the camera, the game or replay and the UI go back as they were. B, as B cancels everywhere.",
             "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Escape" },
+                { "Key": "Gamepad_FaceButton_Right" }
+            ]
+        },
+        {
+            "ActionId": "Telestrator",
+            "ValueType": "Boolean",
+            "Description": "Enter or leave the telestrator's analysis mode (Epic 44) over a replay, which holds while you draw. Only in a replay (and the layer itself): on the field every pad button and its touch twin is spoken for by a context the field stacks under (D-pad Up is both sides' audible, a swipe up deliberately nothing), so the live film view has no button into analysis.",
+            "Contexts": ["Replay", "Telestrator"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Y" },
+                { "Key": "Gamepad_DPad_Up" },
+                { "Key": "Gamepad_RightStick_Up" }
+            ]
+        },
+        {
+            "ActionId": "TelestratorDraw",
+            "ValueType": "Boolean",
+            "Description": "Draw with the current tool at the telestrator's cursor while held; the stroke ends on release. The mouse and a finger draw where they press.",
+            "Contexts": ["Telestrator"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "SpaceBar" },
+                { "Key": "Gamepad_FaceButton_Bottom" }
+            ]
+        },
+        {
+            "ActionId": "TelestratorCursor",
+            "ValueType": "Axis2D",
+            "Description": "Move the telestrator's drawing cursor. X is right, Y is up the screen.",
+            "Contexts": ["Telestrator"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "W", "bSwizzleYX": true },
+                { "Key": "S", "bSwizzleYX": true, "bNegate": true },
+                { "Key": "D" },
+                { "Key": "A", "bNegate": true },
+                { "Key": "Up", "bSwizzleYX": true },
+                { "Key": "Down", "bSwizzleYX": true, "bNegate": true },
+                { "Key": "Right" },
+                { "Key": "Left", "bNegate": true },
+                { "Key": "Gamepad_Left2D" }
+            ]
+        },
+        {
+            "ActionId": "TelestratorTool",
+            "ValueType": "Boolean",
+            "Description": "The telestrator's next tool: freehand, arrow, circle, highlight a player.",
+            "Contexts": ["Telestrator"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Tab" },
+                { "Key": "Gamepad_FaceButton_Left" }
+            ]
+        },
+        {
+            "ActionId": "TelestratorUndo",
+            "ValueType": "Boolean",
+            "Description": "Take the telestrator's last mark back.",
+            "Contexts": ["Telestrator"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "BackSpace" },
+                { "Key": "Gamepad_FaceButton_Top" }
+            ]
+        },
+        {
+            "ActionId": "TelestratorClear",
+            "ValueType": "Boolean",
+            "Description": "Take every telestrator mark back.",
+            "Contexts": ["Telestrator"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Delete" },
+                { "Key": "Gamepad_LeftShoulder" }
+            ]
+        },
+        {
+            "ActionId": "TelestratorSave",
+            "ValueType": "Boolean",
+            "Description": "Save the annotated still: the frame and its marks as JSON, and a screenshot with the drawing (Saved/Telestrator).",
+            "Contexts": ["Telestrator"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Enter" },
+                { "Key": "Gamepad_RightShoulder" }
+            ]
+        },
+        {
+            "ActionId": "TelestratorExit",
+            "ValueType": "Boolean",
+            "Description": "Leave analysis mode: the marks go and a held replay plays on. B, as B cancels everywhere.",
+            "Contexts": ["Telestrator"],
             "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "Escape" },

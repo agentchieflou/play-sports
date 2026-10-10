@@ -45,6 +45,14 @@ TArray<FString> PSPlatformTiers::ValidateCatalog(const FPSPlatformTierCatalog& C
         {
             Problems.Add(FString::Printf(TEXT("Tiers[%d]: PlayArtRefreshHz must be 0 or more"), Index));
         }
+        if (Tier.AudioUpdateHz < 0.f || Tier.CrowdUpdateHz < 0.f)
+        {
+            Problems.Add(FString::Printf(TEXT("Tiers[%d]: AudioUpdateHz and CrowdUpdateHz must be 0 or more"), Index));
+        }
+        if (Tier.AudioMaxVoices < 1)
+        {
+            Problems.Add(FString::Printf(TEXT("Tiers[%d]: AudioMaxVoices must be 1 or more"), Index));
+        }
     }
     if (!FindTier(Catalog, Catalog.DefaultTier))
     {

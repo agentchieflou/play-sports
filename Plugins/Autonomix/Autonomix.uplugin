@@ -3,7 +3,7 @@
   "Version": 1,
   "VersionName": "1.0",
   "FriendlyName": "Autonomix",
-  "Description": "Headless AI bridge for T3D injection and Unreal Python operations.",
+  "Description": "Headless AI bridge for T3D injection and Unreal Python operations: agent tools served through AgenticLink.",
   "Category": "AI",
   "Modules": [
     {
@@ -12,5 +12,11 @@
       "LoadingPhase": "PostEngineInit"
     }
   ],
-  "EnabledByDefault": true
+  "EnabledByDefault": true,
+  "Plugins": [
+    {
+      "Name": "AgenticLink",
+      "Enabled": true
+    }
+  ]
 }

@@ -4,6 +4,7 @@
 #include "PSBallActionComponent.h"
 #include "PSBallResolutionHelpers.h"
 #include "PSDataIngestion.h"
+#include "PSFieldDimensions.h"
 #include "PSHealthComponent.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayerPawn.h"
@@ -15,9 +16,6 @@ DECLARE_CYCLE_STAT(TEXT("Loose ball"), STAT_PSAILooseBall, STATGROUP_PSAI);
 
 namespace PSLooseBallPrivate
 {
-    /** The field's scale: APSGameMode puts yard line N at X = N * 100. */
-    constexpr float CentimetresPerYard = 100.f;
-
     bool IsStanding(const APSPlayerPawn* Pawn)
     {
         const UPSHealthComponent* Health = Pawn ? Pawn->GetHealthComponent() : nullptr;
@@ -216,7 +214,7 @@ bool UPSLooseBallSubsystem::MakeLoose(const FString& InKickType, int32 YardsBehi
     // It comes loose behind the line: a punt's recoil, a field goal's hold spot.
     const FPSLooseBallTuning& Settings = GetTuning();
     const int32 Yards = InKickType == TEXT("FieldGoal") ? FMath::Max(YardsBehindLine, Settings.BlockedFieldGoalYards) : YardsBehindLine;
-    const FVector Spot(LineOfScrimmage.X - Yards * PSLooseBallPrivate::CentimetresPerYard, Holder ? Holder->GetActorLocation().Y : LineOfScrimmage.Y, Football->GetActorLocation().Z);
+    const FVector Spot(LineOfScrimmage.X - PSField::YardsToCentimetres(Yards), Holder ? Holder->GetActorLocation().Y : LineOfScrimmage.Y, Football->GetActorLocation().Z);
 
     // Out of the holder's hands (possession is the pawn's possession component's) and lying on
     // the ground: not a fumble in flight, so the ball's own catch and recovery rolls stay out of
@@ -403,14 +401,14 @@ void UPSLooseBallSubsystem::BlowDead(const FVector& Spot, bool bKickingTeam, boo
     Event.PlayerName = Holder ? Holder->GetAttributes().DisplayName : FString();
     Event.bKickingTeam = bKickingTeam;
     Event.bTouchdown = bTouchdown;
-    Event.YardLine = FMath::Clamp(FMath::RoundToInt((Spot.X - GetGoalLineX()) / PSLooseBallPrivate::CentimetresPerYard), 0, 100);
+    Event.YardLine = FMath::Clamp(FMath::RoundToInt(PSField::CentimetresToYards(Spot.X - GetGoalLineX())), 0, FMath::RoundToInt(PSField::GetDimensions().FieldLengthYards));
     Event.Location = Spot;
     Publish(Event);
 }
 
 float UPSLooseBallSubsystem::GetGoalLineX() const
 {
-    return LineOfScrimmage.X - SnapYardLine * PSLooseBallPrivate::CentimetresPerYard;
+    return LineOfScrimmage.X - PSField::YardsToCentimetres(SnapYardLine);
 }
 
 bool UPSLooseBallSubsystem::GetChaseTarget(const APSPlayerPawn* Player, FVector& OutTarget) const

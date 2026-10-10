@@ -1,6 +1,7 @@
 #include "PSControlHandoffComponent.h"
 #include "PSBall.h"
 #include "PSDataIngestion.h"
+#include "PSFieldGrid.h"
 #include "PSHealthComponent.h"
 #include "PSInputBufferComponent.h"
 #include "PSPlayContextComponent.h"
@@ -75,6 +76,14 @@ TArray<FString> UPSControlHandoffComponent::ValidateTuning(const FControlHandoff
     if (InTuning.PickLeftAction.IsNone() || InTuning.PickRightAction.IsNone() || InTuning.PickLeftAction == InTuning.PickRightAction)
     {
         Problems.Add(TEXT("PickLeftAction and PickRightAction must be two different actions"));
+    }
+    if (APSFieldGrid::GetSideForRole(InTuning.OffenseControlRole) != EPSTeamSide::Offense)
+    {
+        Problems.Add(FString::Printf(TEXT("OffenseControlRole %s is not an offensive role"), *UEnum::GetValueAsString(InTuning.OffenseControlRole)));
+    }
+    if (APSFieldGrid::GetSideForRole(InTuning.DefenseControlRole) != EPSTeamSide::Defense)
+    {
+        Problems.Add(FString::Printf(TEXT("DefenseControlRole %s is not a defensive role"), *UEnum::GetValueAsString(InTuning.DefenseControlRole)));
     }
     if (Catalog)
     {

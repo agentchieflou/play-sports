@@ -6,8 +6,9 @@
 //   2. Man coverage: each defender takes the nearest receiver nobody else has, sits on him
 //      from a cushion, and (with Awareness) reads where he is going.
 //   3. Zone coverage: the defender goes to his zone and shades to a receiver who enters it.
-//   4. Run fit: the defender holds, reads a drop-back as a pass and drops, reads a hand-off
-//      as a run and pursues -- each as fast as his Awareness lets him.
+//   4. Run fit: the defender holds, reads a drop-back as a pass and drops (in his pass read,
+//      UPSPlayRecognitionSubsystem's, Epic 80), reads a hand-off as a run and pursues -- each as
+//      fast as his Awareness lets him.
 //   5. The throw: coverage near where it comes down breaks on the ball; after the catch
 //      everyone pursues; a defender who takes the ball away returns it.
 
@@ -17,6 +18,7 @@
 #include "PSDefenderAIComponent.h"
 #include "PSDefenseController.h"
 #include "PSOffenseController.h"
+#include "PSPlayRecognitionSubsystem.h"
 #include "PSPlayerPawn.h"
 #include "PSTelemetryBus.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -373,8 +375,12 @@ bool FPSDefenderRunFitTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("...to his drop depth"), PointsToward(SharpAI->GetDesiredDirection(), Sharp->GetActorLocation(),
         FVector(SharpAI->GetTuning().PassDropDepth, Sharp->GetActorLocation().Y, 100.f)));
     TestTrue(TEXT("The raw one is still reading"), RawAI->GetAction() == EPSDefenderAction::Read);
-    RawAI->TickAI(RawReaction + 0.05f);
-    TestTrue(TEXT("...until his reaction catches up"), RawAI->GetAction() == EPSDefenderAction::Zone);
+    // His pass read is his reaction, stretched by what the look made him expect (Epic 80).
+    UPSPlayRecognitionSubsystem* Recognition = UPSPlayRecognitionSubsystem::Get(World);
+    const float RawPassRead = Recognition ? Recognition->GetReadTimes(Raw).PassSeconds : RawReaction;
+    TestTrue(TEXT("(His pass read is his reaction or longer)"), RawPassRead >= RawReaction);
+    RawAI->TickAI(RawPassRead + 0.05f);
+    TestTrue(TEXT("...until his pass read catches up"), RawAI->GetAction() == EPSDefenderAction::Zone);
 
     // Next play, a hand-off: a run read, so the linebackers pursue the back.
     QB->SetActorLocation(FVector(-100.f, 0.f, 100.f));

@@ -20,8 +20,9 @@ namespace PSGameStateEvents
     /** The play clock runs before the snap. */
     PLAYSPORTS_API bool IsPlayClockRunning(const FPlayState& State);
 
-    /** The world-space spot of the ball for a yard line (from the offense's own goal line): where
-     *  the game mode lines the pawns up, the Snap event's line and the GameState event's. */
+    /** The world-space spot of the ball for a yard line (from the offense's own goal line), on
+     *  the field's one frame (PSField::YardLineToWorld): where the game mode lines the pawns up,
+     *  the Snap event's line and the GameState event's. */
     PLAYSPORTS_API FVector LineOfScrimmageFor(int32 YardLine);
 
     /** The PhaseChange to announce when the simulation's phase is no longer Announced, the phase

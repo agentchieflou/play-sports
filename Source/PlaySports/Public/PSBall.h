@@ -90,8 +90,11 @@ public:
      *  headless tests call it. Idempotent. */
     void BindToBus();
 
+    void UnbindFromBus();
+
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     USphereComponent* CollisionComponent;
@@ -119,6 +122,8 @@ private:
     UFUNCTION()
     void OnBallBounce(const FHitResult& ImpactResult, const FVector& ImpactVelocity);
 
-    UFUNCTION()
-    void OnBusThrowEvent(const FPSTelemetryThrowEvent& Event);
+    void HandleBusThrow(const FPSTelemetryThrowEvent& Event);
+
+    TWeakObjectPtr<UPSTelemetryBus> BoundBus;
+    FDelegateHandle ThrowHandle;
 };

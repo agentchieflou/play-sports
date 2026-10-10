@@ -1,8 +1,10 @@
 #include "PSHUD.h"
+#include "PSAIDebugOverlayWidget.h"
 #include "PSOverlayBadgeWidget.h"
 #include "PSOverlayPersonnelWidget.h"
 #include "PSOverlayScoreBugWidget.h"
 #include "PSPlatformTiers.h"
+#include "PSTelestratorWidget.h"
 
 APSHUD::APSHUD()
 {
@@ -14,11 +16,27 @@ APSHUD::APSHUD()
     PersonnelWidget = nullptr;
     BadgeWidgetClass = UPSOverlayBadgeWidget::StaticClass();
     BadgeWidget = nullptr;
+    TelestratorWidgetClass = UPSTelestratorWidget::StaticClass();
+    TelestratorWidget = nullptr;
+    AIDebugWidgetClass = UPSAIDebugOverlayWidget::StaticClass();
+    AIDebugWidget = nullptr;
 }
 
 void APSHUD::BeginPlay()
 {
     Super::BeginPlay();
+
+#if !UE_BUILD_SHIPPING
+    // Lowest of all: the AI debug overlay's cards float over the field, under everything else.
+    if (AIDebugWidgetClass)
+    {
+        AIDebugWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), AIDebugWidgetClass);
+        if (AIDebugWidget)
+        {
+            AIDebugWidget->AddToViewport();
+        }
+    }
+#endif
 
     // Under the score bug: badges float over the field. Their own component trims them on a
     // Minimal tier.
@@ -55,6 +73,16 @@ void APSHUD::BeginPlay()
         if (ChyronWidget)
         {
             ChyronWidget->AddToViewport();
+        }
+    }
+
+    // Over the broadcast package, under any menu opened later: the telestrator draws on the frame.
+    if (TelestratorWidgetClass)
+    {
+        TelestratorWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), TelestratorWidgetClass);
+        if (TelestratorWidget)
+        {
+            TelestratorWidget->AddToViewport();
         }
     }
 }

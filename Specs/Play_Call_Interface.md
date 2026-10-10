@@ -32,9 +32,32 @@ calls, and what makes the ball snap. This is also the editor handoff for the scr
     is required.
   - Choosing a formation opens `PlayCallPlays` with that formation's plays.
   - Each play shows its name and category (offense), or its front and coverage (defense).
-  - Below each play is a text line of what everyone does, e.g. `WR Slant · RB Flat · TE pass
-    block`. This stands in for play art until Track A's art pipeline (Epic 35) exists.
+  - Beside each play is its diagram (102.1, below), and under its name a text line of what
+    everyone does, e.g. `WR Slant · RB Flat · TE pass block`, which screen narration reads.
   - Choosing a play calls it and closes the screens.
+- **Play-art previews (102.1).** Every option that calls a play (a formation's plays, the
+  suggestion, recent and favourite plays) shows the play drawn as a diagram.
+  - The diagram is the field's own play art (Epics 27, 31 and 35), not a second drawing:
+    `UPSOverlayPlayArtSubsystem::BuildPlayDiagram` resolves the play for the players where they
+    stand with `PSPlayResolution` (the snap's resolution, man matchups included) and compiles it
+    with `PSPlayArt::CompilePlayArt`, then `PSPlayDiagram::BuildDiagram` lays it flat.
+  - What it shows: the line of scrimmage; each route as a line ending in an arrowhead, in its
+    read's color and width (an option route splits at its read); a T for each blocker (stem up
+    for a run block, back for a pass block); the quarterback's drop and a back's path to his
+    spot; on defense a star at each zone landmark with the defender's drop to it, a line from
+    each man defender to his receiver, and each rusher's arrow. The side's players are rings
+    (offense) or Xs (defense); the other side is drawn faintly for reference.
+  - `UPSPlayDiagramWidget` paints it with Slate lines, fitted to whatever size it is given,
+    upfield up. The code-built screen puts it in a box of `PreviewWidth` x `PreviewHeight` Slate
+    units, which scale with the display, so it is the same share of a phone's screen as a
+    monitor's. Lines never go thinner than `MinStrokeWidth`.
+  - The look is `Data/play_art.json`'s `Diagram` block (`FPSPlayDiagramStyle`).
+  - It is drawn whatever the route-art settings and the platform tier say: the play is the
+    player's own choice. With nobody on the field (no lineup to resolve against) a play shows
+    no preview, only its text line.
+  - Limit: the preview resolves against the players on the field now. A formation whose
+    personnel package differs from the one lined up shows its slots on the current players
+    until the call brings the package on (Epic 19.5).
 - **Suggestions (102.2).** The call screen's first option is the coaching AI's top-ranked play
   for the situation. `UPSCoachingAI::RankPlays` is the same weighting the CPU rolls on, but
   without the roll, so the suggestion is always the top-weighted play.
@@ -85,7 +108,8 @@ calls, and what makes the ball snap. This is also the editor handoff for the scr
 - **Adjustment timing.** A CPU offense snaps `CpuSnapDelaySeconds` after both calls are in.
   A human defense's call comes last, so that delay is all the time the Adjust screen gets. A
   longer delay against a human defense may be wanted after playtesting.
-- **Play art (102.1).** Drawn route diagrams need Epic 35.
+- **Play-art previews, the look (102.1).** The diagrams are built and tested headless; nobody has
+  seen one on a screen yet (section 3, step 3).
 - **Passing.** A human QB can't throw yet; the passing input model is Epic 104. On a pass play the
   human QB scrambles while the AI runs the routes.
 - **Competitive integrity (Epic 107).** The `PlayCall` event carries both sides' calls. With two
@@ -105,4 +129,14 @@ calls, and what makes the ball snap. This is also the editor handoff for the scr
 2. **Restyle.** The play-call screens use the same `UPSMenuScreenWidget` as every menu, so a
    `WBP_MenuScreen` subclass restyles them too. Each option's `Detail` is the play's text line.
    A dedicated play-call widget (formation art, a play grid) can replace the screen by checking
-   `GetScreen().Content`.
+   `GetScreen().Content`; it places a `UPSPlayDiagramWidget` per play and calls `ShowPlay` with
+   the option's `Payload` (the play's ID).
+3. **Check the previews (102.1)** in PIE, on a monitor and on an iPhone (or the editor's mobile
+   preview at a phone's DPI scale):
+   - every play list shows a diagram beside each play, upfield up, the routes' colors matching
+     the field's ribbons after the call, the defense faint behind an offensive play;
+   - the lines read at the thumbnail size: raise `MinStrokeWidth`, `PlayerRadius` or the
+     preview size in `play_art.json`'s `Diagram` block if not, and check the list still fits a
+     phone's screen in landscape;
+   - the backdrop (`BackgroundColor`, `BackgroundOpacity`) sits well on the button styles, and
+     the diagram fades in with the screen.

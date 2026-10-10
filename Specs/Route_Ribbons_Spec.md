@@ -38,6 +38,11 @@ ribbon, ring and glow look, and checking it in PIE, are editor work.
   - On a `Simplified` tier the art goes at once at the snap.
   - A `Minimal` tier draws none.
   - Every new down starts empty.
+- **Flat previews (Epic 102.1).** The play-call screen draws these same primitives flat, as 2D
+  diagrams (`UPSOverlayPlayArtSubsystem::BuildPlayDiagram`, `PSPlayDiagram`,
+  `UPSPlayDiagramWidget`): a ribbon becomes a line with an arrowhead in its color and width, and
+  the ring is left out. Whatever the ribbon renderer's look, keep its colors and widths in step
+  with `play_art.json`, which both read. See `Specs/Play_Call_Interface.md`.
 - **Who sees it.** Use `IsVisibleTo(Viewer)` for each view:
   - The `RouteArt` setting (Gameplay) turns it off.
   - In a head-to-head game, the versus rules decide (`RouteArtAudience`, shared or split

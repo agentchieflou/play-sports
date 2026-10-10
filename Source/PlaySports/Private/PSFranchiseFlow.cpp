@@ -17,6 +17,7 @@
 #include "PSRoster.h"
 #include "PSStaffManager.h"
 #include "PSStatsEngine.h"
+#include "PSTradeMarket.h"
 #include "PSWeeklyPreparation.h"
 #include "Engine/DataTable.h"
 #include "Misc/Paths.h"
@@ -34,6 +35,7 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     FreeAgency = nullptr;
     LastRollover = FPSLeagueYearRollover();
     bSeasonEnded = false;
+    ConnectTradeMarket();
 }
 
 void UPSFranchiseFlow::SetNarrative(UPSLeagueNarrative* InNarrative)
@@ -42,7 +44,34 @@ void UPSFranchiseFlow::SetNarrative(UPSLeagueNarrative* InNarrative)
     if (Narrative)
     {
         Narrative->SetStats(Stats);
+        Narrative->SetTradeMarket(TradeMarket);
     }
+}
+
+void UPSFranchiseFlow::SetTradeMarket(UPSTradeMarket* InTradeMarket)
+{
+    TradeMarket = InTradeMarket;
+    ConnectTradeMarket();
+    if (Narrative)
+    {
+        // The week's trades are news (Epic 93).
+        Narrative->SetTradeMarket(TradeMarket);
+    }
+}
+
+void UPSFranchiseFlow::ConnectTradeMarket()
+{
+    if (!TradeMarket)
+    {
+        return;
+    }
+    TradeMarket->Connect(Season, Contracts, Draft, UserTeamId);
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        TradeMarket->RegisterTeam(Team.Key, Team.Value);
+    }
+    TradeMarket->SetLockerRoom(LockerRoom);
+    TradeMarket->SetPlayerAging(PlayerAging);
 }
 
 void UPSFranchiseFlow::SetStats(UPSStatsEngine* InStats)
@@ -88,6 +117,10 @@ void UPSFranchiseFlow::SetTeamRoster(FName TeamId, UPSRoster* Roster)
     else
     {
         RostersByTeam.Remove(TeamId);
+    }
+    if (TradeMarket)
+    {
+        TradeMarket->RegisterTeam(TeamId, Roster);
     }
 }
 
@@ -169,8 +202,10 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
     UPSMatchSetup* Match = NewObject<UPSMatchSetup>(this);
     if (Stats)
     {
-        // Every simulated play goes into the game's box score (Epic 92).
+        // Every simulated play goes into the game's box score (Epic 92), and each flag's ruling
+        // just before its play: a penalty is a team stat.
         Runner->OnPlayResolved.AddUObject(Stats, &UPSStatsEngine::RecordPlay);
+        Runner->OnPenaltyRuled.AddUObject(Stats, &UPSStatsEngine::RecordPenalty);
     }
     for (const FPSWeekMatchup& Matchup : Season->GetMatchupsForWeek(Week))
     {
@@ -390,6 +425,12 @@ bool UPSFranchiseFlow::AdvanceWeek()
     {
         return false;
     }
+    // The week's trades, up to the deadline (Epic 88), before its news.
+    if (TradeMarket)
+    {
+        ConnectTradeMarket();
+        TradeMarket->RunWeek();
+    }
     // The week just played becomes news (Epic 93).
     if (Narrative)
     {
@@ -433,8 +474,9 @@ bool UPSFranchiseFlow::EndSeason()
     }
     if (LeagueHistory)
     {
-        // Epic 94: the season goes into the archive.
+        // Epic 94: the season goes into the archive; the hall of fame counts the awards (Epic 93).
         LeagueHistory->ArchiveSeason(FinishedSeason, Season->GetSortedStandings(), Stats);
+        LeagueHistory->SetAwards(Narrative);
     }
     Retirements.Reset();
     if (PlayerAging)
@@ -507,6 +549,17 @@ bool UPSFranchiseFlow::EndSeason()
     if (LockerRoom)
     {
         EvaluateLockerRooms(true);
+    }
+
+    // Trades open again for the off-season (Epic 88); the season's trade telemetry goes to the log.
+    if (TradeMarket)
+    {
+        ConnectTradeMarket();
+        TradeMarket->BeginOffseason();
+        for (const FString& Line : TradeMarket->DescribeTelemetry())
+        {
+            UE_LOG(LogTemp, Display, TEXT("UPSFranchiseFlow: Trades: %s"), *Line);
+        }
     }
     return true;
 }

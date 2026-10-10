@@ -234,6 +234,10 @@ struct PLAYSPORTS_API FPSDraftPick
     UPROPERTY(BlueprintReadOnly, Category = "Draft")
     FName TeamId;
 
+    /** The team whose pick it was: TeamId's own, or another's traded to it (Epic 88). */
+    UPROPERTY(BlueprintReadOnly, Category = "Draft")
+    FName OriginalTeamId;
+
     UPROPERTY(BlueprintReadOnly, Category = "Draft")
     FName PlayerId;
 
@@ -253,6 +257,26 @@ struct PLAYSPORTS_API FPSDraftPick
 
     UPROPERTY(BlueprintReadOnly, Category = "Draft")
     FString Description;
+};
+
+/** A draft pick that changed hands (Epic 88): OriginalTeamId's pick in Round of DraftYear's draft
+ *  now belongs to OwnerTeamId. A pick never traded belongs to its own team. */
+USTRUCT(BlueprintType)
+struct PLAYSPORTS_API FPSDraftPickRight
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Draft")
+    int32 DraftYear = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Draft")
+    int32 Round = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Draft")
+    FName OriginalTeamId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Draft")
+    FName OwnerTeamId;
 };
 
 /** The draft, as the franchise save keeps it (UPSFranchiseSaveGame). */
@@ -284,8 +308,18 @@ struct PLAYSPORTS_API FPSDraftState
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Draft")
     TArray<FName> Order;
 
+    /** The team each pick of Order first belonged to (its owner unless it was traded, Epic 88).
+     *  Empty in a save from before trades: Order's teams are their own. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Draft")
+    TArray<FName> OriginalOrder;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Draft")
     TArray<FPSDraftPick> Picks;
+
+    /** Picks that changed hands, this draft's and later ones' (Epic 88). A new class keeps those
+     *  of its year and later. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Draft")
+    TArray<FPSDraftPickRight> TradedPicks;
 };
 
 /** A prospect as one team sees him: public facts, the public projection, and its own estimate

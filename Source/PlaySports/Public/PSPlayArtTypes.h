@@ -87,6 +87,108 @@ struct FPSPlayArtPrimitive
 };
 
 /**
+ * How a play is drawn as a flat diagram (Epic 102.1): the play-call screen's previews, made from
+ * the same compiled art as the field's (PSPlayDiagram). The play art's own sizes and colors carry
+ * over; these add the diagram's players, the marks the field art leaves out (blocks, a "go to your
+ * spot", a zone defender's drop) and its framing. Sizes are field cm unless they say otherwise,
+ * colors "#RRGGBB". Data/play_art.json's Diagram block.
+ */
+USTRUCT(BlueprintType)
+struct FPSPlayDiagramStyle
+{
+    GENERATED_BODY()
+
+    /** The diagram shows at least this much field across, centred on the ball ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float MinFieldWidth = 3600.f;
+
+    /** ... and at least this much of it deep. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float MinFieldDepth = 2400.f;
+
+    /** Field kept clear round the drawing. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float FieldMargin = 250.f;
+
+    /** The field art's line widths (a ribbon's, a man line's) are drawn this many times as wide. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float WidthScale = 1.f;
+
+    /** No line is drawn thinner than this on screen (Slate units, which scale with the display). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float MinStrokeWidth = 1.5f;
+
+    /** A player: an offensive player's ring, a defender's X, this far out. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float PlayerRadius = 75.f;
+
+    /** The width of the diagram's own marks: players, blocks, guides and the line of scrimmage. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float MarkWidth = 14.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString OffenseColor = TEXT("#FFFFFF");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString DefenseColor = TEXT("#FF8A3D");
+
+    /** The other side's players are drawn this opaque (0-1) for reference; 0 leaves them out. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float OpponentOpacity = 0.35f;
+
+    /** The marks of where a player goes that the field art leaves out -- a zone defender's drop to
+     *  his landmark, a quarterback's drop or a back's path to his spot -- are drawn this opaque
+     *  (0-1) in his side's color. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float GuideOpacity = 0.5f;
+
+    /** Every route, guide and rush ends in an arrowhead this long ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float ArrowheadLength = 110.f;
+
+    /** ... its barbs this many degrees off the line (above 0, below 90). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float ArrowheadAngleDegrees = 28.f;
+
+    /** A blocker's mark is a T: a run blocker's stem this far upfield, a pass blocker's this far
+     *  back toward his quarterback ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float RunBlockStemLength = 90.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float PassBlockStemLength = 45.f;
+
+    /** ... with a bar this wide across its end. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float BlockBarWidth = 130.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString BlockColor = TEXT("#C9D1D9");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString LineOfScrimmageColor = TEXT("#56CCF2");
+
+    /** A ring is drawn with this many segments (6 or more). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    int32 CircleSegments = 16;
+
+    /** The diagram's backdrop, at BackgroundOpacity (0-1; 0 draws none). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString BackgroundColor = TEXT("#0E2A18");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float BackgroundOpacity = 0.85f;
+
+    /** The play-call screen's preview beside each play, in Slate units (they scale with the
+     *  display, so the preview is the same share of a phone's screen as a monitor's). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float PreviewWidth = 150.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float PreviewHeight = 100.f;
+};
+
+/**
  * How the play art looks (Data/play_art.json; Architecture rule 4). Sizes are cm, colors
  * "#RRGGBB". These are what the editor-made renderer reads (Specs/Route_Ribbons_Spec.md); until
  * it exists, development builds draw debug lines.
@@ -182,4 +284,8 @@ struct FPSPlayArtStyle
     /** Development builds draw the art as debug lines until the editor-made renderer exists. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
     bool bDrawDebug = true;
+
+    /** The same art drawn flat, as the play-call screen's previews (Epic 102.1). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FPSPlayDiagramStyle Diagram;
 };

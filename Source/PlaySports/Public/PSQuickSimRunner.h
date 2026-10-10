@@ -30,23 +30,28 @@ struct FPSQuickSimResult
  *  initial state, seed and step: Mode 2 in Specs/Determinism_Audit.md) and records the rerun,
  *  for UPSDeterminism::FindFirstDivergence to compare. Both run in a world of their own (a
  *  test's or a tool's): with a world, the simulation publishes on its bus. A world with a game
- *  mode is a live game and is refused. The simulation rolls on the process-global random
- *  stream (audit A1), so both seed it with the game's seed and hand it back to chance after. */
+ *  mode is a live game and is refused. A recorded game rolls on the simulation's own stream,
+ *  seeded with the recording's seed (UPSPlaySimulation::SeedRolls, Epic 108): never on the
+ *  process-global stream (audit A1), whose sequence is the C runtime's rand() and differs
+ *  between the PC and the iPhone. */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSQuickSimRunner : public UObject
 {
     GENERATED_BODY()
 
 public:
+    /** Plays HomeRoster against AwayRoster to the end of the fourth quarter. Seed 0 rolls on the
+     *  engine's global stream (FMath::RandInit seeds that); any other seed rolls on the
+     *  simulation's own stream (UPSPlaySimulation::SeedRolls): the game RecordGame records for
+     *  that seed. */
     UFUNCTION(BlueprintCallable, Category = "Franchise|QuickSim")
-    FPSQuickSimResult SimulateGame(const TArray<FPlayerAttributes>& HomeRoster, const TArray<FPlayerAttributes>& AwayRoster);
+    FPSQuickSimResult SimulateGame(const TArray<FPlayerAttributes>& HomeRoster, const TArray<FPlayerAttributes>& AwayRoster, int32 Seed = 0);
 
-    /** Plays HomeRoster against AwayRoster as SimulateGame does, with the random stream seeded
-     *  with Seed, and records it into OutRecording: every bus event the game publishes, each
-     *  stamped with the step it happened in (0 for the setup), under a header carrying Seed
-     *  and SecondsPerPlayAdvance. Seed 0 records a game that can't be replayed (0 is the
-     *  format's "unseeded"). Returns the final score; OutRecording has no events when
-     *  WorldContextObject's world can't be used. */
+    /** Plays HomeRoster against AwayRoster as SimulateGame does with Seed, and records it into
+     *  OutRecording: every bus event the game publishes, each stamped with the step it happened
+     *  in (0 for the setup), under a header carrying Seed and SecondsPerPlayAdvance. Seed 0
+     *  records a game that can't be replayed (0 is the format's "unseeded"). Returns the final
+     *  score; OutRecording has no events when WorldContextObject's world can't be used. */
     UFUNCTION(BlueprintCallable, Category = "Franchise|QuickSim|Replay", meta = (WorldContext = "WorldContextObject"))
     FPSQuickSimResult RecordGame(UObject* WorldContextObject, const TArray<FPlayerAttributes>& HomeRoster, const TArray<FPlayerAttributes>& AwayRoster,
         int32 Seed, FPSReplayRecording& OutRecording);
@@ -73,6 +78,10 @@ public:
      *  (UPSPlaySimulation::OnPlayResolved; Epic 92's statistics record from it). */
     FPSTelemetryPlayResultMC OnPlayResolved;
 
+    /** Every flag's ruling in every game this runner simulates (UPSPlaySimulation::OnPenaltyRuled):
+     *  a quick-sim game's penalties for Epic 92's statistics, which a live game's hear on the bus. */
+    FPSTelemetryPenaltyMC OnPenaltyRuled;
+
 private:
     /** A quick-sim simulation set up for a game between the two rosters, not yet on a bus. */
     UPSPlaySimulation* MakeGameSimulation(const TArray<FPlayerAttributes>& HomeRoster, const TArray<FPlayerAttributes>& AwayRoster);
@@ -82,7 +91,7 @@ private:
     FPSQuickSimResult RunGame(UPSPlaySimulation& Sim, float StepSeconds, UPSReplayRecorder* Recorder) const;
 
     /** Records Sim's game on World's bus from its setup to its end under Start's header and
-     *  initial state; the random stream must already be seeded. */
+     *  initial state; Sim's rolls must already be seeded. */
     FPSQuickSimResult RecordRun(UWorld& World, UPSPlaySimulation& Sim, const FPSReplayRecording& Start, FPSReplayRecording& OutRecording);
 
     /** The world a record or replay runs in, or null (with OutFailure) when there is none or

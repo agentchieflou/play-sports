@@ -40,7 +40,8 @@
                 { "ControlId": "ButtonUpperRight", "ActionId": "ReplayScrubForward" },
                 { "ControlId": "ButtonTop", "ActionId": "ReplayCamera" },
                 { "ControlId": "ButtonRight", "ActionId": "ReplayExit" },
-                { "ControlId": "ButtonView", "ActionId": "PhotoMode" }
+                { "ControlId": "ButtonView", "ActionId": "PhotoMode" },
+                { "ControlId": "DPadUp", "ActionId": "Telestrator" }
             ]
         },
         {
@@ -151,5 +152,5 @@
             ]
         }
     ],
-    "ContextsWithoutTouch": ["World", "Menu"]
+    "ContextsWithoutTouch": ["World", "Menu", "Telestrator"]
 }

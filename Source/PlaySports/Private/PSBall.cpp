@@ -4,6 +4,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSAIFieldSnapshot.h"
+#include "PSNetRandomStreams.h"
 #include "PSTelemetryBus.h"
 #include "PSHealthComponent.h"
 #include "Misc/Paths.h"
@@ -133,10 +134,32 @@ void APSBall::Tick(float DeltaTime)
 
 void APSBall::BindToBus()
 {
-    if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    // The native delegate, not the dynamic one: an actor's dynamic calls go through
+    // AActor::ProcessEvent, which drops them until the world's actors are initialized.
+    UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Bus || BoundBus.Get() == Bus)
     {
-        Bus->OnThrow.AddUniqueDynamic(this, &APSBall::OnBusThrowEvent);
+        return;
     }
+    UnbindFromBus();
+    ThrowHandle = Bus->OnThrowMC.AddUObject(this, &APSBall::HandleBusThrow);
+    BoundBus = Bus;
+}
+
+void APSBall::UnbindFromBus()
+{
+    if (UPSTelemetryBus* Bus = BoundBus.Get())
+    {
+        Bus->OnThrowMC.Remove(ThrowHandle);
+    }
+    ThrowHandle.Reset();
+    BoundBus.Reset();
+}
+
+void APSBall::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    UnbindFromBus();
+    Super::EndPlay(EndPlayReason);
 }
 
 void APSBall::Launch(const FVector& Velocity)
@@ -232,7 +255,7 @@ bool APSBall::ResolveTouch(APSPlayerPawn* PlayerPawn)
         FPlayerAttributes Attr = PlayerPawn->GetAttributes();
         float RecoveryChance = PSBallResolutionHelpers::ComputeFumbleRecoveryChance(Attr, CatchTuningSettings);
 
-        float Roll = FMath::FRand();
+        float Roll = UPSNetRandomStreams::RollFor(this, TEXT("FumbleRecovery"), Attr.PlayerId);
         if (Roll <= RecoveryChance)
         {
             AttachToCarrier(PlayerPawn, TEXT("HandSocket"));
@@ -260,7 +283,7 @@ bool APSBall::ResolveTouch(APSPlayerPawn* PlayerPawn)
         FPlayerAttributes Attr = PlayerPawn->GetAttributes();
         float CatchChance = PSBallResolutionHelpers::ComputeCatchChance(Attr, CatchTuningSettings);
 
-        float Roll = FMath::FRand();
+        float Roll = UPSNetRandomStreams::RollFor(this, TEXT("Catch"), Attr.PlayerId);
         if (PSBallResolutionHelpers::ResolveCatch(Attr, Roll, CatchTuningSettings))
         {
             AttachToCarrier(PlayerPawn, TEXT("HandSocket"));
@@ -286,7 +309,7 @@ bool APSBall::ResolveTouch(APSPlayerPawn* PlayerPawn)
     FPlayerAttributes Attr = PlayerPawn->GetAttributes();
     float InterceptChance = PSBallResolutionHelpers::ComputeInterceptionChance(Attr, CatchTuningSettings);
 
-    float Roll = FMath::FRand();
+    float Roll = UPSNetRandomStreams::RollFor(this, TEXT("Interception"), Attr.PlayerId);
     if (Roll > InterceptChance)
     {
         UE_LOG(LogTemp, Display, TEXT("APSBall: Pass deflected by DB %s (Roll: %.2f > Chance: %.2f)"), *Attr.DisplayName, Roll, InterceptChance);
@@ -360,7 +383,7 @@ bool APSBall::ReportGrounded()
     return true;
 }
 
-void APSBall::OnBusThrowEvent(const FPSTelemetryThrowEvent& Event)
+void APSBall::HandleBusThrow(const FPSTelemetryThrowEvent& Event)
 {
     LastThrowTargetName = Event.TargetReceiverName;
 }

@@ -13,6 +13,9 @@
 //   6. A pick-six is the defense's touchdown: a return to the offense's goal line scores for the
 //      defense through the simulation's scoring (six and the try, then it kicks off), in the
 //      state, the play's announcement and the box score; a return stopped at the 1 does not.
+//   7. A touchdown gains the rest of the field: the play's announced yards (the one measure the
+//      overlay, the highlights and the stats read) run from the line of scrimmage to the goal
+//      line, not a flat 100.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -304,7 +307,6 @@ bool FPSSimInterceptionTurnover::RunTest(const FString& Parameters)
         ReturnTackle.TacklerName = HomeOffense()[1].DisplayName;
         ReturnTackle.BallCarrierName = AwayDefense()[0].DisplayName;
         ReturnTackle.YardLine = 38;
-        ReturnTackle.YardsGained = -7;
         Bus->PublishTackle(ReturnTackle);
         TestEqual(TEXT("The tackle ends the return"), Sim->GetPlayState().Phase, EPlayPhase::Scoring);
         TestEqual(TEXT("...and the turnover stands"), Sim->GetPlayResult().ResultType, EPlayResultType::Interception);
@@ -489,6 +491,38 @@ bool FPSSimPickSix::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
     }
 
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 7 -- A touchdown gains the rest of the field
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSTouchdownYardsTest,
+    "PlaySports.C2.TouchdownGainsTheRestOfTheField",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSTouchdownYardsTest::RunTest(const FString& Parameters)
+{
+    using namespace PSSimInterceptionTests;
+
+    UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
+    Sim->InitializePlay(HomeOffense(), AwayDefense());
+    TArray<FPSTelemetryPlayResultEvent> Announced;
+    Sim->OnPlayResolved.AddLambda([&Announced](const FPSTelemetryPlayResultEvent& Event) { Announced.Add(Event); });
+
+    // From the 20: a carrier into the end zone the offense attacks.
+    Sim->TriggerSnap();
+    Sim->ActivePenalty = EPSPenaltyType::None;
+    Sim->RecordTouchdown();
+    TestEqual(TEXT("The play gains the 80 yards to the goal line"), Sim->GetPlayResult().YardsGained, 80);
+    Sim->EndPlayAndPrepareNext();
+    TestTrue(TEXT("Six, or seven with the try"), Sim->GetPlayState().HomeScore == 6 || Sim->GetPlayState().HomeScore == 7);
+    if (TestEqual(TEXT("The play is announced"), Announced.Num(), 1))
+    {
+        TestEqual(TEXT("...a touchdown"), Announced[0].Result, FString(TEXT("Touchdown")));
+        TestEqual(TEXT("...of 80 yards, from the line of scrimmage"), Announced[0].YardsGained, 80);
+    }
     return true;
 }
 

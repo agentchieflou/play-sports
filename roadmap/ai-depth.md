@@ -73,10 +73,36 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** Defenders genuinely *read* — recognizing formations, motions, and play-development cues at attribute-gated speed.
 **Depends on:** Core 15, 68, 72
 
-- [ ] Formation classifier from offensive alignment data (personnel + splits + backfield set)
-- [ ] Key-reading: run/pass diagnosis from line behavior and backfield flow post-snap
-- [ ] Recognition latency scaled by `Awareness` + DNA (79) — elite defenders jump routes, poor ones bite on fakes
-- [ ] Feeds the deception-resistance rules in Epic 72 (replaces its interim bite model)
+- [x] Formation classifier from offensive alignment data (personnel + splits + backfield set)
+  *As built: `UPSPlayRecognitionSubsystem` reads the offense's alignment at the snap from
+  `UPSAIFieldSnapshot` (`PSPlayRecognition::ClassifyFormation`): personnel ("11"), the receivers'
+  splits and strength (inline tight ends, split receivers, strong and weak side), the QB's
+  alignment (under center, pistol, shotgun) and the backfield set (empty, single, offset, I, split,
+  full). The first matching class in `Data/play_recognition.json` names it and gives its run lean.
+  It goes on the bus (`Recognition` Formation) on the first look after the snap. Every formation
+  still lines up in `APSFieldGrid`'s default lineup, so in a game the read follows the personnel
+  package and any motion.*
+- [x] Key-reading: run/pass diagnosis from line behavior and backfield flow post-snap
+  *As built: each look after the snap reads the keys (`ReadKeys`). A hand-off or the line firing
+  off its stance reads run; the QB dropping with the ball (not a shotgun snap alone) or the line
+  setting back reads pass. Backs flowing downhill read run, but a fake can show that too. A
+  defender's diagnosis is the keys he has had time to read: a true key beats flow, and the latest
+  true key wins (a draw). `UPSDefenderAIComponent`'s run fit plays it. Reading pass he drops; this
+  replaces its `PassReadDepth` rule. Reading run he fills his Epic 81 gap before the hand-off. Each
+  new diagnosis goes on the bus. The sim's linemen block runs and passes alike, so the line keys
+  show only when the line moves decisively.*
+- [x] Recognition latency scaled by `Awareness` + DNA (79) — elite defenders jump routes, poor ones bite on fakes
+  *As built: a defender reads in his reaction (Awareness, with Epic 84's difficulty applied) times
+  a scale per read: pass, run, throw and fake. `player_dna.json` binds the scales through a new
+  `Recognition` target: a ball hawk breaks on throws sooner and sees through fakes later. A read
+  against what he expects takes longer (`ExpectationWeight`). He expects the formation's lean,
+  pulled toward the offense's recent run share. Coverage defenders break on a throw in their throw
+  read, so an elite one jumps it.*
+- [x] Feeds the deception-resistance rules in Epic 72 (replaces its interim bite model)
+  *As built: `UPSDeceptionSubsystem` no longer rolls `BiteChance`. As it sells a play-action fake,
+  a run-fit defender bites when his fake read is longer than the fake. The read varies by up to
+  `LatencyJitter`, seeded per snap. He holds for the rest of it, at most `MaxBiteSeconds`. Its
+  bite fields left `deception.json`. Tests: `Tests/PSPlayRecognitionTests.cpp`.*
 
 ### Epic 81: Run-Fit & Gap Integrity System
 
@@ -201,12 +227,20 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
   chosen: the QB's receivers by separation, the rush plan's moves, the coaching AI's plays by
   weight. It is off by default (`Data/ai_debug.json`; console variable `ps.AI.DecisionLog`) and
   costs nothing while off. Recording never changes a decision.*
-- [ ] On-field debug overlay: live BT state, target, assignment above any pawn (reuses Track A badge rendering)
-  *Model half built: with `ps.AI.DebugOverlay` on, each player's latest decision is drawn above
-  him as debug text (`DescribeForOverlay`: player, assignment, action, target and reason), with a
-  line to his target. Still to do: drawing it through Epic 28's badge widget (which hides players
-  during the play, so needs an always-on debug layer), and an editor or PIE session to check how
-  it reads.*
+- [x] On-field debug overlay: live BT state, target, assignment above any pawn (reuses Track A badge rendering)
+  *As built: with `ps.AI.DebugOverlay` on (or `UPSAIDecisionLog::SetOverlayEnabled`), each
+  player's latest decision is shown above him (`DescribeForOverlay`: player, assignment, action,
+  target and reason), with a line to his target. `UPSAIDebugOverlayWidget` is the always-on debug
+  layer, made by `APSHUD` in development builds. Each frame `UPSAIDecisionLog::LayoutOverlay`
+  lays out a card for every player with a decision, for the player's camera, by Epic 28's badge
+  rules (`PSAIDebugOverlay` over `PSOverlayBadgeLayout`: the projection, the scale by distance,
+  the nudging clear of each other). The widget draws each card as the badge widget draws a badge,
+  and the target lines with Slate lines. Unlike the badges it shows every player during the play;
+  a card with no room is dimmed, not hidden. Cards are sized for the display's DPI, so a phone
+  reads them the same. While the layer is up the world's debug text stands down. Look:
+  `ai_debug.json`'s `Overlay*` fields. Tests: `PlaySports.AIDebug.OverlayLayout`,
+  `OverlayCards`, `OverlayTuning`. Not seen on a screen yet: the PIE check of how 22 cards read,
+  `Specs/HUD_Spec.md` (AI Debug Overlay).*
 - [x] Play post-mortem dump: one file per play with all 22 decision streams, replay-linked (41)
   *As built: when a play ends (Scoring, or the next snap), `Saved/AIPostMortems/Play_<time>_<play>.json`
   holds the snap's situation, both calls, the bus events from the snap on, and every player's

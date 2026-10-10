@@ -1,6 +1,7 @@
 #include "PSLeagueHistory.h"
 #include "PSDataIngestion.h"
 #include "PSFranchiseSaveGame.h"
+#include "PSLeagueNarrative.h"
 #include "PSStatsData.h"
 #include "PSStatsEngine.h"
 #include "Misc/Paths.h"
@@ -79,6 +80,16 @@ TArray<FString> UPSLeagueHistory::ValidateTuning(const FPSLegacyTuning& InTuning
             Problems.Add(FString::Printf(TEXT("HallOfFame: %s's CareerValue must be at least 1"), *Name));
         }
         Seen.Add(Threshold.Category);
+    }
+    TSet<EPSAwardKind> AwardsSeen;
+    for (const FPSHallOfFameAward& Entry : Hall.AwardScores)
+    {
+        if (Entry.Score < 0.f || AwardsSeen.Contains(Entry.Award))
+        {
+            Problems.Add(FString::Printf(TEXT("HallOfFame: the %s award's score is negative or listed twice"),
+                *StaticEnum<EPSAwardKind>()->GetNameStringByValue(static_cast<int64>(Entry.Award))));
+        }
+        AwardsSeen.Add(Entry.Award);
     }
     TSet<EPSStatCategory> Leaders;
     for (const EPSStatCategory Category : InTuning.LeaderCategories)
@@ -216,7 +227,7 @@ bool UPSLeagueHistory::RecordRetirement(const FPlayerAttributes& Player, FName T
             }
         }
     }
-    Retiree.HallScore = GetHallScore(Retiree.Career);
+    ScoreRetiree(Retiree);
     State.Retired.Add(Retiree);
     if (FPSSeasonArchive* Archive = FindMutableSeason(Season))
     {
@@ -238,6 +249,31 @@ float UPSLeagueHistory::GetHallScore(const FPSPlayerStatLine& Career) const
     return Score;
 }
 
+void UPSLeagueHistory::SetAwards(const UPSLeagueNarrative* InAwards)
+{
+    Awards = InAwards;
+}
+
+float UPSLeagueHistory::GetAwardScore(FName PlayerId) const
+{
+    const UPSLeagueNarrative* Record = Awards.Get();
+    float Score = 0.f;
+    if (Record && !PlayerId.IsNone())
+    {
+        for (const FPSHallOfFameAward& Entry : Tuning.HallOfFame.AwardScores)
+        {
+            Score += Entry.Score * Record->CountAwards(PlayerId, Entry.Award);
+        }
+    }
+    return Score;
+}
+
+void UPSLeagueHistory::ScoreRetiree(FPSRetiredPlayer& Retiree) const
+{
+    Retiree.AwardScore = GetAwardScore(Retiree.Player.PlayerId);
+    Retiree.HallScore = GetHallScore(Retiree.Career) + Retiree.AwardScore;
+}
+
 TArray<FPSRetiredPlayer> UPSLeagueHistory::RunHallOfFameVote(int32 Season)
 {
     const FPSHallOfFameTuning& Hall = Tuning.HallOfFame;
@@ -245,7 +281,7 @@ TArray<FPSRetiredPlayer> UPSLeagueHistory::RunHallOfFameVote(int32 Season)
     for (int32 Index = 0; Index < State.Retired.Num(); ++Index)
     {
         FPSRetiredPlayer& Retiree = State.Retired[Index];
-        Retiree.HallScore = GetHallScore(Retiree.Career);
+        ScoreRetiree(Retiree);
         if (!Retiree.bHallOfFame && Season - Retiree.RetiredAfterSeason >= Hall.WaitSeasons && Retiree.Seasons >= Hall.MinSeasons
             && Retiree.HallScore >= Hall.InductionScore)
         {

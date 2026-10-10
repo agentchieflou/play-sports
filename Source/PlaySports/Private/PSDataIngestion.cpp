@@ -426,6 +426,24 @@ bool UPSDataIngestion::LoadDeceptionTuningFromJson(const FString& JsonFilePath, 
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
 }
 
+bool UPSDataIngestion::LoadPlayRecognitionTuningFromJson(const FString& JsonFilePath, FPSPlayRecognitionTuning& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
 bool UPSDataIngestion::LoadLooseBallTuningFromJson(const FString& JsonFilePath, FPSLooseBallTuning& OutTuning)
 {
     FString JsonString;
@@ -966,6 +984,42 @@ bool UPSDataIngestion::LoadGameIntelligenceTuningFromJson(const FString& JsonFil
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
 }
 
+bool UPSDataIngestion::LoadFieldDimensionsFromJson(const FString& JsonFilePath, FPSFieldDimensions& OutDimensions)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutDimensions, 0, 0);
+}
+
+bool UPSDataIngestion::LoadPenaltyTuningFromJson(const FString& JsonFilePath, FPSPenaltyTuning& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
 bool UPSDataIngestion::LoadNarrativeTuningFromJson(const FString& JsonFilePath, FPSNarrativeTuning& OutTuning)
 {
     FString JsonString;
@@ -989,6 +1043,93 @@ bool UPSDataIngestion::LoadNarrativeTuningFromJson(const FString& JsonFilePath, 
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
 }
 
+namespace PSDataIngestionAudio
+{
+    /** JsonFilePath's top-level object, or null. */
+    TSharedPtr<FJsonObject> ReadObject(const FString& JsonFilePath)
+    {
+        FString JsonString;
+        if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+        {
+            return nullptr;
+        }
+        TSharedPtr<FJsonObject> ParsedJson;
+        TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+        if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+        {
+            return nullptr;
+        }
+        return ParsedJson;
+    }
+}
+
+bool UPSDataIngestion::LoadAudioTuningFromJson(const FString& JsonFilePath, FPSAudioTuning& OutTuning)
+{
+    const TSharedPtr<FJsonObject> ParsedJson = PSDataIngestionAudio::ReadObject(JsonFilePath);
+    if (!ParsedJson.IsValid())
+    {
+        return false;
+    }
+    // The arrays replace the struct's rather than add to them.
+    OutTuning.Cues.Reset();
+    OutTuning.EventCues.Reset();
+    OutTuning.LayerSettings.Reset();
+    OutTuning.StartupLoops.Reset();
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
+bool UPSDataIngestion::LoadCrowdTuningFromJson(const FString& JsonFilePath, FPSCrowdTuning& OutTuning)
+{
+    const TSharedPtr<FJsonObject> ParsedJson = PSDataIngestionAudio::ReadObject(JsonFilePath);
+    if (!ParsedJson.IsValid())
+    {
+        return false;
+    }
+    OutTuning.Levels.Reset();
+    OutTuning.CrowdReactions.Reset();
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
+bool UPSDataIngestion::LoadCommentaryHookTuningFromJson(const FString& JsonFilePath, FPSCommentaryHookTuning& OutTuning)
+{
+    const TSharedPtr<FJsonObject> ParsedJson = PSDataIngestionAudio::ReadObject(JsonFilePath);
+    if (!ParsedJson.IsValid())
+    {
+        return false;
+    }
+    OutTuning.ModelMoments.Reset();
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
+bool UPSDataIngestion::LoadSessionMatchmakingFromJson(const FString& JsonFilePath, FPSSessionMatchmakingTuning& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
+bool UPSDataIngestion::LoadCommentaryLibraryFromJson(const FString& JsonFilePath, FPSCommentaryLibrary& OutLibrary)
+{
+    const TSharedPtr<FJsonObject> ParsedJson = PSDataIngestionAudio::ReadObject(JsonFilePath);
+    if (!ParsedJson.IsValid())
+    {
+        return false;
+    }
+    OutLibrary.Lines.Reset();
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutLibrary, 0, 0);
+}
+
 bool UPSDataIngestion::LoadTelestratorTuningFromJson(const FString& JsonFilePath, FPSTelestratorTuning& OutTuning)
 {
     FString JsonString;
@@ -1008,6 +1149,24 @@ bool UPSDataIngestion::LoadTelestratorTuningFromJson(const FString& JsonFilePath
 }
 
 bool UPSDataIngestion::LoadDraftTuningFromJson(const FString& JsonFilePath, FPSDraftTuning& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
+bool UPSDataIngestion::LoadTradeTuningFromJson(const FString& JsonFilePath, FPSTradeTuning& OutTuning)
 {
     FString JsonString;
     if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))

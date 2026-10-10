@@ -1,8 +1,11 @@
 #include "PSPlaySimulation.h"
 #include "PSPerfBudget.h"
 #include "PSGameStateEvents.h"
+#include "PSFieldDimensions.h"
 #include "PSRulesConfig.h"
+#include "PSPenaltyModel.h"
 #include "PSSpecialTeamsModel.h"
+#include "PSNetRandomStreams.h"
 #include "PSGameMode.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
@@ -83,18 +86,23 @@ void UPSPlaySimulation::TriggerSnap()
         }
         PendingSnapPlayClock = -1.f;
 
-        if (FMath::FRand() < 0.05f)
-        {
-            ActivePenalty = EPSPenaltyType::Offsides;
-            bPenaltyDeclined = false;
-            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offsides penalty called at the snap!"));
-        }
-
         // A kickoff, or a punt or field-goal call, snaps into its kick (Epic 75).
-        CurrentState.Phase = CurrentState.bKickoff ? EPlayPhase::Kickoff
+        const EPlayPhase SnapPhase = CurrentState.bKickoff ? EPlayPhase::Kickoff
             : PendingSpecialTeams.Kicking == EPSSpecialTeamsPlay::Punt ? EPlayPhase::Punt
             : PendingSpecialTeams.Kicking == EPSSpecialTeamsPlay::FieldGoal ? EPlayPhase::FieldGoal
             : EPlayPhase::Snap;
+
+        // The snap's own flags, once per play (UPSPenaltyModel): an offside on any snap, holding
+        // on a scrimmage play -- not a kick, a kneel or a spike.
+        const bool bScrimmagePlay = SnapPhase == EPlayPhase::Snap && PendingClockPlay == EPSClockPlay::None;
+        const EPSPenaltyType SnapFlag = GetPenalties()->RollSnapFlag(bScrimmagePlay);
+        if (SnapFlag != EPSPenaltyType::None)
+        {
+            ThrowFlag(SnapFlag, FString());
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! %s called on the play."), *UEnum::GetValueAsString(SnapFlag));
+        }
+
+        CurrentState.Phase = SnapPhase;
         CurrentState.bIsClockRunning = true;
         PhaseTimer = 0.f;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
@@ -192,16 +200,6 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
             CurrentState.YardLine = FMath::Max(1, CurrentState.YardLine - 5);
             CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
             UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: DELAY OF GAME penalty! 5 yards loss."));
-        }
-    }
-    else if (IsBallLive())
-    {
-        // Holding is called while the ball is live, never after the whistle or on a kick.
-        if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
-        {
-            ActivePenalty = EPSPenaltyType::Holding;
-            bPenaltyDeclined = false;
-            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offensive Holding penalty called during play!"));
         }
     }
 
@@ -317,7 +315,7 @@ void UPSPlaySimulation::ResolvePlayResult()
     float CompletionChance = 0.60f + (Passer.Awareness + Receiver.Agility - Defender.Awareness - Defender.Agility) * 0.005f;
     CompletionChance = FMath::Clamp(CompletionChance, 0.10f, 0.95f);
 
-    float RandomRoll = FMath::FRand();
+    float RandomRoll = NextRoll();
     PlayLog.bPass = true;
     PlayLog.PasserId = Passer.PlayerId;
     PlayLog.ReceiverId = Receiver.PlayerId;
@@ -330,7 +328,7 @@ void UPSPlaySimulation::ResolvePlayResult()
     {
         // Resolved as complete, calculate yards gained
         float BaseYards = 6.0f + (Receiver.Speed - Defender.Speed) * 0.25f;
-        BaseYards += FMath::FRandRange(-4.0f, 16.0f);
+        BaseYards += NextRollInRange(-4.0f, 16.0f);
         int32 Yards = FMath::Clamp(FMath::RoundToInt(BaseYards), -5, 99);
 
         CurrentPlayResult.YardsGained = Yards;
@@ -340,7 +338,7 @@ void UPSPlaySimulation::ResolvePlayResult()
         float TouchdownChance = 0.05f + (Receiver.Speed - Defender.Speed) * 0.01f + (Yards * 0.005f);
         TouchdownChance = FMath::Clamp(TouchdownChance, 0.0f, 0.85f);
 
-        if (FMath::FRand() < TouchdownChance || Yards >= 50)
+        if (NextRoll() < TouchdownChance || Yards >= 50)
         {
             CurrentPlayResult.ResultType = EPlayResultType::Touchdown;
         }
@@ -376,10 +374,12 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     // 2. Penalty Accept/Decline Resolution
     if (ActivePenalty != EPSPenaltyType::None)
     {
+        bool bPenaltyAccepted = false;
         if (ActivePenalty == EPSPenaltyType::Offsides)
         {
             if (CurrentPlayResult.YardsGained < 5)
             {
+                bPenaltyAccepted = true;
                 CurrentPlayResult.YardsGained = 5;
                 CurrentPlayResult.ResultType = EPlayResultType::Tackle;
                 CurrentState.Down = FMath::Max(1, CurrentState.Down - 1);
@@ -394,6 +394,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         {
             if (CurrentPlayResult.YardsGained > 0 || CurrentPlayResult.ResultType == EPlayResultType::Touchdown)
             {
+                bPenaltyAccepted = true;
                 CurrentPlayResult.YardsGained = -10;
                 CurrentPlayResult.ResultType = EPlayResultType::Tackle;
                 CurrentState.Down = FMath::Max(1, CurrentState.Down - 1);
@@ -411,6 +412,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
             const int32 SpotYards = FMath::Min(PassInterferenceYards, 99 - CurrentState.YardLine);
             if (CurrentPlayResult.ResultType != EPlayResultType::Touchdown && CurrentPlayResult.YardsGained < SpotYards)
             {
+                bPenaltyAccepted = true;
                 CurrentPlayResult.YardsGained = SpotYards;
                 CurrentPlayResult.ResultType = EPlayResultType::Tackle;
                 CurrentPlayResult.bOutOfBounds = false;
@@ -423,6 +425,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
             }
         }
 
+        AnnouncePenaltyRuling(ActivePenalty, bPenaltyAccepted, CurrentPlayResult.YardsGained);
         ActivePenalty = EPSPenaltyType::None;
     }
 
@@ -668,7 +671,7 @@ void UPSPlaySimulation::ScoreTouchdown()
 {
     const UPSRulesConfig* Rules = RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>();
     int32 Points = Rules->TouchdownPoints;
-    if (FMath::FRand() < Rules->PATSuccessChance)
+    if (NextRoll() < Rules->PATSuccessChance)
     {
         ++Points;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: PAT kick is GOOD!"));
@@ -756,7 +759,7 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
             PlayLog.bPass = true;
             CurrentPlayResult.ResultType = EPlayResultType::Interception;
             CurrentPlayResult.YardsGained = 0;
-            InterceptionSpot = FMath::Clamp(FMath::RoundToInt(Event.CatchLocation.X / 100.f), 0, 100);
+            InterceptionSpot = PSField::WorldToSpot(Event.CatchLocation);
         }
         else
         {
@@ -791,8 +794,8 @@ void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
     }
 
     // The play's yards run from the line of scrimmage, this simulation's spot, to where the
-    // carrier went down (the event's spot, in the offense's yard lines). The event's own
-    // YardsGained counts from where the carrier lined up, behind the line for a back.
+    // carrier went down (the event's spot, in the offense's yard lines). This is their one
+    // measure: the overlay, the highlights and the stats read it from the play's result.
     CurrentPlayResult.ResultType = EPlayResultType::Tackle;
     CurrentPlayResult.YardsGained = FMath::Clamp(Event.YardLine, 0, 100) - CurrentState.YardLine;
     const FName CarrierId = FindPlayerIdByName(Event.BallCarrierName);
@@ -994,8 +997,9 @@ void UPSPlaySimulation::RecordTouchdown()
         SetPlayPhase(EPlayPhase::Scoring);
         return;
     }
+    // The play gained the rest of the field: from the line of scrimmage to the goal line.
     CurrentPlayResult.ResultType = EPlayResultType::Touchdown;
-    CurrentPlayResult.YardsGained = 100;
+    CurrentPlayResult.YardsGained = 100 - CurrentState.YardLine;
     SetPlayPhase(EPlayPhase::Scoring);
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Touchdown recorded."));
 }
@@ -1036,6 +1040,16 @@ bool UPSPlaySimulation::CallTimeout(bool bHomeTeam)
     return true;
 }
 
+UPSPenaltyModel* UPSPlaySimulation::GetPenalties()
+{
+    if (!Penalties)
+    {
+        Penalties = NewObject<UPSPenaltyModel>(this);
+        Penalties->LoadTuningFromJson(UPSPenaltyModel::GetDefaultTuningPath());
+    }
+    return Penalties;
+}
+
 UPSSpecialTeamsModel* UPSPlaySimulation::GetSpecialTeams()
 {
     if (!SpecialTeams)
@@ -1046,10 +1060,24 @@ UPSSpecialTeamsModel* UPSPlaySimulation::GetSpecialTeams()
     return SpecialTeams;
 }
 
-bool UPSPlaySimulation::IsBallLive() const
+void UPSPlaySimulation::SeedRolls(int32 Seed)
 {
-    const EPlayPhase Phase = CurrentState.Phase;
-    return Phase == EPlayPhase::Snap || Phase == EPlayPhase::PassRush || Phase == EPlayPhase::BallCarrierMovement;
+    Rolls.Initialize(Seed);
+    bRollsSeeded = true;
+    // The kicks and the flags get streams of their own, so the number of rolls one makes never
+    // moves the other.
+    GetSpecialTeams()->Seed(UPSNetRandomStreams::MixSeed(Seed, UPSNetRandomStreams::HashText(TEXT("SpecialTeams"))));
+    GetPenalties()->Seed(UPSNetRandomStreams::MixSeed(Seed, UPSNetRandomStreams::HashText(TEXT("Penalties"))));
+}
+
+float UPSPlaySimulation::NextRoll()
+{
+    return bRollsSeeded ? Rolls.FRand() : FMath::FRand();
+}
+
+float UPSPlaySimulation::NextRollInRange(float Min, float Max)
+{
+    return bRollsSeeded ? Rolls.FRandRange(Min, Max) : FMath::FRandRange(Min, Max);
 }
 
 bool UPSPlaySimulation::IsBallDead() const
@@ -1147,8 +1175,7 @@ void UPSPlaySimulation::OnBusJumpSnapEvent(const FPSTelemetryJumpSnapEvent& Even
 {
     if (Event.bOffside && ActivePenalty == EPSPenaltyType::None)
     {
-        ActivePenalty = EPSPenaltyType::Offsides;
-        bPenaltyDeclined = false;
+        ThrowFlag(EPSPenaltyType::Offsides, Event.DefenderName);
         UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! %s jumped offside."), *Event.DefenderName);
     }
 }
@@ -1157,10 +1184,41 @@ void UPSPlaySimulation::OnBusCoverageEvent(const FPSTelemetryCoverageEvent& Even
 {
     if (Event.Kind == EPSCoverageEventKind::PassInterference && ActivePenalty == EPSPenaltyType::None && !IsBallDead())
     {
-        ActivePenalty = EPSPenaltyType::PassInterference;
-        bPenaltyDeclined = false;
         PassInterferenceYards = FMath::Max(1, Event.YardsPastLine);
+        ThrowFlag(EPSPenaltyType::PassInterference, Event.DefenderName);
         UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Pass interference on %s, %d yards past the line."), *Event.DefenderName, PassInterferenceYards);
+    }
+}
+
+void UPSPlaySimulation::ThrowFlag(EPSPenaltyType Penalty, const FString& PlayerName)
+{
+    ActivePenalty = Penalty;
+    bPenaltyDeclined = false;
+    // Offsides and pass interference are the defense's fouls, holding the offense's (Epic 23).
+    FPSTelemetryPenaltyEvent Flag;
+    Flag.Kind = EPSPenaltyEventKind::Flag;
+    Flag.Penalty = StaticEnum<EPSPenaltyType>()->GetNameStringByValue(static_cast<int64>(Penalty));
+    Flag.bOnDefense = Penalty != EPSPenaltyType::Holding;
+    Flag.bHomeTeam = Flag.bOnDefense != CurrentState.bHomeHasPossession;
+    Flag.PlayerName = PlayerName;
+    if (UPSTelemetryBus* Bus = CachedWorld && !bQuickSimMode ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    {
+        Bus->PublishPenalty(Flag);
+    }
+}
+
+void UPSPlaySimulation::AnnouncePenaltyRuling(EPSPenaltyType Penalty, bool bAccepted, int32 Yards)
+{
+    FPSTelemetryPenaltyEvent Ruling;
+    Ruling.Kind = bAccepted ? EPSPenaltyEventKind::Accepted : EPSPenaltyEventKind::Declined;
+    Ruling.Penalty = StaticEnum<EPSPenaltyType>()->GetNameStringByValue(static_cast<int64>(Penalty));
+    Ruling.bOnDefense = Penalty != EPSPenaltyType::Holding;
+    Ruling.bHomeTeam = Ruling.bOnDefense != CurrentState.bHomeHasPossession;
+    Ruling.Yards = bAccepted ? Yards : 0;
+    OnPenaltyRuled.Broadcast(Ruling);
+    if (UPSTelemetryBus* Bus = CachedWorld && !bQuickSimMode ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    {
+        Bus->PublishPenalty(Ruling);
     }
 }
 
@@ -1176,7 +1234,7 @@ bool UPSPlaySimulation::IsKickReady() const
 
 float UPSPlaySimulation::ConsumeKickRoll()
 {
-    const float KickRoll = HumanKickRoll >= 0.f ? HumanKickRoll : FMath::FRand();
+    const float KickRoll = HumanKickRoll >= 0.f ? HumanKickRoll : NextRoll();
     bHumanKickLinedUp = false;
     HumanKickHoldSeconds = 0.f;
     HumanKickRoll = -1.f;

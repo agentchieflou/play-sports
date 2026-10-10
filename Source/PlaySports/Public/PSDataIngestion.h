@@ -52,6 +52,7 @@
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
 #include "PSDraftData.h"
+#include "PSTradeData.h"
 #include "PSTrainingData.h"
 #include "PSLegacyData.h"
 #include "PSPocketComponent.h"
@@ -59,6 +60,7 @@
 #include "PSDefenderPreSnapTypes.h"
 #include "PSOpponentModelTypes.h"
 #include "PSVersusTypes.h"
+#include "PSSessionServiceTypes.h"
 #include "PSAIDecisionTypes.h"
 #include "PSDefenderGapOverlayTypes.h"
 #include "PSLeagueGeneratorData.h"
@@ -68,10 +70,16 @@
 #include "PSLooseBallSubsystem.h"
 #include "PSDifficultyTypes.h"
 #include "PSDeceptionSubsystem.h"
+#include "PSPlayRecognitionTypes.h"
 #include "PSPerfTypes.h"
 #include "PSPlayArtTypes.h"
 #include "PSGameIntelligenceTypes.h"
 #include "PSNarrativeTypes.h"
+#include "PSPenaltyModel.h"
+#include "PSAudioTypes.h"
+#include "PSCrowdTypes.h"
+#include "PSCommentaryTypes.h"
+#include "PSFieldDimensions.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -167,6 +175,11 @@ public:
     /** Loads deception football's tuning (Data/deception.json, Epic 72). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadDeceptionTuningFromJson(const FString& JsonFilePath, FPSDeceptionTuning& OutTuning);
+
+    /** Loads formation and play recognition's tuning and formation classes
+     *  (Data/play_recognition.json, Epic 80). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlayRecognitionTuningFromJson(const FString& JsonFilePath, FPSPlayRecognitionTuning& OutTuning);
 
     /** Loads how the players play a blocked kick's loose ball (Data/loose_ball.json, Epic 17.4). */
     UFUNCTION(BlueprintCallable, Category = "Data")
@@ -342,6 +355,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadDraftTuningFromJson(const FString& JsonFilePath, FPSDraftTuning& OutTuning);
 
+    /** Loads the trade market: the value model, the pick chart, the answers, the guardrails and
+     *  the deadline (Data/trades.json, Epic 88). False on a missing file, malformed JSON or an
+     *  unknown Stance; UPSTradeMarket::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTradeTuningFromJson(const FString& JsonFilePath, FPSTradeTuning& OutTuning);
+
     /** Loads the practice week: allocation, development, gameplan focus areas, fatigue and practice
      *  injuries (Data/training.json, Epic 90). False on a missing file, malformed JSON or an
      *  unknown Role; UPSWeeklyPreparation::ValidateTuning checks the rest. */
@@ -441,6 +460,46 @@ public:
      *  checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadNarrativeTuningFromJson(const FString& JsonFilePath, FPSNarrativeTuning& OutTuning);
+
+    /** Loads how often the simulation's own flags fly (Data/penalties.json): holding per
+     *  scrimmage play, offside per snap. False on a missing file or malformed JSON;
+     *  UPSPenaltyModel::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPenaltyTuningFromJson(const FString& JsonFilePath, FPSPenaltyTuning& OutTuning);
+
+    /** Loads the audio's cue catalog and its mapping from gameplay moments (Data/audio_cues.json,
+     *  Epic 23.1). False on a missing file or malformed JSON; UPSAudioSubsystem::ValidateTuning
+     *  checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadAudioTuningFromJson(const FString& JsonFilePath, FPSAudioTuning& OutTuning);
+
+    /** Loads the crowd's excitement model (Data/crowd.json, Epic 23.2). False on a missing file or
+     *  malformed JSON; UPSCrowdExcitementSubsystem::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCrowdTuningFromJson(const FString& JsonFilePath, FPSCrowdTuning& OutTuning);
+
+    /** Loads the commentary hooks (Data/commentary_hooks.json, Epic 23.5). False on a missing file
+     *  or malformed JSON; UPSCommentaryEventModel::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCommentaryHookTuningFromJson(const FString& JsonFilePath, FPSCommentaryHookTuning& OutTuning);
+
+    /** Loads the field's dimensions and scale (Data/field_dimensions.json): the one frame
+     *  PSField maps yards to world space with. False on a missing file or malformed JSON;
+     *  PSField::Validate checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadFieldDimensionsFromJson(const FString& JsonFilePath, FPSFieldDimensions& OutDimensions);
+
+    /** Loads the online matchmaking rules (Data/session_matchmaking.json, Epic 108.5). False on
+     *  a missing file, malformed JSON or an unrecognized cross-play policy;
+     *  UPSSessionService::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSessionMatchmakingFromJson(const FString& JsonFilePath, FPSSessionMatchmakingTuning& OutTuning);
+
+    /** Loads the commentary booth's pacing and line library (Data/commentary_lines.json, Epic 96).
+     *  False on a missing file, malformed JSON or an unknown enum; UPSCommentaryEngine::
+     *  ValidateLibrary checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCommentaryLibraryFromJson(const FString& JsonFilePath, FPSCommentaryLibrary& OutLibrary);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

@@ -14,6 +14,9 @@ class UPSFranchiseSaveGame;
  * own: each play arrives as the play simulation resolved it (FPSTelemetryPlayResultEvent: from the
  * bus in a played game, from UPSQuickSimRunner::OnPlayResolved in a simulated one) and is
  * attributed once, to the passer, receiver, rusher, tackler and interceptor and to both teams.
+ * Each flag's ruling arrives the same way (#176's FPSTelemetryPenaltyEvent: the bus's Penalty
+ * event, UPSQuickSimRunner::OnPenaltyRuled), just before its play: an accepted penalty is a team
+ * stat (Penalties, PenaltyYards, the fouling team's), and the play it wiped out credits nobody.
  * Everything else is derived from those box scores; the stat book (FPSStatBook) persists in the
  * franchise save.
  *
@@ -54,8 +57,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Stats")
     void BeginGame(int32 Week, FName HomeTeamId, FName AwayTeamId);
 
-    /** Attributes one play to the open game's players and teams. Ignored with no game open. */
+    /** Attributes one play to the open game's players and teams. Ignored with no game open. A
+     *  play an accepted penalty wiped out (RecordPenalty, just before it) credits nobody. */
     void RecordPlay(const FPSTelemetryPlayResultEvent& Event);
+
+    /** A flag's ruling (Epic 23's Penalty event): accepted, it is a penalty against the fouling
+     *  team for its yards, and the play it rules on credits nobody. A flag or a declined one
+     *  changes nothing. Ignored with no game open. */
+    void RecordPenalty(const FPSTelemetryPenaltyEvent& Event);
 
     /** Closes the open game: its box score joins the season and the record book is checked. */
     UFUNCTION(BlueprintCallable, Category = "Stats")
@@ -68,7 +77,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Stats")
     const FPSBoxScore& GetCurrentGame() const { return Current; }
 
-    /** Records each PlayResult the bus announces (a played game). */
+    /** Records each PlayResult and each penalty ruling the bus announces (a played game). */
     void BindToBus(UPSTelemetryBus* Bus);
 
     void UnbindFromBus();
@@ -167,6 +176,10 @@ private:
 
     bool bGameInProgress = false;
 
+    /** An accepted penalty was ruled on the play about to be announced. */
+    bool bPenaltyOnPlay = false;
+
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
     FDelegateHandle PlayResultHandle;
+    FDelegateHandle PenaltyHandle;
 };

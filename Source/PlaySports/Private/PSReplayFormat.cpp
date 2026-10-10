@@ -61,7 +61,14 @@ bool UPSReplayFormat::DeserializeFromJson(const FString& Json, FPSReplayRecordin
 
 bool UPSReplayFormat::MigrateStep(FPSReplayRecording& Recording, int32 FromVersion)
 {
-    // Future breaking changes add one branch per step, e.g.:
-    // if (FromVersion == 1) { /* transform v1 -> v2 */ Recording.Header.FormatVersion = 2; return true; }
+    if (FromVersion == 1)
+    {
+        // A version 1 seed seeded the engine's global stream (the C runtime's rand(), different
+        // on every platform). Version 2 seeds the simulation's own stream, so the old seed would
+        // re-simulate another game: the recording keeps its events for playback, without a seed.
+        Recording.Header.RandomSeed = 0;
+        Recording.Header.FormatVersion = 2;
+        return true;
+    }
     return false;
 }
