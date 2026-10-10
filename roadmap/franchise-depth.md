@@ -17,11 +17,11 @@ its own persistence or event capture.
 **Goal:** An annual draft with imperfect information — scouting reveals (and sometimes misleads on) prospect quality.
 **Depends on:** Core 19, Core 20, 121–122 (Track L generators)
 
-- [ ] Prospect generation: draft classes with ratings, DNA (79), and hidden bust/boom variance
-- [ ] Scouting model: reports narrow uncertainty ranges; scouting budget allocation matters
-- [ ] Draft event flow: rounds, picks, AI team needs-based selection, trade-up/down (88)
-- [ ] Combine/pro-day data layer feeding scouting accuracy
-- [ ] Rookie integration into rosters/contracts (87)
+- [x] Prospect generation: draft classes with ratings, DNA (79), and hidden bust/boom variance *(`UPSDraft` over `Data/draft.json` (`FPSDraftTuning`) takes Epic 122's draft-class mode (`UPSLeagueGenerator::GenerateDraftClass`: ratings, entry ages, DNA) through `UPSFranchiseFlow::PrepareDraft` during the season. Each prospect's true grade (the contract market's `RatePlayer`) hides behind a public projection with an error of its own; `BoomBustChance` of a class is off by a further `BoomBustSwing` either way, and the pick reveals the truth. All draws are seeded per prospect and report)*
+- [x] Scouting model: reports narrow uncertainty ranges; scouting budget allocation matters *(each team's report budget is `PointsPerSeason` times its scouting funding (Epic 95's `GetFundingIndex(Scouting)`); a report reads the true grade with `ReportNoise`, and now and then misleads by `MisleadSwing`; a team's estimate weighs the projection and its reports by their certainty, so its range narrows with each report (`GetProspectView`, `GetBoard`). A team sees only what it scouted; the CPU spends its points over the best-projected (`AutoScout`, open to the player too). No draft board screen yet (Track I))*
+- [x] Draft event flow: rounds, picks, AI team needs-based selection, trade-up/down (88) *(`UPSFranchiseFlow::BeginDraft` after the season: `NumRounds` rounds, the worst record first. The team on the clock takes its board's best: its estimate plus `NeedWeight` times its need at the role (`contracts.json`'s `RosterTarget`). `AdvanceDraft` stops when the player's team is on the clock (`MakePick`, or `AutoPick` as the CPU would). Trading picks up or down is Epic 88's, which depends on this epic; no trades yet)*
+- [x] Combine/pro-day data layer feeding scouting accuracy *(`CombineDrills` read a true rating plus noise (40-yard dash, 10-yard split, 3-cone, bench, board interview). Combine results are public and make the projection surer (`CombineCertainty`); the `ProDayShare` who hold pro days instead keep a wider projection, and their numbers are seen only by teams that scout them)*
+- [x] Rookie integration into rosters/contracts (87) *(each pick joins his team's roster with his true ratings and signs a rookie-scale contract with `UPSContractManager`: `RookieYears` years, `FirstPickSalary` falling to the minimum salary by pick, guarantees from `FirstPickGuarantee` to `LastPickGuarantee`. A team without the cap room drafts him unsigned. The undrafted join free agency when it is open. The draft persists in `UPSFranchiseSaveGame::Draft`)*
 
 ### Epic 87: Contracts & Salary Cap
 

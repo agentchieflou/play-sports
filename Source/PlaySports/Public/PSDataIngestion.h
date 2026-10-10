@@ -51,6 +51,7 @@
 #include "PSContractData.h"
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
+#include "PSDraftData.h"
 #include "PSTrainingData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
@@ -329,6 +330,12 @@ public:
      *  rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadMoraleTuningFromJson(const FString& JsonFilePath, FPSMoraleTuning& OutTuning);
+
+    /** Loads the draft: prospects' hidden error, the combine's drills, scouting, the CPU's board and
+     *  the rookie scale (Data/draft.json, Epic 86). False on a missing file or malformed JSON;
+     *  UPSDraft::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadDraftTuningFromJson(const FString& JsonFilePath, FPSDraftTuning& OutTuning);
 
     /** Loads the practice week: allocation, development, gameplan focus areas, fatigue and practice
      *  injuries (Data/training.json, Epic 90). False on a missing file, malformed JSON or an

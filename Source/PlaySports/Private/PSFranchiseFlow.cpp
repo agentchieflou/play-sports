@@ -1,10 +1,12 @@
 #include "PSFranchiseFlow.h"
 #include "PSContractManager.h"
 #include "PSDataIngestion.h"
+#include "PSDraft.h"
 #include "PSFranchiseSeason.h"
 #include "PSFreeAgency.h"
 #include "PSLockerRoom.h"
 #include "PSLeagueData.h"
+#include "PSLeagueGenerator.h"
 #include "PSMatchSetup.h"
 #include "PSOwnerEconomy.h"
 #include "PSPlayerAttributes.h"
@@ -311,6 +313,58 @@ TArray<FPSTrainingEvent> UPSFranchiseFlow::PrepareWeek()
     }
     TrainingEvents.Append(Events);
     return Events;
+}
+
+bool UPSFranchiseFlow::PrepareDraft(UPSLeagueGenerator* Generator, int32 Seed)
+{
+    if (!Draft || !Generator || RostersByTeam.Num() == 0)
+    {
+        return false;
+    }
+    // The coming draft: next league year's, or this one's once the season is over (the contracts,
+    // else the statistics, have moved on then).
+    const int32 Year = Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear() : Stats && Stats->GetSeason() > 0 ? Stats->GetSeason() : 1;
+    TArray<FPlayerAttributes> LeaguePlayers;
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        if (Team.Value)
+        {
+            LeaguePlayers.Append(Team.Value->GetFullRoster());
+        }
+    }
+    if (!Draft->PrepareClass(Generator->GenerateDraftClass(Seed, bSeasonEnded ? Year : Year + 1, RostersByTeam.Num(), LeaguePlayers), Seed))
+    {
+        return false;
+    }
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        Draft->RegisterTeam(Team.Key, Team.Value, Team.Key == UserTeamId, Economy ? Economy->GetFundingIndex(Team.Key, EPSBudgetDepartment::Scouting) : 1.f);
+    }
+    return true;
+}
+
+bool UPSFranchiseFlow::BeginDraft()
+{
+    if (!Draft || !Season || !bSeasonEnded)
+    {
+        return false;
+    }
+    // The final standings turned around: the worst team picks first.
+    const TArray<FPSTeamStanding> Final = Season->GetSortedStandings();
+    TArray<FName> Order;
+    for (int32 Index = Final.Num() - 1; Index >= 0; --Index)
+    {
+        if (RostersByTeam.Contains(Final[Index].TeamId))
+        {
+            Order.Add(Final[Index].TeamId);
+        }
+    }
+    // Every team's picks go onto its roster (a loaded draft keeps its scouting).
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        Draft->RegisterTeam(Team.Key, Team.Value, Team.Key == UserTeamId, Economy ? Economy->GetFundingIndex(Team.Key, EPSBudgetDepartment::Scouting) : 1.f);
+    }
+    return Draft->BeginDraft(Order, Contracts, FreeAgency);
 }
 
 bool UPSFranchiseFlow::AdvanceWeek()
