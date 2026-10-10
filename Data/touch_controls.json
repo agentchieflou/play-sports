@@ -95,7 +95,13 @@
                 { "ControlId": "TriggerLeft", "ActionId": "JumpSnap" },
                 { "ControlId": "ButtonView", "ActionId": "Timeout" },
                 { "ControlId": "SwipeLeft", "ActionId": "PickPlayerLeft" },
-                { "ControlId": "SwipeRight", "ActionId": "PickPlayerRight" }
+                { "ControlId": "SwipeRight", "ActionId": "PickPlayerRight" },
+                { "ControlId": "DPadUp", "ActionId": "DefenseAudible" },
+                { "ControlId": "ButtonUpperRight", "ActionId": "ShadowSelect" },
+                { "ControlId": "DPadRight", "ActionId": "Shadow" },
+                { "ControlId": "DPadLeft", "ActionId": "ShowBlitz" },
+                { "ControlId": "ButtonTop", "ActionId": "DisguiseShell" },
+                { "ControlId": "DPadDown", "ActionId": "Creep" }
             ]
         },
         {
