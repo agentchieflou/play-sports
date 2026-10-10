@@ -1,14 +1,17 @@
 #include "PSLeagueGenerator.h"
 #include "PSContractNegotiation.h"
 #include "PSDataIngestion.h"
+#include "PSJsonWriting.h"
 #include "PSRoster.h"
 #include "Engine/World.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "UObject/UnrealType.h"
 
 namespace PSLeagueGeneratorPrivate
 {
+    using PSJsonWriting::Quote;
+    using PSJsonWriting::Number;
+
     /** Where WriteLeague puts the league config (the file the game and tools/content.py read)
      *  and the teams file the generated config names. */
     const TCHAR* const LeagueConfigFile = TEXT("Data/sample_league_config.json");
@@ -39,36 +42,6 @@ namespace PSLeagueGeneratorPrivate
             }
         }
         return true;
-    }
-
-    /** Value as a JSON string literal. */
-    static FString Quote(const FString& Value)
-    {
-        FString Out = TEXT("\"");
-        for (const TCHAR Char : Value)
-        {
-            if (Char == TEXT('"') || Char == TEXT('\\'))
-            {
-                Out.AppendChar(TEXT('\\'));
-                Out.AppendChar(Char);
-            }
-            else if (Char < 0x20)
-            {
-                Out += FString::Printf(TEXT("\\u%04x"), static_cast<int32>(Char));
-            }
-            else
-            {
-                Out.AppendChar(Char);
-            }
-        }
-        Out.AppendChar(TEXT('"'));
-        return Out;
-    }
-
-    /** A number as JSON: whole numbers without a fraction, others to at most six places. */
-    static FString Number(float Value)
-    {
-        return FMath::IsNearlyEqual(Value, FMath::RoundToFloat(Value), 1e-4f) ? FString::Printf(TEXT("%d"), FMath::RoundToInt(Value)) : FString::SanitizeFloat(Value);
     }
 
     static FString PlayerJson(const FPlayerAttributes& Player)
@@ -117,16 +90,10 @@ namespace PSLeagueGeneratorPrivate
         return Json + FString::Printf(TEXT(", \"LogoPath\": %s }"), *Quote(Team.LogoPath));
     }
 
-    static FString ArrayJson(const FString& Field, const TArray<FString>& Rows)
+    static bool WriteDataFile(const FString& RootDir, const FString& RelativePath, const FString& Text, TArray<FString>& OutWrittenFiles)
     {
-        return FString::Printf(TEXT("{\n  \"%s\": [\n    %s\n  ]\n}\n"), *Field, *FString::Join(Rows, TEXT(",\n    ")));
-    }
-
-    static bool WriteFile(const FString& RootDir, const FString& RelativePath, const FString& Text, TArray<FString>& OutWrittenFiles)
-    {
-        if (!FFileHelper::SaveStringToFile(Text, *(RootDir / RelativePath), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+        if (!PSJsonWriting::SaveText(RootDir / RelativePath, Text))
         {
-            UE_LOG(LogTemp, Warning, TEXT("UPSLeagueGenerator: Could not write %s under %s."), *RelativePath, *RootDir);
             return false;
         }
         OutWrittenFiles.Add(RelativePath);
@@ -878,7 +845,7 @@ bool UPSLeagueGenerator::WriteLeague(const FPSGeneratedLeague& League, const FSt
     }
     const FString ConfigJson = FString::Printf(TEXT("{\n  \"LeagueName\": %s,\n  \"NumWeeks\": %d,\n  \"ByeWeekNumbers\": [%s],\n  \"NumPlayoffTeams\": %d,\n  \"TeamsDataTablePath\": %s\n}\n"),
         *Quote(League.Config.LeagueName), League.Config.NumWeeks, *FString::Join(Byes, TEXT(", ")), League.Config.NumPlayoffTeams, *Quote(League.Config.TeamsDataTablePath));
-    bWritten &= WriteFile(RootDir, LeagueConfigFile, ConfigJson, OutWrittenFiles);
+    bWritten &= WriteDataFile(RootDir, LeagueConfigFile, ConfigJson, OutWrittenFiles);
 
     TArray<FString> TeamRows;
     for (const FPSGeneratedTeam& Team : League.Teams)
@@ -889,9 +856,9 @@ bool UPSLeagueGenerator::WriteLeague(const FPSGeneratedLeague& League, const FSt
         {
             PlayerRows.Add(PlayerJson(Player));
         }
-        bWritten &= WriteFile(RootDir, Team.Team.RosterDataTablePath, ArrayJson(TEXT("Players"), PlayerRows), OutWrittenFiles);
+        bWritten &= WriteDataFile(RootDir, Team.Team.RosterDataTablePath, PSJsonWriting::ArrayFile(TEXT("Players"), PlayerRows), OutWrittenFiles);
     }
-    bWritten &= WriteFile(RootDir, League.Config.TeamsDataTablePath, ArrayJson(TEXT("Teams"), TeamRows), OutWrittenFiles);
+    bWritten &= WriteDataFile(RootDir, League.Config.TeamsDataTablePath, PSJsonWriting::ArrayFile(TEXT("Teams"), TeamRows), OutWrittenFiles);
     return bWritten;
 }
 
