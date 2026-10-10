@@ -14,6 +14,7 @@
 #include "PSTrainingData.h"
 #include "PSLegacyData.h"
 #include "PSNarrativeTypes.h"
+#include "PSCommentaryTypes.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -99,4 +100,9 @@ public:
      *  contract's team the ledger's. Empty in a save from before trades. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSTradeMarketState TradeMarket;
+
+    /** The commentary booth's line use this season (Epic 96.6), so a season's caps hold across
+     *  games. UPSCommentaryEngine::SaveTo/LoadFrom. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSCommentarySeasonUsage CommentaryUsage;
 };

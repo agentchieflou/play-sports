@@ -65,7 +65,9 @@ enum class EPSAudioTrigger : uint8
     /** The crowd reacted. Detail: the reaction (Cheer, Gasp, Stunned, ...). */
     CrowdReaction,
     /** A quarter ended. Detail: Halftime, or Final at the end of the game. */
-    QuarterEnd
+    QuarterEnd,
+    /** The booth said a line (Epic 96). Detail: its LineId, for its recorded voice-over. */
+    Speech
 };
 
 /** Why a cue request didn't play. */
