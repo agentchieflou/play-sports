@@ -10,20 +10,30 @@
 //      following the culture.
 //   3. Pseudo-localization: with ps.Loc.Pseudo on, every menu screen, every play-call
 //      screen's text (formations, plays, the suggestion, adjustments, the situation readout),
-//      every narration, setting value, caption, HUD banner and loading tip shows no plain
-//      letter outside Verbatim's marks. A string that bypassed the tables would.
+//      every narration, setting value, caption, HUD banner and loading tip, and the broadcast
+//      overlays (the score bug and its chyrons, the kick readout, the position badges, the
+//      personnel panels) show no plain letter outside Verbatim's marks. A string that
+//      bypassed the tables would.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "PSDataIngestion.h"
+#include "PSGameStateEvents.h"
 #include "PSHUDWidget.h"
 #include "PSLoadingTips.h"
 #include "PSLocalization.h"
 #include "PSMenuComponent.h"
+#include "PSOverlayBadgeComponent.h"
+#include "PSOverlayBallFlightSubsystem.h"
+#include "PSOverlayBroadcastSubsystem.h"
+#include "PSOverlayPersonnelSubsystem.h"
+#include "PSOverlayScoreBugWidget.h"
 #include "PSPlayCallSubsystem.h"
 #include "PSPlayerController.h"
 #include "PSSettingsSubsystem.h"
+#include "PSTelemetryBus.h"
 #include "PSUIAccessibilitySubsystem.h"
+#include "PSUITeamCatalog.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -419,6 +429,172 @@ bool FPSPseudoLocalizationTest::RunTest(const FString& Parameters)
     UPSLoadingTips* Tips = NewObject<UPSLoadingTips>();
     Tips->EnsureLoaded();
     Check(TEXT("loading tip"), Tips->NextTip(UPSLoadingTips::AnyContext));
+
+    // The broadcast overlays (Track A): the score bug and its chyrons, the kick readout, the
+    // position badges and the personnel panels.
+    UPSOverlayBroadcastSubsystem* Broadcast = World->GetSubsystem<UPSOverlayBroadcastSubsystem>();
+    UPSTelemetryBus* Bus = World->GetSubsystem<UPSTelemetryBus>();
+    if (TestNotNull(TEXT("Broadcast overlay"), Broadcast) && TestNotNull(TEXT("Bus"), Bus))
+    {
+        auto CheckBug = [&Check](const FPSScoreBugState& Bug)
+        {
+            Check(TEXT("score bug home"), Bug.HomeLabel);
+            Check(TEXT("score bug away"), Bug.AwayLabel);
+            Check(TEXT("score bug quarter"), Bug.QuarterText);
+            Check(TEXT("score bug clock"), Bug.GameClockText);
+            Check(TEXT("score bug play clock"), UPSOverlayScoreBugWidget::MakePlayClockText(Bug.PlayClockText).ToString());
+            Check(TEXT("score bug down and distance"), Bug.SituationText);
+            Check(TEXT("score bug side"), UPSOverlayScoreBugWidget::MakeTeamScoreText(Bug.HomeLabel, Bug.HomeScore, true).ToString());
+            Check(TEXT("score bug timeouts"), UPSOverlayScoreBugWidget::MakeTimeoutPips(Bug.HomeTimeouts).ToString());
+        };
+        auto CheckChyrons = [&Check, Broadcast]()
+        {
+            FPSChyron Shown;
+            if (Broadcast->GetCurrentChyron(Shown))
+            {
+                Check(TEXT("chyron headline"), Shown.Headline);
+                Check(TEXT("chyron detail"), Shown.Detail);
+            }
+            for (const FPSChyron& Waiting : Broadcast->GetQueuedChyrons())
+            {
+                Check(TEXT("waiting chyron headline"), Waiting.Headline);
+                Check(TEXT("waiting chyron detail"), Waiting.Detail);
+            }
+        };
+
+        // The theme's side labels, then known teams' abbreviations (names).
+        Broadcast->SetOverlayDetail(EPSOverlayDetail::Full);
+        Broadcast->SetTheme(Broadcast->GetTheme());
+        FPSTelemetryGameStateEvent State;
+        State.Phase = TEXT("PreSnap");
+        State.GameClockSeconds = 905.f;
+        State.bPlayClockRunning = true;
+        State.PlayClockSeconds = 25.f;
+        Bus->PublishGameState(State);
+        CheckBug(Broadcast->GetScoreBug());
+        TArray<FPSTeamSummary> Teams;
+        TArray<FString> TeamErrors;
+        UPSUITeamCatalog::BuildSummaries(UPSUITeamCatalog::GetDefaultTeamsPath(), Teams, TeamErrors);
+        if (Teams.Num() >= 2)
+        {
+            Broadcast->SetTeams(Teams[0].TeamId, Teams[1].TeamId);
+            CheckBug(Broadcast->GetScoreBug());
+        }
+        for (int32 Quarter = 1; Quarter <= 5; ++Quarter)
+        {
+            Check(TEXT("quarter"), PSGameStateEvents::QuarterLabel(Quarter));
+        }
+        State.Phase = TEXT("Kickoff");
+        Bus->PublishGameState(State);
+        CheckBug(Broadcast->GetScoreBug());
+
+        // Points with a finished drive, then a field goal, a sack, a run and a pick.
+        State.Phase = TEXT("PreSnap");
+        State.HomeScore = 7;
+        State.CompletedDrives = 1;
+        State.LastDrivePlays = 8;
+        State.LastDriveYards = 75;
+        State.LastDriveResult = TEXT("Touchdown");
+        State.bHomeHasPossession = false;
+        Bus->PublishGameState(State);
+        CheckChyrons();
+        FPSTelemetryScoreEvent FieldGoal;
+        FieldGoal.ScoreType = TEXT("FieldGoal");
+        FieldGoal.Points = 3;
+        FieldGoal.HomeScore = 10;
+        Bus->PublishScore(FieldGoal);
+        CheckChyrons();
+        FPSTelemetryTackleEvent Sack;
+        Sack.TacklerName = TEXT("DE_1");
+        Sack.BallCarrierName = TEXT("QB_1");
+        Sack.YardsGained = -7;
+        Sack.bIsSack = true;
+        Bus->PublishTackle(Sack);
+        CheckChyrons();
+        FPSTelemetryTackleEvent Run;
+        Run.BallCarrierName = TEXT("RB_1");
+        Run.YardsGained = 12;
+        Bus->PublishTackle(Run);
+        FPSTelemetryCatchEvent Pick;
+        Pick.ReceiverName = TEXT("CB_1");
+        Pick.bIsInterception = true;
+        Bus->PublishCatch(Pick);
+        CheckChyrons();
+
+        // Every other line the chyrons can carry.
+        for (const int32 Points : { 1, 2, 3, 4, 6, 7 })
+        {
+            Check(TEXT("score headline"), UPSOverlayBroadcastSubsystem::MakeScoreHeadline(Points, FString()));
+        }
+        Check(TEXT("two-point headline"), UPSOverlayBroadcastSubsystem::MakeScoreHeadline(2, TEXT("TwoPointConversion")));
+        Check(TEXT("unknown score headline"), UPSOverlayBroadcastSubsystem::MakeScoreHeadline(3, TEXT("Rouge")));
+        for (const TCHAR* Result : { TEXT("Touchdown"), TEXT("Safety"), TEXT("Turnover on Downs"), TEXT("EPSKickResult::Blocked"), TEXT("") })
+        {
+            Check(TEXT("drive detail"), UPSOverlayBroadcastSubsystem::MakeDriveDetail(5, 40, Result));
+        }
+        for (const int32 Yards : { 12, 0, -3 })
+        {
+            Check(TEXT("gain"), UPSOverlayBroadcastSubsystem::MakeGainText(Yards));
+        }
+        Check(TEXT("drive headline"), UPSOverlayBroadcastSubsystem::MakeDriveHeadline(Broadcast->GetScoreBug().HomeLabel));
+        Broadcast->SetTeams(NAME_None, NAME_None);
+    }
+
+    // The kick readout.
+    if (const UPSOverlayBallFlightSubsystem* BallFlight = World->GetSubsystem<UPSOverlayBallFlightSubsystem>())
+    {
+        for (const EPSKickVerdict Verdict : { EPSKickVerdict::Good, EPSKickVerdict::WideLeft, EPSKickVerdict::WideRight, EPSKickVerdict::Short })
+        {
+            Check(TEXT("kick readout"), UPSOverlayBallFlightSubsystem::LocalizedKickLabel(BallFlight->GetStyle(), Verdict));
+        }
+    }
+
+    // The position badges: role labels, and a button's name as the device writes it.
+    const FPSOverlayBadgeStyle BadgeStyle = Controller->GetOverlayBadgeComponent()->GetStyle();
+    for (const FPSBadgeRoleLabel& Entry : BadgeStyle.RoleLabels)
+    {
+        Check(TEXT("badge"), UPSOverlayBadgeComponent::LocalizedRoleLabel(BadgeStyle, Entry.Role));
+    }
+    Check(TEXT("badge button"), UPSLocalization::Verbatim(TEXT("RB")).ToString());
+
+    // The personnel panels: counts, and names from the catalog and by rule.
+    if (UPSOverlayPersonnelSubsystem* Personnel = World->GetSubsystem<UPSOverlayPersonnelSubsystem>())
+    {
+        const FPSPersonnelPanelStyle PanelStyle = Personnel->GetStyle();
+        const FPSPersonnelCatalog PersonnelCatalog = Personnel->GetCatalog();
+        TArray<FString> Counts;
+        for (const FPSPersonnelRoleLabel& Entry : PanelStyle.OffenseRoles)
+        {
+            Counts.Add(UPSOverlayPersonnelSubsystem::FormatCount(UPSOverlayPersonnelSubsystem::LocalizedRoleLabel(Entry), 1));
+        }
+        for (const FPSPersonnelRoleLabel& Entry : PanelStyle.DefenseRoles)
+        {
+            Counts.Add(UPSOverlayPersonnelSubsystem::FormatCount(UPSOverlayPersonnelSubsystem::LocalizedRoleLabel(Entry), 4));
+        }
+        Check(TEXT("personnel counts"), FString::Join(Counts, *UPSOverlayPersonnelSubsystem::CountSeparator()));
+
+        auto Lineup = [](int32 RB, int32 TE, int32 WR, int32 DL, int32 LB, int32 DB)
+        {
+            TMap<EPlayerRole, int32> Out;
+            Out.Add(EPlayerRole::RunningBack, RB);
+            Out.Add(EPlayerRole::TightEnd, TE);
+            Out.Add(EPlayerRole::WideReceiver, WR);
+            Out.Add(EPlayerRole::DefensiveLineman, DL);
+            Out.Add(EPlayerRole::Linebacker, LB);
+            Out.Add(EPlayerRole::DefensiveBack, DB);
+            return Out;
+        };
+        TMap<EPlayerRole, int32> Offense = Lineup(1, 1, 3, 0, 0, 0);
+        Offense.Add(EPlayerRole::Quarterback, 1);
+        Offense.Add(EPlayerRole::OffensiveLineman, 5);
+        Check(TEXT("catalog package"), UPSOverlayPersonnelSubsystem::NamePackage(Offense, true, PersonnelCatalog, PanelStyle));
+        Offense.Add(EPlayerRole::TightEnd, 3);
+        Offense.Add(EPlayerRole::WideReceiver, 1);
+        Check(TEXT("offense by rule"), UPSOverlayPersonnelSubsystem::NamePackage(Offense, true, PersonnelCatalog, PanelStyle));
+        Check(TEXT("catalog defense"), UPSOverlayPersonnelSubsystem::NamePackage(Lineup(0, 0, 0, 4, 2, 5), false, PersonnelCatalog, PanelStyle));
+        Check(TEXT("defense by backs"), UPSOverlayPersonnelSubsystem::NamePackage(Lineup(0, 0, 0, 3, 3, 5), false, PersonnelCatalog, PanelStyle));
+        Check(TEXT("defense by fallback"), UPSOverlayPersonnelSubsystem::NamePackage(Lineup(0, 0, 0, 5, 3, 3), false, PersonnelCatalog, PanelStyle));
+    }
 
     TestEqual(TEXT("Everything shown came through the string tables"), Plain.Num(), 0);
     for (const FString& Entry : Plain)

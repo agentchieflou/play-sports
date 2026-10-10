@@ -1,6 +1,7 @@
 #include "PSOverlayPersonnelSubsystem.h"
 #include "PSDataIngestion.h"
 #include "PSFieldGrid.h"
+#include "PSLocalization.h"
 #include "PSOverlayBroadcastSubsystem.h"
 #include "PSPersonnelManager.h"
 #include "PSPlayerPawn.h"
@@ -250,24 +251,46 @@ FString UPSOverlayPersonnelSubsystem::NamePackage(const TMap<EPlayerRole, int32>
             Named = &Package;
         }
     }
+    // Every name is data, through the generated data table (Epic 106). A pattern's {Label}
+    // placeholders are the style's own labels, so a translated pattern keeps them.
     if (Named && !Named->DisplayName.IsEmpty())
     {
-        return Named->DisplayName;
+        return UPSLocalization::GetDataText(FString::Printf(TEXT("Personnel.Package.%s"), *Named->PackageId.ToString()), Named->DisplayName).ToString();
     }
 
     if (bOffense)
     {
-        return FillCounts(InStyle.OffenseNameFormat, InStyle.OffenseRoles, Counts);
+        const FString Pattern = UPSLocalization::GetDataText(TEXT("Personnel.OffenseNameFormat"), InStyle.OffenseNameFormat).ToString();
+        return FillCounts(Pattern, InStyle.OffenseRoles, Counts);
     }
     const int32 Backs = CountOf(Counts, EPlayerRole::DefensiveBack);
     for (const FPSDefenseName& Entry : InStyle.DefenseNames)
     {
         if (Entry.DefensiveBacks == Backs)
         {
-            return Entry.Name;
+            return UPSLocalization::GetDataText(FString::Printf(TEXT("Personnel.DefenseName.%d"), Entry.DefensiveBacks), Entry.Name).ToString();
         }
     }
-    return FillCounts(InStyle.DefenseNameFallback, InStyle.DefenseRoles, Counts);
+    const FString Fallback = UPSLocalization::GetDataText(TEXT("Personnel.DefenseNameFallback"), InStyle.DefenseNameFallback).ToString();
+    return FillCounts(Fallback, InStyle.DefenseRoles, Counts);
+}
+
+FString UPSOverlayPersonnelSubsystem::LocalizedRoleLabel(const FPSPersonnelRoleLabel& Entry)
+{
+    return UPSLocalization::GetDataText(FString::Printf(TEXT("Personnel.Role.%s"), *PSOverlayPersonnelPrivate::RoleName(Entry.Role)), Entry.Label).ToString();
+}
+
+FString UPSOverlayPersonnelSubsystem::FormatCount(const FString& Label, int32 Count)
+{
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Role"), UPSLocalization::FromLocalized(Label));
+    Arguments.Add(TEXT("Count"), FText::AsNumber(Count));
+    return UPSLocalization::Format(TEXT("Personnel.Count"), Arguments).ToString();
+}
+
+FString UPSOverlayPersonnelSubsystem::CountSeparator()
+{
+    return UPSLocalization::GetText(TEXT("Personnel.CountSeparator")).ToString();
 }
 
 TMap<EPlayerRole, int32> UPSOverlayPersonnelSubsystem::CountSide(const UWorld* World, bool bOffense)
@@ -378,14 +401,15 @@ void UPSOverlayPersonnelSubsystem::BuildPanel(FPSPersonnelPanel& Panel, bool bOf
     {
         FPSPersonnelRoleCount Count;
         Count.Role = Entry.Role;
-        Count.Label = Entry.Label;
+        Count.Label = LocalizedRoleLabel(Entry);
         Count.Count = CountOf(Counts, Entry.Role);
+        Count.Text = FormatCount(Count.Label, Count.Count);
         const bool* Changed = WasChanged.Find(Entry.Role);
         Count.bChanged = Changed && *Changed;
         Panel.Counts.Add(Count);
-        Parts.Add(FString::Printf(TEXT("%s %d"), *Entry.Label, Count.Count));
+        Parts.Add(Count.Text);
     }
-    Panel.CountsText = FString::Join(Parts, TEXT(" | "));
+    Panel.CountsText = FString::Join(Parts, *CountSeparator());
     Panel.PackageName = NamePackage(Counts, bOffense, GetCatalog(), Style, bOffense ? OffensePackageId : DefensePackageId);
 
     // The side with the ball is the offense (from the simulation's own announcement, not the

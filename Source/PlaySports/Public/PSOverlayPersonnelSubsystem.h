@@ -70,6 +70,17 @@ public:
     /** The players of each role on the side, from the pawns on the field. */
     static TMap<EPlayerRole, int32> CountSide(const UWorld* World, bool bOffense);
 
+    // The panels' words, localized (Epic 106).
+
+    /** A counted role's label ("RB"), from the style through the generated data table. */
+    static FString LocalizedRoleLabel(const FPSPersonnelRoleLabel& Entry);
+
+    /** One count, "RB 1"; Label arrives localized. */
+    static FString FormatCount(const FString& Label, int32 Count);
+
+    /** What goes between two counts, " | ". */
+    static FString CountSeparator();
+
     UFUNCTION(BlueprintPure, Category = "Overlay")
     FPSPersonnelPanel GetPanel(bool bOffense) const { return bOffense ? OffensePanel : DefensePanel; }
 

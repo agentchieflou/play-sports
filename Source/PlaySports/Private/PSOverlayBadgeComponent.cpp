@@ -3,6 +3,7 @@
 #include "PSDataIngestion.h"
 #include "PSInputConfig.h"
 #include "PSInputDeviceComponent.h"
+#include "PSLocalization.h"
 #include "PSOverlayBadgeLayout.h"
 #include "PSPassingComponent.h"
 #include "PSPlayContextComponent.h"
@@ -143,6 +144,14 @@ TArray<FString> UPSOverlayBadgeComponent::ValidateStyle(const FPSOverlayBadgeSty
         Problems.Add(TEXT("MaxNudges, HeadClearance, BallClearance and FadeInSeconds must be 0 or more"));
     }
     return Problems;
+}
+
+FString UPSOverlayBadgeComponent::LocalizedRoleLabel(const FPSOverlayBadgeStyle& InStyle, EPlayerRole Role)
+{
+    // The style's words (Data/overlay_badges.json), through the generated data table (Epic 106).
+    const UEnum* Roles = StaticEnum<EPlayerRole>();
+    const FString RoleName = Roles ? Roles->GetNameStringByValue(static_cast<int64>(Role)) : FString();
+    return UPSLocalization::GetDataText(FString::Printf(TEXT("Badge.Role.%s"), *RoleName), InStyle.LabelForRole(Role)).ToString();
 }
 
 EPSBadgeGroup UPSOverlayBadgeComponent::GroupFor(EPlayerRole Role, EPSTeamSide Side)
@@ -289,14 +298,15 @@ void UPSOverlayBadgeComponent::Refresh(const FPSBadgeView& View)
             FPSInputGlyph Glyph;
             if (Config && Config->GetGlyphForAction(SlotActions[*Slot], PassingContext, Device, Glyph))
             {
-                Badge.Label = Glyph.Label;
+                // A button's name is the device's, not ours to translate (Epic 106).
+                Badge.Label = UPSLocalization::Verbatim(Glyph.Label).ToString();
                 Badge.GlyphId = Glyph.GlyphId;
                 Badge.PassSlot = *Slot;
             }
         }
         if (Badge.Label.IsEmpty())
         {
-            Badge.Label = Current.LabelForRole(Attributes.Role);
+            Badge.Label = LocalizedRoleLabel(Current, Attributes.Role);
         }
 
         // Whether it shows now.

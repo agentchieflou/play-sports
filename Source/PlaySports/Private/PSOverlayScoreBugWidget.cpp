@@ -1,4 +1,5 @@
 #include "PSOverlayScoreBugWidget.h"
+#include "PSLocalization.h"
 #include "PSOverlayBroadcastSubsystem.h"
 #include "PSUITeamCatalog.h"
 #include "Blueprint/WidgetTree.h"
@@ -75,6 +76,32 @@ namespace PSOverlayWidgetStyle
             break;
         }
     }
+}
+
+FText UPSOverlayScoreBugWidget::MakeTeamScoreText(const FString& Label, int32 Score, bool bHasBall)
+{
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Team"), UPSLocalization::FromLocalized(Label));
+    Arguments.Add(TEXT("Score"), FText::AsNumber(Score));
+    Arguments.Add(TEXT("Ball"), bHasBall ? UPSLocalization::GetText(TEXT("Broadcast.Possession")) : FText::GetEmpty());
+    return UPSLocalization::Format(TEXT("Broadcast.TeamScore"), Arguments);
+}
+
+FText UPSOverlayScoreBugWidget::MakeTimeoutPips(int32 Count)
+{
+    // Pips are marks, not words.
+    return UPSLocalization::Verbatim(PSOverlayWidgetStyle::Pips(Count));
+}
+
+FText UPSOverlayScoreBugWidget::MakePlayClockText(const FString& Seconds)
+{
+    if (Seconds.IsEmpty())
+    {
+        return FText::GetEmpty();
+    }
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Seconds"), UPSLocalization::FromLocalized(Seconds));
+    return UPSLocalization::Format(TEXT("Broadcast.PlayClock"), Arguments);
 }
 
 UPSOverlayBroadcastSubsystem* UPSOverlayScoreBugWidget::GetBroadcast() const
@@ -193,32 +220,31 @@ void UPSOverlayScoreBugWidget::ApplyState(const FPSScoreBugState& State, const F
     }
     const FLinearColor Text = Color(Theme.TextColor, FLinearColor::White);
     const FLinearColor Bar = Color(Theme.BarColor, FLinearColor::Black);
-    const FString Possession(TEXT(" ◀"));
 
     AwayBox->SetBrushColor(State.AwayColor);
     HomeBox->SetBrushColor(State.HomeColor);
-    AwayText->SetText(FText::FromString(FString::Printf(TEXT("%s  %d%s"), *State.AwayLabel, State.AwayScore, State.bHomeHasPossession ? TEXT("") : *Possession)));
-    HomeText->SetText(FText::FromString(FString::Printf(TEXT("%s  %d%s"), *State.HomeLabel, State.HomeScore, State.bHomeHasPossession ? *Possession : TEXT(""))));
+    AwayText->SetText(MakeTeamScoreText(State.AwayLabel, State.AwayScore, !State.bHomeHasPossession));
+    HomeText->SetText(MakeTeamScoreText(State.HomeLabel, State.HomeScore, State.bHomeHasPossession));
     AwayText->SetColorAndOpacity(FSlateColor(Text));
     HomeText->SetColorAndOpacity(FSlateColor(Text));
 
     // Timeout pips: the ones left in the timeout color, then the used ones dimmed. One text
     // block draws one color, so the used ones are shown as a count of dim pips after it.
     const int32 MaxTimeouts = FMath::Max(State.MaxTimeouts, 0);
-    AwayTimeoutText->SetText(FText::FromString(Pips(FMath::Clamp(State.AwayTimeouts, 0, MaxTimeouts))));
-    HomeTimeoutText->SetText(FText::FromString(Pips(FMath::Clamp(State.HomeTimeouts, 0, MaxTimeouts))));
+    AwayTimeoutText->SetText(MakeTimeoutPips(FMath::Clamp(State.AwayTimeouts, 0, MaxTimeouts)));
+    HomeTimeoutText->SetText(MakeTimeoutPips(FMath::Clamp(State.HomeTimeouts, 0, MaxTimeouts)));
     AwayTimeoutText->SetColorAndOpacity(FSlateColor(Color(Theme.TimeoutColor, FLinearColor::Yellow)));
     HomeTimeoutText->SetColorAndOpacity(FSlateColor(Color(Theme.TimeoutColor, FLinearColor::Yellow)));
 
-    QuarterText->SetText(FText::FromString(State.QuarterText));
+    QuarterText->SetText(UPSLocalization::FromLocalized(State.QuarterText));
     QuarterText->SetColorAndOpacity(FSlateColor(Text));
-    ClockText->SetText(FText::FromString(State.GameClockText));
+    ClockText->SetText(UPSLocalization::FromLocalized(State.GameClockText));
     ClockText->SetColorAndOpacity(FSlateColor(State.bTwoMinute ? Color(Theme.TwoMinuteColor, FLinearColor::Yellow) : Text));
-    PlayClockText->SetText(FText::FromString(State.PlayClockText.IsEmpty() ? FString() : FString::Printf(TEXT(":%s"), *State.PlayClockText)));
+    PlayClockText->SetText(MakePlayClockText(State.PlayClockText));
     PlayClockText->SetColorAndOpacity(FSlateColor(Text));
 
     SituationBox->SetBrushColor(State.bRedZone ? Color(Theme.RedZoneColor, FLinearColor::Red) : Bar);
-    SituationText->SetText(FText::FromString(State.SituationText));
+    SituationText->SetText(UPSLocalization::FromLocalized(State.SituationText));
     SituationText->SetColorAndOpacity(FSlateColor(Text));
 }
 
@@ -284,8 +310,8 @@ void UPSOverlayChyronWidget::NativeTick(const FGeometry& MyGeometry, float InDel
         ShownOrder = Order;
         if (HeadlineText && DetailText)
         {
-            HeadlineText->SetText(FText::FromString(Chyron.Headline));
-            DetailText->SetText(FText::FromString(Chyron.Detail));
+            HeadlineText->SetText(UPSLocalization::FromLocalized(Chyron.Headline));
+            DetailText->SetText(UPSLocalization::FromLocalized(Chyron.Detail));
         }
         OnChyronChanged(Chyron, bShowing);
     }

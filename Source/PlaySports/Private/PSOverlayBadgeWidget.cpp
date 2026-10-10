@@ -1,4 +1,5 @@
 #include "PSOverlayBadgeWidget.h"
+#include "PSLocalization.h"
 #include "PSOverlayBadgeComponent.h"
 #include "PSPlayerController.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
@@ -88,7 +89,7 @@ void UPSOverlayBadgeWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
         Plate->SetBrushColor(Badge.Color);
         Plate->SetRenderOpacity(Badge.Opacity);
         Plate->SetVisibility(ESlateVisibility::HitTestInvisible);
-        Label->SetText(FText::FromString(Badge.Label));
+        Label->SetText(UPSLocalization::FromLocalized(Badge.Label));
         Label->SetColorAndOpacity(FSlateColor(Badge.TextColor));
         const int32 FontSize = FMath::Max(1, FMath::RoundToInt(BaseFontSize * Badge.Scale));
         if (PlateFontSizes[Used] != FontSize)

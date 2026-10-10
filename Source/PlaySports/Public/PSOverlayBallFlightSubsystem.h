@@ -61,6 +61,9 @@ public:
     /** Problems with a style, one line each (empty when sound). */
     static TArray<FString> ValidateStyle(const FPSBallFlightStyle& InStyle);
 
+    /** The kick readout's words for Verdict, localized (Epic 106); empty for None. */
+    static FString LocalizedKickLabel(const FPSBallFlightStyle& InStyle, EPSKickVerdict Verdict);
+
     UFUNCTION(BlueprintCallable, Category = "Overlay")
     void SetOverlayDetail(EPSOverlayDetail InDetail);
 
