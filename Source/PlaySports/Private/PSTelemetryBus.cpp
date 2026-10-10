@@ -479,3 +479,20 @@ void UPSTelemetryBus::PublishPocket(const FPSTelemetryPocketEvent& Event)
     }
     OnPocketMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishOpponentAdjustment(const FPSTelemetryOpponentAdjustmentEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryOpponentAdjustmentEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("OpponentAdjustment: CPU %s in Q%d leans %.2f -> %.2f on %s %.0f%% (%.0f calls)"),
+        Event.bCpuOffense ? TEXT("offense") : TEXT("defense"), Event.Quarter, Event.PreviousStrength, Event.Strength,
+        *Event.TopCategory, Event.TopShare * 100.f, Event.Samples);
+    RecordHistory(EPSTelemetryEventType::OpponentAdjustment, Description, JsonPayload);
+
+    if (OnOpponentAdjustment.IsBound())
+    {
+        OnOpponentAdjustment.Broadcast(Event);
+    }
+    OnOpponentAdjustmentMC.Broadcast(Event);
+}

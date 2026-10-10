@@ -26,7 +26,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSHumanCallNeededMC, bool /* bOffense */);
  *  - The playbook (Data/sample_playbook.json, routes in Data/sample_routes.json) loads
  *    through UPSPlaybookIngestion.
  *  - APSGameMode opens a call window at every scrimmage down (OpenPlayCall) and snaps when
- *    PollReadyToSnap says so. A side no human controls is called by UPSCoachingAI; a side a
+ *    PollReadyToSnap says so. A side no human controls is called by UPSCoachingAI -- against a
+ *    human, with UPSOpponentModel's counters to what it has seen him call (Epic 78); a side a
  *    human controls waits for that player's call (the play-call screens, UPSPlayCallComponent).
  *    A CPU offense snaps CpuSnapDelaySeconds after both calls are in; a human offense snaps
  *    when its player hikes (RequestSnap).

@@ -47,8 +47,10 @@ base call), coaches' schemes and roles, each staff's team in sample_teams.json a
 coaches of that role; "Axes" + "Bindings" files against FPSPlayerDNACatalog,
 each axis an FPSPlayerDNA field, each binding a numeric field of its target's tuning file and
 each rush move in pass_rush_moves.json, and every player's optional "DNA" against its axes and
-his role (Epic 79). Teams, the league config, the playbook, player rating ranges and every
-reference between files are tools/content_contracts.py's (Epic 125), run from here.
+his role (Epic 79); "Counters" + "MinSamples" files against FPSOpponentModelTuning, each counter
+pairing a play category the human calls with one the CPU answers on the other side (Epic 78).
+Teams, the league config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -2600,6 +2602,65 @@ def validate_player_dna_catalog(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(set(lean) - {'Move', 'Lean'})}")
 
 
+OPPONENT_MODEL_FIELDS = ("DistanceBuckets", "MinSamples", "PriorGameWeight", "FirstHalfStrength", "SecondHalfStrength",
+                         "HalftimeQuarter", "DefaultAdaptationDial", "MinMultiplier", "MaxMultiplier", "Counters")
+# The categories the coaching AI weights (not the clock's or special teams' calls, which the
+# situation calls for): the ones a tendency can be read in and countered with.
+WEIGHTED_OFFENSE_CATEGORIES = {"Run", "ShortPass", "DeepPass", "PlayAction", "Screen"}
+WEIGHTED_DEFENSE_CATEGORIES = {"Base", "Blitz", "Prevent"}
+
+
+def validate_opponent_model(path, payload):
+    """FPSOpponentModelTuning (Data/opponent_model.json, Epic 78); mirrors
+    PSOpponentModel::ValidateTuning."""
+    extra = set(payload) - set(OPPONENT_MODEL_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOpponentModelTuning exactly")
+    buckets = payload.get("DistanceBuckets")
+    if (not isinstance(buckets, list) or any(not isinstance(b, int) or isinstance(b, bool) or b < 1 for b in buckets)
+            or any(b <= a for a, b in zip(buckets, buckets[1:]))):
+        err(path, f"DistanceBuckets: '{buckets}' must be rising whole numbers of yards, 1 or more")
+    if not is_number(payload.get("MinSamples")) or payload["MinSamples"] < 1:
+        err(path, "MinSamples: a number, 1 or more")
+    for field in ("PriorGameWeight", "FirstHalfStrength", "SecondHalfStrength", "DefaultAdaptationDial"):
+        if not is_number(payload.get(field)) or not 0 <= payload[field] <= 1:
+            err(path, f"{field}: '{payload.get(field)}' must be a number from 0 to 1")
+    quarter = payload.get("HalftimeQuarter")
+    if not isinstance(quarter, int) or isinstance(quarter, bool) or quarter < 2:
+        err(path, f"HalftimeQuarter: '{quarter}' must be a whole number, 2 or more")
+    low, high = payload.get("MinMultiplier"), payload.get("MaxMultiplier")
+    if not is_number(low) or not 0 < low <= 1 or not is_number(high) or high < 1:
+        err(path, "MinMultiplier must be above 0 and at most 1, MaxMultiplier at least 1")
+    counters = payload.get("Counters")
+    if not isinstance(counters, list):
+        err(path, "'Counters' must be an array")
+        return
+    seen = set()
+    for idx, counter in enumerate(counters):
+        where = f"Counters[{idx}]"
+        if not isinstance(counter, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        offense = counter.get("bOffense")
+        if not isinstance(offense, bool):
+            err(path, f"{where}.bOffense: must be true or false (the human's side)")
+            continue
+        observed_set = WEIGHTED_OFFENSE_CATEGORIES if offense else WEIGHTED_DEFENSE_CATEGORIES
+        counter_set = WEIGHTED_DEFENSE_CATEGORIES if offense else WEIGHTED_OFFENSE_CATEGORIES
+        if counter.get("Observed") not in observed_set:
+            err(path, f"{where}.Observed: '{counter.get('Observed')}' must be one of {sorted(observed_set)}")
+        if counter.get("Counter") not in counter_set:
+            err(path, f"{where}.Counter: '{counter.get('Counter')}' must be one of {sorted(counter_set)} (the CPU's side)")
+        if not is_number(counter.get("Weight")):
+            err(path, f"{where}.Weight: must be a number")
+        key = (offense, counter.get("Observed"), counter.get("Counter"))
+        if key in seen:
+            err(path, f"{where}: {key[1]} -> {key[2]} is listed twice")
+        seen.add(key)
+        if set(counter) - {"bOffense", "Observed", "Counter", "Weight"}:
+            err(path, f"{where}: unknown field(s) {sorted(set(counter) - {'bOffense', 'Observed', 'Counter', 'Weight'})}")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2711,6 +2772,8 @@ def main():
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "Axes" in payload and "Bindings" in payload:
             validate_player_dna_catalog(path, payload)
+        if isinstance(payload, dict) and "Counters" in payload and "MinSamples" in payload:
+            validate_opponent_model(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

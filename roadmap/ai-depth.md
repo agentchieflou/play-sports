@@ -16,10 +16,26 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** The AI notices your tendencies within and across games and counters them.
 **Depends on:** Core 18, 26
 
-- [ ] Tendency tracker: user play-calling distributions by situation (down/distance/personnel)
-- [ ] Counter-selection: defensive call weighting shifts against observed tendencies
-- [ ] In-game adjustment moments (halftime adaptation step-change)
-- [ ] Guardrails: adaptation strength as a difficulty dial, never psychic (only observed data)
+- [x] Tendency tracker: user play-calling distributions by situation (down/distance/personnel)
+  *As built: `UPSOpponentModel` (world subsystem) counts each play the human calls and runs,
+  from the bus: by his side, the down, the distance bucket, the offense's personnel and the
+  category. `ReadTendency` reads the narrowest situation with `MinSamples` calls behind it. Earlier
+  games' calls are kept in the profile save and count at `PriorGameWeight`
+  (`Data/opponent_model.json`).*
+- [x] Counter-selection: defensive call weighting shifts against observed tendencies
+  *As built: when `UPSPlayCallSubsystem` calls for the CPU against a human, the side's tendency
+  gets `CounterWeights` from the data's `Counters`. Against the run the defense stays in base and
+  out of prevent; against deep shots it plays prevent. The other way round, against a blitzing
+  human defense the CPU offense screens. `UPSCoachingAI` weighs them, with the reason "Countering
+  your tendencies".*
+- [x] In-game adjustment moments (halftime adaptation step-change)
+  *As built: the CPU leans on its read at `FirstHalfStrength` until `HalftimeQuarter`, then at
+  `SecondHalfStrength`. Its first call that leans harder announces the adjustment on the bus
+  (`OpponentAdjustment`: the side, the strengths and what it saw most).*
+- [x] Guardrails: adaptation strength as a difficulty dial, never psychic (only observed data)
+  *As built: everything scales by `SetAdaptationDial` (0 never adapts; Epic 84's difficulty sets
+  it), and no counter leaves `MinMultiplier`..`MaxMultiplier`. A call counts only at its snap, so
+  the CPU's own call for a play never sees it: tested.*
 
 ### Epic 79: Player DNA & Individual Tendency Profiles
 
