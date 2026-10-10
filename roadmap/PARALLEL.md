@@ -184,7 +184,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "82":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["25", "26", "18"]},
     "83":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["20", "24"]},
     "84":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["78", "79"]},
-    "85":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["14", "15", "26"]},
+    "85":  {"track": "F", "mode": "code", "status": "partial", "depends_on": ["14", "15", "26"], "open_stories": ["85.2 on-field debug overlay (reuses Track A badge rendering)"]},
     "86":  {"track": "G", "mode": "code", "status": "open", "depends_on": ["19", "20", "121", "122"]},
     "87":  {"track": "G", "mode": "code", "status": "done", "depends_on": ["19", "20"]},
     "88":  {"track": "G", "mode": "code", "status": "open", "depends_on": ["86", "87"]},
