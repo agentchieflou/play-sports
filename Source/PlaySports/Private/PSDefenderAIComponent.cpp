@@ -93,6 +93,7 @@ void UPSDefenderAIComponent::BindToBus()
     Bus->OnCatchMC.AddUObject(this, &UPSDefenderAIComponent::HandleCatch);
     Bus->OnPumpFakeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePumpFake);
     Bus->OnRouteRunningMC.AddUObject(this, &UPSDefenderAIComponent::HandleRouteRunning);
+    Bus->OnBlownCoverageMC.AddUObject(this, &UPSDefenderAIComponent::HandleBlownCoverage);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePhaseChange);
     BoundBus = Bus;
 }
@@ -106,6 +107,7 @@ void UPSDefenderAIComponent::UnbindFromBus()
         Bus->OnCatchMC.RemoveAll(this);
         Bus->OnPumpFakeMC.RemoveAll(this);
         Bus->OnRouteRunningMC.RemoveAll(this);
+        Bus->OnBlownCoverageMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
     }
     BoundBus.Reset();
@@ -218,6 +220,26 @@ void UPSDefenderAIComponent::HandleRouteRunning(const FPSTelemetryRouteEvent& Ev
         && Event.DefenderName == Self->GetAttributes().DisplayName)
     {
         FrozenUntil = FMath::Max(FrozenUntil, TimeSinceSnap + Event.Seconds);
+    }
+}
+
+void UPSDefenderAIComponent::HandleBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event)
+{
+    // A receiver running free (Epic 17's broken-play reactions; UPSBlownCoverageSubsystem picks
+    // who helps): the defender it names leaves his zone and takes him in man coverage.
+    const APSPlayerPawn* Self = GetSelf();
+    if (!bPlayLive || bBallInAir || !Self || Event.HelperName.IsEmpty() || Event.HelperName != Self->GetAttributes().DisplayName)
+    {
+        return;
+    }
+    for (APSPlayerPawn* Candidate : GetFieldPawns())
+    {
+        if (Candidate && Candidate->TeamSide != Self->TeamSide && Candidate->GetAttributes().DisplayName == Event.ReceiverName)
+        {
+            CoveredReceiver = Candidate;
+            Action = EPSDefenderAction::Cover;
+            return;
+        }
     }
 }
 

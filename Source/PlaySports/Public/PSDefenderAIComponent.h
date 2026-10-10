@@ -171,6 +171,7 @@ private:
     void HandleCatch(const FPSTelemetryCatchEvent& Event);
     void HandlePumpFake(const FPSTelemetryPumpFakeEvent& Event);
     void HandleRouteRunning(const FPSTelemetryRouteEvent& Event);
+    void HandleBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
 
     void StartAssignment(APSPlayerPawn* Self);

@@ -26,7 +26,8 @@ files against FPSSituationalTuning, its route IDs against the route library; "Ke
 files against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header
 declares it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts"
 files against FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow;
-"Routes" files against the FPSRoute library (timing, fakes, option branches).
+"Routes" files against the FPSRoute library (timing, fakes, option branches); "UncoveredSeparation"
+files against FBlownCoverageTuningRow.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1219,6 +1220,22 @@ def validate_route_running(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FRouteRunningTuningRow exactly")
 
 
+BLOWN_COVERAGE_FIELDS = ("CheckIntervalSeconds", "UncoveredSeparation", "MinDepthPastLine", "HelpRadius")
+
+
+def validate_blown_coverage(path, payload):
+    """FBlownCoverageTuningRow (Data/blown_coverage.json, Epic 17.4)."""
+    for field in BLOWN_COVERAGE_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if is_number(payload.get("CheckIntervalSeconds")) and payload["CheckIntervalSeconds"] <= 0:
+        err(path, "CheckIntervalSeconds: must be above 0")
+    extra = set(payload) - set(BLOWN_COVERAGE_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FBlownCoverageTuningRow exactly")
+
+
 ROUTE_FIELDS = {"RouteId", "Waypoints", "OptionReadWaypoint", "VsManBranch", "VsZoneBranch"}
 ROUTE_WAYPOINT_FIELDS = {"Offset", "TimingSeconds", "bFake"}
 
@@ -1346,6 +1363,8 @@ def main():
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "PressRadius" in payload:
             validate_route_running(path, payload)
+        if isinstance(payload, dict) and "UncoveredSeparation" in payload:
+            validate_blown_coverage(path, payload)
         if isinstance(payload, dict) and "Routes" in payload:
             validate_routes(path, payload)
         if isinstance(payload, dict) and "HotRouteSets" in payload:

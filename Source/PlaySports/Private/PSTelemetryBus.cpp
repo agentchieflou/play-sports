@@ -367,3 +367,19 @@ void UPSTelemetryBus::PublishRouteRunning(const FPSTelemetryRouteEvent& Event)
     }
     OnRouteRunningMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryBlownCoverageEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Help = Event.HelperName.IsEmpty() ? FString(TEXT("no help")) : Event.HelperName + TEXT(" helps");
+    FString Description = FString::Printf(TEXT("BlownCoverage: %s free by %.0f cm, %s"), *Event.ReceiverName, Event.Separation, *Help);
+    RecordHistory(EPSTelemetryEventType::BlownCoverage, Description, JsonPayload);
+
+    if (OnBlownCoverage.IsBound())
+    {
+        OnBlownCoverage.Broadcast(Event);
+    }
+    OnBlownCoverageMC.Broadcast(Event);
+}
