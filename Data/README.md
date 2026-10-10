@@ -92,6 +92,7 @@ every CI build.
 | `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
 | `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
 | `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
+| `gap_overlay.json` | `FPSGapOverlayStyle` (single object) | `UPSDataIngestion::LoadGapOverlayStyleFromJson`, via `UPSDefenderGapOverlaySubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1034,3 +1035,21 @@ control decides what it does. `PSTouchControls::ValidateLayout` and `tools/valid
 check all of this. **Adding an action means adding its touch control and its Touch glyph in
 the same change; adding a context means adding its touch button set (or listing it in
 `ContextsWithoutTouch`).**
+
+## Gap integrity overlay schema (`FPSGapOverlayStyle`)
+
+Single object (Epic 81; the run defense's gap integrity shown live,
+`UPSDefenderGapOverlaySubsystem`):
+- `bEnabledByDefault`: shown from the start. Otherwise `ps.Overlay.GapIntegrity 1` at the console
+  (or `SetEnabled`) shows it.
+- `RefreshSeconds` (above 0): how often the markers follow the line as it moves. Their states
+  change with each `GapIntegrity` bus event.
+- `MarkerHeight` (cm, 0 or more) above the gap's spot, `MarkerRadius` (cm, above 0).
+- `FilledColor`, `BlockedColor`, `OpenColor`, `UnownedColor` (`#RRGGBB`): a gap whose owner is in
+  it; in it but engaged with a blocker; somewhere else; and one nobody owns.
+- `bEmphasizeOpenOwners`, `OpenOwnerEmphasis` (`Highlight`, `Mismatch` or `Focus`): the owner of
+  an open gap is emphasized with this look (`UPSOverlayEmphasisSubsystem`).
+- `bDrawDebug`: development builds draw the markers as debug rings until the editor-made marker
+  exists (`Specs/Gap_Integrity_Overlay_Spec.md`).
+
+`UPSDefenderGapOverlaySubsystem::ValidateStyle` and `tools/validate_data.py` check it.

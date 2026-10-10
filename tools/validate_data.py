@@ -47,9 +47,10 @@ base call), coaches' schemes and roles, each staff's team in sample_teams.json a
 coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "DimStencil" files against
 FPSEmphasisStyle (Epic 36); "Axes" + "Bindings" files against FPSPlayerDNACatalog, each axis an
 FPSPlayerDNA field, each binding a numeric field of its target's tuning file and each rush move in
-pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79).
-Teams, the league config, the playbook, player rating ranges and every reference between files are
-tools/content_contracts.py's (Epic 125), run from here.
+pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
+"UnownedColor" files against FPSGapOverlayStyle (Epic 81). Teams, the league config, the playbook,
+player rating ranges and every reference between files are tools/content_contracts.py's
+(Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -2739,6 +2740,37 @@ def validate_player_dna_catalog(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(set(lean) - {'Move', 'Lean'})}")
 
 
+
+GAP_OVERLAY_COLORS = ("FilledColor", "BlockedColor", "OpenColor", "UnownedColor")
+GAP_OVERLAY_FLAGS = ("bEnabledByDefault", "bEmphasizeOpenOwners", "bDrawDebug")
+
+
+def validate_gap_overlay(path, payload):
+    """FPSGapOverlayStyle (Data/gap_overlay.json, Epic 81); mirrors
+    UPSDefenderGapOverlaySubsystem::ValidateStyle."""
+    refresh = payload.get("RefreshSeconds")
+    if not is_number(refresh) or refresh <= 0:
+        err(path, f"RefreshSeconds: '{refresh}' must be a number above 0")
+    height, radius = payload.get("MarkerHeight"), payload.get("MarkerRadius")
+    if not is_number(height) or height < 0:
+        err(path, f"MarkerHeight: '{height}' must be a number, 0 or more")
+    if not is_number(radius) or radius <= 0:
+        err(path, f"MarkerRadius: '{radius}' must be a number above 0")
+    for field in GAP_OVERLAY_COLORS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not HEX_COLOR.match(value):
+            err(path, f"{field}: '{value}' must be #RRGGBB")
+    for field in GAP_OVERLAY_FLAGS:
+        if not isinstance(payload.get(field), bool):
+            err(path, f"{field}: must be true or false")
+    if payload.get("OpenOwnerEmphasis") not in EMPHASIS_KINDS:
+        err(path, f"OpenOwnerEmphasis: '{payload.get('OpenOwnerEmphasis')}' must be one of {list(EMPHASIS_KINDS)}")
+    extra = set(payload) - set(GAP_OVERLAY_COLORS) - set(GAP_OVERLAY_FLAGS) \
+        - {"RefreshSeconds", "MarkerHeight", "MarkerRadius", "OpenOwnerEmphasis"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSGapOverlayStyle exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2854,6 +2886,8 @@ def main():
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "Axes" in payload and "Bindings" in payload:
             validate_player_dna_catalog(path, payload)
+        if isinstance(payload, dict) and "UnownedColor" in payload:
+            validate_gap_overlay(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

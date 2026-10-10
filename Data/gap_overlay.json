@@ -1,0 +1,13 @@
+{
+    "bEnabledByDefault": false,
+    "RefreshSeconds": 0.1,
+    "MarkerHeight": 5.0,
+    "MarkerRadius": 35.0,
+    "FilledColor": "#3FB950",
+    "BlockedColor": "#D29922",
+    "OpenColor": "#F85149",
+    "UnownedColor": "#A371F7",
+    "bEmphasizeOpenOwners": true,
+    "OpenOwnerEmphasis": "Mismatch",
+    "bDrawDebug": true
+}
