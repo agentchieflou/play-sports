@@ -17,6 +17,9 @@
             "ReplayPoseRateHz": 0,
             "OverlayDetail": "Full",
             "PlayArtRefreshHz": 30,
+            "AudioUpdateHz": 0,
+            "AudioMaxVoices": 32,
+            "CrowdUpdateHz": 30,
             "TargetFrameRate": 60,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 1.0 },
@@ -39,6 +42,9 @@
             "ReplayPoseRateHz": 30,
             "OverlayDetail": "Simplified",
             "PlayArtRefreshHz": 15,
+            "AudioUpdateHz": 30,
+            "AudioMaxVoices": 16,
+            "CrowdUpdateHz": 15,
             "TargetFrameRate": 60,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 0.75 },
@@ -61,6 +67,9 @@
             "ReplayPoseRateHz": 15,
             "OverlayDetail": "Minimal",
             "PlayArtRefreshHz": 0,
+            "AudioUpdateHz": 15,
+            "AudioMaxVoices": 12,
+            "CrowdUpdateHz": 10,
             "TargetFrameRate": 30,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 1.0 },

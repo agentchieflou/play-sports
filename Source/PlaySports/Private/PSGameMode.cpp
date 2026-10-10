@@ -27,6 +27,7 @@
 #include "PSStaffManager.h"
 #include "PSStatsEngine.h"
 #include "PSGameIntelligenceSubsystem.h"
+#include "PSCrowdExcitementSubsystem.h"
 #include "PSUITeamCatalog.h"
 #include "PSVersusSubsystem.h"
 #include "Kismet/GameplayStatics.h"
@@ -246,6 +247,12 @@ void APSGameMode::StartPlay()
                 if (UPSNetRandomStreams* Streams = UPSNetRandomStreams::Get(this))
                 {
                     PlaySimulation->SeedRolls(Streams->MakeMatchSeed(TEXT("PlaySimulation")));
+                }
+
+                // The crowd is the home team's (Epic 23.2): the match's setup says whose stadium.
+                if (UPSCrowdExcitementSubsystem* Crowd = GetWorld()->GetSubsystem<UPSCrowdExcitementSubsystem>())
+                {
+                    Crowd->SetMatchContext(MatchSetup->GetHomeTeamId(), MatchSetup->GetAwayTeamId(), -1.f);
                 }
 
                 // Give the simulation its world ref so it can subscribe to bus events (C2)

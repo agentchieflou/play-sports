@@ -17,6 +17,8 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("AI"), STAT_PSPerfAI, STATGROUP_PlaySports, PLAYS
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Telemetry"), STAT_PSPerfTelemetry, STATGROUP_PlaySports, PLAYSPORTS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Overlays"), STAT_PSPerfOverlays, STATGROUP_PlaySports, PLAYSPORTS_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("UI"), STAT_PSPerfUI, STATGROUP_PlaySports, PLAYSPORTS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Crowd"), STAT_PSPerfCrowd, STATGROUP_PlaySports, PLAYSPORTS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Audio"), STAT_PSPerfAudio, STATGROUP_PlaySports, PLAYSPORTS_API);
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Bus events"), STAT_PSPerfBusEvents, STATGROUP_PlaySports, PLAYSPORTS_API);
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("AI decisions"), STAT_PSPerfAIDecisions, STATGROUP_PlaySports, PLAYSPORTS_API);
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Field scans"), STAT_PSPerfFieldScans, STATGROUP_PlaySports, PLAYSPORTS_API);
@@ -110,7 +112,7 @@ private:
 };
 
 /** Times the rest of the enclosing scope as System's: `stat PlaySports` and the profiler.
- *  System is one of Simulation, AI, Telemetry, Overlays, UI. */
+ *  System is one of Simulation, AI, Telemetry, Overlays, UI, Crowd, Audio. */
 #define PS_PERF_SCOPE(System) \
     SCOPE_CYCLE_COUNTER(STAT_PSPerf##System); \
     FPSPerfScope PSPerfScope_##System(EPSPerfSystem::System)

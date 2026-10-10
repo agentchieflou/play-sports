@@ -643,3 +643,50 @@ void UPSTelemetryBus::PublishRecognition(const FPSTelemetryRecognitionEvent& Eve
     }
     OnRecognitionMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishPenalty(const FPSTelemetryPenaltyEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPenaltyEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Penalty: %s %s on the %s %s"), *UEnum::GetValueAsString(Event.Kind), *Event.Penalty,
+        Event.bOnDefense ? TEXT("defense") : TEXT("offense"), *Event.PlayerName);
+    RecordHistory(EPSTelemetryEventType::Penalty, Description, JsonPayload);
+
+    if (OnPenalty.IsBound())
+    {
+        OnPenalty.Broadcast(Event);
+    }
+    OnPenaltyMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishCrowd(const FPSTelemetryCrowdEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryCrowdEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Crowd: %s %s %s (%.2f)"), *UEnum::GetValueAsString(Event.Kind), *UEnum::GetValueAsString(Event.Level),
+        *UEnum::GetValueAsString(Event.Reaction), Event.Excitement);
+    RecordHistory(EPSTelemetryEventType::Crowd, Description, JsonPayload);
+
+    if (OnCrowd.IsBound())
+    {
+        OnCrowd.Broadcast(Event);
+    }
+    OnCrowdMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishCommentary(const FPSTelemetryCommentaryEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryCommentaryEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Commentary: %s %s %s"), *UEnum::GetValueAsString(Event.Moment), *Event.PrimaryName, *Event.Detail.ToString());
+    RecordHistory(EPSTelemetryEventType::Commentary, Description, JsonPayload);
+
+    if (OnCommentary.IsBound())
+    {
+        OnCommentary.Broadcast(Event);
+    }
+    OnCommentaryMC.Broadcast(Event);
+}

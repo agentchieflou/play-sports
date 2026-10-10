@@ -433,11 +433,53 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Goal:** The game sounds like football — crowd, contact, whistle, ambience.
 **Depends on:** Epics 8, 11 (events to react to)
 
-- [ ] Audio event bus mapped to gameplay events (snap, big hit, score, whistle, flag)
-- [ ] Dynamic crowd system reacting to play outcomes and home/away context
-- [ ] On-field layer: pads, footsteps, QB cadence
-- [ ] Stadium ambience with attenuation/reverb zones in the level
-- [ ] Commentary hooks: structured play-description events exposed for future TTS/LLM commentary (bridge-gated, like Epic 18's hook)
+- [x] Audio event bus mapped to gameplay events (snap, big hit, score, whistle, flag)
+  *As built: `UPSAudioSubsystem` (world subsystem) hears the telemetry bus and nothing else: each
+  event becomes a trigger with a detail (the snap; the whistle once a play, from a live phase going
+  dead; a tackle, a sack; a hit, `Big` at `BigHitDamage`; a throw, `Deep`; a catch, an interception;
+  a fumble; a kick; the play's score and result from the simulation's `PlayResult`; a flag; a
+  timeout; a goal-line crossing; the crowd's level and reactions; the cadence; a quarter's end).
+  `Data/audio_cues.json` maps triggers to cues (soft sound paths, empty until imported; every
+  request is logged either way), with per-cue volume, priority and cooldown and per-layer volume
+  settings (`EffectsVolume`, `CommentaryVolume`, `MusicVolume`). Flags are new on the bus: the play
+  simulation, the authority on penalties, publishes a `Penalty` event when it throws one and when
+  it is accepted or declined. The tier's `AudioMaxVoices` caps one-shots (a higher priority takes
+  the weakest voice) and `AudioUpdateHz` paces its update (`Data/platform_tiers.json`: 32 voices
+  every frame on desktop, 16 at 30 Hz on the iPhone tier); timed as `Audio` and stepped by the
+  profiling harness. Tested: `PlaySports.Audio.CueMapping`, `.VoicesAndLoops`, `.FlagFromSimulation`.*
+- [x] Dynamic crowd system reacting to play outcomes and home/away context
+  *As built: `UPSCrowdExcitementSubsystem` is the one authority on the crowd's excitement; Epic 49
+  (reaction animations, noise pressure on the visitors, rivalry intensity through `ApplyStimulus`'s
+  scale) and Epic 97 (layered beds, stingers, swells) extend it rather than adding a second model.
+  Excitement (0-1) settles toward a resting level that rises late in a close game; moments from the
+  bus (a deep ball, a sack, a big hit, a turnover, a goal-line crossing as they happen; the score, a
+  field goal, a big gain, a first down, an incompletion, a turnover on downs from the simulation's
+  `PlayResult`; a flag) each benefit one team, whose fans and the other team's move the crowd by
+  their share of the stadium (`DefaultHomeShare`, or the match's via `SetMatchContext`, set by the
+  game mode from `UPSMatchSetup`). A home touchdown erupts; a visitors' touchdown stuns it to a hush.
+  Levels Hush to Eruption with hysteresis; every reaction and level change is a `Crowd` bus event,
+  from which the audio plays the bed and stinger. `Data/crowd.json`; per-tier `CrowdUpdateHz`.
+  Tested: `PlaySports.Crowd.ExcitementModel`, `.HomeAndAway`.*
+- [ ] On-field layer: pads, footsteps, QB cadence *(code half in: contact, hits scaled by force,
+  tackles, the cadence and the ball map to `Field.*` cues, and `UPSAudioSubsystem::RequestCue` is
+  the hook an animation's footstep notifies call (tested: `PlaySports.Audio.FieldHooks`). Left for an
+  editor session: the sound assets themselves and the footstep anim notifies on the player rig
+  (Epic 22))*
+- [ ] Stadium ambience with attenuation/reverb zones in the level *(editor work: the ambience loop
+  starts with the match (`StartupLoops`), but its sound, the attenuation settings and the level's
+  audio and reverb volumes need an editor session)*
+- [x] Commentary hooks: structured play-description events exposed for future TTS/LLM commentary (bridge-gated, like Epic 18's hook)
+  *As built: `UPSCommentaryEventModel` reads the game's moments off the bus and publishes each as a
+  `Commentary` bus event: what happened (`EPSCommentaryMoment`: the game's start, the snap, a pass,
+  a catch, an interception, a sack, a big hit, a fumble, an open receiver, a goal-line crossing, a
+  flag, the play's result and score, a timeout, the two-minute warning, a quarter's end, the final
+  whistle, a record broken), who (names from the play's live events, ids from the simulation's
+  `PlayResult`) and the situation, tied to the bus event it describes. Bridge-gated like Epic 18's
+  hook: while Epic 82's bridge is online, the moments in `ModelMoments` are offered as `Commentary`
+  requests (`narration` routing, compact JSON within `ModelContextChars`) and answers come back as
+  model lines (`OnModelLineMC`); offline nothing is asked. Captions stay Epic 96's: the booth speaks
+  through the caption event. `Data/commentary_hooks.json`. Tested:
+  `PlaySports.Commentary.PlayDescriptions`, `.BridgeGate`.*
 
 ### Epic 24: Automated Testing & Functional Gym Expansion
 
