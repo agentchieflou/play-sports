@@ -8,6 +8,7 @@
 #include "PSLocalization.h"
 #include "PSOverlayBroadcastSubsystem.h"
 #include "PSStatsEngine.h"
+#include "PSTradeMarket.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Misc/Paths.h"
@@ -189,9 +190,28 @@ void UPSLeagueNarrative::SetIntelligence(UPSGameIntelligenceSubsystem* InIntelli
     }
 }
 
+void UPSLeagueNarrative::SetTradeMarket(UPSTradeMarket* InTradeMarket)
+{
+    if (UPSTradeMarket* Old = TradeMarket.Get())
+    {
+        Old->OnTradeCompleted.Remove(TradeHandle);
+    }
+    TradeHandle.Reset();
+    TradeMarket = InTradeMarket;
+    if (InTradeMarket)
+    {
+        TradeHandle = InTradeMarket->OnTradeCompleted.AddUObject(this, &UPSLeagueNarrative::HandleTrade);
+    }
+}
+
 void UPSLeagueNarrative::HandleRecordBroken(const FPSTelemetryRecordBrokenEvent& Event)
 {
     RecordsThisWeek.Add(Event);
+}
+
+void UPSLeagueNarrative::HandleTrade(const FPSTradeRecord& Trade)
+{
+    TradesThisWeek.Add(Trade);
 }
 
 void UPSLeagueNarrative::HandleRequestAnswered(const FPSIntelRequest& Request)
@@ -316,6 +336,19 @@ TArray<FPSStoryline> UPSLeagueNarrative::DetectStorylines(const UPSFranchiseSeas
         Tell(Broken);
     }
 
+    // Trades the market made since the last week (Epic 88): the team that got the headline player.
+    for (const FPSTradeRecord& Trade : TradesThisWeek)
+    {
+        FPSStoryline Deal;
+        Deal.Kind = EPSStorylineKind::Trade;
+        Deal.StorylineId = MakeId(TEXT("Trade"), FString::FromInt(Trade.TradeId));
+        Deal.TeamId = Trade.HeadlineTeamId.IsNone() ? Trade.Proposal.FromTeamId : Trade.HeadlineTeamId;
+        Deal.OtherTeamId = Deal.TeamId == Trade.Proposal.FromTeamId ? Trade.Proposal.ToTeamId : Trade.Proposal.FromTeamId;
+        Deal.PlayerId = Trade.HeadlinePlayerId;
+        Deal.Value = Trade.Proposal.FromAssets.Num() + Trade.Proposal.ToAssets.Num();
+        Tell(Deal);
+    }
+
     if (!Book)
     {
         return Found;
@@ -396,6 +429,7 @@ FPSNewsDigest UPSLeagueNarrative::CloseWeek(UPSFranchiseSeason* Season, int32 We
     Detected.StableSort([](const FPSStoryline& A, const FPSStoryline& B) { return A.Weight > B.Weight; });
     State.ActiveStorylines = Detected;
     RecordsThisWeek.Reset();
+    TradesThisWeek.Reset();
 
     const TArray<FPSAwardRecord> Honors = AwardWeeklyHonors(Week);
 
@@ -515,6 +549,15 @@ FPSNewsItem UPSLeagueNarrative::DescribeStoryline(const FPSStoryline& Storyline)
     case EPSStorylineKind::AwardRace:
         Item.Headline = UPSLocalization::Format(TEXT("Narrative.AwardRace.Headline"), Arguments).ToString();
         Item.Body = UPSLocalization::Format(TEXT("Narrative.AwardRace.Body"), Arguments).ToString();
+        break;
+    case EPSStorylineKind::Trade:
+        if (Storyline.PlayerId.IsNone())
+        {
+            // A trade of picks alone.
+            Arguments.Add(TEXT("Player"), UPSLocalization::GetText(TEXT("Narrative.Trade.DraftPicks")));
+        }
+        Item.Headline = UPSLocalization::Format(TEXT("Narrative.Trade.Headline"), Arguments).ToString();
+        Item.Body = UPSLocalization::Format(TEXT("Narrative.Trade.Body"), Arguments).ToString();
         break;
     default:
         break;

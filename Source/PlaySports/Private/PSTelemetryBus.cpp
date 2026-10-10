@@ -626,3 +626,17 @@ void UPSTelemetryBus::PublishBoundaryCrossed(const FPSTelemetryBoundaryCrossedEv
     }
     OnBoundaryCrossedMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishTrade(const FPSTelemetryTradeEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryTradeEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    RecordHistory(EPSTelemetryEventType::Trade, FString::Printf(TEXT("Trade: %s"), *Event.Description), JsonPayload);
+
+    if (OnTrade.IsBound())
+    {
+        OnTrade.Broadcast(Event);
+    }
+    OnTradeMC.Broadcast(Event);
+}

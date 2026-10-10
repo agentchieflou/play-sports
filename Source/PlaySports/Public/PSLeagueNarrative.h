@@ -7,6 +7,7 @@
 #include "PSNarrativeTypes.h"
 #include "PSStatsData.h"
 #include "PSTelemetryBus.h"
+#include "PSTradeData.h"
 #include "PSLeagueNarrative.generated.h"
 
 class UPSFranchiseSaveGame;
@@ -14,6 +15,7 @@ class UPSFranchiseSeason;
 class UPSGameIntelligenceSubsystem;
 class UPSOverlayBroadcastSubsystem;
 class UPSStatsEngine;
+class UPSTradeMarket;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSAwardGivenMC, const FPSAwardRecord& /* Award */);
 
@@ -27,7 +29,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSAwardGivenMC, const FPSAwardRecord& /* Aw
  *    more; a rookie (a player in his first season of a league with history) among a category's
  *    RookieSurgeTopN; next week's revenge game against a team that beat it this season; a record
  *    the stats engine announced broken (OnRecordBroken); a close MVP race from
- *    AwardRaceFromWeek. Each carries its kind's weight.
+ *    AwardRaceFromWeek; each trade the trade market made since (Epic 88, OnTradeCompleted).
+ *    Each carries its kind's weight.
  *  - The weekly news digest (93.2): the week's storylines and honors, heaviest first, written
  *    from templates in the string tables (Data/ui_text.csv's Narrative.* rows, UPSLocalization).
  *    With Epic 82's bridge online (SetIntelligence) it asks a model to write the week up (a
@@ -74,6 +77,9 @@ public:
 
     /** Epic 82's hooks; with the bridge online each digest is offered to a model. */
     void SetIntelligence(UPSGameIntelligenceSubsystem* InIntelligence);
+
+    /** The league's trades (Epic 88): each one made becomes a storyline at the week's close. */
+    void SetTradeMarket(UPSTradeMarket* InTradeMarket);
 
     // --- Storylines and news (93.1, 93.2) ----------------------------------------------------
 
@@ -163,6 +169,7 @@ public:
 private:
     void HandleRecordBroken(const FPSTelemetryRecordBrokenEvent& Event);
     void HandleRequestAnswered(const FPSIntelRequest& Request);
+    void HandleTrade(const FPSTradeRecord& Trade);
 
     float KindWeight(EPSStorylineKind Kind);
 
@@ -191,4 +198,10 @@ private:
 
     TWeakObjectPtr<UPSGameIntelligenceSubsystem> Intelligence;
     FDelegateHandle AnsweredHandle;
+
+    /** Trades made since the last CloseWeek. */
+    TArray<FPSTradeRecord> TradesThisWeek;
+
+    TWeakObjectPtr<UPSTradeMarket> TradeMarket;
+    FDelegateHandle TradeHandle;
 };

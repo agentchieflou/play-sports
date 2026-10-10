@@ -187,6 +187,21 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Contracts")
     FPSCapPreview ExtendContract(FName PlayerId, const FPSContractOffer& Extension);
 
+    // --- Trades (Epic 88) ------------------------------------------------------------------
+
+    /** A trade's contracts, each moving to its player's new team: the new team takes his base
+     *  salaries and their guarantees; the bonus his old team already paid stays on its cap as dead
+     *  money (this year's share this year, later years' next year). A player without a contract
+     *  moves nothing. Valid when every team touched ends under the cap or no further over it than
+     *  before; nothing changes. */
+    UFUNCTION(BlueprintPure, Category = "Contracts")
+    FPSTradeCapCheck PreviewTrade(const TArray<FPSContractTransfer>& Transfers) const;
+
+    /** Moves the contracts as PreviewTrade shows, when it is valid. The caller moves the players
+     *  between rosters. */
+    UFUNCTION(BlueprintCallable, Category = "Contracts")
+    FPSTradeCapCheck TradeContracts(const TArray<FPSContractTransfer>& Transfers);
+
     // --- League year -----------------------------------------------------------------------
 
     /** Cuts TeamId's contracts until it is under the cap: each time the one that saves the most
@@ -219,6 +234,9 @@ private:
     bool ApplyCut(FPSContractLedger& InOutLedger, FName PlayerId, bool bSpreadDeadMoney, FString& OutProblem) const;
     bool ApplyRestructure(FPSContractLedger& InOutLedger, FName PlayerId, int32 Amount, FString& OutProblem) const;
     bool ApplyExtension(FPSContractLedger& InOutLedger, FName PlayerId, const FPSContractOffer& Extension, FString& OutProblem) const;
+
+    /** Applies Transfers to a copy of the ledger (OutAfter) and checks every team's cap. */
+    FPSTradeCapCheck PreviewTradeInto(const TArray<FPSContractTransfer>& Transfers, FPSContractLedger& OutAfter) const;
 
     UPROPERTY(Transient)
     FPSContractTuning Tuning;

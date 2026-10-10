@@ -674,6 +674,99 @@ FPSCapPreview UPSContractManager::ExtendContract(FName PlayerId, const FPSContra
     return Preview;
 }
 
+FPSTradeCapCheck UPSContractManager::PreviewTradeInto(const TArray<FPSContractTransfer>& Transfers, FPSContractLedger& OutAfter) const
+{
+    using namespace PSContractManagerPrivate;
+
+    FPSTradeCapCheck Check;
+    OutAfter = Ledger;
+    const int32 Year = Ledger.LeagueYear;
+    TArray<FName> Touched;
+    TSet<FName> Moved;
+    for (const FPSContractTransfer& Transfer : Transfers)
+    {
+        if (Transfer.PlayerId.IsNone() || Transfer.ToTeamId.IsNone() || Moved.Contains(Transfer.PlayerId))
+        {
+            Check.Problem = TEXT("Each transfer needs a player, listed once, and a team");
+            return Check;
+        }
+        Moved.Add(Transfer.PlayerId);
+        FPSContract* Contract = FindMutableContract(OutAfter, Transfer.PlayerId);
+        if (!Contract)
+        {
+            // An unsigned player moves no money.
+            continue;
+        }
+        const FName FromTeamId = Contract->TeamId;
+        if (FromTeamId == Transfer.ToTeamId)
+        {
+            Check.Problem = FString::Printf(TEXT("%s is already %s's"), *Transfer.PlayerId.ToString(), *FromTeamId.ToString());
+            return Check;
+        }
+        Touched.AddUnique(FromTeamId);
+        Touched.AddUnique(Transfer.ToTeamId);
+        OutAfter.TeamIds.AddUnique(Transfer.ToTeamId);
+
+        // The bonus already paid stays with the team that paid it: dead money, as a cut spreads it.
+        int32 ThisYear = 0;
+        int32 Later = 0;
+        for (FPSContractYear& ContractYear : Contract->Years)
+        {
+            if (ContractYear.LeagueYear < Year)
+            {
+                continue;
+            }
+            if (ContractYear.LeagueYear == Year)
+            {
+                ThisYear += ContractYear.ProratedBonus;
+            }
+            else
+            {
+                Later += ContractYear.ProratedBonus;
+            }
+            ContractYear.ProratedBonus = 0;
+        }
+        AddDeadMoney(OutAfter, FromTeamId, Transfer.PlayerId, Year, ThisYear);
+        AddDeadMoney(OutAfter, FromTeamId, Transfer.PlayerId, Year + 1, Later);
+        Contract->TeamId = Transfer.ToTeamId;
+    }
+
+    Check.bValid = true;
+    for (const FName& TeamId : Touched)
+    {
+        FPSTeamCapChange& Change = Check.Teams.AddDefaulted_GetRef();
+        Change.TeamId = TeamId;
+        Change.CapSpaceBefore = CapSpaceOf(Tuning, Ledger, TeamId, Year);
+        Change.CapSpaceAfter = CapSpaceOf(Tuning, OutAfter, TeamId, Year);
+        Change.DeadMoneyThisYear = DeadMoneyOf(OutAfter, TeamId, Year) - DeadMoneyOf(Ledger, TeamId, Year);
+        Change.DeadMoneyNextYear = DeadMoneyOf(OutAfter, TeamId, Year + 1) - DeadMoneyOf(Ledger, TeamId, Year + 1);
+        if (Check.bValid && Change.CapSpaceAfter < 0 && Change.CapSpaceAfter < Change.CapSpaceBefore)
+        {
+            Check.bValid = false;
+            Check.OverCapTeamId = TeamId;
+            Check.Problem = FString::Printf(TEXT("%s would be %d over the cap"), *TeamId.ToString(), -Change.CapSpaceAfter);
+        }
+    }
+    return Check;
+}
+
+FPSTradeCapCheck UPSContractManager::PreviewTrade(const TArray<FPSContractTransfer>& Transfers) const
+{
+    FPSContractLedger After;
+    return PreviewTradeInto(Transfers, After);
+}
+
+FPSTradeCapCheck UPSContractManager::TradeContracts(const TArray<FPSContractTransfer>& Transfers)
+{
+    FPSContractLedger After;
+    const FPSTradeCapCheck Check = PreviewTradeInto(Transfers, After);
+    if (Check.bValid)
+    {
+        Ledger = MoveTemp(After);
+    }
+    return Check;
+}
+
 TArray<FName> UPSContractManager::EnforceCompliance(FName TeamId, UPSRoster* Roster, TArray<FPlayerAttributes>& OutReleased)
 {
     TArray<FName> Cuts;

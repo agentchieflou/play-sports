@@ -223,7 +223,7 @@ bool FPSNarrativeTuningTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("...keeping the shipped one"), Narrative->GetTuning().BallotPoints == Loaded.BallotPoints);
 
     // Every string the news can name is in the table.
-    for (const TCHAR* Kind : { TEXT("WinStreak"), TEXT("LosingStreak"), TEXT("RookieSurge"), TEXT("RevengeGame"), TEXT("RecordBroken"), TEXT("AwardRace") })
+    for (const TCHAR* Kind : { TEXT("WinStreak"), TEXT("LosingStreak"), TEXT("RookieSurge"), TEXT("RevengeGame"), TEXT("RecordBroken"), TEXT("AwardRace"), TEXT("Trade") })
     {
         TestTrue(*FString::Printf(TEXT("%s has a headline and a body"), Kind),
             UPSLocalization::HasText(FString::Printf(TEXT("Narrative.%s.Headline"), Kind)) && UPSLocalization::HasText(FString::Printf(TEXT("Narrative.%s.Body"), Kind)));
