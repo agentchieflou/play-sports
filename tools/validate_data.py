@@ -21,9 +21,10 @@ Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog
 DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
 "MaxQueued" files against FInputBufferTuningRow, each buffered action a Boolean catalog action;
 "RushMoves" files against FPSRushMoveCatalog; "HotRouteSets" files against FPreSnapTuningRow, each
-route in the route library and each action a Boolean in the PreSnap context.
-
-"SituationTempos" files against FPSSituationalTuning, its route IDs against the route library.
+route in the route library and each action a Boolean in the PreSnap context; "SituationTempos"
+files against FPSSituationalTuning, its route IDs against the route library; "KeyframeEvents"
+files against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header
+declares it.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -565,6 +566,10 @@ def project_device_profiles():
     return set(re.findall(r"^\[(\S+) DeviceProfile\]", text, flags=re.MULTILINE))
 
 
+# Epic 26's sampler: its rate and per-frame budget are per tier.
+TIER_TELEMETRY_NUMBERS = ("TelemetrySampleRateHz", "TelemetrySampleBudgetMs")
+
+
 def validate_platform_tiers(path, payload):
     """FPSPlatformTierCatalog (Data/platform_tiers.json, Epic 129); mirrors
     PSPlatformTiers::ValidateCatalog plus the device-profile cross-check."""
@@ -588,7 +593,11 @@ def validate_platform_tiers(path, payload):
         interval = tier.get("AIDecisionInterval")
         if not is_number(interval) or interval < 0:
             err(path, f"{where}.AIDecisionInterval: '{interval}' must be a number, 0 or more")
-        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval"}
+        for field in TIER_TELEMETRY_NUMBERS:
+            value = tier.get(field)
+            if not is_number(value) or value <= 0:
+                err(path, f"{where}.{field}: '{value}' must be a number above 0")
+        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -649,6 +658,89 @@ def validate_carrier_moves(path, payload, catalog):
         extra = set(row) - set(CARRIER_MOVE_NUMBERS) - {"Move", "ActionId", "Attribute", "bGivesUp"}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
+TELEMETRY_BUS_HEADER = REPO / "Source" / "PlaySports" / "Public" / "PSTelemetryBus.h"
+TELEMETRY_SAMPLING_NUMBERS = ("HistorySeconds", "RecoverBelowFraction")
+TELEMETRY_SAMPLING_INTS = ("DegradeAfterSamples", "RecoverAfterSamples", "MaxDegradeLevel")
+TELEMETRY_MAX_RING_FRAMES = 10000  # PSTelemetrySamplingPrivate::MaxRingFrames
+TELEMETRY_MAX_DEGRADE_LEVEL = 8  # PSTelemetrySamplingPrivate::MaxAllowedDegradeLevel
+
+
+def telemetry_event_types():
+    """EPSTelemetryEventType's names, read from the bus header so new events need no edit here;
+    None when the header can't be read."""
+    try:
+        text = TELEMETRY_BUS_HEADER.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    match = re.search(r"enum\s+class\s+EPSTelemetryEventType\s*:\s*uint8\s*\{(.*?)\}", text, re.S)
+    if not match:
+        return None
+    body = re.sub(r"//[^\n]*|/\*.*?\*/", "", match.group(1), flags=re.S)
+    names = set()
+    for entry in body.split(","):
+        name = re.sub(r"UMETA\(.*?\)", "", entry).split("=")[0].strip()
+        if name:
+            names.add(name)
+    return names
+
+
+def fastest_tier_sample_rate():
+    """The highest TelemetrySampleRateHz in platform_tiers.json, or None when unreadable (its own
+    checks report that)."""
+    try:
+        tiers = json.loads((DATA_DIR / "platform_tiers.json").read_text(encoding="utf-8")).get("Tiers") or []
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return None
+    rates = [t.get("TelemetrySampleRateHz") for t in tiers if isinstance(t, dict)]
+    rates = [r for r in rates if is_number(r) and r > 0]
+    return max(rates) if rates else None
+
+
+def validate_telemetry_sampling(path, payload):
+    """FPSTelemetrySamplingTuning (Data/telemetry_sampling.json, Epic 26); mirrors
+    UPSTelemetrySamplingSubsystem::ValidateTuning."""
+    for field in TELEMETRY_SAMPLING_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in TELEMETRY_SAMPLING_INTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool):
+            err(path, f"{field}: '{value}' must be a whole number")
+    if is_number(payload.get("RecoverBelowFraction")) and payload["RecoverBelowFraction"] > 1:
+        err(path, "RecoverBelowFraction must be at most 1 (a fraction of the budget)")
+    for field in ("DegradeAfterSamples", "RecoverAfterSamples"):
+        value = payload.get(field)
+        if isinstance(value, int) and not isinstance(value, bool) and value < 1:
+            err(path, f"{field}: must be 1 or more")
+    level = payload.get("MaxDegradeLevel")
+    if isinstance(level, int) and not isinstance(level, bool) and not 0 <= level <= TELEMETRY_MAX_DEGRADE_LEVEL:
+        err(path, f"MaxDegradeLevel: must be 0 to {TELEMETRY_MAX_DEGRADE_LEVEL}")
+    rate, history = fastest_tier_sample_rate(), payload.get("HistorySeconds")
+    if rate is not None and is_number(history) and history > 0 and rate * history > TELEMETRY_MAX_RING_FRAMES:
+        err(path, f"HistorySeconds x the fastest tier's TelemetrySampleRateHz ({rate * history:g}) must be at most "
+                  f"{TELEMETRY_MAX_RING_FRAMES} frames")
+    events = payload.get("KeyframeEvents")
+    if not isinstance(events, list):
+        err(path, "'KeyframeEvents' must be an array of event type names")
+    else:
+        known = telemetry_event_types()
+        seen = set()
+        for idx, name in enumerate(events):
+            if known is not None and name not in known:
+                err(path, f"KeyframeEvents[{idx}]: '{name}' is not an EPSTelemetryEventType ({sorted(known)})")
+            elif name in seen:
+                err(path, f"KeyframeEvents[{idx}]: '{name}' is listed twice")
+            seen.add(name)
+    for field in ("SampleRateHz", "SampleBudgetMs"):
+        if field in payload:
+            err(path, f"{field}: set per tier, as Telemetry{field} in platform_tiers.json")
+    extra = (set(payload) - set(TELEMETRY_SAMPLING_NUMBERS) - set(TELEMETRY_SAMPLING_INTS) - {"KeyframeEvents"}
+             - {"SampleRateHz", "SampleBudgetMs"})
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelemetrySamplingTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -1045,6 +1137,8 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "KeyframeEvents" in payload:
+            validate_telemetry_sampling(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "HotRouteSets" in payload:

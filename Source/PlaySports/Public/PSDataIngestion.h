@@ -18,6 +18,7 @@
 #include "PSCarrierMoveComponent.h"
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
+#include "PSTelemetrySamplingTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSDataIngestion.generated.h"
@@ -115,6 +116,11 @@ public:
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRushMovesFromJson(const FString& JsonFilePath, FPSRushMoveCatalog& OutCatalog);
+
+    /** Loads the telemetry sampler's rate, history and budget (Data/telemetry_sampling.json,
+     *  Epic 26). False on a missing file, malformed JSON, or an unrecognized event type. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTelemetrySamplingTuningFromJson(const FString& JsonFilePath, FPSTelemetrySamplingTuning& OutTuning);
 
     /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */

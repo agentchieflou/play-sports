@@ -13,6 +13,41 @@ void UPSTelemetryBus::ClearHistory()
     EventHistory.Empty();
 }
 
+int32 UPSTelemetryBus::GetOldestEventSequence() const
+{
+    return EventHistory.Num() > 0 ? EventHistory[0].Sequence : 0;
+}
+
+bool UPSTelemetryBus::FindEventBySequence(int32 Sequence, FPSTelemetryEvent& OutEvent) const
+{
+    // Sequences in the history are consecutive, so the event's index is its distance from
+    // the oldest one.
+    if (EventHistory.Num() == 0)
+    {
+        return false;
+    }
+    const int32 Index = Sequence - EventHistory[0].Sequence;
+    if (!EventHistory.IsValidIndex(Index) || EventHistory[Index].Sequence != Sequence)
+    {
+        return false;
+    }
+    OutEvent = EventHistory[Index];
+    return true;
+}
+
+bool UPSTelemetryBus::FindLatestEventOfType(EPSTelemetryEventType EventType, FPSTelemetryEvent& OutEvent) const
+{
+    for (int32 Index = EventHistory.Num() - 1; Index >= 0; --Index)
+    {
+        if (EventHistory[Index].EventType == EventType)
+        {
+            OutEvent = EventHistory[Index];
+            return true;
+        }
+    }
+    return false;
+}
+
 void UPSTelemetryBus::RecordHistory(EPSTelemetryEventType EventType, const FString& Description, const FString& JsonPayload)
 {
     FPSTelemetryEvent Event;
@@ -20,12 +55,16 @@ void UPSTelemetryBus::RecordHistory(EPSTelemetryEventType EventType, const FStri
     Event.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
     Event.Description = Description;
     Event.PayloadJson = JsonPayload;
+    Event.Sequence = ++LastEventSequence;
 
     EventHistory.Add(Event);
     if (EventHistory.Num() > MaxHistorySize)
     {
         EventHistory.RemoveAt(0);
     }
+
+    // A local copy: a listener may publish, which changes EventHistory under it.
+    OnEventRecordedMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishSnap(const FPSTelemetrySnapEvent& Event)

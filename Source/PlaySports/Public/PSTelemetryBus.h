@@ -434,6 +434,13 @@ struct FPSTelemetryEvent
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     FString PayloadJson;
+
+    /** Where this event falls in the bus's publish order: 1 for the first event the bus
+     *  publishes, one more for each after, never reused (ClearHistory keeps counting).
+     *  Snapshot frames carry the sequence they follow, which is how the sampled stream
+     *  joins this one (UPSTelemetrySamplingSubsystem, Epic 26). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Sequence = 0;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapSignature, const FPSTelemetrySnapEvent&, Event);
@@ -471,6 +478,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeMC, const FPSTelemetryPu
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushMC, const FPSTelemetryPassRushEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapMC, const FPSTelemetryPreSnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutMC, const FPSTelemetryTimeoutEvent&);
+
+/** Any event, once it is in the history and before its typed delegates fire (Epic 26). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryEventRecordedMC, const FPSTelemetryEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -536,6 +546,26 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void ClearHistory();
+
+    /** The Sequence of the most recently published event; 0 before the first. */
+    UFUNCTION(BlueprintPure, Category = "Telemetry")
+    int32 GetLastEventSequence() const { return LastEventSequence; }
+
+    /** The Sequence of the oldest event still in the history; 0 when it is empty. */
+    UFUNCTION(BlueprintPure, Category = "Telemetry")
+    int32 GetOldestEventSequence() const;
+
+    /** How many events the history keeps before dropping the oldest. */
+    UFUNCTION(BlueprintPure, Category = "Telemetry")
+    int32 GetMaxHistorySize() const { return MaxHistorySize; }
+
+    /** The event with this Sequence, while it is still in the history. */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    bool FindEventBySequence(int32 Sequence, FPSTelemetryEvent& OutEvent) const;
+
+    /** The most recent event of EventType still in the history. */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    bool FindLatestEventOfType(EPSTelemetryEventType EventType, FPSTelemetryEvent& OutEvent) const;
 
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetrySnapSignature OnSnap;
@@ -606,11 +636,17 @@ public:
     FPSTelemetryPreSnapMC OnPreSnapMC;
     FPSTelemetryTimeoutMC OnTimeoutMC;
 
+    /** Fires for every event as it is recorded, before its typed delegates, so a listener
+     *  sees the world exactly as it was when the event happened (Epic 26's keyframes). */
+    FPSTelemetryEventRecordedMC OnEventRecordedMC;
+
 private:
     UPROPERTY(Transient)
     TArray<FPSTelemetryEvent> EventHistory;
 
     const int32 MaxHistorySize = 100;
+
+    int32 LastEventSequence = 0;
 
     void RecordHistory(EPSTelemetryEventType EventType, const FString& Description, const FString& JsonPayload);
 };
