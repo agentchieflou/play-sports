@@ -16,6 +16,7 @@
 #include "PSPassingComponent.h"
 #include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSCameraFraming.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -97,6 +98,11 @@ public:
      *  missing file, malformed JSON, or an unrecognized Move. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
+
+    /** Loads the all-22 film camera rigs (Data/camera_all22.json, Epic 40). False on a
+     *  missing file, malformed JSON, or an unrecognized Placement. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadAll22CameraTuningFromJson(const FString& JsonFilePath, FPSAll22CameraTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

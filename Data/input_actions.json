@@ -150,8 +150,8 @@
         {
             "ActionId": "ViewToggle",
             "ValueType": "Boolean",
-            "Description": "Toggle third and first person. Y toggles the camera in every context.",
-            "Contexts": ["World"],
+            "Description": "Toggle the camera. Y toggles the camera in every context: third and first person in the world; on the field, broadcast, then the all-22 film rigs, then back (Epic 40, UPSCameraAll22Component). The pass and carrier-move contexts outrank it during the play.",
+            "Contexts": ["World", "OnField"],
             "Bindings": [
                 { "Key": "V" },
                 { "Key": "Gamepad_FaceButton_Top" }

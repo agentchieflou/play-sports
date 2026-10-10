@@ -18,7 +18,8 @@ FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotA
 against FPassingInputTuningRow, including that each named action is a Boolean in the input
 catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
-DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini.
+DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
+"All22Rigs" files against FPSAll22CameraTuning.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -646,6 +647,56 @@ def validate_carrier_moves(path, payload, catalog):
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
 
 
+ALL22_PLACEMENTS = {"Sideline", "EndZone"}
+ALL22_RIG_NUMBERS = ("HeightCm", "StandoffCm", "RailHalfLengthCm", "MinFieldOfView", "MaxFieldOfView")
+ALL22_TUNING_NUMBERS = ("FramingMarginCm", "PlayerHeightCm", "AspectRatio", "ReframeSpeed")
+
+
+def validate_all22_camera(path, payload):
+    """FPSAll22CameraTuning (Data/camera_all22.json, Epic 40); mirrors
+    UPSCameraFraming::ValidateTuning."""
+    rigs = payload.get("All22Rigs")
+    if not isinstance(rigs, list) or not rigs:
+        err(path, "'All22Rigs' must be a non-empty array: the film view needs at least one rig")
+        rigs = []
+    seen = set()
+    for idx, rig in enumerate(rigs):
+        where = f"All22Rigs[{idx}]"
+        if not isinstance(rig, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        rig_id = rig.get("RigId")
+        if not isinstance(rig_id, str) or not rig_id or rig_id in seen:
+            err(path, f"{where}.RigId: empty or used twice")
+        seen.add(rig_id)
+        if rig.get("Placement") not in ALL22_PLACEMENTS:
+            err(path, f"{where}.Placement: '{rig.get('Placement')}' is not an EPSAll22RigPlacement ({sorted(ALL22_PLACEMENTS)})")
+        for field in ALL22_RIG_NUMBERS:
+            value = rig.get(field)
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.{field}: '{value}' must be a number, 0 or more")
+        for field in ("HeightCm", "StandoffCm"):
+            if is_number(rig.get(field)) and rig[field] <= 0:
+                err(path, f"{where}.{field}: must be positive")
+        low, high = rig.get("MinFieldOfView"), rig.get("MaxFieldOfView")
+        if is_number(low) and is_number(high) and not 0 < low <= high < 170:
+            err(path, f"{where}: the zoom range must satisfy 0 < MinFieldOfView ({low}) <= MaxFieldOfView ({high}) < 170")
+        if not isinstance(rig.get("bTrackPlay"), bool):
+            err(path, f"{where}.bTrackPlay: must be true or false")
+        extra = set(rig) - set(ALL22_RIG_NUMBERS) - {"RigId", "Placement", "bTrackPlay"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSAll22RigDef exactly")
+    for field in ALL22_TUNING_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if is_number(payload.get("AspectRatio")) and payload["AspectRatio"] <= 0:
+        err(path, "AspectRatio must be positive")
+    extra = set(payload) - set(ALL22_TUNING_NUMBERS) - {"All22Rigs"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSAll22CameraTuning exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -700,6 +751,8 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "All22Rigs" in payload:
+            validate_all22_camera(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

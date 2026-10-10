@@ -37,9 +37,9 @@ camera behaviors are components/classes, each epic ships tests.
 **Goal:** A locked high wide angle showing all 22 players, recordable for analysis.
 **Depends on:** Core 4
 
-- [ ] Fixed elevated sideline and end-zone all-22 rigs
-- [ ] Toggle path from normal presentation into film view
-- [ ] Frame export hook for the analysis/telestrator Epic (44)
+- [x] Fixed elevated sideline and end-zone all-22 rigs *(rows in `Data/camera_all22.json`: height, standoff, rail and zoom range per rig. `UPSCameraFraming` aims at the players' padded bounding box and zooms to the narrowest angle that holds its eight corners, backing the rig away along its line of sight when even the widest zoom can't. The sideline rig sits on the broadcast camera's side (180° rule); the end-zone rig stands behind the offense, whose direction is read from the formation at each cut and each snap)*
+- [x] Toggle path from normal presentation into film view *(`UPSCameraAll22Component` on `APSBroadcastCamera`, so film is a mode of the one game camera, not a second camera. The catalog's `ViewToggle` (Y / V) now also lives in `OnField` and steps broadcast → sideline → end zone → broadcast. The camera hears it from whichever `APSPlayerController` views through it (`BecomeViewTarget`). Leaving film view restores the broadcast view. Film view has no camera effects and turns motion blur off, so the per-tier cut-line in `Specs/Platform_Audit.md` doesn't apply)*
+- [x] Frame export hook for the analysis/telestrator Epic (44) *(`CaptureFrame` records the live shot and each player's normalized place in it (`FPSFilmFrame`) and fires `OnFrameCaptured`; `ExportFrame` writes the frame as JSON to `Saved/Film` and requests a still when a game viewport exists. Frames carry bus time, so they line up with the event history and replays. Tests: `PlaySports.Camera.All22*`)*
 
 ### Epic 41: Replay System
 

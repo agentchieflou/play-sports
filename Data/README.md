@@ -35,6 +35,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `camera_all22.json` | `FPSAll22CameraTuning` (single object: `All22Rigs`, framing tuning) | `UPSDataIngestion::LoadAll22CameraTuningFromJson`, via `UPSCameraAll22Component` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
@@ -254,3 +255,24 @@ budget as a field here; it never hardcodes a mobile case.
 
 `UPSCarrierMoveComponent::ValidateCatalog` and `tools/validate_data.py` check it.
 
+
+## All-22 camera schema (`FPSAll22CameraTuning`)
+
+Single object (Epic 40; the coaches film view, `UPSCameraAll22Component` on the broadcast camera):
+- `All22Rigs[]`, in the order the film view toggles through them. Each has:
+  - `RigId` (unique) and `Placement`: `Sideline` (high on the -Y sideline, the broadcast camera's
+    side) or `EndZone` (high behind the end zone the offense defends).
+  - `HeightCm` and `StandoffCm` (both positive): the rig's fixed height, and its distance from the
+    field's centre (across the field for the sideline rig, along it for the end-zone rig).
+  - `bTrackPlay` and `RailHalfLengthCm`: whether the rig slides along its rail (X for the sideline
+    rig, Y for the end-zone rig) to stay square to the players, and how far the rail runs either
+    side of its centre.
+  - `MinFieldOfView`, `MaxFieldOfView` (degrees, 0 < min <= max < 170): the zoom range. Players
+    too spread for the widest zoom make the rig back away along its line of sight.
+- `FramingMarginCm`: padding kept around the players on the ground.
+- `PlayerHeightCm`: a player's height, centred on the pawn, so heads and feet stay in frame.
+- `AspectRatio`: the frame's width over height when no game viewport says otherwise.
+- `ReframeSpeed`: how fast the frame closes in once play bunches up (0 closes in at once).
+  Widening is always immediate.
+
+`UPSCameraFraming::ValidateTuning` and `tools/validate_data.py` check it.

@@ -89,7 +89,7 @@ as the Xbox glyph set labels them.
 | SwitchPlayer | Boolean | OnField | T | X, LB | the controller → `SwitchToBestPawn` |
 | Interact | Boolean | World | E, Enter | A | `OnCatalogActionStarted` |
 | Secondary | Boolean | World | T | X | `OnCatalogActionStarted` |
-| ViewToggle | Boolean | World | V | Y | `OnCatalogActionStarted` |
+| ViewToggle | Boolean | World, OnField | V | Y | `OnCatalogActionStarted`. On the field: `UPSCameraAll22Component` on the broadcast camera steps broadcast → all-22 sideline → all-22 end zone → broadcast (Epic 40). It hears only the controller viewing through that camera. In the world: nobody yet (Epic 143's third/first person) |
 | Picker | Boolean | World | C | Menu (Start) | `OnCatalogActionStarted` (Epic 143) |
 | PassTarget1-5 | Boolean | Passing | 1-5 | X, Y, B, RB, A | `UPSPassingComponent`: throws on release to receiver slots 1-5, left to right across the field. A tap throws touch, a hold throws a bullet, and the Move stick places the ball. |
 | PumpFake | Boolean | Passing | Q | LB | `UPSPassingComponent`: publishes `PumpFake`; low-Awareness coverage freezes |
@@ -101,9 +101,13 @@ as the Xbox glyph set labels them.
 | Slide | Boolean | BallCarrier | Left Ctrl | LB | the same: give yourself up (down at the next contact, no hit, no fumble) |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
-every context. Start opens the character sheet off the field and pauses on it (Epic 101). The
-look picker is an off-field screen, so the two never meet in one context. On the keyboard the
-pause key is P, because Escape is already Cancel on the field and PIE uses Escape to stop.
+every context. On the field ViewToggle sits in `OnField`, so during the play the depth contexts
+outrank it where they share its buttons: Y throws to slot 2 while passing, and Y and V hurdle
+and stiff-arm with the ball. On a pad the camera toggles before the snap, after the whistle, or
+when the human has no ball. Start opens the character sheet off the field and pauses on it
+(Epic 101). The look picker is an off-field screen, so the two never meet in one context. On the
+keyboard the pause key is P, because Escape is already Cancel on the field and PIE uses Escape
+to stop.
 
 Not in the catalog yet, from the browser world's mapping: the debug "frame figures" key (F3 or
 \`, which has no gamepad binding) and dialogue navigation (Tab/Enter, D-pad/A), which needs a
@@ -261,6 +265,7 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.ForceFeedbackTuningValidates` | The rumble patterns load and validate (Epic 128). |
 | `PlaySports.Input.TelemetryEventsDriveForceFeedback` | Bus events become rumble dispatches (Epic 128). |
 | `PlaySports.Input.GlyphTableCoversCatalog` | The glyph table loads, validates and draws every bound key (Epic 128). |
+| `PlaySports.Camera.All22ToggleThroughCatalog` | ViewToggle is on the field with a key and a Y glyph, and steps the film view on the viewing controller only (Epic 40). |
 
 What CI cannot show is how the input feels in a player's hands: real rumble strength on a pad,
 glyph icons (none are imported yet; the labels stand in), and the menu flow on a gamepad. Those
