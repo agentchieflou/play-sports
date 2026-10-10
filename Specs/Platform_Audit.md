@@ -94,6 +94,7 @@ Landed so far:
 | Broadcast overlays (Track A; first user: the Epic 30 reticle) | `OverlayDetail` | `Full`: animated | `Simplified`: no pulses or animated transitions | `Minimal`: score bug and the control reticle, static |
 | Ball-flight indicators (Epic 32), on the same field | `OverlayDetail` | Arc that shortens behind the ball, landing spot, receiver lead, kick readout | Whole arc, static; landing spot, lead, readout | Landing spot and kick readout only |
 | Position badges (Epic 28), on the same field | `OverlayDetail` | Every group, fading in | Every group, no fade | The pass buttons only |
+| Player emphasis (Epic 36): custom-depth marks for outline, glow and dimming | `OverlayDetail` | Drawn, up to `MaxEmphasized` players | Drawn, up to `MaxEmphasized` players | Not drawn (requests kept) |
 
 The sampler also halves its own rate when its frames run over the tier's budget
 (`PlaySports.TelemetrySampling.BudgetDegradesAndRecovers`); `stat PSTelemetrySampling` shows its

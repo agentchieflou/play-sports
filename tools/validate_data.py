@@ -44,9 +44,9 @@ with the control's value type, every action of a covered context is reachable by
 touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
-coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle. Teams, the league config, the
-playbook, player rating ranges and every reference between files are tools/content_contracts.py's
-(Epic 125), run from here.
+coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "DimStencil" files against
+FPSEmphasisStyle (Epic 36). Teams, the league config, the playbook, player rating ranges and every
+reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -2529,6 +2529,57 @@ def validate_overlay_badges(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOverlayBadgeStyle exactly")
 
 
+EMPHASIS_KINDS = ("Highlight", "Mismatch", "Focus")
+
+
+def validate_player_emphasis(path, payload):
+    """FPSEmphasisStyle (Data/player_emphasis.json, Epic 36); mirrors
+    UPSOverlayEmphasisSubsystem::ValidateStyle."""
+    kinds = payload.get("Kinds")
+    if not isinstance(kinds, list):
+        err(path, "'Kinds' must be an array")
+        kinds = []
+    seen = {}
+    stencils = []
+    for idx, row in enumerate(kinds):
+        where = f"Kinds[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        kind = row.get("Kind")
+        if kind not in EMPHASIS_KINDS:
+            err(path, f"{where}.Kind: '{kind}' must be one of {list(EMPHASIS_KINDS)}")
+        seen[kind] = seen.get(kind, 0) + 1
+        stencil = row.get("Stencil")
+        if not isinstance(stencil, int) or isinstance(stencil, bool) or not 1 <= stencil <= 255:
+            err(path, f"{where}.Stencil: '{stencil}' must be a whole number from 1 to 255")
+        stencils.append(stencil)
+        priority = row.get("Priority")
+        if not isinstance(priority, int) or isinstance(priority, bool):
+            err(path, f"{where}.Priority: '{priority}' must be a whole number")
+        extra = set(row) - {"Kind", "Stencil", "Priority"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for kind in EMPHASIS_KINDS:
+        count = seen.get(kind, 0)
+        if count != 1:
+            err(path, f"Kinds: '{kind}' is listed {count} times; it needs exactly one entry")
+    dim = payload.get("DimStencil")
+    if not isinstance(dim, int) or isinstance(dim, bool) or not 1 <= dim <= 255:
+        err(path, f"DimStencil: '{dim}' must be a whole number from 1 to 255")
+    stencils.append(dim)
+    if len(set(map(str, stencils))) != len(stencils):
+        err(path, "Stencil values must differ: the emphasis material tells the looks apart by them")
+    most = payload.get("MaxEmphasized")
+    if not isinstance(most, int) or isinstance(most, bool) or most < 1:
+        err(path, f"MaxEmphasized: '{most}' must be a whole number, 1 or more")
+    if not isinstance(payload.get("bSpotlightDimsEmphasized"), bool):
+        err(path, "bSpotlightDimsEmphasized: must be true or false")
+    extra = set(payload) - {"Kinds", "DimStencil", "MaxEmphasized", "bSpotlightDimsEmphasized"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSEmphasisStyle exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2602,6 +2653,8 @@ def main():
             validate_ball_flight_overlay(path, payload)
         if isinstance(payload, dict) and "RoleLabels" in payload:
             validate_overlay_badges(path, payload)
+        if isinstance(payload, dict) and "DimStencil" in payload:
+            validate_player_emphasis(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "KickoffTouchbackChance" in payload:

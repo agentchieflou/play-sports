@@ -90,6 +90,7 @@ every CI build.
 | `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
 | `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
 | `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
+| `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -874,6 +875,22 @@ his role's label.
   player too; he already has the reticle).
 
 `UPSOverlayBadgeComponent::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Player emphasis schema (`FPSEmphasisStyle`)
+
+Single object (Epic 36; `UPSOverlayEmphasisSubsystem`, which commentary, replay and coaching tips
+ask to emphasize a player). It marks each emphasized player's meshes for the custom-depth pass with
+a stencil value; the emphasis post-process material draws the outline, glow or dimming for that
+value (`Specs/Player_Emphasis_Spec.md`).
+- `Kinds[]`: exactly one each for `Highlight` (a key-player callout), `Mismatch` (a mismatch alert)
+  and `Focus` (a replay's focus), with its `Stencil` (1-255) and `Priority` (of several requests on
+  one player the highest wins; under the budget the highest players are drawn first).
+- `DimStencil` (1-255): players dimmed by another's spotlight. All four stencils must differ.
+- `MaxEmphasized` (1 or more): players emphasized at once, since each costs custom-depth draws.
+  Dimmed players don't count.
+- `bSpotlightDimsEmphasized`: in a spotlight, dim the other emphasized players too.
+
+`UPSOverlayEmphasisSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Skycam schema (`FPSSkycamTuning`)
 
