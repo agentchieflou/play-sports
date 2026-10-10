@@ -37,7 +37,7 @@ These groups can run at the same time (see the scope note under the table):
 
 | Group | Label | Epics (order) | Owner suggestion |
 |---|---|---|---|
-| G2 | Orchestrator (Track P) | 138 (135–137 done) | Claude Code |
+| G2 | Orchestrator (Track P) | Done (135–138); `python -m tools.orchestrator check-parallel` now validates this file | — |
 | G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
 | G4 | Platform ports (Track N, iPhone first) | 130 touch (129 done; 131 done but its ADR, which waits on the owner's answer about a Mac and an Apple account) | Claude Code; packaging waits on a Mac |
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
@@ -57,7 +57,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
   depth.
 - **Tier 2:** 89 coaching staffs, 19.5 personnel packages.
 - **Tier 3 / infra:** 125 content validation CLI, 24 test expansion.
-- **Overlay and camera code:** 30 selected-player indicator, 33 score bug, 40 all-22 camera.
+- **Overlay and camera code:** 30 selected-player indicator, 33 score bug (40 all-22 camera done).
   With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
   38, 41, 49, 78, 82, 85, 92, 96, 115.
 - **Editor or mixed, waiting for an editor session:** 2.1–2.2, 22, 23.
@@ -139,7 +139,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "37":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["28", "29", "33", "34"]},
     "38":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["4", "26"]},
     "39":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["38"]},
-    "40":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["4"]},
+    "40":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["4"]},
     "41":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["C1", "26", "38", "17"]},
     "42":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["41"]},
     "43":  {"track": "B", "mode": "editor", "status": "open", "depends_on": ["38", "22"]},
@@ -237,7 +237,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "135": {"track": "P", "mode": "code", "status": "done", "depends_on": []},
     "136": {"track": "P", "mode": "code", "status": "done", "depends_on": ["135"]},
     "137": {"track": "P", "mode": "code", "status": "done", "depends_on": ["136"]},
-    "138": {"track": "P", "mode": "code", "status": "open", "depends_on": ["136", "137"]},
+    "138": {"track": "P", "mode": "code", "status": "done", "depends_on": ["136", "137"]},
     "139": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["8", "19", "C1"]},
     "140": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "18", "17"]},
     "141": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "19"]},
