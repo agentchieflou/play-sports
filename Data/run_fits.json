@@ -1,0 +1,41 @@
+{
+    "DefaultFront": "4-3",
+    "GapWidth": 150,
+    "InlineTightEndWidth": 250,
+    "FitDepth": 50,
+    "SecondLevelDepth": 350,
+    "LeverageOffset": 40,
+    "FlowWeight": 0.4,
+    "AttackRadius": 120,
+    "FillRadius": 120,
+    "Fronts": [
+        {
+            "Front": "4-3",
+            "Fits": [
+                { "Role": "DefensiveLineman", "Gaps": ["CLeft", "ALeft", "ARight", "CRight"] },
+                { "Role": "Linebacker", "Gaps": ["BLeft", "BRight", "DRight"] }
+            ]
+        },
+        {
+            "Front": "3-4",
+            "Fits": [
+                { "Role": "DefensiveLineman", "Gaps": ["BLeft", "ALeft", "ARight", "BRight"] },
+                { "Role": "Linebacker", "Gaps": ["CLeft", "DRight", "CRight"] }
+            ]
+        },
+        {
+            "Front": "Nickel",
+            "Fits": [
+                { "Role": "DefensiveLineman", "Gaps": ["CLeft", "BLeft", "ARight", "CRight"] },
+                { "Role": "Linebacker", "Gaps": ["ALeft", "BRight", "DRight"] }
+            ]
+        },
+        {
+            "Front": "6-2",
+            "Fits": [
+                { "Role": "DefensiveLineman", "Gaps": ["BLeft", "ALeft", "ARight", "BRight"] },
+                { "Role": "Linebacker", "Gaps": ["CLeft", "DLeft", "CRight", "DRight"] }
+            ]
+        }
+    ]
+}

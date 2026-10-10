@@ -3,6 +3,7 @@
 #include "PSOffenseController.h"
 #include "PSDefenseController.h"
 #include "PSPreSnapSubsystem.h"
+#include "PSRouteRunnerComponent.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 
@@ -93,6 +94,10 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
             if (Unassigned)
             {
                 Unassigned->SetAssignedRoute(TArray<FVector>());
+                if (UPSRouteRunnerComponent* Runner = Unassigned->GetRouteRunner())
+                {
+                    Runner->ClearRoutePlan();
+                }
             }
             continue;
         }
@@ -133,11 +138,30 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
                     Waypoints.Add(Origin);
                 }
                 OffenseController->SetAssignedRoute(Waypoints);
+
+                // The pattern itself -- its break, fakes, option read -- goes to his route
+                // runner, with this play's seed for his contests (Epic 68).
+                const FPSRoute* Route = (RouteLibrary && !Assignment.RouteId.IsNone()) ? RouteLibrary->FindRow<FPSRoute>(Assignment.RouteId, TEXT("PSPlayOrchestrator"), false) : nullptr;
+                if (UPSRouteRunnerComponent* Runner = OffenseController->GetRouteRunner())
+                {
+                    if (Route)
+                    {
+                        Runner->SetRoutePlan(*Route, Waypoints, Mirror, RouteLibrary, DeterminismStream.RandHelper(MAX_int32));
+                    }
+                    else
+                    {
+                        Runner->ClearRoutePlan();
+                    }
+                }
             }
             else
             {
                 // A blocker has no route: his AI blocks (Epic 14), whatever he ran last play.
                 OffenseController->SetAssignedRoute(TArray<FVector>());
+                if (UPSRouteRunnerComponent* Runner = OffenseController->GetRouteRunner())
+                {
+                    Runner->ClearRoutePlan();
+                }
             }
         }
         else

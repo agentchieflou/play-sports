@@ -32,7 +32,10 @@ enum class EPSDefenderAction : uint8
     /** Breaking on a thrown ball. */
     BallHawk,
     /** Carrying the ball back after a takeaway. */
-    Return
+    Return,
+    /** Run fit on a run read: filling his gap (UPSDefenderGapSubsystem, Epic 81) until the
+     *  carrier comes to it. */
+    Fit
 };
 
 /** Defensive AI tuning (Data/defense_ai_tuning.json; Architecture rule 4). Distances in cm. */
@@ -93,8 +96,10 @@ struct FDefenderAITuningRow : public FTableRowBase
  * from a cushion, zone defenders hold their spot and shade to the receiver in it, run-fit
  * defenders read run or pass, coverage defenders break on a thrown ball, and once the ball is
  * out -- a hand-off, a catch, a QB past the line -- everyone pursues the carrier on
- * APSDefenseController's intercept angle. Awareness sets how fast each read happens, and how
- * long a pump fake freezes coverage.
+ * APSDefenseController's intercept angle. On a run still behind the line, a defender with a
+ * gap (UPSDefenderGapSubsystem, Epic 81) fits it first -- working across a blocker's face to
+ * stay in it -- and attacks when the carrier comes to it. Awareness sets how fast each read
+ * happens, and how long a pump fake freezes coverage.
  *
  * It is the defensive twin of UPSSkillPlayerAIComponent and works the same way: it moves the
  * pawn with AddMovementInput (so FMovementTuningRow applies), takes the assignment from
@@ -170,6 +175,7 @@ private:
     void HandleThrow(const FPSTelemetryThrowEvent& Event);
     void HandleCatch(const FPSTelemetryCatchEvent& Event);
     void HandlePumpFake(const FPSTelemetryPumpFakeEvent& Event);
+    void HandleRouteRunning(const FPSTelemetryRouteEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
     void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
 
@@ -183,6 +189,10 @@ private:
     FVector SteerToCover(const APSPlayerPawn* Self) const;
     FVector SteerInZone(const APSPlayerPawn* Self) const;
     FVector SteerToPursue(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier) const;
+    FVector SteerToFit(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier) const;
+
+    /** Where Self fits his gap against a run by Carrier; false when he should pursue instead. */
+    bool GetFitTarget(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier, FVector& OutTarget) const;
 
     APSDefenseController* GetDefenseController() const;
     APSPlayerPawn* GetSelf() const;
