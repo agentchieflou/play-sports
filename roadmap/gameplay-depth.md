@@ -119,11 +119,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** Deception plays exist as first-class mechanics with defenders who can genuinely be fooled.
 **Depends on:** 66, 68, Core 14, Core 15
 
-- [ ] Play-action: fake handoff mechanics with linebacker-bite model (`Awareness` + tendency history)
-- [ ] RPO: post-snap read of a conflict defender gating give/pull/throw
-- [ ] Zone-read and triple-option assignments (dive/keep/pitch with defender keys)
-- [ ] Defensive integrity rules so option football is stoppable by disciplined AI
-- [ ] Playbook schema extensions (Epic 16) for all deception play types
+- [x] Play-action: fake handoff mechanics with linebacker-bite model (`Awareness` + tendency history) *(`UPSDeceptionSubsystem`: on a play-action call the QB carries out a fake hand-off toward his back for `FakeSeconds` (`EPSSkillPlayerAction::Fake`), then drops. Selling it, every run-fit defender bites with a chance from his `Awareness` and the share of runs in the offense's last `TendencyWindow` calls (an audible replaces the call it changes); one who bites holds `BiteFreezeSeconds` instead of dropping. `Deception` Fake/Bite on the bus; tuning `Data/deception.json`)*
+- [x] RPO: post-snap read of a conflict defender gating give/pull/throw *(the QB rides the mesh with the back for `MeshRideSeconds`, then reads the conflict defender (the linebacker nearest the pass option, else a back): heading for the back (or standing nearer him), he is playing the run and the QB pulls it and throws to the pass option; otherwise he gives)*
+- [x] Zone-read and triple-option assignments (dive/keep/pitch with defender keys) *(the read key is the end man on the line on the play side: playing the back, the QB keeps it, else gives. On the triple option, keeping it, he reads the pitch key and pitches once that key takes him (within `PitchReadRadius`), until he is `PitchWindowDepth` past the line)*
+- [x] Defensive integrity rules so option football is stoppable by disciplined AI *(at the mesh the defense hands out option jobs (`Deception` Assignment), which `UPSDefenderAIComponent` plays while the QB holds the ball near the line. A disciplined (`DisciplineAwareness`) read key takes the QB, so the read gives to a back the nearest lineman has; an undisciplined one crashes on the dive, and an aware linebacker scrapes over to the QB. The pitch key takes the pitch man, or the QB if he is undisciplined)*
+- [x] Playbook schema extensions (Epic 16) for all deception play types *(`FPSPlayDefinition::Deception` (`FPSDeceptionDef`: `Type`, `PlaySide`, `PassRole`, `PitchRole`), checked by `tools/content_contracts.py`; `Data/sample_playbook.json` gains play-action on the PA post, an RPO slant, a zone read and a triple option. Tests: `Tests/PSDeceptionTests.cpp`)*
 
 ### Epic 73: Full Penalty & Rules Depth
 

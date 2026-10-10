@@ -592,3 +592,18 @@ void UPSTelemetryBus::PublishLooseBall(const FPSTelemetryLooseBallEvent& Event)
     }
     OnLooseBallMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishDeception(const FPSTelemetryDeceptionEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryDeceptionEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Deception: %s %s %s: %s"), *UEnum::GetValueAsString(Event.Kind), *Event.PlayerName, *Event.OtherName, *Event.Outcome.ToString());
+    RecordHistory(EPSTelemetryEventType::Deception, Description, JsonPayload);
+
+    if (OnDeception.IsBound())
+    {
+        OnDeception.Broadcast(Event);
+    }
+    OnDeceptionMC.Broadcast(Event);
+}

@@ -40,7 +40,8 @@ enum class EPSTelemetryEventType : uint8
     PlayResult,
     RecordBroken,
     Coverage,
-    LooseBall
+    LooseBall,
+    Deception
 };
 
 /** What a statistic counts (Epic 92). Player categories first, then team ones. */
@@ -174,6 +175,21 @@ enum class EPSCoverageEventKind : uint8
     FreeRole,
     /** A defender played through the targeted receiver before the ball arrived: a flag. */
     PassInterference
+};
+
+/** A deception play's moment (Epic 72), as UPSDeceptionSubsystem decides it. */
+UENUM(BlueprintType)
+enum class EPSDeceptionEventKind : uint8
+{
+    /** The quarterback sold a play-action fake hand-off. */
+    Fake,
+    /** A run-fit defender bit on the fake: frozen for Seconds. */
+    Bite,
+    /** The quarterback read his key: "Give", "Keep", "Throw" or "Pitch". */
+    Read,
+    /** The defense saw the mesh and gave a defender his option job: "Dive", "Quarterback" or
+     *  "Pitch". */
+    Assignment
 };
 
 /** A loose ball the players play (Epic 17.4: a blocked kick), as UPSLooseBallSubsystem runs it. */
@@ -1107,6 +1123,34 @@ struct FPSTelemetryRecordBrokenEvent
     FString Description;
 };
 
+/** A deception play's moment (Epic 72): the fake, a bite, the quarterback's read, a defender's
+ *  option job. UPSDeceptionSubsystem decides these; the quarterback and the defenders act on
+ *  them. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryDeceptionEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSDeceptionEventKind Kind = EPSDeceptionEventKind::Fake;
+
+    /** The quarterback (fake, read) or the defender (bite, assignment). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** A read: the defender read. An assignment: the man he takes. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString OtherName;
+
+    /** See EPSDeceptionEventKind. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Outcome;
+
+    /** A bite: how long he is frozen. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Seconds = 0.f;
+};
+
 /** A loose ball (Epic 17.4): a blocked kick's ball on the ground, a muff, a recovery and the dead
  *  ball. UPSPlaySimulation announces the block; UPSLooseBallSubsystem runs the rest, and the
  *  simulation takes the dead ball as the kick's outcome. */
@@ -1249,6 +1293,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayResultSignature, con
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecordBrokenSignature, const FPSTelemetryRecordBrokenEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageSignature, const FPSTelemetryCoverageEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallSignature, const FPSTelemetryLooseBallEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionSignature, const FPSTelemetryDeceptionEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -1286,6 +1331,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayResultMC, const FPSTelemetry
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecordBrokenMC, const FPSTelemetryRecordBrokenEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageMC, const FPSTelemetryCoverageEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallMC, const FPSTelemetryLooseBallEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionMC, const FPSTelemetryDeceptionEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1395,6 +1441,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishLooseBall(const FPSTelemetryLooseBallEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishDeception(const FPSTelemetryDeceptionEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -1521,6 +1570,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryLooseBallSignature OnLooseBall;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryDeceptionSignature OnDeception;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -1558,6 +1610,7 @@ public:
     FPSTelemetryRecordBrokenMC OnRecordBrokenMC;
     FPSTelemetryCoverageMC OnCoverageMC;
     FPSTelemetryLooseBallMC OnLooseBallMC;
+    FPSTelemetryDeceptionMC OnDeceptionMC;
 
 private:
     UPROPERTY(Transient)

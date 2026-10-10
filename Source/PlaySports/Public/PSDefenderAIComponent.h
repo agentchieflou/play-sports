@@ -14,6 +14,7 @@ class UPSAIFieldSnapshot;
 class UPSAIDecisionLog;
 class UPSCoverageMatchupSubsystem;
 class UPSLooseBallSubsystem;
+class UPSDeceptionSubsystem;
 
 /** What a defensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -112,6 +113,8 @@ struct FDefenderAITuningRow : public FTableRowBase
  * zone for this defender it gives the spot to play, and a contest it puts him out of phase in
  * (a beaten jam, a break away from his leverage) freezes him like a bite. A blocked kick's loose
  * ball near him (UPSLooseBallSubsystem, Epic 17.4) comes before all of it: he goes for the ball.
+ * Deception football (UPSDeceptionSubsystem, Epic 72): a play-action fake he bites on freezes
+ * him, and an option job, once the defense has seen the mesh, puts him on his man.
  *
  * It is the defensive twin of UPSSkillPlayerAIComponent and works the same way: it moves the
  * pawn with AddMovementInput (so FMovementTuningRow applies), takes the assignment from
@@ -197,6 +200,7 @@ private:
     void HandleRouteRunning(const FPSTelemetryRouteEvent& Event);
     void HandleBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event);
     void HandleCoverage(const FPSTelemetryCoverageEvent& Event);
+    void HandleDeception(const FPSTelemetryDeceptionEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
     void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
 
@@ -232,6 +236,9 @@ private:
 
     /** A blocked kick's loose ball (Epic 17.4). */
     UPSLooseBallSubsystem* GetLooseBall() const;
+
+    /** Play-action bites and option jobs (Epic 72). */
+    UPSDeceptionSubsystem* GetDeception() const;
 
     UPROPERTY(Transient)
     FDefenderAITuningRow Tuning;

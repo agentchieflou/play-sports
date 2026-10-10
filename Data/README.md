@@ -66,6 +66,7 @@ every CI build.
 | `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
 | `blown_coverage.json` | `FBlownCoverageTuningRow` (single object) | `UPSDataIngestion::LoadBlownCoverageTuningFromJson`, via `UPSBlownCoverageSubsystem` |
 | `loose_ball.json` | `FPSLooseBallTuning` (single object) | `UPSDataIngestion::LoadLooseBallTuningFromJson`, via `UPSLooseBallSubsystem` |
+| `deception.json` | `FPSDeceptionTuning` (single object) | `UPSDataIngestion::LoadDeceptionTuningFromJson`, via `UPSDeceptionSubsystem` |
 | `coverage_matchups.json` | `FPSCoverageMatchupTuning` (single object: tuning, `Shells`, `DefaultShell`) | `UPSDataIngestion::LoadCoverageMatchupTuningFromJson`, via `UPSCoverageMatchupSubsystem` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
@@ -304,6 +305,17 @@ are:
 - `PlayCategory` may also be a clock play, `Spike` or `Kneel` (Epic 76), which the simulation
   resolves at the snap.
 - The route library's own rules are under "Route schema extras" below.
+- An offensive play may carry a `Deception` object (`FPSDeceptionDef`, Epic 72; omitted means
+  `None`):
+  - `Type`: `None`, `PlayAction`, `RPO`, `ZoneRead` or `TripleOption`.
+  - `PlaySide`: `1` (right of the ball) or `-1` (left); the option's keys are on that side.
+  - `PassRole`: the RPO's pass option, the first player of this role on a route.
+  - `PitchRole`: the triple option's pitch man, not the QB or the RB.
+
+  `PlayAction` goes on a pass play, not a `Run`, `Screen` or special-teams one. The run options
+  are `Run` plays with a `RunningBack` on a `Route` (the QB meets him at the mesh). An RPO's
+  `PassRole` must run a route, and a triple option's `PitchRole` must be in the play. Tuning is
+  `deception.json` below; `tools/content_contracts.py` checks the rules.
 
 Two `PlayCategory` values are clock plays (Epic 76): `Spike` and `Kneel` (the `Clock` formation).
 The CPU calls them only when the clock does (`UPSSituationAI::DecideClockPlay`), and
@@ -1024,6 +1036,35 @@ Every number is 0 or more; distances are cm:
 - `MaxLooseSeconds`, `MaxReturnSeconds` (above 0): the officials blow it dead where it lies (the
   defense's ball) when nobody has it by then, and a return still going after its time where the
   returner is.
+
+`tools/validate_data.py` checks it.
+
+## Deception schema (`FPSDeceptionTuning`)
+
+Single object (Epic 72; play-action, RPO and option football, `UPSDeceptionSubsystem`). Every
+number is 0 or more; distances are cm, chances 0-1, ratings 0-100:
+- `FakeSeconds`: the QB carries out a play-action fake hand-off this long before his drop.
+- `BiteBaseChance`, `BiteRunTendencyWeight`, `BiteAwarenessWeight`, `BiteMinChance`,
+  `BiteMaxChance` (min at most max): a run-fit defender bites on the fake with chance
+  `Base + RunTendencyWeight * (RunShare - 0.5) * 2 - AwarenessWeight * Awareness / 100`, held
+  between min and max. `RunShare` is the share of runs in the offense's last `TendencyWindow`
+  (whole, 1 or more) scrimmage calls.
+- `BiteFreezeSeconds`: a defender who bites holds this long instead of dropping.
+- `MeshRideSeconds`: on a run option the QB rides the mesh with the back this long after the snap
+  before he reads his key.
+- `ReadMinSpeed` (cm/s): a key moving at least this fast is read by whom he is heading for (the
+  back or the QB, the run or the pass option); slower, by whom he is nearer.
+- `KeyLineDepth`: a defender this close to the line is on it. The end man on the line, on the
+  play side, is the zone read's key and the triple option's dive key.
+- `PitchReadRadius`, `PitchWindowDepth`: the triple option's QB, keeping it, pitches once the pitch
+  key is this close to him (and nearer him than the pitch man), until he is `PitchWindowDepth`
+  past the line.
+- `MeshRecognizeRadius`: the QB with the ball this close to the back, behind the line, is a mesh.
+  The defense sees the option and hands out option jobs.
+- `DisciplineAwareness` (0-100): a defender this aware plays his option job (the read key takes the
+  QB, the pitch key the pitch man). One less aware chases the ball.
+- `ScrapeRadius`: when the read key crashes on the dive, an aware linebacker this close to him
+  scrapes over to the QB.
 
 `tools/validate_data.py` checks it.
 

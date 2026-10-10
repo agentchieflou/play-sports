@@ -1,0 +1,18 @@
+{
+    "FakeSeconds": 0.6,
+    "BiteBaseChance": 0.5,
+    "BiteRunTendencyWeight": 0.4,
+    "BiteAwarenessWeight": 0.6,
+    "BiteMinChance": 0.05,
+    "BiteMaxChance": 0.9,
+    "BiteFreezeSeconds": 0.8,
+    "TendencyWindow": 10,
+    "MeshRideSeconds": 0.4,
+    "ReadMinSpeed": 100.0,
+    "KeyLineDepth": 300.0,
+    "PitchReadRadius": 400.0,
+    "PitchWindowDepth": 200.0,
+    "MeshRecognizeRadius": 300.0,
+    "DisciplineAwareness": 70.0,
+    "ScrapeRadius": 800.0
+}

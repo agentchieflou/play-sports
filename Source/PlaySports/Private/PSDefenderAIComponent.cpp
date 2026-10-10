@@ -4,6 +4,7 @@
 #include "PSCoverageMatchupSubsystem.h"
 #include "PSDataIngestion.h"
 #include "PSDifficultySubsystem.h"
+#include "PSDeceptionSubsystem.h"
 #include "PSDefenseController.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSLooseBallSubsystem.h"
@@ -121,6 +122,7 @@ void UPSDefenderAIComponent::BindToBus()
     Bus->OnRouteRunningMC.AddUObject(this, &UPSDefenderAIComponent::HandleRouteRunning);
     Bus->OnBlownCoverageMC.AddUObject(this, &UPSDefenderAIComponent::HandleBlownCoverage);
     Bus->OnCoverageMC.AddUObject(this, &UPSDefenderAIComponent::HandleCoverage);
+    Bus->OnDeceptionMC.AddUObject(this, &UPSDefenderAIComponent::HandleDeception);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePhaseChange);
     Bus->OnControlChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandleControlChange);
     BoundBus = Bus;
@@ -137,6 +139,7 @@ void UPSDefenderAIComponent::UnbindFromBus()
         Bus->OnRouteRunningMC.RemoveAll(this);
         Bus->OnBlownCoverageMC.RemoveAll(this);
         Bus->OnCoverageMC.RemoveAll(this);
+        Bus->OnDeceptionMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
         Bus->OnControlChangeMC.RemoveAll(this);
     }
@@ -321,6 +324,16 @@ void UPSDefenderAIComponent::HandleCoverage(const FPSTelemetryCoverageEvent& Eve
     }
 }
 
+void UPSDefenderAIComponent::HandleDeception(const FPSTelemetryDeceptionEvent& Event)
+{
+    // He bit on a play-action fake (Epic 72): he holds, playing the run, instead of dropping.
+    const APSPlayerPawn* Self = GetSelf();
+    if (bPlayLive && Self && Event.Kind == EPSDeceptionEventKind::Bite && Event.Seconds > 0.f && Event.PlayerName == Self->GetAttributes().DisplayName)
+    {
+        FrozenUntil = FMath::Max(FrozenUntil, TimeSinceSnap + Event.Seconds);
+    }
+}
+
 void UPSDefenderAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event)
 {
     if (Event.NewPhase == TEXT("Scoring") || Event.NewPhase == TEXT("PreSnap"))
@@ -474,6 +487,23 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
     if (Action == EPSDefenderAction::LooseBall && !Self->HasPossession())
     {
         Action = EPSDefenderAction::Idle;
+    }
+
+    // The option (Epic 72): once the defense has seen the mesh, a man with an option job plays
+    // his man while the quarterback has the ball near the line.
+    FVector OptionTarget;
+    const UPSDeceptionSubsystem* Deception = GetDeception();
+    if (!Self->HasPossession() && Deception && Deception->GetOptionTarget(Self, OptionTarget))
+    {
+        if (!IsFrozen() && !Self->bIsEngaged)
+        {
+            DesiredDirection = PSDefenderAIPrivate::GroundDirection(Self->GetActorLocation(), OptionTarget);
+            if (!DesiredDirection.IsNearlyZero())
+            {
+                Self->AddMovementInput(DesiredDirection, 1.f);
+            }
+        }
+        return;
     }
 
     APSPlayerPawn* Carrier = FindCarrier();
@@ -797,6 +827,12 @@ APSPlayerPawn* UPSDefenderAIComponent::FindOpponent(EPlayerRole Role) const
 {
     UPSAIFieldSnapshot* Field = GetFieldSnapshot();
     return Field ? Field->FindPawn(EPSTeamSide::Offense, Role) : nullptr;
+}
+
+UPSDeceptionSubsystem* UPSDefenderAIComponent::GetDeception() const
+{
+    const UWorld* OwningWorld = GetWorld();
+    return OwningWorld ? OwningWorld->GetSubsystem<UPSDeceptionSubsystem>() : nullptr;
 }
 
 UPSLooseBallSubsystem* UPSDefenderAIComponent::GetLooseBall() const

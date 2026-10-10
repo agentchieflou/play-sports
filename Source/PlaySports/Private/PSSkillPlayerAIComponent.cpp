@@ -5,6 +5,7 @@
 #include "PSBallActionComponent.h"
 #include "PSDataIngestion.h"
 #include "PSDifficultySubsystem.h"
+#include "PSDeceptionSubsystem.h"
 #include "PSFieldReads.h"
 #include "PSLooseBallSubsystem.h"
 #include "PSOffenseController.h"
@@ -320,7 +321,17 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
             Action = EPSSkillPlayerAction::CarryBall;
             if (Role == EPlayerRole::Quarterback)
             {
-                TickScrambler(Self);
+                // The triple option's pitch read while he keeps it (Epic 72).
+                UPSDeceptionSubsystem* Deception = GetDeception();
+                APSPlayerPawn* PitchMan = Deception ? Deception->ReadPitch(Self) : nullptr;
+                if (PitchMan && Self->ExecutePitch(PitchMan))
+                {
+                    Action = EPSSkillPlayerAction::Idle;
+                }
+                else
+                {
+                    TickScrambler(Self);
+                }
             }
         }
     }
@@ -370,6 +381,16 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
     case EPSSkillPlayerAction::Block:
         Direction = SteerAsBlocker(Self);
         break;
+    case EPSSkillPlayerAction::Fake:
+    {
+        // Play-action: to the back, as if to hand it off.
+        const APSPlayerPawn* Back = FindTeammate(EPlayerRole::RunningBack);
+        if (Back && FVector::Dist2D(Self->GetActorLocation(), Back->GetActorLocation()) > GetTuning().HandoffRadius)
+        {
+            Direction = PSSkillPlayerAIPrivate::GroundDirection(Self->GetActorLocation(), Back->GetActorLocation());
+        }
+        break;
+    }
     default:
         break;
     }
@@ -522,17 +543,53 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
 {
     const FSkillPlayerAITuningRow& Settings = GetTuning();
 
+    // Play-action (Epic 72): the fake hand-off before the drop and the read.
+    UPSDeceptionSubsystem* Deception = GetDeception();
+    if (!bRunPlay && Deception && Deception->UpdateFake(Self, TimeSinceSnap))
+    {
+        Action = EPSSkillPlayerAction::Fake;
+        return;
+    }
+    if (Action == EPSSkillPlayerAction::Fake)
+    {
+        const APSOffenseController* Controller = GetOffenseController();
+        Action = Controller && Controller->GetRouteWaypointCount() > 0 ? EPSSkillPlayerAction::RunRoute : EPSSkillPlayerAction::ReadDefense;
+    }
+
     if (bRunPlay)
     {
         APSPlayerPawn* RunningBack = FindTeammate(EPlayerRole::RunningBack);
-        if (RunningBack && FVector::Dist2D(Self->GetActorLocation(), RunningBack->GetActorLocation()) <= Settings.HandoffRadius && Self->ExecuteHandoff(RunningBack))
+        if (RunningBack && FVector::Dist2D(Self->GetActorLocation(), RunningBack->GetActorLocation()) <= Settings.HandoffRadius)
         {
-            Action = EPSSkillPlayerAction::Idle;
-            if (bLoggingDecision)
+            // A run option is read at the mesh (Epic 72): give it, keep it, or pull it and throw.
+            const EPSOptionChoice Choice = Deception ? Deception->ReadMesh(Self, RunningBack, TimeSinceSnap) : EPSOptionChoice::Give;
+            if (Choice == EPSOptionChoice::Ride)
             {
-                NoteDecision(TEXT("HandOff"), TEXT("Run play: hands off"), RunningBack);
+                // Riding the mesh with the back while the key shows his hand.
+                Action = EPSSkillPlayerAction::RunRoute;
+                return;
             }
-            return;
+            if (Choice == EPSOptionChoice::Keep)
+            {
+                Action = EPSSkillPlayerAction::CarryBall;
+                return;
+            }
+            APSPlayerPawn* PassOption = Choice == EPSOptionChoice::Throw ? Deception->GetPassOption() : nullptr;
+            if (PassOption)
+            {
+                bRunPlay = false;
+                ThrowTo(Self, PassOption);
+                return;
+            }
+            if (Self->ExecuteHandoff(RunningBack))
+            {
+                Action = EPSSkillPlayerAction::Idle;
+                if (bLoggingDecision)
+                {
+                    NoteDecision(TEXT("HandOff"), TEXT("Run play: hands off"), RunningBack);
+                }
+                return;
+            }
         }
         // Meet the back (RunRoute steers to him) until the hand-off or the timeout, then keep
         // it and run.
@@ -923,6 +980,12 @@ UPSRouteRunnerComponent* UPSSkillPlayerAIComponent::GetRouteRunner() const
 {
     const APSOffenseController* Controller = GetOffenseController();
     return Controller ? Controller->GetRouteRunner() : nullptr;
+}
+
+UPSDeceptionSubsystem* UPSSkillPlayerAIComponent::GetDeception() const
+{
+    const UWorld* OwningWorld = GetWorld();
+    return OwningWorld ? OwningWorld->GetSubsystem<UPSDeceptionSubsystem>() : nullptr;
 }
 
 UPSPocketComponent* UPSSkillPlayerAIComponent::GetPocket() const

@@ -171,7 +171,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "69":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "15", "68"]},
     "70":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "9"]},
     "71":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["14", "9"]},
-    "72":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["66", "68", "14", "15"]},
+    "72":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["66", "68", "14", "15"]},
     "73":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["11", "69", "61"]},
     "74":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["7", "8", "61"]},
     "75":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["13"]},
