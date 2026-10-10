@@ -97,10 +97,10 @@ Epic 118's job format serves the growing `Specs/` editor backlog. Track P
 **Goal:** The `.env` free-tier contract becomes a running service — tasks route to Ollama/Gemini/OpenRouter by cost and capability.
 **Depends on:** Core 25
 
-- [ ] Router service honoring `OLLAMA_HOST`/`GEMINI_API_KEY`/`OPENROUTER_API_KEY` with health checks
-- [ ] Capability/cost routing table (narration→cheap local, strategy→better remote) consumed by 82/96
-- [ ] Fallback chains and rate-limit handling across providers
-- [ ] MCP surface: registered in `.mcp.json`/`.vscode/mcp.json`/Antigravity global config per `AGENTS.md`
+- [x] Router service honoring `OLLAMA_HOST`/`GEMINI_API_KEY`/`OPENROUTER_API_KEY` with health checks *(`tools/orchestrator/service.py` `RouterService` wraps Epic 135's `ModelRouter` (the routing table's tasks become extra tiers; `chat` gained a gate and an observer instead of a second fallback loop). Health from configuration, cooldowns and budgets with no network call, or `live` with one minimal call per configured model cached for `health_ttl_seconds`. CLI: `routes`, `route <task>`. Tests mock every client; no live model was called)*
+- [x] Capability/cost routing table (narration→cheap local, strategy→better remote) consumed by 82/96 *(`tools/orchestrator/routing.json`: models are config.py's env-driven specs with a capability, a cost and a request budget; tasks `narration`, `summary`, `analysis`, `strategy` and `delegate` name their consumers (Epics 82 and 96) and route cheapest-first or best-first from a minimum capability)*
+- [x] Fallback chains and rate-limit handling across providers *(on top of each call's Retry-After retries: per-model requests-per-minute budgets, a cooldown after a 429 or repeated failures so the chain skips that provider, and a bounded wait when every configured model is resting; Gemini high and low share one budget)*
+- [ ] MCP surface: registered in `.mcp.json`/`.vscode/mcp.json`/Antigravity global config per `AGENTS.md` — *the stdio MCP server is built (`python -m tools.orchestrator mcp`: `route_task`, `list_routes`, `router_health`; tested over in-memory stdio) and its three entries are documented in `AGENTS.md`; registering it in the repo files waits on the owner, as 25.4's does*
 
 ### Epic 120: Agent Evaluation Gym
 

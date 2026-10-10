@@ -161,6 +161,14 @@ class OrchestratorConfig:
             ),
         ]
 
+    def named_specs(self) -> dict[str, ModelSpec]:
+        """The distinct models the tiers are built from, by the names Epic 119's routing table
+        (tools/orchestrator/routing.json) uses."""
+        worker, fallback = self.worker_specs()
+        local, _, bridge = self.bridge_specs()
+        return {"supervisor": self.supervisor_spec(), "worker": worker, "fallback": fallback,
+                "local": local, "bridge": bridge}
+
     def tier_table(self) -> dict[str, list[ModelSpec]]:
         return {
             "supervisor": [self.supervisor_spec()],
