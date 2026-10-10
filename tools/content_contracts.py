@@ -24,6 +24,7 @@ front door. Each check reports through the err(path, message) callback it is giv
 no content type yet (Epic 124 makes one); their contract belongs here when it lands.
 """
 
+import re
 from pathlib import Path
 
 RATING_FIELDS = ("Speed", "Agility", "Strength", "Acceleration", "Awareness", "Stamina")
@@ -61,7 +62,12 @@ DECEPTION_FIELDS = {"Type": str, "PlaySide": int, "PassRole": str, "PitchRole": 
 DECEPTION_TYPES = {"None", "PlayAction", "RPO", "ZoneRead", "TripleOption"}
 RUN_OPTIONS = {"RPO", "ZoneRead", "TripleOption"}
 PLAY_REQUIRED = ("PlayId", "DisplayName", "Formation", "bIsOffensivePlay", "PlayCategory", "Assignments")
-ASSIGNMENT_FIELDS = {"Role": str, "Kind": str, "RouteId": str, "ZoneOffset": dict, "FormationOffset": dict, "ReadOrder": int}
+ASSIGNMENT_FIELDS = {"Role": str, "Kind": str, "RouteId": str, "ZoneOffset": dict, "FormationOffset": dict, "ReadOrder": int,
+                     "Art": dict}
+# FPSPlayArtAnnotation (Epic 35): how the play art draws an assignment; the AI ignores it.
+ART_FIELDS = {"Color": str, "bEmphasis": bool, "BadgeLetter": str}
+HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+BADGE_LETTER = re.compile(r"^[A-Z0-9]{1,2}$")
 
 
 def is_number(value):
@@ -211,7 +217,8 @@ def validate_league_config(path, payload, err):
 def validate_playbook(path, plays, err):
     """FPSPlayDefinition rows: each assignment's role and kind belong to the play's side. A
     route's optional ReadOrder (the play art's primary read and check-downs, Epic 27) is on a
-    route with a RouteId only, and a play's ranks run 1, 2, 3, ... without a gap or a repeat."""
+    route with a RouteId only, and a play's ranks run 1, 2, 3, ... without a gap or a repeat. An
+    assignment's optional Art block (Epic 35) is checked by validate_art_annotation."""
     seen = set()
     for idx, play in enumerate(plays):
         where = f"Plays[{idx}]"
@@ -257,6 +264,7 @@ def validate_playbook(path, plays, err):
                 err(path, f"{awhere}.RouteId: only a Route assignment runs one (Kind is '{kind}')")
             for field in ("ZoneOffset", "FormationOffset"):
                 check_vector(path, f"{awhere}.{field}", assignment.get(field), err)
+            validate_art_annotation(path, f"{awhere}.Art", assignment.get("Art"), err)
             read = assignment.get("ReadOrder")
             if "ReadOrder" in assignment and has_type(read, int):
                 if read < 1:
@@ -268,6 +276,21 @@ def validate_playbook(path, plays, err):
         if sorted(reads) != list(range(1, len(reads) + 1)):
             err(path, f"{where}: ReadOrder values {sorted(reads)} must run 1, 2, 3, ... with no gap or repeat")
         validate_deception(path, where, play, err)
+
+
+def validate_art_annotation(path, where, art, err):
+    """FPSPlayArtAnnotation (Epic 35): a color ("#RRGGBB" or empty), an emphasis flag, a badge
+    letter (one or two capitals or digits, or empty). Absent is fine."""
+    if art is None:
+        return
+    if not check_object(path, where, art, ART_FIELDS, (), err, "FPSPlayArtAnnotation"):
+        return
+    color = art.get("Color", "")
+    if isinstance(color, str) and color and not HEX_COLOR.match(color):
+        err(path, f"{where}.Color: '{color}' must be #RRGGBB (or left out)")
+    letter = art.get("BadgeLetter", "")
+    if isinstance(letter, str) and letter and not BADGE_LETTER.match(letter):
+        err(path, f"{where}.BadgeLetter: '{letter}' must be one or two capitals or digits")
 
 
 def validate_deception(path, where, play, err):

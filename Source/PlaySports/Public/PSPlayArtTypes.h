@@ -67,6 +67,11 @@ struct FPSPlayArtPrimitive
     UPROPERTY(BlueprintReadOnly, Category = "Overlay")
     bool bBranch = false;
 
+    /** The play emphasizes this assignment (its Art.bEmphasis, Epic 35): drawn EmphasisScale
+     *  larger, for a renderer to make it stand out further. */
+    UPROPERTY(BlueprintReadOnly, Category = "Overlay")
+    bool bEmphasized = false;
+
     /** What it draws: a route's RouteId; on defense "Zone", "Man", "Shadow", "Press", "Blitz"
      *  or "Rush". */
     UPROPERTY(BlueprintReadOnly, Category = "Overlay")
@@ -106,6 +111,11 @@ struct FPSPlayArtStyle
     /** The ring at a route's end. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
     float RingRadius = 45.f;
+
+    /** An assignment the play emphasizes (its Art.bEmphasis, Epic 35) is drawn this many times as
+     *  large: a ribbon's width, a ring's, star's or line's size. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float EmphasisScale = 1.5f;
 
     /** The debug draw's mark at a cut (the editor ribbon articulates the corner itself). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")

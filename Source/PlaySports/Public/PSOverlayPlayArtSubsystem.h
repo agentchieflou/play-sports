@@ -4,13 +4,16 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Stats/Stats.h"
+#include "UObject/ObjectKey.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayArtTypes.h"
+#include "PSPlayResolution.h"
 #include "PSTelemetryBus.h"
 #include "PSVersusTypes.h"
 #include "PSOverlayPlayArtSubsystem.generated.h"
 
 class APlayerController;
+class APSPlayerPawn;
 class UPSSettingsSubsystem;
 
 /**
@@ -39,6 +42,9 @@ class UPSSettingsSubsystem;
  *    Otherwise each side's art is its own, like its call: a player on the other side doesn't see
  *    it -- except the defense's icons in study mode (the StudyMode setting), which shows the
  *    defense's call to the offense to learn to read coverages. A spectator sees both.
+ *  - Annotations (Epic 35): each assignment's Art block in the play data -- a color, emphasis, a
+ *    badge letter -- is layered on as the art compiles (PSPlayArt::CompilePlayArt); the letters
+ *    reach the position badges through GetBadgeLetter, under the same visibility as the art.
  *  - Drawing: until the editor-made renderer exists (Specs/Route_Ribbons_Spec.md,
  *    Specs/Defensive_Icons_Spec.md), development builds draw debug shapes (PSPlayArt::DrawDebug)
  *    for the first local player.
@@ -114,6 +120,11 @@ public:
      *  on. A null viewer is a spectator. */
     bool IsDefenseArtVisibleTo(const APlayerController* Viewer) const;
 
+    /** The letter the play's art gives Player for his position badge (Art.BadgeLetter, Epic 35),
+     *  when Viewer may see his side's art; empty otherwise. UPSOverlayBadgeComponent shows it on a
+     *  player without a pass button. */
+    FString GetBadgeLetter(const APSPlayerPawn* Player, const APlayerController* Viewer) const;
+
     UFUNCTION(BlueprintCallable, Category = "Overlay")
     void SetOverlayDetail(EPSOverlayDetail InDetail);
 
@@ -154,6 +165,9 @@ private:
     void RebuildRouteArt();
     void RebuildDefenseArt();
 
+    /** Each player's badge letter from his slot's annotation, kept beside the art. */
+    static void KeepBadgeLetters(const TArray<FPSResolvedAssignment>& Resolved, TMap<FObjectKey, FString>& OutLetters);
+
     /** True in a head-to-head session, with bOutShown whether its house rules let Viewer see
      *  Overlay. */
     bool GetVersusVerdict(EPSVersusOverlay Overlay, const APlayerController* Viewer, bool& bOutShown) const;
@@ -177,6 +191,9 @@ private:
 
     FName PlayId;
     FName DefensePlayId;
+    /** Badge letters by player, for each side's art. */
+    TMap<FObjectKey, FString> OffenseBadgeLetters;
+    TMap<FObjectKey, FString> DefenseBadgeLetters;
     /** The line the GameState event last announced. */
     FVector LineOfScrimmage = FVector::ZeroVector;
     bool bHasLine = false;

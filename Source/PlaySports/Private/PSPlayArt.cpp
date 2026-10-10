@@ -22,6 +22,7 @@ namespace PSPlayArtPrivate
         Ribbon.ReadOrder = ReadOrder;
         Ribbon.Source = Entry.Assignment.RouteId;
         Ribbon.Pawn = Entry.Pawn;
+        PSPlayArt::ApplyAnnotation(Ribbon, Entry.Assignment.Art, Style);
         return Ribbon;
     }
 
@@ -33,7 +34,7 @@ namespace PSPlayArtPrivate
         Ring.Points = { Ribbon.Points.Last() };
         Ring.BreakIndices.Reset();
         Ring.FakeIndices.Reset();
-        Ring.Size = Style.RingRadius;
+        Ring.Size = Style.RingRadius * (Ribbon.bEmphasized ? Style.EmphasisScale : 1.f);
         return Ring;
     }
 
@@ -81,9 +82,9 @@ TArray<FString> PSPlayArt::ValidateStyle(const FPSPlayArtStyle& Style)
     {
         Problems.Add(TEXT("GroundOffset and BreakMarkerRadius must be 0 or more"));
     }
-    if (Style.RingRadius <= 0.f)
+    if (Style.RingRadius <= 0.f || Style.EmphasisScale <= 0.f)
     {
-        Problems.Add(TEXT("RingRadius must be above 0"));
+        Problems.Add(TEXT("RingRadius and EmphasisScale must be above 0"));
     }
     if (Style.ReadColors.Num() == 0)
     {
@@ -147,6 +148,51 @@ TArray<FString> PSPlayArt::ValidateStyle(const FPSPlayArtStyle& Style)
         }
     }
     return Problems;
+}
+
+bool PSPlayArt::IsValidBadgeLetter(const FString& Letter)
+{
+    if (Letter.Len() < 1 || Letter.Len() > 2)
+    {
+        return false;
+    }
+    for (const TCHAR Character : Letter)
+    {
+        if (!((Character >= TEXT('A') && Character <= TEXT('Z')) || (Character >= TEXT('0') && Character <= TEXT('9'))))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+TArray<FString> PSPlayArt::ValidateAnnotation(const FPSPlayArtAnnotation& Annotation)
+{
+    TArray<FString> Problems;
+    FLinearColor Parsed;
+    if (!Annotation.Color.IsEmpty() && !UPSUITeamCatalog::ParseHexColor(Annotation.Color, Parsed))
+    {
+        Problems.Add(FString::Printf(TEXT("Art.Color '%s' must be #RRGGBB or empty"), *Annotation.Color));
+    }
+    if (!Annotation.BadgeLetter.IsEmpty() && !IsValidBadgeLetter(Annotation.BadgeLetter))
+    {
+        Problems.Add(FString::Printf(TEXT("Art.BadgeLetter '%s' must be one or two capitals or digits"), *Annotation.BadgeLetter));
+    }
+    return Problems;
+}
+
+void PSPlayArt::ApplyAnnotation(FPSPlayArtPrimitive& Primitive, const FPSPlayArtAnnotation& Annotation, const FPSPlayArtStyle& Style)
+{
+    FLinearColor Parsed;
+    if (!Annotation.Color.IsEmpty() && UPSUITeamCatalog::ParseHexColor(Annotation.Color, Parsed))
+    {
+        Primitive.Color = Parsed;
+    }
+    if (Annotation.bEmphasis)
+    {
+        Primitive.bEmphasized = true;
+        Primitive.Size *= Style.EmphasisScale;
+    }
 }
 
 TArray<FVector> PSPlayArt::OnTurf(const TArray<FVector>& Points, float GroundZ, const FPSPlayArtStyle& Style)
@@ -309,9 +355,182 @@ TArray<FPSPlayArtPrimitive> PSPlayArt::CompileDefenseArt(const TArray<FPSResolve
             // A run fit reads the play: nothing to draw before it.
             continue;
         }
+        ApplyAnnotation(Icon, Entry.Assignment.Art, Style);
         Art.Add(Icon);
     }
     return Art;
+}
+
+bool PSPlayArt::DrawsNoArt(const FPSPlayDefinition& Play, const FPSPlayArtStyle& Style)
+{
+    return (Play.bIsOffensivePlay ? Style.NoRouteArtCategories : Style.NoDefenseArtCategories).Contains(Play.PlayCategory);
+}
+
+TArray<FPSPlayArtPrimitive> PSPlayArt::CompilePlayArt(const FPSPlayDefinition& Play, const TArray<FPSResolvedAssignment>& Resolved, const UDataTable* RouteLibrary,
+    const FPSPlayArtStyle& Style, float BreakMinAngleDegrees, const FVector& LineOfScrimmage, const UPSCoverageMatchupSubsystem* Matchups)
+{
+    if (DrawsNoArt(Play, Style))
+    {
+        return TArray<FPSPlayArtPrimitive>();
+    }
+    return Play.bIsOffensivePlay
+        ? CompileRouteArt(Resolved, RouteLibrary, Style, BreakMinAngleDegrees, LineOfScrimmage.Z)
+        : CompileDefenseArt(Resolved, Style, LineOfScrimmage, Matchups);
+}
+
+TArray<FString> PSPlayArt::ValidatePlayArt(const FPSPlayDefinition& Play, const TArray<FPSResolvedAssignment>& Resolved, const TArray<FPSPlayArtPrimitive>& Art,
+    const UDataTable* RouteLibrary, const FPSPlayArtStyle& Style)
+{
+    TArray<FString> Problems;
+    const FString PlayName = Play.PlayId.ToString();
+    for (const FPSPlayAssignment& Slot : Play.Assignments)
+    {
+        for (const FString& Problem : ValidateAnnotation(Slot.Art))
+        {
+            Problems.Add(FString::Printf(TEXT("%s: %s slot: %s"), *PlayName, *UEnum::GetValueAsString(Slot.Role), *Problem));
+        }
+    }
+    if (DrawsNoArt(Play, Style))
+    {
+        if (Art.Num() > 0)
+        {
+            Problems.Add(FString::Printf(TEXT("%s: a %s play draws no art, but %d pieces were drawn"), *PlayName, *Play.PlayCategory, Art.Num()));
+        }
+        return Problems;
+    }
+
+    TSet<const APSPlayerPawn*> ResolvedPawns;
+    for (const FPSResolvedAssignment& Entry : Resolved)
+    {
+        const APSPlayerPawn* Player = Entry.Pawn.Get();
+        if (!Player)
+        {
+            continue;
+        }
+        ResolvedPawns.Add(Player);
+        const FString Who = FString::Printf(TEXT("%s: %s (%s)"), *PlayName, *Player->GetAttributes().DisplayName, *UEnum::GetValueAsString(Player->GetAttributes().Role));
+        TArray<const FPSPlayArtPrimitive*> Mine;
+        for (const FPSPlayArtPrimitive& Piece : Art)
+        {
+            if (Piece.Pawn.Get() == Player)
+            {
+                Mine.Add(&Piece);
+            }
+        }
+        auto CountOf = [&Mine](EPSPlayArtShape Shape, bool bBranch)
+        {
+            int32 Count = 0;
+            for (const FPSPlayArtPrimitive* Piece : Mine)
+            {
+                Count += (Piece->Shape == Shape && Piece->bBranch == bBranch) ? 1 : 0;
+            }
+            return Count;
+        };
+        auto FindShape = [&Mine](EPSPlayArtShape Shape) -> const FPSPlayArtPrimitive*
+        {
+            for (const FPSPlayArtPrimitive* Piece : Mine)
+            {
+                if (Piece->Shape == Shape && !Piece->bBranch)
+                {
+                    return Piece;
+                }
+            }
+            return nullptr;
+        };
+
+        if (Play.bIsOffensivePlay)
+        {
+            // A route from the library is drawn as the waypoints he is handed; nothing else is.
+            const FName RouteId = Entry.Assignment.RouteId;
+            const FPSRoute* Route = Entry.RunsRoute() && !RouteId.IsNone() && RouteLibrary ? RouteLibrary->FindRow<FPSRoute>(RouteId, TEXT("PSPlayArt"), false) : nullptr;
+            if (Entry.RunsRoute() && !RouteId.IsNone() && !Route)
+            {
+                Problems.Add(FString::Printf(TEXT("%s runs %s, which no route library has: nothing to run or draw"), *Who, *RouteId.ToString()));
+            }
+            const bool bDrawn = Route && Route->Waypoints.Num() > 0 && Route->Waypoints.Num() == Entry.Waypoints.Num();
+            if (!bDrawn)
+            {
+                if (Mine.Num() > 0)
+                {
+                    Problems.Add(FString::Printf(TEXT("%s has no route to draw, but has art"), *Who));
+                }
+                if (Entry.Assignment.ReadOrder > 0)
+                {
+                    Problems.Add(FString::Printf(TEXT("%s is read %d, but runs no route to draw"), *Who, Entry.Assignment.ReadOrder));
+                }
+                continue;
+            }
+            const FPSPlayArtPrimitive* Ribbon = FindShape(EPSPlayArtShape::Ribbon);
+            const int32 ReadIndex = Route->Waypoints.IsValidIndex(Route->OptionReadWaypoint) ? Route->OptionReadWaypoint : Route->Waypoints.Num() - 1;
+            bool bMatches = Ribbon && CountOf(EPSPlayArtShape::Ribbon, false) == 1 && Ribbon->Points.Num() == ReadIndex + 2;
+            for (int32 Index = 0; bMatches && Index <= ReadIndex; ++Index)
+            {
+                bMatches = FVector::Dist2D(Ribbon->Points[Index + 1], Entry.Waypoints[Index]) < 1.f;
+            }
+            if (!bMatches)
+            {
+                Problems.Add(FString::Printf(TEXT("%s: his ribbon isn't the %s he is handed"), *Who, *RouteId.ToString()));
+            }
+            if (CountOf(EPSPlayArtShape::Ring, false) + CountOf(EPSPlayArtShape::Ribbon, true) == 0)
+            {
+                Problems.Add(FString::Printf(TEXT("%s: his route has no end (a ring or an option's branches)"), *Who));
+            }
+            if (Ribbon && Ribbon->ReadOrder != FMath::Max(Entry.Assignment.ReadOrder, 0))
+            {
+                Problems.Add(FString::Printf(TEXT("%s: drawn as read %d, but the play reads him %d"), *Who, Ribbon->ReadOrder, Entry.Assignment.ReadOrder));
+            }
+            continue;
+        }
+
+        // The defense: each job its icon.
+        const APSPlayerPawn* Receiver = Entry.ManReceiver.Get();
+        const bool bZone = Entry.DefensiveType == EPSDefensiveAssignmentType::ZoneCoverage
+            || (Entry.DefensiveType == EPSDefensiveAssignmentType::ManCoverage && !Receiver);
+        if (!Entry.bHasSlot)
+        {
+            if (Mine.Num() > 0)
+            {
+                Problems.Add(FString::Printf(TEXT("%s has no job, but has art"), *Who));
+            }
+        }
+        else if (bZone)
+        {
+            const FPSPlayArtPrimitive* Star = FindShape(EPSPlayArtShape::Star);
+            const FVector Spot = Entry.DefensiveType == EPSDefensiveAssignmentType::ZoneCoverage ? Entry.GetZoneLandmark() : Entry.PawnLocation;
+            if (!Star || Mine.Num() != 1 || FVector::Dist2D(Star->Points[0], Spot) >= 1.f)
+            {
+                Problems.Add(FString::Printf(TEXT("%s: his zone isn't one star at the spot he plays"), *Who));
+            }
+        }
+        else if (Entry.DefensiveType == EPSDefensiveAssignmentType::ManCoverage)
+        {
+            const FPSPlayArtPrimitive* Line = FindShape(EPSPlayArtShape::Connector);
+            if (!Line || Mine.Num() != 1 || Line->Target.Get() != Receiver)
+            {
+                Problems.Add(FString::Printf(TEXT("%s: not one line to the receiver he covers"), *Who));
+            }
+        }
+        else if (Entry.DefensiveType == EPSDefensiveAssignmentType::PassRush)
+        {
+            const FPSPlayArtPrimitive* Arrow = FindShape(EPSPlayArtShape::Arrow);
+            if (!Arrow || Mine.Num() != 1 || FVector::Dist2D(Arrow->Points[0], Entry.PawnLocation) >= 1.f)
+            {
+                Problems.Add(FString::Printf(TEXT("%s: his rush isn't one arrow from his spot"), *Who));
+            }
+        }
+        else if (Mine.Num() > 0)
+        {
+            Problems.Add(FString::Printf(TEXT("%s fits the run, but has art"), *Who));
+        }
+    }
+    for (const FPSPlayArtPrimitive& Piece : Art)
+    {
+        if (!ResolvedPawns.Contains(Piece.Pawn.Get()))
+        {
+            Problems.Add(FString::Printf(TEXT("%s: art (%s) for nobody in the play"), *PlayName, *Piece.Source.ToString()));
+        }
+    }
+    return Problems;
 }
 
 void PSPlayArt::DrawDebug(const UWorld* World, const TArray<FPSPlayArtPrimitive>& Primitives, const FPSPlayArtStyle& Style, float Opacity)

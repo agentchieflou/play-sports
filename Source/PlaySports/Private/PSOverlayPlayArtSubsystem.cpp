@@ -252,6 +252,8 @@ void UPSOverlayPlayArtSubsystem::Clear()
 {
     RouteArt.Reset();
     DefenseArt.Reset();
+    OffenseBadgeLetters.Reset();
+    DefenseBadgeLetters.Reset();
     PlayId = NAME_None;
     DefensePlayId = NAME_None;
     FadeRemaining = 0.f;
@@ -287,17 +289,18 @@ void UPSOverlayPlayArtSubsystem::RebuildRouteArt()
     const FPSPlayCall& Call = PlayCall->GetCall(true);
     FPSPlayDefinition Play;
     if (!PlayCall->IsCallWindowOpen() || !Call.IsSet() || !PlayCall->FindPlay(Call.PlayId, Play) || !Play.bIsOffensivePlay
-        || Style.NoRouteArtCategories.Contains(Play.PlayCategory))
+        || PSPlayArt::DrawsNoArt(Play, Style))
     {
         return;
     }
 
     // Resolved exactly as the snap will resolve it (UPSPlayOrchestrator), against the line the
-    // play simulation announced.
+    // play simulation announced, and compiled with the play's annotations (Epic 35).
     const UDataTable* Routes = PlayCall->GetRouteLibrary();
     const TArray<FPSResolvedAssignment> Resolved = PSPlayResolution::ResolvePlay(Play, UPSAIFieldSnapshot::GetFieldPawns(World), Routes, LineOfScrimmage, false);
-    RouteArt = PSPlayArt::CompileRouteArt(Resolved, Routes, Style, GetBreakMinAngleDegrees(), LineOfScrimmage.Z);
+    RouteArt = PSPlayArt::CompilePlayArt(Play, Resolved, Routes, Style, GetBreakMinAngleDegrees(), LineOfScrimmage);
     PlayId = RouteArt.Num() > 0 ? Play.PlayId : NAME_None;
+    KeepBadgeLetters(Resolved, OffenseBadgeLetters);
 }
 
 void UPSOverlayPlayArtSubsystem::RebuildDefenseArt()
@@ -312,7 +315,7 @@ void UPSOverlayPlayArtSubsystem::RebuildDefenseArt()
     // The defense's call as it will run, its adjustment applied (the play-call authority's).
     FPSPlayDefinition Play;
     if (!PlayCall->IsCallWindowOpen() || !PlayCall->GetCall(false).IsSet() || !PlayCall->GetDefensivePlayToRun(Play) || Play.bIsOffensivePlay
-        || Style.NoDefenseArtCategories.Contains(Play.PlayCategory))
+        || PSPlayArt::DrawsNoArt(Play, Style))
     {
         return;
     }
@@ -323,8 +326,42 @@ void UPSOverlayPlayArtSubsystem::RebuildDefenseArt()
     const UPSCoverageMatchupSubsystem* Matchups = World->GetSubsystem<UPSCoverageMatchupSubsystem>();
     TArray<FPSResolvedAssignment> Resolved = PSPlayResolution::ResolvePlay(Play, Pawns, PlayCall->GetRouteLibrary(), LineOfScrimmage, false);
     PSPlayResolution::ResolveManMatchups(Resolved, Pawns, Roles, Matchups);
-    DefenseArt = PSPlayArt::CompileDefenseArt(Resolved, Style, LineOfScrimmage, Matchups);
+    DefenseArt = PSPlayArt::CompilePlayArt(Play, Resolved, PlayCall->GetRouteLibrary(), Style, GetBreakMinAngleDegrees(), LineOfScrimmage, Matchups);
     DefensePlayId = DefenseArt.Num() > 0 ? Play.PlayId : NAME_None;
+    KeepBadgeLetters(Resolved, DefenseBadgeLetters);
+}
+
+void UPSOverlayPlayArtSubsystem::KeepBadgeLetters(const TArray<FPSResolvedAssignment>& Resolved, TMap<FObjectKey, FString>& OutLetters)
+{
+    OutLetters.Reset();
+    for (const FPSResolvedAssignment& Entry : Resolved)
+    {
+        const APSPlayerPawn* Player = Entry.Pawn.Get();
+        if (Player && Entry.bHasSlot && PSPlayArt::IsValidBadgeLetter(Entry.Assignment.Art.BadgeLetter))
+        {
+            OutLetters.Add(FObjectKey(Player), Entry.Assignment.Art.BadgeLetter);
+        }
+    }
+}
+
+FString UPSOverlayPlayArtSubsystem::GetBadgeLetter(const APSPlayerPawn* Player, const APlayerController* Viewer) const
+{
+    if (!Player)
+    {
+        return FString();
+    }
+    // A letter is part of its side's art: shown where that art may be seen.
+    const FString* Letter = OffenseBadgeLetters.Find(FObjectKey(Player));
+    if (Letter && IsVisibleTo(Viewer))
+    {
+        return *Letter;
+    }
+    Letter = DefenseBadgeLetters.Find(FObjectKey(Player));
+    if (Letter && IsDefenseArtVisibleTo(Viewer))
+    {
+        return *Letter;
+    }
+    return FString();
 }
 
 void UPSOverlayPlayArtSubsystem::AdvanceTime(float DeltaSeconds)
