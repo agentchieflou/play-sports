@@ -27,10 +27,29 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** Two players with identical ratings play differently — per-athlete style profiles drive behavior variation.
 **Depends on:** Core 14, Core 15, Core 19
 
-- [ ] DNA schema: style axes per role (scrambler vs. statue QB, finesse vs. power rusher, ball-hawk vs. blanket DB)
-- [ ] Behavior-tree parameter binding so DNA visibly changes decisions, not just stats
-- [ ] DNA in the data pipeline (Track L generates plausible profiles at roster scale)
-- [ ] Scouting-visible traits surface (Track G consumes)
+- [x] DNA schema: style axes per role (scrambler vs. statue QB, finesse vs. power rusher, ball-hawk vs. blanket DB)
+  *As built: `FPSPlayerDNA` is part of `FPlayerAttributes` (optional `DNA` in a roster file), six
+  axes from -1 to 1: `Mobility` and `Gunslinger` (QB), `RunPower` (RB), `RouteStyle` (WR, TE),
+  `RushPower` (DL, LB), `BallHawk` (DB, LB). `Data/player_dna.json` says which roles each applies
+  to and names the trait at each end.*
+- [x] Behavior-tree parameter binding so DNA visibly changes decisions, not just stats
+  *As built: the catalog's `Bindings` scale named fields of the AI tunings (`SkillAI`, `Pocket`,
+  `DefenderAI`, `RouteRunning`) by the axis. Each AI component applies its player's bindings as a
+  play starts, through `UPSPlayerDNASubsystem`. The rush plan weights power and finesse moves by
+  `RushPower`. Rated alike, a scrambler leaves the pocket where a pocket passer stands in and
+  throws, a ball hawk jumps a throw a blanket corner stays off (and bites longer on a pump fake),
+  an elusive back cuts where a power back runs on, and a power rusher bulls where a finesse
+  rusher swims. Ratings and win chances are untouched.*
+- [x] DNA in the data pipeline (Track L generates plausible profiles at roster scale)
+  *As built: `tools/player_dna.py` generates a profile from a player's ratings, leaned from his
+  role's league average, plus seeded variation by PlayerId. `--write` fills every roster without
+  one, and the shipped rosters carry its output. Epic 122's generator calls `generate_profile`.
+  `validate_data.py` checks the catalog and every player's `DNA`.*
+- [x] Scouting-visible traits surface (Track G consumes)
+  *As built: `UPSPlayerDNASubsystem::GetScoutingTraits` (`PSPlayerDNA::GetScoutingTraits`) gives
+  a player's pronounced traits, strongest first, named through the string tables
+  (`Trait.<TraitId>.Label` and `.Description`, generated into `ui_text_data.csv`). The scouting
+  screens that show them are Track G's.*
 
 ### Epic 80: Formation & Play Recognition AI
 

@@ -182,7 +182,8 @@ namespace PSRushMoves
  *
  * The rush plan picks the move with the best score: its chance (higher right after the blocker
  * used the response the move counters) pulled toward how it has done against this blocker in
- * this game. A stopped move records the blocker's response; a winning one ends the engagement
+ * this game, and weighted by the rusher's style -- a power rusher favours power moves, a finesse
+ * rusher finesse ones (FPSPlayerDNA::RushPower, Data/player_dna.json; Epic 79). A stopped move records the blocker's response; a winning one ends the engagement
  * and bursts the rusher toward the ball carrier (the passer, until he hands off or throws). A free offensive lineman beside the rusher makes a
  * double team: every move gets harder and the split becomes available. Each resolved move is
  * published on UPSTelemetryBus (PassRushMove).
