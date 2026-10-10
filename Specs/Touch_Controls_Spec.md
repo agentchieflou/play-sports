@@ -66,7 +66,7 @@ finger ──> Slate touch event ──> UPSTouchInputComponent ──> catalog 
    take taps through their own widgets (Slate buttons). The same goes while the telestrator's
    analysis mode is on (Epic 44): a finger draws on `UPSTelestratorWidget`, whose toolbar has
    the tools, undo, clear, save and done. Touch gets into analysis with the `Telestrator`
-   action: D-pad Up on the field or in a replay, or a swipe up on the field.
+   action: the on-screen D-pad Up in a replay.
 8. **No engine joysticks.** `Config/DefaultInput.ini` turns off the engine's default virtual
    joysticks (`DefaultTouchInterface=None`). They would draw a second layer of gamepad-key sticks
    over these controls.

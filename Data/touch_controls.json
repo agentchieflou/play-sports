@@ -80,9 +80,7 @@
                 { "ControlId": "Pause", "ActionId": "Pause" },
                 { "ControlId": "ButtonRightStick", "ActionId": "FilmView" },
                 { "ControlId": "ButtonView", "ActionId": "PhotoMode" },
-                { "ControlId": "SwipeDown", "ActionId": "PhotoMode" },
-                { "ControlId": "DPadUp", "ActionId": "Telestrator" },
-                { "ControlId": "SwipeUp", "ActionId": "Telestrator" }
+                { "ControlId": "SwipeDown", "ActionId": "PhotoMode" }
             ]
         },
         {

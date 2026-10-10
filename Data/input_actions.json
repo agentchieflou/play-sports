@@ -817,8 +817,8 @@
         {
             "ActionId": "Telestrator",
             "ValueType": "Boolean",
-            "Description": "Enter or leave the telestrator's analysis mode (Epic 44) over a replay (held while drawing) or the film view. Before the snap D-pad Up is the audible (PreSnap outranks OnField), so a flick of the right stick up enters it too.",
-            "Contexts": ["OnField", "Replay", "Telestrator"],
+            "Description": "Enter or leave the telestrator's analysis mode (Epic 44) over a replay, which holds while you draw. Only in a replay (and the layer itself): on the field every pad button and its touch twin is spoken for by a context the field stacks under (D-pad Up is both sides' audible, a swipe up deliberately nothing), so the live film view has no button into analysis.",
+            "Contexts": ["Replay", "Telestrator"],
             "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "Y" },

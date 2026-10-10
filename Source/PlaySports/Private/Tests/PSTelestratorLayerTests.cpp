@@ -7,9 +7,10 @@
 //      shorter side with a floor, auto-annotation colors, the stroke in progress, the cursor.
 //   2. The cursor: the shipped catalog's TelestratorCursor bindings (keys, both ways, the stick
 //      past its dead zone) and its movement, kept on the screen.
-//   3. Analysis mode: the Telestrator button of a player looking through the broadcast camera
-//      toggles it over the film view (nothing without one); the layer's buttons (tool, undo,
-//      clear, leave) through RunLayerAction and the catalog's keys for them; the stroke in
+//   3. Analysis mode: the Telestrator action of a player looking through the broadcast camera
+//      toggles it over what the camera shows (nothing without a replay or the film view); the
+//      catalog has it in a replay only, never on the field's keys; the layer's buttons (tool,
+//      undo, clear, leave) through RunLayerAction and the catalog's keys for them; the stroke in
 //      progress; the touch layer standing down while it is on; unbinding.
 //   4. Data/telestrator.json's drawing-layer fields load with the defaults and validate.
 
@@ -301,13 +302,13 @@ bool FPSTelestratorAnalysisModeTest::RunTest(const FString& Parameters)
     UPSInputConfig* Config = Controller->GetInputConfig();
     if (TestNotNull(TEXT("The controller has the input catalog"), Config))
     {
-        for (const FName Context : { FName(TEXT("OnField")), FName(TEXT("Replay")) })
-        {
-            TestEqual(*FString::Printf(TEXT("D-pad Up enters analysis in %s"), *Context.ToString()), Config->FindActionForKey(EKeys::Gamepad_DPad_Up, Context), Telestrator->AnalysisActionId);
-            TestEqual(*FString::Printf(TEXT("...and Y on the keyboard in %s"), *Context.ToString()), Config->FindActionForKey(EKeys::Y, Context), Telestrator->AnalysisActionId);
-        }
-        TestEqual(TEXT("A flick of the right stick up enters it on the field, where D-pad Up may be the audible"),
-            Config->FindActionForKey(EKeys::Gamepad_RightStick_Up, TEXT("OnField")), Telestrator->AnalysisActionId);
+        const FName Replay(TEXT("Replay"));
+        TestEqual(TEXT("D-pad Up enters analysis in a replay"), Config->FindActionForKey(EKeys::Gamepad_DPad_Up, Replay), Telestrator->AnalysisActionId);
+        TestEqual(TEXT("...and so does a flick of the right stick up"), Config->FindActionForKey(EKeys::Gamepad_RightStick_Up, Replay), Telestrator->AnalysisActionId);
+        TestEqual(TEXT("...and Y on the keyboard"), Config->FindActionForKey(EKeys::Y, Replay), Telestrator->AnalysisActionId);
+        // On the field D-pad Up is both sides' audible before the snap, and must be theirs alone.
+        TestTrue(TEXT("The telestrator takes no key on the field"), Config->FindActionForKey(EKeys::Gamepad_DPad_Up, TEXT("OnField")).IsNone()
+            && Config->FindActionForKey(EKeys::Gamepad_RightStick_Up, TEXT("OnField")).IsNone());
         const FName Layer = Telestrator->LayerContextId;
         TestEqual(TEXT("A draws at the cursor"), Config->FindActionForKey(EKeys::Gamepad_FaceButton_Bottom, Layer), Telestrator->DrawActionId);
         TestEqual(TEXT("...and Space"), Config->FindActionForKey(EKeys::SpaceBar, Layer), Telestrator->DrawActionId);
@@ -331,7 +332,7 @@ bool FPSTelestratorAnalysisModeTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Touch shows the field's controls"), ControlsBefore > 0);
     TestTrue(TEXT("The film view is on"), Camera->GetAll22Component()->SetFilmView(TEXT("Sideline")));
     Controller->OnCatalogActionStarted.Broadcast(Telestrator->AnalysisActionId);
-    TestTrue(TEXT("The Telestrator button enters analysis over the film view"), Telestrator->IsAnalysisActive());
+    TestTrue(TEXT("The Telestrator action enters analysis over what the camera shows (here the film view, as over a replay)"), Telestrator->IsAnalysisActive());
     TestEqual(TEXT("The touch layer stands down: every finger is the drawing layer's"), Touch->GetActiveControls().Num(), 0);
 
     // The layer's buttons.
