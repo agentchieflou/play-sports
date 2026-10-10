@@ -74,10 +74,10 @@ its own persistence or event capture.
 **Goal:** Players respond to usage, winning, contracts, and each other — a human layer over the roster.
 **Depends on:** Core 19, 87
 
-- [ ] Morale model: inputs (playing time, team success, contract status, role) → effects (performance variance, FA willingness)
-- [ ] Chemistry: unit cohesion from lineup stability (OL continuity bonus)
-- [ ] Event system: trade requests, holdouts, leadership emergence
-- [ ] Transparency surface so effects are readable, never mysterious
+- [x] Morale model: inputs (playing time, team success, contract status, role) → effects (performance variance, FA willingness) *(`UPSLockerRoom::EvaluateTeam` over `Data/morale.json` (`FPSMoraleTuning`), weekly: starter or backup by the roster's depth chart (starters per role from the default personnel packages), a backup rated above a starter, the team's win percentage, pay against his worth (his demand, Epic 87) and a deal's last year, the room's leaders; eased by `MoraleInertia`. Effects: ratings up to `PerformanceSwing` either way (`ApplyEffects`, on the simulation's copies), and his morale goes to free agency (`UPSFreeAgency::SetFreeAgentMorale`) where it prices his old team's offers. `UPSFranchiseFlow` evaluates every week and applies the effects in its quick sims; the state persists in `UPSFranchiseSaveGame::LockerRoom`)*
+- [x] Chemistry: unit cohesion from lineup stability (OL continuity bonus) *(`RecordLineup` per game: each unit's starters (`Units` in the data: the offensive line, the secondary) and games together; cohesion = games / `FullCohesionGames`, worth up to `MaxBonus` on the unit's starters; a lineup change starts over)*
+- [x] Event system: trade requests, holdouts, leadership emergence *(trade request after `TradeRequestWeeks` miserable weeks (withdrawn when he cheers up); a holdout at a new league year by an underpaid, unhappy star, who sits out the quick sims until paid (`HoldoutEnded`); a leader emerges on a winning team and lifts his teammates; `FPSLockerRoomEvent`s, kept by the flow)*
+- [x] Transparency surface so effects are readable, never mysterious *(each player's morale keeps its factors with their effect and a reason (`FPSMoraleFactor`); `DescribePlayer` reads them out with his performance swing and flags, `DescribeTeamChemistry` each unit's games, cohesion and bonus. No locker-room screen yet (Track I))*
 
 ### Epic 92: Statistics Engine & Record Book
 

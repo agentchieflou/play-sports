@@ -86,6 +86,7 @@ every CI build.
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
+| `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
 | `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
 | `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -796,6 +797,26 @@ numbers): `255000` is a $255 million cap. The contracts themselves live in the f
 
 `tools/validate_data.py` checks it: every role has one market, the bounds are ordered and the
 offer ratios run walk-away <= accept <= instant.
+
+## Morale schema (`FPSMoraleTuning`)
+
+Single object (Epic 91), read by `UPSLockerRoom`. Morale runs 0-1 (0.5 neutral): 0.5 plus each input,
+eased from last week's by `MoraleInertia`. Each player's morale and flags and each unit's lineup live
+in the franchise save (`UPSFranchiseSaveGame::LockerRoom`). How many start at a role comes from the
+default packages in `personnel_packages.json`, not from here.
+- Inputs: `StarterBonus`, `BackupPenalty`, `BetterThanStarterPenalty` (playing time);
+  `TeamSuccessWeight` x (win% - 0.5); `UnderpaidRatio`, `UnderpaidPenalty`, `WellPaidBonus`,
+  `ContractYearPenalty` (pay against his worth, his demand from `contracts.json`); `LeaderBoost` per
+  leader in the room, up to `MaxLeaders`.
+- Effects: `PerformanceSwing` (ratings up or down by this much at morale 1 or 0).
+- Events: a trade request after `TradeRequestWeeks` weeks under `TradeRequestMorale`; a holdout at a
+  new league year by a player rated `StarRating`+, paid under `HoldoutPayRatio` of his worth, with
+  morale under `HoldoutMorale`; a leader: a starter with `LeaderAwareness`+ on a team winning
+  `LeaderWinPercentage`+, with morale `LeaderMorale`+.
+- `Units[]` (chemistry): `Unit`, `Role` (its starters), `FullCohesionGames`, `MaxBonus`.
+
+`tools/validate_data.py` checks it: fractions at most 1, inertia and swing below 1, each unit's role,
+games and bonus.
 
 ## Owner economics schema (`FPSEconomyTuning`)
 

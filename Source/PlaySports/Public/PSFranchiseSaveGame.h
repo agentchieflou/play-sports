@@ -7,6 +7,7 @@
 #include "PSContractData.h"
 #include "PSStatsData.h"
 #include "PSEconomyData.h"
+#include "PSLockerRoomData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -56,4 +57,9 @@ public:
      *  in a save from before owner mode. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSLeagueEconomy Economy;
+
+    /** Every player's morale and flags, and each unit's lineup (Epic 91; UPSLockerRoom). Empty in
+     *  a save from before the locker room. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSLockerRoomState LockerRoom;
 };

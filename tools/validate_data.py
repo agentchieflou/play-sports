@@ -60,9 +60,10 @@ and overlay audiences, pause and resume etiquette; "bLogDecisions" files against
 and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover target naming a
 player of its scenario (Epic 85); "StadiumCapacity" files against FPSEconomyTuning (Epic 95):
 ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBudgetFraction;
-"UnownedColor" files against FPSGapOverlayStyle (Epic 81). Teams, the league config, the playbook,
-player rating ranges and every reference between files are tools/content_contracts.py's (Epic 125),
-run from here.
+"UnownedColor" files against FPSGapOverlayStyle (Epic 81); "TradeRequestWeeks" files against
+FPSMoraleTuning (Epic 91): 0-1 thresholds, each chemistry unit's role, games and bonus. Teams, the
+league config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -3394,6 +3395,71 @@ def validate_gap_overlay(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSGapOverlayStyle exactly")
 
 
+MORALE_FLOAT_FIELDS = {
+    "StarterBonus", "BackupPenalty", "BetterThanStarterPenalty", "TeamSuccessWeight", "UnderpaidRatio",
+    "UnderpaidPenalty", "WellPaidBonus", "ContractYearPenalty", "LeaderBoost", "MoraleInertia",
+    "PerformanceSwing", "TradeRequestMorale", "StarRating", "HoldoutPayRatio", "HoldoutMorale",
+    "LeaderAwareness", "LeaderWinPercentage", "LeaderMorale",
+}
+MORALE_INT_FIELDS = {"MaxLeaders", "TradeRequestWeeks"}
+MORALE_FRACTIONS = {
+    "UnderpaidRatio", "TradeRequestMorale", "HoldoutPayRatio", "HoldoutMorale", "LeaderWinPercentage",
+    "LeaderMorale",
+}
+MORALE_UNIT_FIELDS = {"Unit", "Role", "FullCohesionGames", "MaxBonus"}
+
+
+def validate_morale(path, payload):
+    """FPSMoraleTuning (Data/morale.json, Epic 91); mirrors UPSLockerRoom::ValidateTuning."""
+    for field in sorted(MORALE_FLOAT_FIELDS):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+        elif field in MORALE_FRACTIONS and value > 1:
+            err(path, f"{field}: a fraction, at most 1")
+    for field in sorted(MORALE_INT_FIELDS):
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    if payload.get("TradeRequestWeeks") == 0:
+        err(path, "TradeRequestWeeks: must be at least 1")
+    for field in ("MoraleInertia", "PerformanceSwing"):
+        if is_number(payload.get(field)) and payload[field] >= 1:
+            err(path, f"{field}: must be below 1")
+    for field in ("StarRating", "LeaderAwareness"):
+        if is_number(payload.get(field)) and payload[field] > 100:
+            err(path, f"{field}: ratings run 0-100")
+    extra = set(payload) - MORALE_FLOAT_FIELDS - MORALE_INT_FIELDS - {"Units"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSMoraleTuning exactly")
+
+    units = payload.get("Units")
+    if not isinstance(units, list):
+        err(path, "'Units' must be an array")
+        return
+    seen = set()
+    for idx, unit in enumerate(units):
+        where = f"Units[{idx}]"
+        if not isinstance(unit, dict):
+            err(path, f"{where}: not an object")
+            continue
+        name = unit.get("Unit")
+        if not isinstance(name, str) or not name or name in seen:
+            err(path, f"{where}.Unit: empty or duplicate '{name}'")
+        seen.add(name)
+        if unit.get("Role") not in PLAYER_ROLES:
+            err(path, f"{where}.Role: '{unit.get('Role')}' is not a valid EPlayerRole")
+        games = unit.get("FullCohesionGames")
+        if isinstance(games, bool) or not isinstance(games, int) or games < 1:
+            err(path, f"{where}.FullCohesionGames: '{games}' must be a whole number, 1 or more")
+        bonus = unit.get("MaxBonus")
+        if not is_number(bonus) or not 0 <= bonus < 1:
+            err(path, f"{where}.MaxBonus: '{bonus}' must be a number in [0, 1)")
+        extra = set(unit) - MORALE_UNIT_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSChemistryUnit exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -3531,6 +3597,8 @@ def main():
             validate_owner_economics(path, payload)
         if isinstance(payload, dict) and "UnownedColor" in payload:
             validate_gap_overlay(path, payload)
+        if isinstance(payload, dict) and "TradeRequestWeeks" in payload:
+            validate_morale(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:
