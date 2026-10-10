@@ -126,6 +126,7 @@ FPSQuickSimResult UPSQuickSimRunner::RunGame(UPSPlaySimulation& Sim, float StepS
     FPSQuickSimResult Result;
     Result.HomeScore = FinalState.HomeScore;
     Result.AwayScore = FinalState.AwayScore;
+    Result.bFinished = FinalState.Quarter > 4;
     return Result;
 }
 

@@ -8,7 +8,7 @@
   "Modules": [
     {
       "Name": "Autonomix",
-      "Type": "Developer",
+      "Type": "Editor",
       "LoadingPhase": "PostEngineInit"
     }
   ],

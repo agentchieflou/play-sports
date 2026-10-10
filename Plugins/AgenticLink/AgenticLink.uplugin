@@ -8,7 +8,7 @@
   "Modules": [
     {
       "Name": "AgenticLink",
-      "Type": "Developer",
+      "Type": "Editor",
       "LoadingPhase": "PostEngineInit"
     }
   ],

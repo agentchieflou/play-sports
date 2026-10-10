@@ -2139,40 +2139,6 @@ def validate_field_dimensions(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldDimensions exactly")
 
 
-FIELD_MARKING_PATHS = ("GroundMeshPath", "PlaneMeshPath", "MaterialPath")
-FIELD_MARKING_COLORS = ("FieldColor", "SurroundColor", "NearEndZoneColor", "FarEndZoneColor", "LineColor")
-FIELD_MARKING_POSITIVE = ("MeshSizeCm", "GroundThicknessCm", "LineWidthYards", "YardLineSpacingYards",
-                          "HashSpacingYards", "HashLengthYards")
-FIELD_MARKING_NON_NEGATIVE = ("LayerLiftCm", "HashOffsetYards")
-
-
-def validate_field_markings(path, payload):
-    """FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): how APSFieldSurface draws the
-    field; mirrors APSFieldSurface::ValidateStyle."""
-    for field in FIELD_MARKING_PATHS:
-        value = payload.get(field)
-        if not isinstance(value, str) or not value.startswith("/"):
-            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Plane.Plane")
-    if not isinstance(payload.get("ColorParameter"), str) or not payload["ColorParameter"]:
-        err(path, "ColorParameter must name the material's color parameter")
-    for field in FIELD_MARKING_COLORS:
-        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
-            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
-    for field in FIELD_MARKING_POSITIVE:
-        value = payload.get(field)
-        if not is_number(value) or value <= 0:
-            err(path, f"{field}: '{value}' must be a number above 0")
-    for field in FIELD_MARKING_NON_NEGATIVE:
-        value = payload.get(field)
-        if not is_number(value) or value < 0:
-            err(path, f"{field}: '{value}' must be a number, 0 or more")
-    known = set(FIELD_MARKING_PATHS) | set(FIELD_MARKING_COLORS) | set(FIELD_MARKING_POSITIVE) \
-        | set(FIELD_MARKING_NON_NEGATIVE) | {"ColorParameter"}
-    extra = set(payload) - known
-    if extra:
-        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldMarkingsStyle exactly")
-
-
 PLAY_DEMO_POSITIVE = ("FrameRateHz", "MaxPreSnapSeconds", "MaxPlaySeconds", "MaxResultWaitSeconds")
 PLAY_DEMO_NON_NEGATIVE = ("PostWhistleSeconds", "MinPlayerMoveCm", "SpeedAllowanceCmPerSec", "GroundToleranceCm")
 PLAY_DEMO_FIELDS = {"DemoId", "Intent", "HomeTeamId", "AwayTeamId", "OffensePlayId", "DefensePlayId", "Seed", "SeedTries",
@@ -2302,6 +2268,40 @@ def validate_touch_hud(path, payload):
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTouchHudStyle exactly")
+
+
+FIELD_MARKING_PATHS = ("GroundMeshPath", "PlaneMeshPath", "MaterialPath")
+FIELD_MARKING_COLORS = ("FieldColor", "SurroundColor", "NearEndZoneColor", "FarEndZoneColor", "LineColor")
+FIELD_MARKING_POSITIVE = ("MeshSizeCm", "GroundThicknessCm", "LineWidthYards", "YardLineSpacingYards",
+                          "HashSpacingYards", "HashLengthYards")
+FIELD_MARKING_NON_NEGATIVE = ("LayerLiftCm", "HashOffsetYards")
+
+
+def validate_field_markings(path, payload):
+    """FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): how APSFieldSurface draws the
+    field; mirrors APSFieldSurface::ValidateStyle."""
+    for field in FIELD_MARKING_PATHS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.startswith("/"):
+            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Plane.Plane")
+    if not isinstance(payload.get("ColorParameter"), str) or not payload["ColorParameter"]:
+        err(path, "ColorParameter must name the material's color parameter")
+    for field in FIELD_MARKING_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in FIELD_MARKING_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in FIELD_MARKING_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    known = set(FIELD_MARKING_PATHS) | set(FIELD_MARKING_COLORS) | set(FIELD_MARKING_POSITIVE) \
+        | set(FIELD_MARKING_NON_NEGATIVE) | {"ColorParameter"}
+    extra = set(payload) - known
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldMarkingsStyle exactly")
 
 
 PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
