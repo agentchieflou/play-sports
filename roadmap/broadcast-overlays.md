@@ -87,10 +87,10 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** In-flight ball arc, landing marker, and receiver lead indicators render during passes and kicks.
 **Depends on:** 26, Core 7
 
-- [ ] Predicted-arc spline from the ball physics state at release
-- [ ] Landing-spot marker with catchable-radius ring
-- [ ] Receiver lead indicator (where the target will be at arrival)
-- [ ] Kick variant: field-goal arc with upright-relative good/wide readout
+- [x] Predicted-arc spline from the ball physics state at release *(`UPSOverlayBallFlightSubsystem`: the ball's position, projectile velocity and gravity at the `Throw` event give the exact drag-free arc; `APSOverlayBallFlight` holds it in a spline and dots it, the dots behind the ball going on a `Full` tier. A pass now leaves from the hand height its velocity was aimed from, so it comes down where it was aimed. A ribbon look is an editor pass, `Specs/Ball_Flight_Overlay_Spec.md`)*
+- [x] Landing-spot marker with catchable-radius ring *(where the arc comes down to the throw's catch height; the ring is the receiver's capsule plus the ball)*
+- [x] Receiver lead indicator (where the target will be at arrival) *(his position plus his velocity until the ball comes down, green when that is inside the catch radius)*
+- [x] Kick variant: field-goal arc with upright-relative good/wide readout *(a ball leaving the kicker in a kick phase is judged at the first posts ahead: good, wide left or right, short; the readout floats above the crossbar. Posts are data in the game mode's field frame. The simulation still resolves kicks with a roll and no ball in the air, so in a game the readout waits for the kicking game to launch the ball, as `ExecuteKick` does)*
 
 ### Epic 33: Score Bug & Broadcast Chyron Framework
 

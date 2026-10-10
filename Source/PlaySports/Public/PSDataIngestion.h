@@ -26,6 +26,7 @@
 #include "PSControlHandoffComponent.h"
 #include "PSOverlayBroadcastTypes.h"
 #include "PSUIAccessibilitySubsystem.h"
+#include "PSOverlayBallFlightTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSSpecialTeamsData.h"
@@ -177,6 +178,11 @@ public:
      *  unrecognized Anchor or Kind. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadBroadcastOverlayThemeFromJson(const FString& JsonFilePath, FPSBroadcastOverlayTheme& OutTheme);
+
+    /** Loads the ball-flight overlay's look and rules (Data/ball_flight_overlay.json, Epic 32).
+     *  False on a missing file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadBallFlightStyleFromJson(const FString& JsonFilePath, FPSBallFlightStyle& OutStyle);
 
     /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */

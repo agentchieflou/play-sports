@@ -85,6 +85,7 @@ every CI build.
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
 | `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
+| `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -827,3 +828,30 @@ Single object (Epic 39; `UPSCameraSkycamComponent`, a camera hung from four cabl
 - `LookAheadCm`: how far ahead of whoever it follows it looks. `FieldOfView` (0-170 degrees).
 
 `UPSCameraSkycamComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Ball-flight overlay schema (`FPSBallFlightStyle`)
+
+Single object (Epic 32; the pass and kick indicators, `UPSOverlayBallFlightSubsystem`, drawn by
+`APSOverlayBallFlight`). Lengths are cm in the game mode's field frame: 100 units a yard along the
+field, the offense attacking +X from its own goal line at X = 0.
+- Colors (`#RRGGBB`): `ArcColor`, `LandingColor`, `LeadOnTargetColor` and `LeadOffTargetColor`
+  (the receiver's lead ring, by whether he gets to the ball), `GoodColor` and `NoGoodColor` (the
+  kick readout).
+- `DotMeshPath`, `RingMeshPath`, `MaterialPath`, `ColorParameter`: the arc's dots, the rings, their
+  material and its color parameter. Engine basic shapes until an editor session authors a ribbon
+  (`Specs/Ball_Flight_Overlay_Spec.md`). `MeshDiameter` (above 0): both meshes' size at scale 1.
+- `ArcPoints` (2 or more, release to landing, evenly in time), `ArcDotDiameter` (above 0),
+  `RingThickness`, `GroundClearance` (0 or more), `GroundZ` (the field's surface; kicks come down to
+  it).
+- `LandingRadiusFallback` (above 0): the landing ring when no receiver gives one (a pass's ring is
+  the receiver's catch radius, his capsule plus the ball). `LeadRadius` (above 0).
+- `DeviationTolerance` (above 0): the ball this far off its predicted path has been touched or has
+  bounced, and the flight is over. `MaxFlightSeconds` (above 0): the longest flight drawn.
+- `LingerSeconds`, `ReadoutSeconds` (0 or more): how long a pass's marks and a kick's readout stay
+  up after the flight.
+- Goal posts: `GoalPostX` (each end line's X; a kick is judged at the first ahead of it),
+  `GoalPostY`, `UprightWidth` (above 0, inside width), `CrossbarHeight`, `ReadoutHeight` (above the
+  bar) and `ReadoutTextSize` (above 0).
+- `GoodLabel`, `WideLeftLabel`, `WideRightLabel`, `ShortLabel`: the readout's words.
+
+`UPSOverlayBallFlightSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
