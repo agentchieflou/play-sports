@@ -1,4 +1,5 @@
 #include "PSPlayContextComponent.h"
+#include "PSKickMeterComponent.h"
 #include "PSPlayerController.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
@@ -11,6 +12,8 @@ UPSPlayContextComponent::UPSPlayContextComponent()
     PassingContextId = TEXT("Passing");
     BallCarrierContextId = TEXT("BallCarrier");
     DefenseContextId = TEXT("Defense");
+    KickingContextId = TEXT("Kicking");
+    DefensePreSnapContextId = TEXT("DefensePreSnap");
 }
 
 void UPSPlayContextComponent::BeginPlay()
@@ -67,6 +70,7 @@ void UPSPlayContextComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEve
     {
         bPlayLive = false;
     }
+    bKickPhase = UPSKickMeterComponent::IsKickPhase(Event.NewPhase);
 }
 
 FName UPSPlayContextComponent::ComputeContext() const
@@ -77,9 +81,13 @@ FName UPSPlayContextComponent::ComputeContext() const
     {
         return NAME_None;
     }
+    if (bKickPhase)
+    {
+        return Controlled->TeamSide == EPSTeamSide::Offense ? KickingContextId : NAME_None;
+    }
     if (!bPlayLive)
     {
-        return PreSnapContextId;
+        return Controlled->TeamSide == EPSTeamSide::Defense ? DefensePreSnapContextId : PreSnapContextId;
     }
     if (Controlled->HasPossession())
     {

@@ -1,0 +1,29 @@
+{
+    "HomeLabel": "HOME",
+    "AwayLabel": "AWAY",
+    "HomeColor": "#1F4E9C",
+    "AwayColor": "#B3262E",
+    "bUseTeamColors": true,
+    "BarColor": "#101418",
+    "TextColor": "#FFFFFF",
+    "RedZoneColor": "#D7263D",
+    "TwoMinuteColor": "#F2B705",
+    "TimeoutColor": "#F2B705",
+    "TimeoutUsedColor": "#3A4048",
+    "ChyronColor": "#101418",
+    "Anchor": "BottomCenter",
+    "ScoreFontSize": 28,
+    "TextFontSize": 18,
+    "RedZoneYardLine": 80,
+    "TwoMinuteSeconds": 120.0,
+    "ChyronMaxQueued": 4,
+    "ChyronMinShowSeconds": 2.0,
+    "ChyronGapSeconds": 0.5,
+    "ChyronKinds": [
+        { "Kind": "ScoreAlert", "Priority": 3, "Seconds": 5.0 },
+        { "Kind": "DriveSummary", "Priority": 2, "Seconds": 6.0 },
+        { "Kind": "PlayStat", "Priority": 1, "Seconds": 4.0 },
+        { "Kind": "StatLine", "Priority": 1, "Seconds": 5.0 },
+        { "Kind": "Custom", "Priority": 0, "Seconds": 4.0 }
+    ]
+}

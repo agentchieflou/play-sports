@@ -8,6 +8,10 @@
 #include "PSPlayCallSubsystem.h"
 #include "PSLoadingTips.h"
 #include "PSLoadingScreenSubsystem.h"
+#include "PSSettingsSubsystem.h"
+#include "PSSettingsComponent.h"
+#include "PSInputDeviceComponent.h"
+#include "PSInputGlyphs.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Blueprint/UserWidget.h"
@@ -107,6 +111,10 @@ TArray<FString> UPSMenuComponent::ValidateCatalog(const FPSMenuCatalog& InCatalo
         {
             Errors.Add(TEXT("A PlayCallScreen needs a screen with Content PlayCallPlays to list a formation's plays"));
         }
+    }
+    if (InCatalog.FindScreenWithContent(EPSMenuScreenContent::Settings) && !InCatalog.FindScreenWithContent(EPSMenuScreenContent::SettingsCategory))
+    {
+        Errors.Add(TEXT("A Settings screen needs a screen with Content SettingsCategory to list a category's settings"));
     }
     if (InCatalog.TransitionSeconds < 0.f)
     {
@@ -340,11 +348,59 @@ bool UPSMenuComponent::ToggleFavoriteOption(FName OptionId)
     PlayCall->ToggleFavorite(Option->Payload);
 
     // Redraw so the star shows, keeping the player's place on the screen.
+    RedrawKeepingFocus(OptionId);
+    return true;
+}
+
+void UPSMenuComponent::RedrawKeepingFocus(FName OptionId)
+{
     ShowTopScreen();
     if (ActiveWidget)
     {
         ActiveWidget->FocusOption(OptionId, GetOwningPlayer());
     }
+}
+
+UPSSettingsSubsystem* UPSMenuComponent::GetSettings() const
+{
+    return SettingsOverride ? SettingsOverride : UPSSettingsSubsystem::Get(this);
+}
+
+void UPSMenuComponent::BeginRemap(FName ActionId)
+{
+    RemapActionId = ActionId;
+    RemapMessage.Reset();
+    RedrawKeepingFocus(ActionId);
+}
+
+bool UPSMenuComponent::HandleRemapKey(const FKey& Key)
+{
+    if (!IsListeningForRemap())
+    {
+        return false;
+    }
+    const FName ActionId = RemapActionId;
+    RemapActionId = NAME_None;
+    if (IsBackKey(Key))
+    {
+        RemapMessage = TEXT("Cancelled.");
+    }
+    else
+    {
+        const APSPlayerController* Player = Cast<APSPlayerController>(GetOwner());
+        UPSSettingsComponent* PlayerSettings = Player ? Player->GetSettingsComponent() : nullptr;
+        const bool bGamepad = UPSInputGlyphs::GetDeviceForKey(Key) == EPSInputDevice::Gamepad;
+        FString Problem;
+        if (PlayerSettings && PlayerSettings->RequestRemap(ActionId, bGamepad, Key.GetFName(), Problem))
+        {
+            RemapMessage = FString::Printf(TEXT("%s is now %s."), *ActionId.ToString(), *Key.GetDisplayName().ToString());
+        }
+        else
+        {
+            RemapMessage = Problem.IsEmpty() ? FString(TEXT("That key can't be used.")) : Problem + TEXT(".");
+        }
+    }
+    RedrawKeepingFocus(ActionId);
     return true;
 }
 
@@ -441,6 +497,34 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
             PlayCall->SetDefensiveAdjustment(Payload);
         }
         Resume();
+        break;
+    case EPSMenuCommand::StepSetting:
+        if (UPSSettingsSubsystem* Settings = GetSettings())
+        {
+            Settings->StepSetting(Payload);
+            RedrawKeepingFocus(Payload);
+        }
+        break;
+    case EPSMenuCommand::ResetSettings:
+        if (UPSSettingsSubsystem* Settings = GetSettings())
+        {
+            Settings->ResetToDefaults(Payload);
+            RedrawKeepingFocus(TEXT("Reset"));
+        }
+        break;
+    case EPSMenuCommand::BeginRemap:
+        BeginRemap(Payload);
+        break;
+    case EPSMenuCommand::ResetRemaps:
+        if (const APSPlayerController* Player = Cast<APSPlayerController>(GetOwner()))
+        {
+            if (UPSSettingsComponent* PlayerSettings = Player->GetSettingsComponent())
+            {
+                PlayerSettings->ResetRemaps();
+                RemapMessage = TEXT("Every action is back on its usual keys.");
+            }
+        }
+        RedrawKeepingFocus(TEXT("ResetRemaps"));
         break;
     default:
         break;
@@ -583,6 +667,94 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
         {
             Presented.Body = PlayCall->BuildAdjustmentScreenBody();
             Presented.Options.Append(PlayCall->BuildAdjustmentOptions());
+        }
+    }
+    else if (Presented.Content == EPSMenuScreenContent::InputRemap)
+    {
+        // One option per remappable action, with its key on the device in use.
+        APSPlayerController* Player = Cast<APSPlayerController>(GetOwner());
+        UPSInputConfig* Config = Player ? Player->GetInputConfig() : nullptr;
+        const UPSInputDeviceComponent* Devices = Player ? Player->GetInputDeviceComponent() : nullptr;
+        const EPSInputDevice Device = Devices ? Devices->GetActiveDevice() : EPSInputDevice::KeyboardMouse;
+        if (IsListeningForRemap())
+        {
+            Presented.Body = FString::Printf(TEXT("Press the new key for %s. Back cancels."), *RemapActionId.ToString());
+        }
+        else if (!RemapMessage.IsEmpty())
+        {
+            Presented.Body = RemapMessage;
+        }
+        if (Config)
+        {
+            for (const FPSInputActionDef& Action : Config->Catalog.Actions)
+            {
+                if (!Config->IsRemappable(Action.ActionId) || Action.Contexts.Num() == 0)
+                {
+                    continue;
+                }
+                FPSInputGlyph Glyph;
+                const bool bHasGlyph = Config->GetGlyphForAction(Action.ActionId, Action.Contexts[0], Device, Glyph);
+                FPSMenuOptionDef Option;
+                Option.OptionId = Action.ActionId;
+                Option.Label = FString::Printf(TEXT("%s: %s"), *Action.ActionId.ToString(), bHasGlyph ? *Glyph.Label : TEXT("-"));
+                Option.Detail = Action.Description;
+                Option.Command = EPSMenuCommand::BeginRemap;
+                Option.Payload = Action.ActionId;
+                Presented.Options.Add(Option);
+            }
+        }
+        FPSMenuOptionDef Reset;
+        Reset.OptionId = TEXT("ResetRemaps");
+        Reset.Label = TEXT("Reset all keys");
+        Reset.Command = EPSMenuCommand::ResetRemaps;
+        Presented.Options.Add(Reset);
+    }
+    else if (UPSSettingsSubsystem* Settings = Presented.Content == EPSMenuScreenContent::Settings || Presented.Content == EPSMenuScreenContent::SettingsCategory ? GetSettings() : nullptr)
+    {
+        const FPSSettingsCatalog& SettingsCatalog = Settings->GetCatalog();
+        if (Presented.Content == EPSMenuScreenContent::Settings)
+        {
+            // The categories, then the screen's own options (the key remapping screen).
+            const FPSMenuScreenDef* CategoryScreen = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::SettingsCategory);
+            TArray<FPSMenuOptionDef> CategoryOptions;
+            for (const FPSSettingCategoryDef& Category : SettingsCatalog.Categories)
+            {
+                FPSMenuOptionDef Option;
+                Option.OptionId = Category.CategoryId;
+                Option.Label = Category.Label;
+                Option.TargetScreen = CategoryScreen ? CategoryScreen->ScreenId : NAME_None;
+                Option.Payload = Category.CategoryId;
+                CategoryOptions.Add(Option);
+            }
+            Presented.Options.Insert(CategoryOptions, 0);
+        }
+        else
+        {
+            const FName CategoryId = ScreenPayloads.FindRef(ScreenId);
+            if (const FPSSettingCategoryDef* Category = SettingsCatalog.FindCategory(CategoryId))
+            {
+                Presented.Title = Category->Label;
+            }
+            for (const FPSSettingDef& Def : SettingsCatalog.Settings)
+            {
+                if (Def.Category != CategoryId)
+                {
+                    continue;
+                }
+                FPSMenuOptionDef Option;
+                Option.OptionId = Def.SettingId;
+                Option.Label = FString::Printf(TEXT("%s: %s"), *Def.Label, *Settings->FormatValue(Def.SettingId));
+                Option.Command = EPSMenuCommand::StepSetting;
+                Option.Payload = Def.SettingId;
+                Option.Detail = Def.Description;
+                Presented.Options.Add(Option);
+            }
+            FPSMenuOptionDef Reset;
+            Reset.OptionId = TEXT("Reset");
+            Reset.Label = TEXT("Reset to defaults");
+            Reset.Command = EPSMenuCommand::ResetSettings;
+            Reset.Payload = CategoryId;
+            Presented.Options.Add(Reset);
         }
     }
     return Presented;

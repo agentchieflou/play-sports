@@ -203,6 +203,17 @@ public:
     UFUNCTION()
     void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);
 
+    /** A human kicker lined up or kicked (Epic 104.5, UPSKickMeterComponent). While one is lined
+     *  up, the kick phase waits for him up to the event's HoldSeconds; his Roll then stands in
+     *  for the CPU kicker's random number. Ignored outside a kick phase. */
+    UFUNCTION()
+    void OnBusKickEvent(const FPSTelemetryKickEvent& Event);
+
+    /** A human defender's jump at the snap was timed (Epic 104.5); an offside jump is flagged
+     *  as Offsides. */
+    UFUNCTION()
+    void OnBusJumpSnapEvent(const FPSTelemetryJumpSnapEvent& Event);
+
     /** The offense's call before its snap (Epic 76): its tempo's play-clock mark, and whether
      *  it is a spike or a kneel, which this resolves at the snap. */
     UFUNCTION()
@@ -237,6 +248,27 @@ private:
     float PendingSnapPlayClock = -1.f;
 
     void ResolvePlayResult();
+
+    /** True when the kick phase resolves this frame: a human's kick has arrived, the wait for a
+     *  lined-up human has run out, or (no human) the CPU kicker's time has come. */
+    bool IsKickReady() const;
+
+    /** The kick's roll, 0 (perfect) .. 1: the human kicker's if he kicked, else random. Clears
+     *  the human kick. */
+    float ConsumeKickRoll();
+
+    bool bHumanKickLinedUp = false;
+    float HumanKickHoldSeconds = 0.f;
+    float HumanKickRoll = -1.f;
+
+    /** Announces the game state on the bus (Epic 33) when any of it changed other than the
+     *  running clocks, which listeners run on themselves between announcements. */
+    void PublishGameStateIfChanged();
+
+    FPSTelemetryGameStateEvent LastPublishedGameState;
+    bool bHasPublishedGameState = false;
+    FDriveSummary LastCompletedDrive;
+    int32 CompletedDrives = 0;
 
     /** Ends a spike or a kneel at the snap: nothing physical decides it. */
     void ResolveClockPlay();

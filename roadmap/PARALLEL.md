@@ -43,7 +43,7 @@ These groups can run at the same time (see the scope note under the table):
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 17.4–17.5 (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
-| G9 | Front end and input feel (Track I) | 104.5 → 103 → 106 → 105 (101 done; 102 done but 102.1's play art, which waits on Epic 35; 104.1–104.4 done) | Claude Code |
+| G9 | Front end and input feel (Track I) | 103.2, 103.3, 103.5 → 106 → 105 (101 and 104 done; 103.1 settings and 103.4 remapping done; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
 Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
 (`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G8's and G9's track scopes on
@@ -56,8 +56,8 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 - **Tier 1, Track E:** 67 defensive pre-snap (66 is in), 71 QB pocket play, 75 special-teams
   depth.
 - **Tier 2:** 89 coaching staffs, 19.5 personnel packages.
-- **Tier 3 / infra:** 125 content validation CLI, 24 test expansion.
-- **Overlay and camera code:** 30 selected-player indicator, 33 score bug (40 all-22 camera done).
+- **Tier 3 / infra:** 24.1 gym map (editor; 24.2–24.5, 117 and 125 done).
+- **Overlay and camera code:** 30, 33, 38, 39 and 40 are done.
   With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
   38, 41, 49, 78, 82, 85, 92, 96, 115.
 - **Editor or mixed, waiting for an editor session:** 2.1–2.2, 22, 23.
@@ -116,29 +116,29 @@ one CI run) rather than re-merging main into each PR after every landing.
     "14":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"]},
     "15":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["9", "14"]},
     "16":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["14"]},
-    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation", "17.5 performance pass"]},
+    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation", "17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
     "18":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "17"]},
     "19":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["1"], "open_stories": ["19.5 substitution and personnel packages"]},
     "20":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["12", "19"]},
     "21":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "19"]},
     "22":  {"track": "core", "mode": "editor", "status": "open", "depends_on": ["6", "7", "8"]},
     "23":  {"track": "core", "mode": "mixed", "status": "open", "depends_on": ["8", "11"]},
-    "24":  {"track": "core", "mode": "code", "status": "open", "depends_on": []},
+    "24":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "open_stories": ["24.1 gym map and one APSFunctionalGym test per core system (editor)"]},
     "25":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"], "open_stories": ["25.1 Autonomix T3D injection", "25.2 Autonomix Python escape hatch", "25.3 AgenticLink MCP server (PR #91 in progress)", "25.4 register the server in .mcp.json and .vscode/mcp.json", "25.6 agent smoke test over MCP"]},
     "26":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["C1", "3", "6"]},
     "27":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "16"]},
     "28":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
     "29":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["5", "19"]},
-    "30":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["3"]},
+    "30":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["3"]},
     "31":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "27", "16"]},
     "32":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["26", "7"]},
-    "33":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["5", "10", "12"]},
+    "33":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["5", "10", "12"]},
     "34":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "2", "10"]},
     "35":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["27", "31", "16"]},
     "36":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
     "37":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["28", "29", "33", "34"]},
-    "38":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["4", "26"]},
-    "39":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["38"]},
+    "38":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["4", "26"]},
+    "39":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["38"]},
     "40":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["4"]},
     "41":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["C1", "26", "38", "17"]},
     "42":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["41"]},
@@ -202,8 +202,8 @@ one CI run) rather than re-merging main into each PR after every landing.
     "100": {"track": "H", "mode": "mixed", "status": "open", "depends_on": ["96", "97", "98"]},
     "101": {"track": "I", "mode": "code", "status": "done", "depends_on": ["5"]},
     "102": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["16", "101"]},
-    "103": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101"]},
-    "104": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["3", "6", "126", "127"], "open_stories": ["104.5 kick meter and defensive inputs"]},
+    "103": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101"], "open_stories": ["103.2 colorblind-safe modes", "103.3 subtitles and captions", "103.5 motion and flash reduction"]},
+    "104": {"track": "I", "mode": "code", "status": "done", "depends_on": ["3", "6", "126", "127"]},
     "105": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101", "104", "24"]},
     "106": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101"]},
     "107": {"track": "J", "mode": "code", "status": "open", "depends_on": ["104", "102"]},
@@ -214,7 +214,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "112": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "113": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "114": {"track": "K", "mode": "code", "status": "open", "depends_on": ["17"]},
-    "115": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["17", "26"], "open_stories": ["115.4 record/playback round-trip test", "115.5 divergence bisection tool"]},
+    "115": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["17", "26"], "open_stories": ["115.4 record/playback round-trip test"]},
     "116": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "117": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "118": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25"]},
@@ -224,7 +224,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "122": {"track": "L", "mode": "code", "status": "open", "depends_on": ["19", "79"]},
     "123": {"track": "L", "mode": "mixed", "status": "open", "depends_on": ["37", "56"]},
     "124": {"track": "L", "mode": "mixed", "status": "open", "depends_on": ["52", "123"]},
-    "125": {"track": "L", "mode": "code", "status": "open", "depends_on": ["21", "113"]},
+    "125": {"track": "L", "mode": "code", "status": "done", "depends_on": ["21", "113"]},
     "126": {"track": "M", "mode": "code", "status": "done", "depends_on": ["3"]},
     "127": {"track": "M", "mode": "code", "status": "done", "depends_on": ["126", "C3-ff-A"]},
     "128": {"track": "M", "mode": "code", "status": "done", "depends_on": ["127"]},

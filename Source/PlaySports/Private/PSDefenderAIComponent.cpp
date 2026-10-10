@@ -1,11 +1,11 @@
 #include "PSDefenderAIComponent.h"
+#include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSDefenseController.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "Misc/Paths.h"
 
 namespace PSDefenderAIPrivate
@@ -18,17 +18,19 @@ namespace PSDefenderAIPrivate
         return Direction.GetSafeNormal();
     }
 
-    /** A player the defense covers: receivers, tight ends and backs of the offense. */
-    bool IsEligibleReceiver(const APSPlayerPawn* Pawn)
+    /** A player the defense covers: receivers, tight ends and backs of the offense. Role is
+     *  the pawn's role from the field snapshot. */
+    bool IsEligibleReceiver(const APSPlayerPawn* Pawn, EPlayerRole Role)
     {
         if (!Pawn || Pawn->TeamSide != EPSTeamSide::Offense)
         {
             return false;
         }
-        const EPlayerRole Role = Pawn->GetAttributes().Role;
         return Role == EPlayerRole::WideReceiver || Role == EPlayerRole::TightEnd || Role == EPlayerRole::RunningBack;
     }
 }
+
+DECLARE_CYCLE_STAT(TEXT("Defender AI decision"), STAT_PSAIDefenderDecision, STATGROUP_PSAI);
 
 UPSDefenderAIComponent::UPSDefenderAIComponent()
 {
@@ -94,6 +96,7 @@ void UPSDefenderAIComponent::BindToBus()
     Bus->OnPumpFakeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePumpFake);
     Bus->OnRouteRunningMC.AddUObject(this, &UPSDefenderAIComponent::HandleRouteRunning);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePhaseChange);
+    Bus->OnControlChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandleControlChange);
     BoundBus = Bus;
 }
 
@@ -107,6 +110,7 @@ void UPSDefenderAIComponent::UnbindFromBus()
         Bus->OnPumpFakeMC.RemoveAll(this);
         Bus->OnRouteRunningMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
+        Bus->OnControlChangeMC.RemoveAll(this);
     }
     BoundBus.Reset();
 }
@@ -168,8 +172,16 @@ void UPSDefenderAIComponent::HandleSnap(const FPSTelemetrySnapEvent& Event)
 void UPSDefenderAIComponent::HandleThrow(const FPSTelemetryThrowEvent& Event)
 {
     APSPlayerPawn* Self = GetSelf();
-    if (!bPlayLive || !Self)
+    if (!bPlayLive)
     {
+        return;
+    }
+    if (!Self)
+    {
+        // A human has this defender: the AI still notes the ball is up, so it picks the play
+        // up correctly if control comes back before it lands (Epic 30).
+        bBallInAir = true;
+        LandingSpot = Event.LandingLocation.IsZero() ? Event.TargetLocation : Event.LandingLocation;
         return;
     }
     if (bSnapPending)
@@ -187,6 +199,29 @@ void UPSDefenderAIComponent::HandleThrow(const FPSTelemetryThrowEvent& Event)
     {
         BallHawkAt = TimeSinceSnap + GetReactionSeconds();
     }
+}
+
+void UPSDefenderAIComponent::HandleControlChange(const FPSTelemetryControlChangeEvent& Event)
+{
+    const APSPlayerPawn* Self = GetSelf();
+    if (!Event.bHumanControlled && Self && Self->GetAttributes().PlayerId == Event.PlayerId)
+    {
+        ResumeFromHuman();
+    }
+}
+
+void UPSDefenderAIComponent::ResumeFromHuman()
+{
+    const APSPlayerPawn* Self = GetSelf();
+    if (!Self)
+    {
+        return;
+    }
+    // Until the next decision the pawn keeps going the way the human was taking him; the
+    // decision itself reads the field as it is now.
+    FVector Heading = Self->GetVelocity();
+    Heading.Z = 0.f;
+    DesiredDirection = Heading.GetSafeNormal();
 }
 
 void UPSDefenderAIComponent::HandleCatch(const FPSTelemetryCatchEvent& Event)
@@ -275,11 +310,20 @@ void UPSDefenderAIComponent::StartAssignment(APSPlayerPawn* Self)
 
 APSPlayerPawn* UPSDefenderAIComponent::PickReceiverToCover(const APSPlayerPawn* Self) const
 {
+    UPSAIFieldSnapshot* Field = GetFieldSnapshot();
+    if (!Field)
+    {
+        return nullptr;
+    }
+    const TArray<APSPlayerPawn*>& Pawns = Field->GetPawns();
+    const TArray<EPlayerRole>& Roles = Field->GetRoles();
+
     // Receivers another defender already has in man coverage are taken.
     TSet<const APSPlayerPawn*> Taken;
-    for (TActorIterator<APSDefenseController> It(GetWorld()); It; ++It)
+    for (const APSPlayerPawn* Pawn : Pawns)
     {
-        const UPSDefenderAIComponent* Other = It->GetDefenderAI();
+        const APSDefenseController* OtherController = Cast<APSDefenseController>(Pawn->GetController());
+        const UPSDefenderAIComponent* Other = OtherController ? OtherController->GetDefenderAI() : nullptr;
         if (Other && Other != this && Other->GetCoveredReceiver())
         {
             Taken.Add(Other->GetCoveredReceiver());
@@ -288,9 +332,10 @@ APSPlayerPawn* UPSDefenderAIComponent::PickReceiverToCover(const APSPlayerPawn* 
 
     APSPlayerPawn* Nearest = nullptr;
     float NearestDistance = TNumericLimits<float>::Max();
-    for (APSPlayerPawn* Candidate : GetFieldPawns())
+    for (int32 Index = 0; Index < Pawns.Num(); ++Index)
     {
-        if (!PSDefenderAIPrivate::IsEligibleReceiver(Candidate) || Taken.Contains(Candidate))
+        APSPlayerPawn* Candidate = Pawns[Index];
+        if (!PSDefenderAIPrivate::IsEligibleReceiver(Candidate, Roles[Index]) || Taken.Contains(Candidate))
         {
             continue;
         }
@@ -314,6 +359,7 @@ bool UPSDefenderAIComponent::IsBallOut(const APSPlayerPawn* Carrier) const
 
 void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
 {
+    SCOPE_CYCLE_COUNTER(STAT_PSAIDefenderDecision);
     DesiredDirection = FVector::ZeroVector;
     APSPlayerPawn* Self = GetSelf();
     if (!Self || !bPlayLive)
@@ -481,17 +527,23 @@ FVector UPSDefenderAIComponent::SteerInZone(const APSPlayerPawn* Self) const
     // The receiver nearest the spot, if he's in the zone, pulls the defender part-way to him.
     const APSPlayerPawn* Threat = nullptr;
     float ThreatDistance = Tuning.ZoneRadius;
-    for (const APSPlayerPawn* Candidate : GetFieldPawns())
+    if (UPSAIFieldSnapshot* Field = GetFieldSnapshot())
     {
-        if (!PSDefenderAIPrivate::IsEligibleReceiver(Candidate))
+        const TArray<APSPlayerPawn*>& Pawns = Field->GetPawns();
+        const TArray<EPlayerRole>& Roles = Field->GetRoles();
+        for (int32 Index = 0; Index < Pawns.Num(); ++Index)
         {
-            continue;
-        }
-        const float Distance = FVector::Dist2D(Candidate->GetActorLocation(), ZoneSpot);
-        if (Distance <= ThreatDistance)
-        {
-            ThreatDistance = Distance;
-            Threat = Candidate;
+            const APSPlayerPawn* Candidate = Pawns[Index];
+            if (!PSDefenderAIPrivate::IsEligibleReceiver(Candidate, Roles[Index]))
+            {
+                continue;
+            }
+            const float Distance = FVector::Dist2D(Candidate->GetActorLocation(), ZoneSpot);
+            if (Distance <= ThreatDistance)
+            {
+                ThreatDistance = Distance;
+                Threat = Candidate;
+            }
         }
     }
     const FVector Target = Threat ? FMath::Lerp(ZoneSpot, Threat->GetActorLocation(), Tuning.ZoneShadeWeight) : ZoneSpot;
@@ -543,34 +595,18 @@ APSPlayerPawn* UPSDefenderAIComponent::GetSelf() const
 
 APSPlayerPawn* UPSDefenderAIComponent::FindCarrier() const
 {
-    for (APSPlayerPawn* Pawn : GetFieldPawns())
-    {
-        if (Pawn && Pawn->HasPossession())
-        {
-            return Pawn;
-        }
-    }
-    return nullptr;
+    UPSAIFieldSnapshot* Field = GetFieldSnapshot();
+    return Field ? Field->FindBallCarrier() : nullptr;
 }
 
 APSPlayerPawn* UPSDefenderAIComponent::FindOpponent(EPlayerRole Role) const
 {
-    for (APSPlayerPawn* Pawn : GetFieldPawns())
-    {
-        if (Pawn && Pawn->TeamSide == EPSTeamSide::Offense && Pawn->GetAttributes().Role == Role)
-        {
-            return Pawn;
-        }
-    }
-    return nullptr;
+    UPSAIFieldSnapshot* Field = GetFieldSnapshot();
+    return Field ? Field->FindPawn(EPSTeamSide::Offense, Role) : nullptr;
 }
 
-TArray<APSPlayerPawn*> UPSDefenderAIComponent::GetFieldPawns() const
+UPSAIFieldSnapshot* UPSDefenderAIComponent::GetFieldSnapshot() const
 {
-    TArray<APSPlayerPawn*> Pawns;
-    for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
-    {
-        Pawns.Add(*It);
-    }
-    return Pawns;
+    const UWorld* OwningWorld = GetWorld();
+    return OwningWorld ? OwningWorld->GetSubsystem<UPSAIFieldSnapshot>() : nullptr;
 }

@@ -2,6 +2,7 @@
 #include "PSFieldGrid.h"
 #include "PSBallActionComponent.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSDefenderTechniqueComponent.h"
 #include "PSArchetypeTuning.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -40,6 +41,9 @@ APSPlayerPawn::APSPlayerPawn()
 
     // Epic 104.2: the ball carrier's move set
     CarrierMoveComponent = CreateDefaultSubobject<UPSCarrierMoveComponent>(TEXT("CarrierMoveComp"));
+
+    // Epic 104.5: a defender's get-off and strip attempt
+    DefenderTechniqueComponent = CreateDefaultSubobject<UPSDefenderTechniqueComponent>(TEXT("DefenderTechniqueComp"));
 
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;

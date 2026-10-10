@@ -24,6 +24,8 @@
                 { "Key": "Gamepad_LeftY", "GlyphId": "Xbox_LS", "Label": "LS" },
                 { "Key": "Gamepad_RightX", "GlyphId": "Xbox_RS", "Label": "RS" },
                 { "Key": "Gamepad_RightY", "GlyphId": "Xbox_RS", "Label": "RS" },
+                { "Key": "Gamepad_RightStick_Left", "GlyphId": "Xbox_RS_Left", "Label": "RS Left" },
+                { "Key": "Gamepad_RightStick_Right", "GlyphId": "Xbox_RS_Right", "Label": "RS Right" },
                 { "Key": "Gamepad_DPad_Up", "GlyphId": "Xbox_DPad_Up", "Label": "D-pad Up" },
                 { "Key": "Gamepad_DPad_Down", "GlyphId": "Xbox_DPad_Down", "Label": "D-pad Down" },
                 { "Key": "Gamepad_DPad_Left", "GlyphId": "Xbox_DPad_Left", "Label": "D-pad Left" },

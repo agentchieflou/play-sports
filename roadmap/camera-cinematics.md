@@ -16,10 +16,10 @@ camera behaviors are components/classes, each epic ships tests.
 **Goal:** An automated director cuts between camera rigs based on play context — no manual camera work needed to watch a full game.
 **Depends on:** Core 4, 26
 
-- [ ] Shot vocabulary: LOS wide, all-22 high, tight follow, end-zone, sideline reaction
-- [ ] Cut rules driven by phase/events (pre-snap wide → snap follow → post-play tight)
-- [ ] Interest scoring (ball, big hits, breakaways) to pick the live subject
-- [ ] Smoothing/constraint layer so cuts never disorient (180° rule, minimum shot length)
+- [x] Shot vocabulary: LOS wide, all-22 high, tight follow, end-zone, sideline reaction *(`UPSCameraDirectorComponent` on `APSBroadcastCamera`, shots in `Data/camera_director.json`. All-22 high and end zone are Epic 40's rigs, framed by `UPSCameraFraming`. The other three stand their distance toward the camera side of their target: the ball for LOS wide, and the live subject for tight follow (led along his run) and sideline reaction (low and close))*
+- [x] Cut rules driven by phase/events (pre-snap wide → snap follow → post-play tight) *(each `CutRules` row maps a bus trigger to a shot: `PhaseChange` to PreSnap → LOS wide, `Snap` → tight follow, `Throw` → all-22 high, `Catch` → follow, `Fumble` → end zone, `Tackle`/`Score`/the whistle → sideline reaction. The director is the broadcast camera's normal presentation; the film view (Epic 40) and the free cam override it, and with `bDirectorEnabled` off the plain follow returns)*
+- [x] Interest scoring (ball, big hits, breakaways) to pick the live subject *(read from Epic 26's latest snapshot plus the bus's tackles and hits. A player's interest is the sum of weights for holding the ball, closeness to it, a breakaway (fast, nobody within the clearance) and a big hit fading over `BigHitSeconds`. A new subject must beat the current one by `SwitchMargin`)*
+- [x] Smoothing/constraint layer so cuts never disorient (180° rule, minimum shot length) *(no shot is cut away from before `MinShotSeconds`: an earlier ask waits and the latest wins, and an ask for the live shot does nothing. Every shot stays on `CameraSide` of the line of action through the ball: one across it is mirrored back and re-aimed, while end-zone angles on the line are allowed. Cuts are instant; within a shot the camera eases at `FollowInterpSpeed`. Tests: `PlaySports.Camera.Director*`)*
 
 ### Epic 39: Skycam / Cable-Cam Rig Simulation
 
@@ -27,9 +27,9 @@ camera behaviors are components/classes, each epic ships tests.
 **Goal:** A physically plausible suspended camera flies behind the offense — the modern broadcast signature angle.
 **Depends on:** 38
 
-- [ ] Catenary-constrained rig: camera moves within a simulated cable envelope above the field
-- [ ] Follow behaviors (behind-QB pre-snap, chase on breakaways) with mass/lag for realism
-- [ ] Handoff integration so the director (38) can cut to/from it
+- [x] Catenary-constrained rig: camera moves within a simulated cable envelope above the field *(`UPSCameraSkycamComponent` on `APSBroadcastCamera`, rig in `Data/camera_skycam.json`. The camera stays inside the four towers' rectangle, above its floor and below the cables. The cables hang in catenaries, so the ceiling is the anchor height less both cable families' sag: highest by the towers, lowest over midfield)*
+- [x] Follow behaviors (behind-QB pre-snap, chase on breakaways) with mass/lag for realism *(it parks behind the quarterback looking downfield until the snap, then chases the ball carrier from behind along his run (`Snap`/`PhaseChange` on the bus, field from Epic 26's snapshots). It flies as a critically damped spring within the winches' speed and acceleration, so it lags and settles rather than jumping)*
+- [x] Handoff integration so the director (38) can cut to/from it *(the director's vocabulary gains `Skycam` and its triggers `Breakaway`, which fires when the live subject breaks into the clear; the rule cuts to the skycam. The rig flies every tick on air or not, so it is in position when cut to; while it is live, the camera is the rig's own shot, exempt from the 180° rule as it flies over the line of action. Tests: `PlaySports.Camera.Skycam*`)*
 
 ### Epic 40: All-22 Coaches Film Camera
 
