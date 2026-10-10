@@ -1,0 +1,35 @@
+{
+    "RestingExcitement": 0.25,
+    "LateGameQuarter": 4,
+    "CloseGameMargin": 8,
+    "LateCloseBonus": 0.15,
+    "HalfLifeSeconds": 6.0,
+    "DefaultHomeShare": 0.85,
+    "LevelHysteresis": 0.03,
+    "BigGainYards": 20,
+    "BigHitDamage": 25,
+    "DeepPassCm": 2500,
+    "Levels": [
+        { "Level": "Hush", "MinExcitement": 0.0 },
+        { "Level": "Murmur", "MinExcitement": 0.15 },
+        { "Level": "Buzz", "MinExcitement": 0.35 },
+        { "Level": "Roar", "MinExcitement": 0.6 },
+        { "Level": "Eruption", "MinExcitement": 0.85 }
+    ],
+    "CrowdReactions": [
+        { "Stimulus": "DeepPass", "FansDelta": 0.15, "RivalsDelta": 0.15, "FansReaction": "Gasp", "RivalsReaction": "Gasp" },
+        { "Stimulus": "BigGain", "FansDelta": 0.3, "RivalsDelta": -0.1, "FansReaction": "Roar", "RivalsReaction": "Groan" },
+        { "Stimulus": "FirstDown", "FansDelta": 0.1, "RivalsDelta": 0.0, "FansReaction": "Cheer", "RivalsReaction": "None" },
+        { "Stimulus": "Incompletion", "FansDelta": 0.08, "RivalsDelta": -0.05, "FansReaction": "Cheer", "RivalsReaction": "Groan" },
+        { "Stimulus": "Touchdown", "FansDelta": 0.8, "RivalsDelta": -0.4, "FansReaction": "Eruption", "RivalsReaction": "Stunned" },
+        { "Stimulus": "FieldGoalGood", "FansDelta": 0.35, "RivalsDelta": -0.15, "FansReaction": "Cheer", "RivalsReaction": "Groan" },
+        { "Stimulus": "FieldGoalMissed", "FansDelta": 0.35, "RivalsDelta": -0.2, "FansReaction": "Roar", "RivalsReaction": "Groan" },
+        { "Stimulus": "Safety", "FansDelta": 0.5, "RivalsDelta": -0.3, "FansReaction": "Roar", "RivalsReaction": "Stunned" },
+        { "Stimulus": "Sack", "FansDelta": 0.4, "RivalsDelta": -0.15, "FansReaction": "Roar", "RivalsReaction": "Groan" },
+        { "Stimulus": "Interception", "FansDelta": 0.55, "RivalsDelta": -0.35, "FansReaction": "Roar", "RivalsReaction": "Stunned" },
+        { "Stimulus": "FumbleLost", "FansDelta": 0.5, "RivalsDelta": -0.3, "FansReaction": "Roar", "RivalsReaction": "Groan" },
+        { "Stimulus": "BigHit", "FansDelta": 0.25, "RivalsDelta": 0.05, "FansReaction": "Roar", "RivalsReaction": "Gasp" },
+        { "Stimulus": "TurnoverOnDowns", "FansDelta": 0.45, "RivalsDelta": -0.25, "FansReaction": "Roar", "RivalsReaction": "Groan" },
+        { "Stimulus": "Flag", "FansDelta": 0.05, "RivalsDelta": -0.1, "FansReaction": "Cheer", "RivalsReaction": "Boo" }
+    ]
+}

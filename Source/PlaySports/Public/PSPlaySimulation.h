@@ -328,6 +328,13 @@ private:
      *  on a kick). Offensive holding is called only then. */
     bool IsBallLive() const;
 
+    /** Throws a flag: Penalty is settled as the play is scored, and the flag goes out on the bus
+     *  (a Penalty event, Epic 23) for the referee's whistle, the crowd and the commentary. */
+    void ThrowFlag(EPSPenaltyType Penalty, const FString& PlayerName);
+
+    /** The offended side's choice on the flag being settled, on the bus (Epic 23). */
+    void AnnouncePenaltyRuling(EPSPenaltyType Penalty, bool bAccepted, int32 Yards);
+
     /** A blocked kick's loose ball is being played out on the field (Epic 17.4). */
     bool bLooseBallLive = false;
 

@@ -121,6 +121,9 @@ every CI build.
 | `play_art.json` | `FPSPlayArtStyle` (single object) | `UPSDataIngestion::LoadPlayArtStyleFromJson`, via `UPSOverlayPlayArtSubsystem` |
 | `game_intelligence.json` | `FPSGameIntelligenceTuning` (single object) | `UPSDataIngestion::LoadGameIntelligenceTuningFromJson`, via `UPSGameIntelligenceSubsystem`; its tasks are checked against `tools/orchestrator/routing.json` |
 | `league_narrative.json` | `FPSNarrativeTuning` (single object: storyline rules and `StorylineKinds`, award scoring, the vote, the digest's model task) | `UPSDataIngestion::LoadNarrativeTuningFromJson`, via `UPSLeagueNarrative` |
+| `audio_cues.json` | `FPSAudioTuning` (single object: `Cues`, `EventCues`, `LayerSettings`, `StartupLoops` and the moments' thresholds) | `UPSDataIngestion::LoadAudioTuningFromJson`, via `UPSAudioSubsystem`; its layers' settings are checked against `ui_settings.json` |
+| `crowd.json` | `FPSCrowdTuning` (single object: the excitement model, `Levels`, `CrowdReactions`) | `UPSDataIngestion::LoadCrowdTuningFromJson`, via `UPSCrowdExcitementSubsystem` |
+| `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -645,6 +648,12 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
   - `PlayArtRefreshHz` (0 or more): how often a second the pre-snap route art (Epic 27) resolves
     the call again to follow the players as they shift and go in motion; 0 rebuilds it only on
     events (a call, a hot route, a new spot).
+  - `AudioUpdateHz` (0 or more): how often a second the audio (Epic 23, `UPSAudioSubsystem`)
+    releases finished voices and follows the volume settings; 0 is every frame.
+  - `AudioMaxVoices` (1 or more): one-shot sounds that may play at once; past it a cue takes a
+    lower-priority one's voice or gives way.
+  - `CrowdUpdateHz` (0 or more): how often a second the crowd's excitement (Epic 23.2,
+    `UPSCrowdExcitementSubsystem`) settles and is re-rated; 0 is every frame.
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -1828,3 +1837,76 @@ Single object (Epic 93; `UPSLeagueNarrative`, driven by `UPSFranchiseFlow`):
 
 The news text itself is the string table's `Narrative.*` rows (`Data/ui_text.csv`).
 `UPSLeagueNarrative::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Audio cue schema (`FPSAudioTuning`)
+
+Single object (Epic 23.1; `UPSAudioSubsystem`, which turns gameplay events on the telemetry bus
+into sound):
+- `Cues[]`, each with:
+  - `CueId` (unique, not `None`), `Layer` (an `EPSAudioLayer`: `Field`, `Crowd`, `Stinger`,
+    `Commentary`, `Music`, `Ambience`);
+  - `SoundPath`: the sound asset's object path (`/Game/Audio/Field/Whistle.Whistle`), or empty
+    until an editor session imports it. An empty cue is still requested and logged; it makes no
+    sound.
+  - `Volume` (0-1), `Priority` (0-100: with every voice busy a cue takes the lowest-priority voice
+    below it), `CooldownSeconds` (0 or more: it doesn't repeat sooner), `DurationSeconds` (above 0:
+    how long it holds a voice when its sound's length isn't known);
+  - `bLoop` and `LoopGroup` (a loop's group, `None` otherwise: one loop of a group plays at a time,
+    outside the voice count), `bSpatial` (placed where the moment happened),
+    `bScaleByIntensity` (its volume scales with the moment's force).
+- `EventCues[]`: `Trigger` (an `EPSAudioTrigger` other than `Manual`: `Snap`, `Cadence`,
+  `Whistle`, `Tackle`, `Hit`, `Contact`, `Throw`, `Catch`, `Fumble`, `Kick`, `Score`,
+  `PlayResult`, `Flag`, `Timeout`, `GoalLine`, `CrowdLevel`, `CrowdReaction`, `QuarterEnd`),
+  `Detail` (`None` for any, or what narrows the trigger: `Sack`, `Big`, `Deep`, `Interception`,
+  `Turnover`, a score's kind, a crowd level or reaction) and `CueId` (in `Cues`). Every rule that
+  matches plays.
+- `LayerSettings[]`: a `Layer` (once each) and the `SettingId` of a 0-100 slider in
+  `ui_settings.json` that sets its volume. A layer without one plays at full volume.
+- `StartupLoops[]`: loops (in `Cues`) started when the match's world begins play: the stadium's
+  ambience.
+- `BigHitDamage`, `FullIntensityDamage` (above 0): a hit of `BigHitDamage` or more (Epic 139's
+  damage) is `Big`; a hit's force is its damage over `FullIntensityDamage`.
+- `DeepPassCm` (above 0): a pass thrown this far or farther is `Deep`.
+- `MaxRequestsKept` (1 or more): requests kept in the log.
+
+The voices and the update rate are the platform tier's (`AudioMaxVoices`, `AudioUpdateHz`).
+`UPSAudioSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Crowd schema (`FPSCrowdTuning`)
+
+Single object (Epic 23.2; `UPSCrowdExcitementSubsystem`, the one authority on the crowd's
+excitement):
+- `RestingExcitement` (0-1): where the excitement settles between moments; from
+  `LateGameQuarter` (1 or more) on, while the margin is `CloseGameMargin` (0 or more) points or
+  fewer, it rests `LateCloseBonus` (0-1) higher. `HalfLifeSeconds` (above 0): how fast it settles.
+- `DefaultHomeShare` (0-1): the home team's fans' share of the stadium, unless the match sets one.
+- `Levels[]`: every `EPSCrowdLevel` (`Hush`, `Murmur`, `Buzz`, `Roar`, `Eruption`) once, with its
+  `MinExcitement`: `Hush` at 0, each above the quieter one's, at most 1. `LevelHysteresis` (0-1):
+  how far under its threshold the excitement must fall to leave a level.
+- `CrowdReactions[]`: every `EPSCrowdStimulus` (`DeepPass`, `BigGain`, `FirstDown`,
+  `Incompletion`, `Touchdown`, `FieldGoalGood`, `FieldGoalMissed`, `Safety`, `Sack`,
+  `Interception`, `FumbleLost`, `BigHit`, `TurnoverOnDowns`, `Flag`) once, with `FansDelta` and
+  `RivalsDelta` (-1..1): the excitement the benefiting team's fans and the other team's add, each by
+  its share; and `FansReaction`, `RivalsReaction` (an `EPSCrowdReaction`: `None`, `Cheer`, `Roar`,
+  `Eruption`, `Gasp`, `Groan`, `Boo`, `Stunned`): what the crowd does when those fans are the
+  majority.
+- `BigGainYards` (1 or more), `BigHitDamage`, `DeepPassCm` (above 0): what makes a big gain, a big
+  hit and a deep ball.
+
+The update rate is the platform tier's (`CrowdUpdateHz`).
+`UPSCrowdExcitementSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Commentary hooks schema (`FPSCommentaryHookTuning`)
+
+Single object (Epic 23.5; `UPSCommentaryEventModel`, which publishes the game's moments as
+structured Commentary events):
+- `BigHitDamage`, `DeepPassCm`, `TwoMinuteWarningSeconds` (above 0): a big hit, a deep pass, and
+  the two-minute warning's clock.
+- `MaxMomentsKept` (1 or more): moments (and model lines) kept.
+- `bOfferToModels`, `ModelMoments[]` (each an `EPSCommentaryMoment` once): while Epic 82's bridge
+  is online, these moments are offered to outside models as Commentary requests.
+- `ModelTask` (a task in `tools/orchestrator/routing.json`), `ModelInstructions` (not empty),
+  `ModelContextChars` (512 or more): what a model is asked, and the most characters of a moment's
+  facts it gets.
+
+`UPSCommentaryEventModel::ValidateTuning` and `tools/validate_data.py` check it.

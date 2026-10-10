@@ -85,8 +85,7 @@ void UPSPlaySimulation::TriggerSnap()
 
         if (FMath::FRand() < 0.05f)
         {
-            ActivePenalty = EPSPenaltyType::Offsides;
-            bPenaltyDeclined = false;
+            ThrowFlag(EPSPenaltyType::Offsides, FString());
             UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offsides penalty called at the snap!"));
         }
 
@@ -199,8 +198,7 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         // Holding is called while the ball is live, never after the whistle or on a kick.
         if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
         {
-            ActivePenalty = EPSPenaltyType::Holding;
-            bPenaltyDeclined = false;
+            ThrowFlag(EPSPenaltyType::Holding, FString());
             UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offensive Holding penalty called during play!"));
         }
     }
@@ -376,10 +374,12 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     // 2. Penalty Accept/Decline Resolution
     if (ActivePenalty != EPSPenaltyType::None)
     {
+        bool bPenaltyAccepted = false;
         if (ActivePenalty == EPSPenaltyType::Offsides)
         {
             if (CurrentPlayResult.YardsGained < 5)
             {
+                bPenaltyAccepted = true;
                 CurrentPlayResult.YardsGained = 5;
                 CurrentPlayResult.ResultType = EPlayResultType::Tackle;
                 CurrentState.Down = FMath::Max(1, CurrentState.Down - 1);
@@ -394,6 +394,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         {
             if (CurrentPlayResult.YardsGained > 0 || CurrentPlayResult.ResultType == EPlayResultType::Touchdown)
             {
+                bPenaltyAccepted = true;
                 CurrentPlayResult.YardsGained = -10;
                 CurrentPlayResult.ResultType = EPlayResultType::Tackle;
                 CurrentState.Down = FMath::Max(1, CurrentState.Down - 1);
@@ -411,6 +412,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
             const int32 SpotYards = FMath::Min(PassInterferenceYards, 99 - CurrentState.YardLine);
             if (CurrentPlayResult.ResultType != EPlayResultType::Touchdown && CurrentPlayResult.YardsGained < SpotYards)
             {
+                bPenaltyAccepted = true;
                 CurrentPlayResult.YardsGained = SpotYards;
                 CurrentPlayResult.ResultType = EPlayResultType::Tackle;
                 CurrentPlayResult.bOutOfBounds = false;
@@ -423,6 +425,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
             }
         }
 
+        AnnouncePenaltyRuling(ActivePenalty, bPenaltyAccepted, CurrentPlayResult.YardsGained);
         ActivePenalty = EPSPenaltyType::None;
     }
 
@@ -1115,8 +1118,7 @@ void UPSPlaySimulation::OnBusJumpSnapEvent(const FPSTelemetryJumpSnapEvent& Even
 {
     if (Event.bOffside && ActivePenalty == EPSPenaltyType::None)
     {
-        ActivePenalty = EPSPenaltyType::Offsides;
-        bPenaltyDeclined = false;
+        ThrowFlag(EPSPenaltyType::Offsides, Event.DefenderName);
         UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! %s jumped offside."), *Event.DefenderName);
     }
 }
@@ -1125,10 +1127,40 @@ void UPSPlaySimulation::OnBusCoverageEvent(const FPSTelemetryCoverageEvent& Even
 {
     if (Event.Kind == EPSCoverageEventKind::PassInterference && ActivePenalty == EPSPenaltyType::None && !IsBallDead())
     {
-        ActivePenalty = EPSPenaltyType::PassInterference;
-        bPenaltyDeclined = false;
         PassInterferenceYards = FMath::Max(1, Event.YardsPastLine);
+        ThrowFlag(EPSPenaltyType::PassInterference, Event.DefenderName);
         UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Pass interference on %s, %d yards past the line."), *Event.DefenderName, PassInterferenceYards);
+    }
+}
+
+void UPSPlaySimulation::ThrowFlag(EPSPenaltyType Penalty, const FString& PlayerName)
+{
+    ActivePenalty = Penalty;
+    bPenaltyDeclined = false;
+    // Offsides and pass interference are the defense's fouls, holding the offense's (Epic 23).
+    FPSTelemetryPenaltyEvent Flag;
+    Flag.Kind = EPSPenaltyEventKind::Flag;
+    Flag.Penalty = StaticEnum<EPSPenaltyType>()->GetNameStringByValue(static_cast<int64>(Penalty));
+    Flag.bOnDefense = Penalty != EPSPenaltyType::Holding;
+    Flag.bHomeTeam = Flag.bOnDefense != CurrentState.bHomeHasPossession;
+    Flag.PlayerName = PlayerName;
+    if (UPSTelemetryBus* Bus = CachedWorld && !bQuickSimMode ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    {
+        Bus->PublishPenalty(Flag);
+    }
+}
+
+void UPSPlaySimulation::AnnouncePenaltyRuling(EPSPenaltyType Penalty, bool bAccepted, int32 Yards)
+{
+    FPSTelemetryPenaltyEvent Ruling;
+    Ruling.Kind = bAccepted ? EPSPenaltyEventKind::Accepted : EPSPenaltyEventKind::Declined;
+    Ruling.Penalty = StaticEnum<EPSPenaltyType>()->GetNameStringByValue(static_cast<int64>(Penalty));
+    Ruling.bOnDefense = Penalty != EPSPenaltyType::Holding;
+    Ruling.bHomeTeam = Ruling.bOnDefense != CurrentState.bHomeHasPossession;
+    Ruling.Yards = bAccepted ? Yards : 0;
+    if (UPSTelemetryBus* Bus = CachedWorld && !bQuickSimMode ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    {
+        Bus->PublishPenalty(Ruling);
     }
 }
 

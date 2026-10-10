@@ -20,9 +20,10 @@ enum class EPSPerfSystem : uint8
     UI,
     /** Skeletal animation (Track A); nothing to measure until it is built. */
     Animation,
-    /** The stadium crowd (Track R); nothing to measure until it is built. */
+    /** The stadium crowd: its excitement (UPSCrowdExcitementSubsystem, Epic 23.2), and the rendered
+     *  crowd (Track R) once it is built. */
     Crowd,
-    /** Audio (Track E); nothing to measure until it is built. */
+    /** Audio: the cue mapping (UPSAudioSubsystem, Epic 23) and the commentary (Epics 23.5, 96). */
     Audio
 };
 

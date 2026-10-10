@@ -72,6 +72,9 @@
 #include "PSPlayArtTypes.h"
 #include "PSGameIntelligenceTypes.h"
 #include "PSNarrativeTypes.h"
+#include "PSAudioTypes.h"
+#include "PSCrowdTypes.h"
+#include "PSCommentaryTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -441,6 +444,22 @@ public:
      *  checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadNarrativeTuningFromJson(const FString& JsonFilePath, FPSNarrativeTuning& OutTuning);
+
+    /** Loads the audio's cue catalog and its mapping from gameplay moments (Data/audio_cues.json,
+     *  Epic 23.1). False on a missing file or malformed JSON; UPSAudioSubsystem::ValidateTuning
+     *  checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadAudioTuningFromJson(const FString& JsonFilePath, FPSAudioTuning& OutTuning);
+
+    /** Loads the crowd's excitement model (Data/crowd.json, Epic 23.2). False on a missing file or
+     *  malformed JSON; UPSCrowdExcitementSubsystem::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCrowdTuningFromJson(const FString& JsonFilePath, FPSCrowdTuning& OutTuning);
+
+    /** Loads the commentary hooks (Data/commentary_hooks.json, Epic 23.5). False on a missing file
+     *  or malformed JSON; UPSCommentaryEventModel::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCommentaryHookTuningFromJson(const FString& JsonFilePath, FPSCommentaryHookTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

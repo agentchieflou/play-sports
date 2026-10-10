@@ -16,7 +16,9 @@ enum class EPSIntelRequestKind : uint8
     /** A finished game explained from its key plays. */
     GameAnalysis,
     /** A franchise week's league news written up from its storylines (Epic 93). */
-    NewsDigest
+    NewsDigest,
+    /** A moment of the game described for the booth (Epic 23.5's commentary hooks). */
+    Commentary
 };
 
 /** Where a request stands. */

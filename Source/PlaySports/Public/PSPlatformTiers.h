@@ -76,6 +76,22 @@ struct FPSPlatformTier
      *  (a call, a hot route, a new spot). Each refresh resolves every player's route. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     float PlayArtRefreshHz = 30.f;
+
+    /** How often a second the audio (UPSAudioSubsystem, Epic 23) releases finished voices and
+     *  follows the volume settings, and the commentary booth (Epic 96) moves its lines along;
+     *  0 is every frame. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float AudioUpdateHz = 0.f;
+
+    /** One-shot sounds that may play at once; past it a cue takes a lower-priority one's voice
+     *  or gives way. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    int32 AudioMaxVoices = 32;
+
+    /** How often a second the crowd's excitement (UPSCrowdExcitementSubsystem, Epic 23.2) settles
+     *  toward its resting level and its level is re-rated; 0 is every frame. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float CrowdUpdateHz = 30.f;
 };
 
 /** Which tier a platform runs by default (platform names as UGameplayStatics::GetPlatformName
