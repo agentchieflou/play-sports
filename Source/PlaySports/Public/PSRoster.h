@@ -53,6 +53,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Roster")
     const TArray<FPlayerAttributes>& GetFullRoster() const { return FullRoster; }
 
+    /** Signs Player onto the roster, last on his role's depth chart (Epic 87: free agency).
+     *  False, with nothing changed, when his PlayerId is empty or already rostered. Like
+     *  InitializeRoster, this may move the rows on-field pawns point at: sign between games. */
+    UFUNCTION(BlueprintCallable, Category = "Roster")
+    bool AddPlayer(const FPlayerAttributes& Player);
+
+    /** Takes PlayerId off the roster, his depth chart places and his live state (Epic 87: a cut
+     *  or an expired contract); OutRemoved is his row. False when he isn't rostered. Between
+     *  games only, as AddPlayer. */
+    UFUNCTION(BlueprintCallable, Category = "Roster")
+    bool RemovePlayer(FName PlayerId, FPlayerAttributes& OutRemoved);
+
     /** Non-Blueprint mutable accessor for in-place attribute growth (e.g. level-up
      *  stat gains in UPSPlayerLeveling). */
     TArray<FPlayerAttributes>& GetMutableFullRoster() { return FullRoster; }

@@ -75,6 +75,37 @@ const FPlayerAttributes* UPSRoster::FindPlayerPtr(FName PlayerId) const
     return FullRoster.FindByPredicate([PlayerId](const FPlayerAttributes& Player) { return Player.PlayerId == PlayerId; });
 }
 
+bool UPSRoster::AddPlayer(const FPlayerAttributes& Player)
+{
+    if (Player.PlayerId.IsNone() || FindPlayerPtr(Player.PlayerId))
+    {
+        return false;
+    }
+    FullRoster.Add(Player);
+    if (FPSDepthChartEntry* Entry = FindOrAddEntry(Player.Role))
+    {
+        Entry->PlayerIdsByPriority.Add(Player.PlayerId);
+    }
+    return true;
+}
+
+bool UPSRoster::RemovePlayer(FName PlayerId, FPlayerAttributes& OutRemoved)
+{
+    const int32 Index = FullRoster.IndexOfByPredicate([PlayerId](const FPlayerAttributes& Player) { return Player.PlayerId == PlayerId; });
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+    OutRemoved = FullRoster[Index];
+    FullRoster.RemoveAt(Index);
+    for (FPSDepthChartEntry& Entry : DepthChart)
+    {
+        Entry.PlayerIdsByPriority.Remove(PlayerId);
+    }
+    LiveStateByPlayerId.Remove(PlayerId);
+    return true;
+}
+
 TMap<FName, FName> UPSRoster::EvaluateFatigueSubstitutions(const TMap<FName, float>& OnFieldStaminaRatioByPlayerId, float FatigueThreshold) const
 {
     TMap<FName, FName> Substitutions;

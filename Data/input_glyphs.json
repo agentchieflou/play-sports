@@ -92,11 +92,25 @@
                 { "ActionId": "Tempo", "GlyphId": "Touch_Tempo", "Label": "Tempo" },
                 { "ActionId": "Timeout", "GlyphId": "Touch_Timeout", "Label": "Timeout" },
                 { "ActionId": "FilmView", "GlyphId": "Touch_FilmView", "Label": "Film" },
+                { "ActionId": "ReplayPlayPause", "GlyphId": "Touch_ReplayPlayPause", "Label": "Play" },
+                { "ActionId": "ReplaySlowMotion", "GlyphId": "Touch_ReplaySlowMotion", "Label": "Slow-Mo" },
+                { "ActionId": "ReplayStepBack", "GlyphId": "Touch_ReplayStepBack", "Label": "Back" },
+                { "ActionId": "ReplayStepForward", "GlyphId": "Touch_ReplayStepForward", "Label": "Forward" },
+                { "ActionId": "ReplayScrubBack", "GlyphId": "Touch_ReplayScrubBack", "Label": "Rewind" },
+                { "ActionId": "ReplayScrubForward", "GlyphId": "Touch_ReplayScrubForward", "Label": "Fast Fwd" },
+                { "ActionId": "ReplayCamera", "GlyphId": "Touch_ReplayCamera", "Label": "Camera" },
+                { "ActionId": "ReplayExit", "GlyphId": "Touch_ReplayExit", "Label": "Exit" },
                 { "ActionId": "PickPlayerLeft", "GlyphId": "Touch_PickPlayerLeft", "Label": "Pick Left" },
                 { "ActionId": "PickPlayerRight", "GlyphId": "Touch_PickPlayerRight", "Label": "Pick Right" },
                 { "ActionId": "Strip", "GlyphId": "Touch_Strip", "Label": "Strip" },
                 { "ActionId": "JumpSnap", "GlyphId": "Touch_JumpSnap", "Label": "Jump" },
-                { "ActionId": "Kick", "GlyphId": "Touch_Kick", "Label": "Kick" }
+                { "ActionId": "Kick", "GlyphId": "Touch_Kick", "Label": "Kick" },
+                { "ActionId": "DefenseAudible", "GlyphId": "Touch_DefenseAudible", "Label": "Audible" },
+                { "ActionId": "ShadowSelect", "GlyphId": "Touch_ShadowSelect", "Label": "Select" },
+                { "ActionId": "Shadow", "GlyphId": "Touch_Shadow", "Label": "Shadow" },
+                { "ActionId": "ShowBlitz", "GlyphId": "Touch_ShowBlitz", "Label": "Show Blitz" },
+                { "ActionId": "DisguiseShell", "GlyphId": "Touch_DisguiseShell", "Label": "Disguise" },
+                { "ActionId": "Creep", "GlyphId": "Touch_Creep", "Label": "Creep" }
             ]
         }
     ]

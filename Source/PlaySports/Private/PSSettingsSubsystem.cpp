@@ -297,6 +297,28 @@ void UPSSettingsSubsystem::SetInputRemaps(const TArray<FPSInputRemap>& InRemaps)
     OnInputRemapsChangedMC.Broadcast();
 }
 
+void UPSSettingsSubsystem::MarkHintSeen(FName HintId)
+{
+    if (HintId.IsNone() || SeenHints.Contains(HintId))
+    {
+        return;
+    }
+    SeenHints.Add(HintId);
+    if (Saves)
+    {
+        SaveToProfile(Saves, Slot);
+    }
+}
+
+void UPSSettingsSubsystem::ResetHints()
+{
+    SeenHints.Reset();
+    if (Saves)
+    {
+        SaveToProfile(Saves, Slot);
+    }
+}
+
 bool UPSSettingsSubsystem::LoadFromProfile(UPSSaveSubsystem* InSaves, const FString& InSlot)
 {
     // Changes from now on are saved here.
@@ -309,6 +331,7 @@ bool UPSSettingsSubsystem::LoadFromProfile(UPSSaveSubsystem* InSaves, const FStr
     }
     Values.Reset();
     InputRemaps = Profile->InputRemaps;
+    SeenHints = Profile->SeenHints;
     for (const TPair<FName, float>& Stored : Profile->Settings)
     {
         // A setting the catalog dropped is forgotten; the rest are snapped into today's range.
@@ -334,6 +357,7 @@ bool UPSSettingsSubsystem::SaveToProfile(UPSSaveSubsystem* InSaves, const FStrin
     }
     Profile->Settings = Values;
     Profile->InputRemaps = InputRemaps;
+    Profile->SeenHints = SeenHints;
     if (!InSaves->SaveToSlot(Profile, InSlot))
     {
         UE_LOG(LogTemp, Warning, TEXT("UPSSettingsSubsystem: Could not save the settings to %s."), *InSlot);

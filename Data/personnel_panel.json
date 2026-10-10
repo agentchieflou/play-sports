@@ -1,0 +1,27 @@
+{
+    "OffenseRoles": [
+        { "Role": "RunningBack", "Label": "RB" },
+        { "Role": "TightEnd", "Label": "TE" },
+        { "Role": "WideReceiver", "Label": "WR" }
+    ],
+    "DefenseRoles": [
+        { "Role": "DefensiveLineman", "Label": "DL" },
+        { "Role": "Linebacker", "Label": "LB" },
+        { "Role": "DefensiveBack", "Label": "DB" }
+    ],
+    "OffenseNameFormat": "{RB}{TE} Personnel",
+    "DefenseNames": [
+        { "DefensiveBacks": 4, "Name": "Base" },
+        { "DefensiveBacks": 5, "Name": "Nickel" },
+        { "DefensiveBacks": 6, "Name": "Dime" },
+        { "DefensiveBacks": 7, "Name": "Quarter" }
+    ],
+    "DefenseNameFallback": "{DL}-{LB}-{DB}",
+    "PanelColor": "#1B1B1B",
+    "TextColor": "#FFFFFF",
+    "FlashColor": "#F2C94C",
+    "FontSize": 16,
+    "TitleFontSize": 20,
+    "ChangeFlashSeconds": 1.2,
+    "bShowInPlay": false
+}

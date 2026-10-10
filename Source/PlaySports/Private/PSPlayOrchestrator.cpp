@@ -1,5 +1,6 @@
 #include "PSPlayOrchestrator.h"
 #include "PSAIFieldSnapshot.h"
+#include "PSDefenderPreSnapSubsystem.h"
 #include "PSPlayerPawn.h"
 #include "PSOffenseController.h"
 #include "PSDefenseController.h"
@@ -182,8 +183,15 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
             {
                 Zone.Y = -Zone.Y;
             }
-            const EPSDefensiveAssignmentType AssignmentType = ToDefensiveAssignmentType(MatchedAssignment->Kind);
-            DefenseController->SetAssignment(AssignmentType, nullptr, LineOfScrimmage + Zone);
+            EPSDefensiveAssignmentType AssignmentType = ToDefensiveAssignmentType(MatchedAssignment->Kind);
+            AActor* CoverageTarget = nullptr;
+            // A shadow matchup set before the snap overrides the call for its defender (Epic 67).
+            UWorld* World = Pawn->GetWorld();
+            if (const UPSDefenderPreSnapSubsystem* DefensePreSnap = World ? World->GetSubsystem<UPSDefenderPreSnapSubsystem>() : nullptr)
+            {
+                DefensePreSnap->ApplyMatchup(Pawn, AssignmentType, CoverageTarget);
+            }
+            DefenseController->SetAssignment(AssignmentType, CoverageTarget, LineOfScrimmage + Zone);
         }
     }
 }

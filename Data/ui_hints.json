@@ -1,0 +1,29 @@
+{
+    "Hints": [
+        {
+            "HintId": "FirstKickoff",
+            "Trigger": "Kickoff",
+            "Text": "Kicking off: hold Kick to fill the power, release it to lock the power, then press Kick again to stop the needle in the middle."
+        },
+        {
+            "HintId": "FirstFourthDown",
+            "Trigger": "FourthDown",
+            "Text": "Fourth down. Punt it away, kick a field goal if you're in range, or go for it: come up short and the other side takes over right there."
+        },
+        {
+            "HintId": "FirstTwoMinuteDrill",
+            "Trigger": "TwoMinuteDrill",
+            "Text": "The two-minute drill. Get out of bounds or spike the ball to stop the clock, and keep your timeouts for when you need them."
+        },
+        {
+            "HintId": "FirstOffenseCall",
+            "Trigger": "OffenseCall",
+            "Text": "Pick a formation, then a play. The first option is your coach's suggestion for this down."
+        },
+        {
+            "HintId": "FirstDefenseCall",
+            "Trigger": "DefenseCall",
+            "Text": "On defense, pick a front and a coverage. Once the offense lines up you can still change the call with an adjustment."
+        }
+    ]
+}

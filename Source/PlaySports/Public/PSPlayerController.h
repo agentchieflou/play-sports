@@ -18,6 +18,7 @@ class UPSPlayContextComponent;
 class UPSPassingComponent;
 class UPSCarrierInputComponent;
 class UPSPreSnapInputComponent;
+class UPSDefenderPreSnapInputComponent;
 class UPSInputBufferComponent;
 class UPSTouchInputComponent;
 class UInputModifier;
@@ -120,6 +121,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSPreSnapInputComponent* GetPreSnapInputComponent() const { return PreSnapInputComponent; }
 
+    /** The human defense's pre-snap buttons: audible, shadow, show blitz, disguise, creep
+     *  (Epic 67). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSDefenderPreSnapInputComponent* GetDefenderPreSnapInputComponent() const { return DefenderPreSnapInputComponent; }
+
     /** Buffers catalog presses whose target is busy (Epic 104.4). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSInputBufferComponent* GetInputBufferComponent() const { return InputBufferComponent; }
@@ -170,6 +176,12 @@ public:
     /** The gameplay-depth context on the stack, or NAME_None. */
     UFUNCTION(BlueprintPure, Category = "Input")
     FName GetDepthContext() const { return DepthContextId; }
+
+    /** Puts a mode context on the stack (bActive) or takes it off: one that sits over play
+     *  rather than in it, such as Replay while a replay plays (Epic 41). The gameplay and
+     *  depth contexts are left as they are. */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    void SetModeContextActive(FName ContextId, bool bActive);
 
     /** True while ContextId is on this controller's context stack. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -305,6 +317,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSPreSnapInputComponent* PreSnapInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSDefenderPreSnapInputComponent* DefenderPreSnapInputComponent;
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSInputBufferComponent* InputBufferComponent;

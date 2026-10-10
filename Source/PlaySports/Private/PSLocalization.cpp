@@ -160,6 +160,16 @@ FString UPSLocalization::TipKey(FName TipId)
     return FString::Printf(TEXT("Tip.%s"), *TipId.ToString());
 }
 
+FString UPSLocalization::AdjustmentKey(FName AdjustmentId, const FString& Field)
+{
+    return FString::Printf(TEXT("Adjustment.%s.%s"), *AdjustmentId.ToString(), *Field);
+}
+
+FString UPSLocalization::HintKey(FName HintId)
+{
+    return FString::Printf(TEXT("Hint.%s"), *HintId.ToString());
+}
+
 void UPSLocalization::SetPseudoLocalization(bool bOn)
 {
     PSLocalizationPrivate::CVarPseudo->Set(bOn ? 1 : 0, ECVF_SetByCode);
@@ -246,7 +256,9 @@ FText UPSLocalization::FormatNumberIn(float Value, int32 MaxFractionalDigits, co
 
 FText UPSLocalization::FormatPercent(float Fraction)
 {
-    return FText::AsPercent(Fraction);
+    FNumberFormattingOptions Whole;
+    Whole.SetMaximumFractionalDigits(0);
+    return FText::AsPercent(Fraction, &Whole);
 }
 
 FText UPSLocalization::FormatDate(const FDateTime& Date)

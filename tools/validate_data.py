@@ -47,9 +47,14 @@ base call), coaches' schemes and roles, each staff's team in sample_teams.json a
 coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "DimStencil" files against
 FPSEmphasisStyle (Epic 36); "Axes" + "Bindings" files against FPSPlayerDNACatalog, each axis an
 FPSPlayerDNA field, each binding a numeric field of its target's tuning file and each rush move in
-pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79).
-Teams, the league config, the playbook, player rating ranges and every reference between files are
-tools/content_contracts.py's (Epic 125), run from here.
+pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
+"PositionMarkets" files against FPSContractTuning (Epic 87): one market per EPlayerRole, ordered
+rating and guarantee bounds, offer ratios walk-away <= accept <= instant; "ShellSafeties" files
+against FPSDefensivePreSnapTuning (Epic 67), each action a Boolean in the DefensePreSnap context;
+"Hints" files against FPSHintCatalog (Epic 105.4); "PlaybackRates" files against FPSReplayTuning
+(Epic 41), each camera a named one or a rig in camera_all22.json; "DefenseNameFallback" files
+against FPSPersonnelPanelStyle (Epic 29). Teams, the league config, the playbook, player rating
+ranges and every reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -640,10 +645,13 @@ def validate_platform_tiers(path, payload):
             value = tier.get(field)
             if not is_number(value) or value <= 0:
                 err(path, f"{where}.{field}: '{value}' must be a number above 0")
+        pose_rate = tier.get("ReplayPoseRateHz")
+        if not is_number(pose_rate) or pose_rate < 0:
+            err(path, f"{where}.ReplayPoseRateHz: '{pose_rate}' must be a number, 0 (every frame) or more")
         if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
             err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
-                             *TIER_TELEMETRY_NUMBERS}
+                             "ReplayPoseRateHz", *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -909,6 +917,97 @@ def validate_telemetry_sampling(path, payload):
              - {"SampleRateHz", "SampleBudgetMs"})
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelemetrySamplingTuning exactly")
+
+
+REPLAY_FIELDS = ("PreRollSeconds", "PostRollSeconds", "PlaybackRates", "ScrubSecondsPerSecond", "SaveFrameRateHz",
+                 "Cameras", "FreeCamDistanceCm", "FreeCamMinDistanceCm", "FreeCamMaxDistanceCm", "FreeCamPitchDegrees",
+                 "FreeCamOrbitDegreesPerSecond", "FreeCamZoomCmPerSecond", "bAutoReplay", "AutoReplayDelaySeconds",
+                 "AutoReplayHoldSeconds", "AutoReplays", "ReducedMotionCamera")
+# The replay cameras that aren't all-22 rigs (UPSReplaySubsystem::DirectorCamera, ...).
+REPLAY_NAMED_CAMERAS = {"Director", "Skycam", "Free"}
+REPLAY_TRIGGERS = {"Score", "Turnover"}
+
+
+def validate_replay_tuning(path, payload, rig_ids):
+    """FPSReplayTuning (Data/replay.json, Epic 41); mirrors UPSReplaySubsystem::ValidateTuning,
+    with each camera that isn't Director, Skycam or Free a rig of camera_all22.json."""
+    for field in ("PreRollSeconds", "PostRollSeconds", "AutoReplayDelaySeconds", "AutoReplayHoldSeconds"):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("SaveFrameRateHz", "ScrubSecondsPerSecond", "FreeCamOrbitDegreesPerSecond", "FreeCamZoomCmPerSecond"):
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    rates = payload.get("PlaybackRates")
+    if not isinstance(rates, list) or not rates:
+        err(path, "'PlaybackRates' must be a non-empty array of speeds")
+    else:
+        for idx, rate in enumerate(rates):
+            if not is_number(rate) or not 0 < rate <= 1:
+                err(path, f"PlaybackRates[{idx}]: '{rate}' must be above 0 and at most 1")
+            elif rates.index(rate) != idx:
+                err(path, f"PlaybackRates[{idx}]: {rate} is listed twice")
+        if rates[0] != 1:
+            err(path, f"PlaybackRates[0]: '{rates[0]}' must be 1, the speed a replay starts at")
+
+    def is_rig(name):
+        return name not in REPLAY_NAMED_CAMERAS and (rig_ids is None or name in rig_ids)
+
+    cameras = payload.get("Cameras")
+    if not isinstance(cameras, list) or not cameras:
+        err(path, "'Cameras' must be a non-empty array of camera names")
+        cameras = []
+    for idx, name in enumerate(cameras):
+        if not isinstance(name, str) or not name:
+            err(path, f"Cameras[{idx}]: must be a camera name")
+        elif cameras.index(name) != idx:
+            err(path, f"Cameras[{idx}]: '{name}' is listed twice")
+        elif name not in REPLAY_NAMED_CAMERAS and not is_rig(name):
+            err(path, f"Cameras[{idx}]: '{name}' is neither {sorted(REPLAY_NAMED_CAMERAS)} nor a RigId in camera_all22.json")
+    reduced = payload.get("ReducedMotionCamera")
+    if reduced not in cameras or not is_rig(reduced):
+        err(path, f"ReducedMotionCamera: '{reduced}' must be a still all-22 rig listed in Cameras")
+
+    low, mid, high = (payload.get(f) for f in ("FreeCamMinDistanceCm", "FreeCamDistanceCm", "FreeCamMaxDistanceCm"))
+    if not all(is_number(v) for v in (low, mid, high)) or not 0 < low <= mid <= high:
+        err(path, "free camera distances must be 0 < FreeCamMinDistanceCm <= FreeCamDistanceCm <= FreeCamMaxDistanceCm")
+    pitch = payload.get("FreeCamPitchDegrees")
+    if not is_number(pitch) or not 0 < pitch < 90:
+        err(path, f"FreeCamPitchDegrees: '{pitch}' must be above 0 and below 90")
+    if not isinstance(payload.get("bAutoReplay"), bool):
+        err(path, "bAutoReplay must be true or false")
+
+    rules = payload.get("AutoReplays")
+    if not isinstance(rules, list):
+        err(path, "'AutoReplays' must be an array of rules")
+        rules = []
+    seen = set()
+    for idx, rule in enumerate(rules):
+        where = f"AutoReplays[{idx}]"
+        if not isinstance(rule, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        trigger = rule.get("Trigger")
+        if trigger not in REPLAY_TRIGGERS:
+            err(path, f"{where}.Trigger: '{trigger}' is not an EPSReplayTrigger ({sorted(REPLAY_TRIGGERS)})")
+        elif trigger in seen:
+            err(path, f"{where}.Trigger: '{trigger}' already has a rule")
+        seen.add(trigger)
+        if rule.get("Shot") not in DIRECTOR_SHOTS:
+            err(path, f"{where}.Shot: '{rule.get('Shot')}' is not an EPSDirectorShot ({list(DIRECTOR_SHOTS)})")
+        rate = rule.get("PlaybackRate")
+        if not is_number(rate) or not 0 < rate <= 1:
+            err(path, f"{where}.PlaybackRate: '{rate}' must be above 0 and at most 1")
+        extra = set(rule) - {"Trigger", "Shot", "PlaybackRate"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+    if "ReplayPoseRateHz" in payload:
+        err(path, "ReplayPoseRateHz: set per tier, in platform_tiers.json")
+    extra = set(payload) - set(REPLAY_FIELDS) - {"ReplayPoseRateHz"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSReplayTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -2001,6 +2100,37 @@ def validate_skycam(path, payload):
         err(path, f"MinHeightCm ({payload['MinHeightCm']}) must be below the cables' ceiling over midfield ({ceiling:.0f})")
 
 
+HINT_TRIGGERS = {"OffenseCall", "DefenseCall", "FourthDown", "TwoMinuteDrill", "Kickoff"}
+
+
+def validate_ui_hints(path, payload):
+    """FPSHintCatalog (Data/ui_hints.json, Epic 105.4); mirrors UPSUIHintSubsystem::ValidateCatalog."""
+    hints = payload.get("Hints")
+    if not isinstance(hints, list):
+        err(path, "'Hints' must be an array")
+        return
+    seen = set()
+    for idx, hint in enumerate(hints):
+        where = f"Hints[{idx}]"
+        if not isinstance(hint, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        hint_id = hint.get("HintId")
+        if not isinstance(hint_id, str) or not hint_id or hint_id in seen:
+            err(path, f"{where}.HintId: empty or used twice")
+        seen.add(hint_id)
+        if hint.get("Trigger") not in HINT_TRIGGERS:
+            err(path, f"{where}.Trigger: '{hint.get('Trigger')}' is not an EPSHintTrigger ({sorted(HINT_TRIGGERS)})")
+        if not isinstance(hint.get("Text"), str) or not hint["Text"].strip():
+            err(path, f"{where}.Text: the hint needs text")
+        extra = set(hint) - {"HintId", "Trigger", "Text"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSHintDef exactly")
+    extra = set(payload) - {"Hints"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSHintCatalog exactly")
+
+
 def validate_ui_text():
     """Data/ui_text.csv, Data/ui_text_data.csv and the UI code's text (Epic 106); the checks
     live in tools/ui_text.py, which also regenerates ui_text_data.csv."""
@@ -2739,6 +2869,233 @@ def validate_player_dna_catalog(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(set(lean) - {'Move', 'Lean'})}")
 
 
+CONTRACT_INT_FIELDS = {
+    "FirstLeagueYear", "SalaryCap", "MinimumSalary", "MaxContractYears", "MaxProrationYears",
+    "PrimeAge", "DeclineAge", "FreeAgencyDays", "DecisionDays", "AIOffersPerDay", "DefaultPlayerAge",
+}
+CONTRACT_FLOAT_FIELDS = {
+    "CapGrowthRate", "MaxCarryoverFraction", "ReplacementRating", "EliteRating", "DemandCurveExponent",
+    "YearsLostPerYearPastPrime", "AgeDiscountPerYear", "MinAgeMultiplier", "MinGuaranteeFraction",
+    "MaxGuaranteeFraction", "MarketSpaceWeight", "NeutralCapSpaceFraction", "MaxMarketAdjustment",
+    "MoraleLoyaltyWeight", "GuaranteeValueWeight", "YearsMismatchPenalty", "AcceptRatio", "WalkAwayRatio",
+    "InstantAcceptRatio", "DemandDecayPerDay", "DemandFloorFraction", "AIBidRatio", "AINeedPremium",
+    "AICapCushionFraction",
+}
+CONTRACT_FRACTIONS = {
+    "MaxCarryoverFraction", "MinAgeMultiplier", "MinGuaranteeFraction", "MaxGuaranteeFraction",
+    "NeutralCapSpaceFraction", "MaxMarketAdjustment", "MoraleLoyaltyWeight", "AICapCushionFraction",
+    "DemandFloorFraction",
+}
+
+
+def validate_contract_tuning(path, payload):
+    """FPSContractTuning (Data/contracts.json, Epic 87); mirrors UPSContractManager::ValidateTuning."""
+    for field in sorted(CONTRACT_INT_FIELDS):
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    for field in sorted(CONTRACT_FLOAT_FIELDS):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+        elif field in CONTRACT_FRACTIONS and value > 1:
+            err(path, f"{field}: a fraction, at most 1")
+    extra = set(payload) - CONTRACT_INT_FIELDS - CONTRACT_FLOAT_FIELDS - {"PositionMarkets"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSContractTuning exactly")
+
+    def num(field):
+        value = payload.get(field)
+        return value if is_number(value) else None
+
+    def ordered(low, high, strict=False):
+        a, b = num(low), num(high)
+        if a is not None and b is not None and (a >= b if strict else a > b):
+            err(path, f"{low} must be {'below' if strict else 'at most'} {high}")
+
+    for field in ("SalaryCap", "MinimumSalary", "MaxContractYears", "MaxProrationYears", "FreeAgencyDays",
+                  "DecisionDays", "DemandCurveExponent", "WalkAwayRatio", "DemandFloorFraction"):
+        if num(field) == 0:
+            err(path, f"{field}: must be above 0")
+    ordered("MinimumSalary", "SalaryCap", strict=True)
+    ordered("ReplacementRating", "EliteRating", strict=True)
+    ordered("MinGuaranteeFraction", "MaxGuaranteeFraction")
+    ordered("WalkAwayRatio", "AcceptRatio")
+    ordered("AcceptRatio", "InstantAcceptRatio")
+    ordered("PrimeAge", "DeclineAge")
+    if num("DemandDecayPerDay") is not None and num("DemandDecayPerDay") >= 1:
+        err(path, "DemandDecayPerDay: must be below 1")
+    for field in ("ReplacementRating", "EliteRating"):
+        if num(field) is not None and num(field) > 100:
+            err(path, f"{field}: ratings run 0-100")
+
+    markets = payload.get("PositionMarkets")
+    if not isinstance(markets, list):
+        err(path, "'PositionMarkets' must be an array")
+        return
+    seen = set()
+    for idx, market in enumerate(markets):
+        where = f"PositionMarkets[{idx}]"
+        if not isinstance(market, dict):
+            err(path, f"{where}: not an object")
+            continue
+        role = market.get("Role")
+        if role not in PLAYER_ROLES:
+            err(path, f"{where}.Role: '{role}' is not a valid EPlayerRole")
+        elif role in seen:
+            err(path, f"{where}.Role: duplicate '{role}'")
+        seen.add(role)
+        top = market.get("TopCapFraction")
+        if not is_number(top) or not 0 < top <= 1:
+            err(path, f"{where}.TopCapFraction: '{top}' must be a fraction above 0, at most 1")
+        target = market.get("RosterTarget")
+        if isinstance(target, bool) or not isinstance(target, int) or target < 0:
+            err(path, f"{where}.RosterTarget: '{target}' must be a whole number, 0 or more")
+        extra = set(market) - {"Role", "TopCapFraction", "RosterTarget"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSPositionMarket exactly")
+    missing = PLAYER_ROLES - seen
+    if missing:
+        err(path, f"PositionMarkets: no market for {sorted(missing)}")
+
+
+DEFENSIVE_PRESNAP_NUMBERS = ("TwoHighDepth", "TwoHighWidth", "SingleHighDepth", "RobberDepth", "RobberWidth",
+                             "DeepSafetyDepth", "ShowBlitzDepth", "BlitzLookDepth", "BlitzLookWidth", "CreepDelaySeconds")
+DEFENSIVE_PRESNAP_FRACTIONS = ("CreepSpeedScale", "MaxDisguiseLeak", "DisguiseChanceConservative", "DisguiseChanceAggressive",
+                               "ShowBlitzChanceConservative", "ShowBlitzChanceAggressive", "CreepChanceConservative",
+                               "CreepChanceAggressive")
+DEFENSIVE_PRESNAP_ACTIONS = ("AudibleAction", "SelectAction", "ShadowAction", "ShowBlitzAction", "DisguiseAction",
+                             "CreepAction")
+
+
+def validate_defensive_presnap(path, payload, catalog):
+    """FPSDefensivePreSnapTuning (Data/defensive_presnap.json, Epic 67); mirrors
+    UPSDefenderPreSnapSubsystem::ValidateTuning plus the catalog cross-check."""
+    for field in DEFENSIVE_PRESNAP_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in DEFENSIVE_PRESNAP_FRACTIONS:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    count = payload.get("ShowBlitzCount")
+    if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+        err(path, f"ShowBlitzCount: '{count}' must be a whole number, 0 or more")
+    if not isinstance(payload.get("bCpuShadowsTopReceiver"), bool):
+        err(path, "bCpuShadowsTopReceiver: must be true or false")
+    deep, robber = payload.get("DeepSafetyDepth"), payload.get("RobberDepth")
+    high = [payload.get(f) for f in ("TwoHighDepth", "SingleHighDepth")]
+    if is_number(deep) and is_number(robber) and all(is_number(h) for h in high) and not robber < deep <= min(high):
+        err(path, "DeepSafetyDepth must lie past RobberDepth and no deeper than the deep safeties' spots")
+    show, look = payload.get("ShowBlitzDepth"), payload.get("BlitzLookDepth")
+    if is_number(show) and is_number(look) and show > look:
+        err(path, "ShowBlitzDepth must be within BlitzLookDepth, or a shown blitz can't be seen")
+    shells = payload.get("ShellSafeties")
+    if not isinstance(shells, list):
+        err(path, "'ShellSafeties' must be an array")
+        shells = []
+    seen = set()
+    for idx, row in enumerate(shells):
+        where = f"ShellSafeties[{idx}]"
+        shell = row.get("Shell") if isinstance(row, dict) else None
+        deep_count = row.get("DeepSafeties") if isinstance(row, dict) else None
+        if not isinstance(shell, str) or not shell or shell in seen:
+            err(path, f"{where}.Shell: empty or listed twice")
+        seen.add(shell)
+        if deep_count not in (0, 1, 2) or isinstance(deep_count, bool):
+            err(path, f"{where}.DeepSafeties: '{deep_count}' must be 0, 1 or 2")
+    extra = set(payload) - set(DEFENSIVE_PRESNAP_NUMBERS) - set(DEFENSIVE_PRESNAP_FRACTIONS) - set(DEFENSIVE_PRESNAP_ACTIONS) \
+        - {"ShellSafeties", "ShowBlitzCount", "bCpuShadowsTopReceiver"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSDefensivePreSnapTuning exactly")
+    if catalog is None:
+        return
+    actions = {a.get("ActionId"): a for a in catalog.get("Actions", []) if isinstance(a, dict)}
+    used = [payload.get(field) for field in DEFENSIVE_PRESNAP_ACTIONS]
+    if len(set(used)) != len(used):
+        err(path, "each defensive pre-snap button must be a different action")
+    for field in DEFENSIVE_PRESNAP_ACTIONS:
+        action_id = payload.get(field)
+        action = actions.get(action_id)
+        if action is None:
+            err(path, f"{field}: '{action_id}' is not an action in input_actions.json")
+        elif action.get("ValueType") != "Boolean" or "DefensePreSnap" not in (action.get("Contexts") or []):
+            err(path, f"{field}: '{action_id}' must be a Boolean action in the DefensePreSnap context")
+
+
+OFFENSE_ROLES = {"Quarterback", "RunningBack", "WideReceiver", "TightEnd", "OffensiveLineman"}
+DEFENSE_ROLES = {"DefensiveLineman", "Linebacker", "DefensiveBack"}
+PERSONNEL_PANEL_FIELDS = {"OffenseRoles", "DefenseRoles", "OffenseNameFormat", "DefenseNames", "DefenseNameFallback", "PanelColor",
+                          "TextColor", "FlashColor", "FontSize", "TitleFontSize", "ChangeFlashSeconds", "bShowInPlay"}
+
+
+def validate_personnel_panel(path, payload):
+    """FPSPersonnelPanelStyle (Data/personnel_panel.json, Epic 29); mirrors
+    UPSOverlayPersonnelSubsystem::ValidateStyle."""
+    for field, side_roles in (("OffenseRoles", OFFENSE_ROLES), ("DefenseRoles", DEFENSE_ROLES)):
+        rows = payload.get(field)
+        if not isinstance(rows, list) or not rows:
+            err(path, f"'{field}' must be a non-empty array")
+            continue
+        seen = set()
+        for idx, row in enumerate(rows):
+            where = f"{field}[{idx}]"
+            if not isinstance(row, dict):
+                err(path, f"{where}: must be an object")
+                continue
+            role = row.get("Role")
+            if role not in side_roles:
+                err(path, f"{where}.Role: '{role}' must be one of {sorted(side_roles)}")
+            elif role in seen:
+                err(path, f"{where}.Role: '{role}' is listed twice")
+            seen.add(role)
+            if not isinstance(row.get("Label"), str) or not row["Label"]:
+                err(path, f"{where}.Label: must be a non-empty string")
+            extra = set(row) - {"Role", "Label"}
+            if extra:
+                err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    backs = set()
+    names = payload.get("DefenseNames")
+    if not isinstance(names, list):
+        err(path, "'DefenseNames' must be an array")
+        names = []
+    for idx, row in enumerate(names):
+        where = f"DefenseNames[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        count = row.get("DefensiveBacks")
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            err(path, f"{where}.DefensiveBacks: '{count}' must be a whole number, 0 or more")
+        elif count in backs:
+            err(path, f"{where}.DefensiveBacks: {count} is named twice")
+        backs.add(count)
+        if not isinstance(row.get("Name"), str) or not row["Name"]:
+            err(path, f"{where}.Name: must be a non-empty string")
+        extra = set(row) - {"DefensiveBacks", "Name"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for field in ("OffenseNameFormat", "DefenseNameFallback"):
+        if not isinstance(payload.get(field), str) or not payload[field]:
+            err(path, f"{field}: must be a non-empty string")
+    for field in ("PanelColor", "TextColor", "FlashColor"):
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in ("FontSize", "TitleFontSize"):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            err(path, f"{field}: '{value}' must be a whole number, 1 or more")
+    flash = payload.get("ChangeFlashSeconds")
+    if not is_number(flash) or flash < 0:
+        err(path, f"ChangeFlashSeconds: '{flash}' must be a number, 0 or more")
+    if not isinstance(payload.get("bShowInPlay"), bool):
+        err(path, "bShowInPlay: must be true or false")
+    extra = set(payload) - PERSONNEL_PANEL_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPersonnelPanelStyle exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2808,6 +3165,8 @@ def main():
             validate_control_handoff(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "ChyronKinds" in payload:
             validate_broadcast_overlay(path, payload)
+        if isinstance(payload, dict) and "DefenseNameFallback" in payload:
+            validate_personnel_panel(path, payload)
         if isinstance(payload, dict) and "UprightWidth" in payload:
             validate_ball_flight_overlay(path, payload)
         if isinstance(payload, dict) and "RoleLabels" in payload:
@@ -2838,6 +3197,8 @@ def main():
             validate_rush_moves(path, payload)
         if isinstance(payload, dict) and "CaptionWordsPerSecond" in payload:
             validate_ui_accessibility(path, payload)
+        if isinstance(payload, dict) and "Hints" in payload:
+            validate_ui_hints(path, payload)
         if isinstance(payload, dict) and "Fronts" in payload:
             validate_run_fits(path, payload)
         if isinstance(payload, dict) and "All22Rigs" in payload:
@@ -2854,6 +3215,12 @@ def main():
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "Axes" in payload and "Bindings" in payload:
             validate_player_dna_catalog(path, payload)
+        if isinstance(payload, dict) and "SalaryCap" in payload and "PositionMarkets" in payload:
+            validate_contract_tuning(path, payload)
+        if isinstance(payload, dict) and "ShellSafeties" in payload:
+            validate_defensive_presnap(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "PlaybackRates" in payload:
+            validate_replay_tuning(path, payload, load_all22_rig_ids())
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

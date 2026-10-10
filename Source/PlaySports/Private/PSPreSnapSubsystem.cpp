@@ -1,5 +1,6 @@
 #include "PSPreSnapSubsystem.h"
 #include "PSDataIngestion.h"
+#include "PSDefenderPreSnapSubsystem.h"
 #include "PSPlayCallSubsystem.h"
 #include "PSPlayOrchestrator.h"
 #include "PSPlayerPawn.h"
@@ -626,6 +627,12 @@ void UPSPreSnapSubsystem::ApplyAdjustment(const APSPlayerPawn* Player, FPSPlayAs
 FPSDefensiveLook UPSPreSnapSubsystem::GetDefensiveLook()
 {
     FPSDefensiveLook Look;
+    // The defense lines up for its call before the offense reads it (Epic 67).
+    UPSDefenderPreSnapSubsystem* DefensePreSnap = GetWorld() ? GetWorld()->GetSubsystem<UPSDefenderPreSnapSubsystem>() : nullptr;
+    if (DefensePreSnap)
+    {
+        DefensePreSnap->EnsureAligned();
+    }
     UPSPlayCallSubsystem* PlayCall = GetPlayCall();
     FPSPlayDefinition Defense;
     if (PlayCall && PlayCall->GetDefensivePlayToRun(Defense))
@@ -655,6 +662,15 @@ FPSDefensiveLook UPSPreSnapSubsystem::GetDefensiveLook()
         return Look;
     }
     CentreY /= Linemen;
+
+    // The shell and the blitz as the defense shows them, not as it called them (Epic 67).
+    int32 DeepSafeties = 0;
+    bool bShowsBlitz = false;
+    if (DefensePreSnap && DefensePreSnap->ReadShownLook(DeepSafeties, bShowsBlitz))
+    {
+        Look.CoverageShell = UPSDefenderPreSnapSubsystem::DescribeStructure(DeepSafeties);
+        Look.bShowsBlitz = bShowsBlitz;
+    }
 
     const FPreSnapTuningRow& Settings = GetTuning();
     for (const APSPlayerPawn* Pawn : Pawns)

@@ -30,10 +30,31 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** The defense disguises and adjusts: shell rotations, show-blitz, coverage audibles, individual matchups.
 **Depends on:** Core 15, Core 16, 66
 
-- [ ] Coverage-shell disguise (show two-high, rotate at snap)
-- [ ] Show-blitz/creep mechanics with actual vs. shown assignment separation
-- [ ] Defensive audibles and per-player matchup assignment (shadow a receiver)
-- [ ] AI usage of disguise driven by `Awareness` and coaching profile (Epic 18)
+- [x] Coverage-shell disguise (show two-high, rotate at snap)
+  *As built: `UPSDefenderPreSnapSubsystem` lines the defense up once it has called, on its next
+  tick (or the first read of its look). It starts from the formation spots the side stands on,
+  so a personnel change's lineup (`UPSPersonnelManager`) comes first. The safeties
+  take the shell's structure (`ShellSafeties` in `Data/defensive_presnap.json`), or the other
+  one when disguised. At the snap `UPSDefenderAIComponent` plays the real assignment from there,
+  so the disguise rotates.*
+- [x] Show-blitz/creep mechanics with actual vs. shown assignment separation
+  *As built: real blitzers walk up; with a creep they hold a coverage look and walk up late
+  (`TickPreSnap`). A shown blitz walks up linebackers who drop at the snap. The offense's read
+  (`UPSPreSnapSubsystem::GetDefensiveLook`) now comes from where defenders stand
+  (`ReadShownLook`), never the call.*
+- [x] Defensive audibles and per-player matchup assignment (shadow a receiver)
+  *As built: `Audible`/`AudibleToNext` switch to another play of the call's front.
+  `SetShadow` keeps a defender in man on a receiver until cleared; `UPSPlayOrchestrator` applies
+  it at the snap. The human makes these calls with the defense's own buttons in the
+  `DefensePreSnap` context: `DefenseAudible`, `ShadowSelect`, `Shadow`, `ShowBlitz`,
+  `DisguiseShell` and `Creep` (`UPSDefenderPreSnapInputComponent`). Every change goes on the bus
+  (`DefensivePreSnap`).*
+- [x] AI usage of disguise driven by `Awareness` and coaching profile (Epic 18)
+  *As built: a CPU call disguises its shell, shows a blitz or creeps one. Each is as likely as
+  the coach's `AggressionScore` allows, times the involved defenders' Awareness; the rolls are
+  seeded. A low-Awareness safety leaks his disguise part-way to his real spot. On a man call,
+  the CPU's best back shadows the best receiver. The play-call subsystem still uses a default
+  profile, so `SetTendency` is where a team's profile plugs in.*
 
 ### Epic 68: Route-Running Nuance Model
 

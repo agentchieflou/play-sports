@@ -176,9 +176,11 @@ does what it does on `OnField` (first table).
 | Control | `DefensePreSnap` (defense, before the snap) | `Defense` (defense, during the play) | `Kicking` (the human's side kicks) |
 |---|---|---|---|
 | ButtonBottom | Confirm | Confirm | Kick (the meter, `Data/kick_meter.json`) |
-| ButtonUpperRight | — | Strip | — |
+| ButtonTop | Disguise the shell | — | — |
+| ButtonUpperRight | Select a receiver to shadow | Strip | — |
 | TriggerLeft | Jump the snap | — | — |
 | ButtonView | Timeout | — | — |
+| D-pad up / right / left / down | Audible / Shadow / Show blitz / Creep (Epic 67) | — | — |
 | Swipe left / right | Pick the player to the left / right | — | — |
 
 - **Hidden controls.** A control no active context binds (a dash above) is not drawn and doesn't

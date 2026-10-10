@@ -8,6 +8,7 @@
 #include "PSPassingComponent.h"
 #include "PSCarrierInputComponent.h"
 #include "PSPreSnapInputComponent.h"
+#include "PSDefenderPreSnapInputComponent.h"
 #include "PSInputBufferComponent.h"
 #include "PSTouchInputComponent.h"
 #include "PSDefenseInputComponent.h"
@@ -75,6 +76,7 @@ APSPlayerController::APSPlayerController()
     PassingComponent = CreateDefaultSubobject<UPSPassingComponent>(TEXT("PassingComp"));
     CarrierInputComponent = CreateDefaultSubobject<UPSCarrierInputComponent>(TEXT("CarrierInputComp"));
     PreSnapInputComponent = CreateDefaultSubobject<UPSPreSnapInputComponent>(TEXT("PreSnapInputComp"));
+    DefenderPreSnapInputComponent = CreateDefaultSubobject<UPSDefenderPreSnapInputComponent>(TEXT("DefenderPreSnapInputComp"));
     InputBufferComponent = CreateDefaultSubobject<UPSInputBufferComponent>(TEXT("InputBufferComp"));
     TouchInputComponent = CreateDefaultSubobject<UPSTouchInputComponent>(TEXT("TouchInputComp"));
     DefenseInputComponent = CreateDefaultSubobject<UPSDefenseInputComponent>(TEXT("DefenseInputComp"));
@@ -429,6 +431,22 @@ void APSPlayerController::SetDepthContext(FName ContextId)
                 InputBufferComponent->HandleContextEntered(ContextId, ContextsBefore);
             }
         }
+    }
+}
+
+void APSPlayerController::SetModeContextActive(FName ContextId, bool bActive)
+{
+    if (ContextId.IsNone())
+    {
+        return;
+    }
+    if (bActive)
+    {
+        PushInputContext(ContextId);
+    }
+    else
+    {
+        PopInputContext(ContextId);
     }
 }
 

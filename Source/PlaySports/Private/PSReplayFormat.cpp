@@ -15,7 +15,8 @@ FPSReplayRecording UPSReplayFormat::MakeRecording(const FPlayState& InitialPlayS
 FString UPSReplayFormat::SerializeToJson(const FPSReplayRecording& Recording)
 {
     FString JsonString;
-    if (!FJsonObjectConverter::UStructToJsonObjectString(Recording, JsonString))
+    // A snapshot's live pawn is Transient: it means nothing outside the run that captured it.
+    if (!FJsonObjectConverter::UStructToJsonObjectString(Recording, JsonString, 0, CPF_Transient))
     {
         UE_LOG(LogTemp, Warning, TEXT("UPSReplayFormat: Failed to serialize recording to JSON."));
         return FString();
@@ -26,7 +27,7 @@ FString UPSReplayFormat::SerializeToJson(const FPSReplayRecording& Recording)
 bool UPSReplayFormat::DeserializeFromJson(const FString& Json, FPSReplayRecording& OutRecording)
 {
     FPSReplayRecording Parsed;
-    if (!FJsonObjectConverter::JsonObjectStringToUStruct(Json, &Parsed, 0, 0))
+    if (!FJsonObjectConverter::JsonObjectStringToUStruct(Json, &Parsed, 0, CPF_Transient))
     {
         UE_LOG(LogTemp, Warning, TEXT("UPSReplayFormat: Failed to parse replay JSON."));
         return false;

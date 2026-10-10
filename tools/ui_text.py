@@ -8,9 +8,10 @@ localization gather collects them:
                          Comment). Code names its keys: UPSLocalization::GetText(TEXT("Key"))
                          and UPSLocalization::Format(TEXT("Key"), ...).
   Data/ui_text_data.csv  "PSUIData": generated from the UI data files' strings
-                         (ui_menus.json, ui_settings.json, loading_tips.json, and the
-                         scouting traits in player_dna.json). Don't edit it;
-                         run this script with --write after changing one of those files.
+                         (ui_menus.json, ui_settings.json, loading_tips.json,
+                         defensive_adjustments.json, ui_hints.json, and the scouting traits
+                         in player_dna.json). Don't edit it; run this script with --write
+                         after changing one of those files.
 
   python tools/ui_text.py           check (exit 1 with the problems)
   python tools/ui_text.py --write   regenerate Data/ui_text_data.csv
@@ -20,9 +21,9 @@ the code:
   - every key the code names exists in Data/ui_text.csv;
   - every remappable input action has an Input.Action.<ActionId> name, and each of its
     contexts an Input.Context.<ContextId> name (the key remapping screen shows them);
-  - UI code (Private/PSUI*, PSMenu*, PSHUD*, PSLoading*, PSSettings*) builds no FText from
-    raw strings: its text comes through UPSLocalization (GetText, Format, GetDataText,
-    Verbatim, FromLocalized).
+  - UI code (Private/PSUI*, PSMenu*, PSHUD*, PSLoading*, PSSettings*, PSPlayCall*) builds no
+    FText from raw strings: its text comes through UPSLocalization (GetText, Format,
+    GetDataText, Verbatim, FromLocalized).
 
 Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones):
   Menu.<ScreenId>.Title | Body
@@ -32,6 +33,8 @@ Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones
   Setting.<SettingId>.Choice<Index>
   Tip.<TipId>
   Trait.<TraitId>.Label | Description     (PSPlayerDNA::TraitKey)
+  Adjustment.<AdjustmentId>.Label | Description
+  Hint.<HintId>
 """
 
 import csv
@@ -46,7 +49,7 @@ DATA_DIR = REPO / "Data"
 UI_TEXT = DATA_DIR / "ui_text.csv"
 UI_TEXT_DATA = DATA_DIR / "ui_text_data.csv"
 SOURCE_DIR = REPO / "Source"
-GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings")
+GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings", "PSPlayCall")
 RAW_TEXT = re.compile(r"\bFText::FromString\(|\bFText::AsCultureInvariant\(|\bN?S?LOCTEXT\(|\bINVTEXT\(")
 KEY_USE = re.compile(r"(?<![\w:])(?:UPSLocalization::)?(?:GetText|Format)\(\s*TEXT\(\"([^\"]+)\"\)")
 
@@ -110,6 +113,18 @@ def data_rows():
             trait = axis.get(f"{end}Trait", "")
             add(f"Trait.{trait}.Label", axis.get(f"{end}Label"), f"player_dna.json: the scouting trait at the {end.lower()} end of {axis.get('Axis', '')}")
             add(f"Trait.{trait}.Description", axis.get(f"{end}Description"), f"player_dna.json: what the {trait} trait means")
+
+    adjustments = _load("defensive_adjustments.json") or {}
+    for adjustment in adjustments.get("Adjustments", []) if isinstance(adjustments, dict) else []:
+        if isinstance(adjustment, dict):
+            adjustment_id = adjustment.get("AdjustmentId", "")
+            add(f"Adjustment.{adjustment_id}.Label", adjustment.get("Label"), "defensive_adjustments.json: play-call adjustment")
+            add(f"Adjustment.{adjustment_id}.Description", adjustment.get("Description"), "defensive_adjustments.json: adjustment detail")
+
+    hints = _load("ui_hints.json") or {}
+    for hint in hints.get("Hints", []) if isinstance(hints, dict) else []:
+        if isinstance(hint, dict):
+            add(f"Hint.{hint.get('HintId', '')}", hint.get("Text"), f"ui_hints.json: first-time hint ({hint.get('Trigger', '')})")
     return rows
 
 

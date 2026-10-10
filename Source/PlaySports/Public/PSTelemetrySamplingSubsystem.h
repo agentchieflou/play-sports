@@ -120,7 +120,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Telemetry")
     int32 GetKeyframeCount() const { return Keyframes.Num(); }
 
-    /** The most recently captured frame, scheduled or keyframe. */
+    /** The most recently captured frame, scheduled or keyframe; while a replay plays, the
+     *  replay's frame (SetReplayFrame). */
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     bool GetLatestFrame(FPSSnapshotFrame& OutFrame) const;
 
@@ -170,6 +171,27 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventsBetween(float FromTime, float ToTime) const;
 
+    /** Everyone Alpha of the way from From to To: locations, velocities and facing blended,
+     *  each pawn matched by pawn or PlayerId; who has the ball switches at the halfway mark.
+     *  The frame SampleAt gives between two captured frames, and the one a replay (Epic 41)
+     *  shows between its frames. */
+    static void BlendFrames(const FPSSnapshotFrame& From, const FPSSnapshotFrame& To, float Alpha, FPSSnapshotFrame& OutFrame);
+
+    // --- Replay (Epic 41) ----------------------------------------------------------------
+
+    /** Shows Frame as the present while a replay plays: GetLatestFrame returns it, so cameras
+     *  and overlays that read the latest frame follow the replay, and nothing is captured
+     *  (no scheduled frames, keyframes or event times; the clock still runs), so the history
+     *  stays the live game's. Each call replaces the frame shown. */
+    void SetReplayFrame(const FPSSnapshotFrame& Frame);
+
+    /** Back to the live game: capture resumes and GetLatestFrame is the newest captured frame
+     *  again. */
+    void ClearReplayFrame();
+
+    UFUNCTION(BlueprintPure, Category = "Telemetry")
+    bool IsShowingReplay() const { return bShowingReplay; }
+
 private:
     /** A pawn being sampled, with what its next acceleration is measured against. */
     struct FSampledPawn
@@ -210,8 +232,6 @@ private:
     void GatherFrames(TArray<const FPSSnapshotFrame*>& OutFrames, TFunctionRef<bool(const FPSSnapshotFrame&)> Filter) const;
     const FPSSnapshotFrame* FindKeyframe(int32 EventSequence) const;
 
-    static void BlendFrames(const FPSSnapshotFrame& From, const FPSSnapshotFrame& To, float Alpha, FPSSnapshotFrame& OutFrame);
-
     FPSTelemetrySamplingTuning Tuning;
 
     TArray<FSampledPawn> Roster;
@@ -230,6 +250,10 @@ private:
     double SinceLastSample = 0.0;
     int32 NextFrameIndex = 0;
     bool bSamplingEnabled = true;
+
+    /** A replay's frame, shown as the present while bShowingReplay. */
+    FPSSnapshotFrame ReplayFrame;
+    bool bShowingReplay = false;
 
     int32 DegradeLevel = 0;
     int32 OverBudgetStreak = 0;

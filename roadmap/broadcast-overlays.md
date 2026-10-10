@@ -54,10 +54,10 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Offense/defense panels summarize on-field personnel (e.g. RB 1 | TE 3 | WR 1 / DL 3 | LB 4 | DB 4) and update on substitutions.
 **Depends on:** Core 5, Core 19
 
-- [ ] Personnel counter derived live from the 22 on-field `EPlayerRole`s
-- [ ] UMG panel pair (offense left, defense right) with team logo/color slots
-- [ ] Package naming layer (11 personnel, nickel, dime) from the counter
-- [ ] Update animation on substitution events
+- [x] Personnel counter derived live from the 22 on-field `EPlayerRole`s *(`UPSOverlayPersonnelSubsystem` counts each side's roles from the players on the field, again on every Personnel and GameState event)*
+- [x] UMG panel pair (offense left, defense right) with team logo/color slots *(`UPSOverlayPersonnelWidget`, built in code and shown by `APSHUD` except on Minimal: each panel has its team's color bar and label from the score bug's teams, a logo slot (`SetTeamLogo`), the package name and the counts; before the snap only. Look and logos are an editor pass, `Specs/Personnel_Panels_Spec.md`)*
+- [x] Package naming layer (11 personnel, nickel, dime) from the counter *(the personnel catalog's name for a package it lists with exactly those counts, the one Epic 19.5's manager just put on first; otherwise `{RB}{TE} Personnel` on offense and the defense's name by its defensive backs, from `Data/personnel_panel.json`)*
+- [x] Update animation on substitution events *(the bus's Personnel event flashes its side's panel and the counts it changed, fading over `ChangeFlashSeconds`, on a Full tier)*
 
 ### Epic 30: Selected-Player Indicator & Control Handoff
 

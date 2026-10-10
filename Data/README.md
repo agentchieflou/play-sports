@@ -73,25 +73,30 @@ every CI build.
 | `ui_accessibility.json` | `FPSUIAccessibilityTuning` (single object) | `UPSDataIngestion::LoadUIAccessibilityTuningFromJson`, via `UPSUIAccessibilitySubsystem` |
 | `ui_text.csv` | UE string table `PSUI` (CSV: `Key`, `SourceString`, `Comment`) | `UPSLocalization::RegisterStringTables` (`LOCTABLE_FROMFILE_GAME`) |
 | `ui_text_data.csv` | UE string table `PSUIData`, **generated** by `tools/ui_text.py` | same |
+| `ui_hints.json` | `FPSHintCatalog` (single object: `Hints`) | `UPSDataIngestion::LoadHintCatalogFromJson`, via `UPSUIHintSubsystem` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
 | `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
 | `camera_all22.json` | `FPSAll22CameraTuning` (single object: `All22Rigs`, framing tuning) | `UPSDataIngestion::LoadAll22CameraTuningFromJson`, via `UPSCameraAll22Component` |
 | `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
 | `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
+| `replay.json` | `FPSReplayTuning` (single object) | `UPSDataIngestion::LoadReplayTuningFromJson`, via `UPSReplaySubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
+| `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
 | `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
+| `personnel_panel.json` | `FPSPersonnelPanelStyle` (single object: the roles each panel counts, naming rules, colors) | `UPSDataIngestion::LoadPersonnelPanelStyleFromJson`, via `UPSOverlayPersonnelSubsystem` |
 | `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
 | `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
 | `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
 | `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
+| `defensive_presnap.json` | `FPSDefensivePreSnapTuning` (single object) | `UPSDataIngestion::LoadDefensivePreSnapTuningFromJson`, via `UPSDefenderPreSnapSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -396,6 +401,8 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
   - `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` (above 0): how often the telemetry
     sampler (Epic 26) records every pawn, and what one recording may cost in ms before the
     sampler halves its rate.
+  - `ReplayPoseRateHz` (0 or more): how often a replay (Epic 41) re-poses the players and the
+    ball, per second; 0 is every frame.
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -552,6 +559,23 @@ The settings that switch these on and size them (`Captions`, `CaptionSize`, `Nar
 `ColorblindMode`) are in `ui_settings.json`. `UPSUIAccessibilitySubsystem::ValidateTuning` and
 `tools/validate_data.py` check it.
 
+## Hints schema (`FPSHintCatalog`)
+
+Single object (Epic 105.4; first-time hints on the play-call screen, `Specs/Front_End_Shell.md`):
+- `Hints[]`, each with:
+  - `HintId` (unique): the profile remembers it once shown (`UPSProfileSaveGame::SeenHints`);
+  - `Trigger`: an `EPSHintTrigger`:
+    - `OffenseCall` and `DefenseCall`: the human's first call on that side;
+    - `FourthDown`: the human's offense on 4th down;
+    - `TwoMinuteDrill`: the human's offense in a two-minute drill, as `UPSSituationAI` reads it;
+    - `Kickoff`: the human's side kicking off;
+  - `Text`: what the hint says. Keep it free of button names, so it reads the same on every
+    device. It is translated through `ui_text_data.csv` (`Hint.<HintId>`).
+
+Hints are tried in order and the first that applies and hasn't been seen comes up, so the
+specific ones go first. The `Hints` setting (Gameplay, `ui_settings.json`) turns them off.
+`UPSUIHintSubsystem::ValidateCatalog` and `tools/validate_data.py` check it.
+
 ## UI text tables (`ui_text.csv`, `ui_text_data.csv`)
 
 Epic 106: everything the UI shows comes from one of two UE string tables, so a translation is
@@ -564,14 +588,19 @@ reads them.
   Code names keys literally: `UPSLocalization::GetText(TEXT("Menu.ResetToDefaults"))`,
   `UPSLocalization::Format(TEXT("Menu.Option"), Arguments)`. Families the code builds:
   `Input.Action.<ActionId>` (one per remappable action), `Input.Context.<ContextId>`,
-  `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`.
+  `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`, `PlayCall.Category.<PlayCategory>` (a
+  category without a row shows its ID split into words).
 - `ui_text_data.csv` (table `PSUIData`) is **generated** from the user-facing strings of
-  `ui_menus.json`, `ui_settings.json` and `loading_tips.json`. Don't edit it. After changing one
-  of those files, run `python tools/ui_text.py --write`. Keys: `Menu.<ScreenId>.Title|Body`,
-  `Menu.<ScreenId>.<OptionId>.Label|Detail`, `Setting.Category.<CategoryId>`,
-  `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`, `Tip.<TipId>`.
-- Not translated, shown through `UPSLocalization::Verbatim`: team, player and formation names,
-  button glyph labels (`input_glyphs.json`), and the engine's key names.
+  `ui_menus.json`, `ui_settings.json`, `loading_tips.json`, `defensive_adjustments.json` and
+  `ui_hints.json`. Don't edit it. After changing one of those files, run `python tools/ui_text.py --write`.
+  Keys: `Menu.<ScreenId>.Title|Body`, `Menu.<ScreenId>.<OptionId>.Label|Detail`,
+  `Setting.Category.<CategoryId>`, `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`,
+  `Tip.<TipId>`, `Adjustment.<AdjustmentId>.Label|Description`, `Hint.<HintId>`.
+- Not translated, shown through `UPSLocalization::Verbatim`:
+  - names: team, player, play, formation, front, coverage and route names;
+  - button glyph labels (`input_glyphs.json`) and the engine's key names;
+  - for now, text other systems write in English: the coaching AI's suggestion reasons, the
+    situation AI's moments and the tempo labels (`situational_tuning.json`).
 - UI strings may not contain backslashes, because the string table import reads them as
   escapes. A real newline is fine.
 
@@ -581,7 +610,7 @@ reads them.
 - a remappable action, or one of its contexts, without a name row;
 - duplicate or empty keys, or unbalanced placeholders;
 - FText built from a raw string in UI code (`Private/PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`,
-  `PSSettings*`).
+  `PSSettings*`, `PSPlayCall*`).
 
 The `Units` setting (`ui_settings.json`, Gameplay) picks feet and pounds or centimeters and
 kilograms for `WeightKg`/`HeightCm` wherever they are shown (`UPSLocalization::FormatWeight`,
@@ -673,6 +702,30 @@ staffs after each carousel, while the schemes and tuning always come from here.
 
 `tools/validate_data.py` checks it, including that each scheme's formations are in the playbook on
 its side (an offense keeping a run and a pass, a defense a `Base` call).
+
+## Contract tuning schema (`FPSContractTuning`)
+
+Single object (Epic 87), read by `UPSContractManager`. Money is in thousands of dollars (whole
+numbers): `255000` is a $255 million cap. The contracts themselves live in the franchise save
+(`UPSFranchiseSaveGame::ContractLedger`), not here.
+- The cap: `FirstLeagueYear`, `SalaryCap` (the first year's), `CapGrowthRate` (per rollover),
+  `MinimumSalary`, `MaxContractYears`, `MaxProrationYears` (a bonus spreads over at most this many
+  years), `MaxCarryoverFraction` (unused space carried into the next year, as a fraction of the cap).
+- Demands (`UPSContractNegotiation`): `ReplacementRating` asks the minimum and `EliteRating` his
+  role's top of the market along `DemandCurveExponent`; `PrimeAge` and `YearsLostPerYearPastPrime`
+  (deal length), `DeclineAge`, `AgeDiscountPerYear`, `MinAgeMultiplier` (value with age);
+  `MinGuaranteeFraction`/`MaxGuaranteeFraction`; the market's `MarketSpaceWeight`,
+  `NeutralCapSpaceFraction`, `MaxMarketAdjustment`.
+- Offers: `MoraleLoyaltyWeight` (morale on his own team's offers), `GuaranteeValueWeight`,
+  `YearsMismatchPenalty`, `AcceptRatio`, `WalkAwayRatio` (counter at or above, reject below).
+- Free agency (`UPSFreeAgency`): `FreeAgencyDays`, `DecisionDays`, `InstantAcceptRatio`,
+  `DemandDecayPerDay`, `DemandFloorFraction`, the CPU's `AIBidRatio`, `AINeedPremium`,
+  `AICapCushionFraction`, `AIOffersPerDay`, and `DefaultPlayerAge` (players have no age field yet).
+- `PositionMarkets[]`: one per `EPlayerRole`: `Role`, `TopCapFraction` (an elite player's ask as
+  a fraction of the cap), `RosterTarget` (how many a team wants; fewer is a free-agency need).
+
+`tools/validate_data.py` checks it: every role has one market, the bounds are ordered and the
+offer ratios run walk-away <= accept <= instant.
 
 ## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
 
@@ -883,6 +936,24 @@ Track C's branding reskins the broadcast by swapping this file:
 
 `UPSOverlayBroadcastSubsystem::ValidateTheme` and `tools/validate_data.py` check it.
 
+## Personnel panel schema (`FPSPersonnelPanelStyle`)
+
+Single object (Epic 29; the offense and defense personnel panels, `UPSOverlayPersonnelSubsystem`,
+drawn by `UPSOverlayPersonnelWidget`). The counts are read live from the players on the field; a
+package `personnel_packages.json` lists with exactly those counts goes by its `DisplayName`, any
+other by the rules below.
+- `OffenseRoles[]`, `DefenseRoles[]`: the roles each panel counts, in order, each a `Role` of its
+  side with a `Label` ("RB 1 | TE 3 | WR 1").
+- `OffenseNameFormat`: an unlisted offensive package's name; `{Label}` stands for that role's
+  count (`"{RB}{TE} Personnel"` reads "13 Personnel").
+- `DefenseNames[]`: an unlisted defensive package's name by its `DefensiveBacks` (each count once),
+  and `DefenseNameFallback` for any other count (`"{DL}-{LB}-{DB}"`).
+- `PanelColor`, `TextColor`, `FlashColor` (`#RRGGBB`; a substitution flashes the panel and the
+  counts it changed toward `FlashColor` over `ChangeFlashSeconds`, 0 or more, on a Full tier),
+  `FontSize`, `TitleFontSize` (1 or more), `bShowInPlay` (false: before the snap only).
+
+`UPSOverlayPersonnelSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
+
 ## Position badge schema (`FPSOverlayBadgeStyle`)
 
 Single object (Epic 28; the letters floating over players' heads, laid out by
@@ -944,6 +1015,33 @@ Single object (Epic 39; `UPSCameraSkycamComponent`, a camera hung from four cabl
 - `LookAheadCm`: how far ahead of whoever it follows it looks. `FieldOfView` (0-170 degrees).
 
 `UPSCameraSkycamComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Replay schema (`FPSReplayTuning`)
+
+Single object (Epic 41; how `UPSReplaySubsystem` cuts, plays, shows and saves replays). How often a
+replay re-poses the field is per platform tier (`ReplayPoseRateHz` in `platform_tiers.json`):
+- `PreRollSeconds`, `PostRollSeconds` (0 or more): how long before a clip's first event (a play's
+  snap) and after its last (the whistle) the clip runs.
+- `PlaybackRates` (each above 0 and at most 1, the first exactly 1, no repeats): the speeds the
+  slow-motion control steps through; a replay starts at the first.
+- `ScrubSecondsPerSecond` (above 0): how fast a held scrub button moves the playhead.
+- `SaveFrameRateHz` (above 0): a saved replay keeps a scheduled frame at most this often;
+  keyframes and the clip's first and last frames are always kept.
+- `Cameras` (no repeats): the cameras the camera button steps through, the first being the one a
+  replay opens on. `Director` (the camera director, Epic 38), `Skycam` (Epic 39), `Free` (circles
+  the ball on the Move stick), or a `RigId` of `camera_all22.json` (Epic 40).
+- `FreeCamMinDistanceCm` <= `FreeCamDistanceCm` (the start) <= `FreeCamMaxDistanceCm`,
+  `FreeCamPitchDegrees` (above 0, below 90), `FreeCamOrbitDegreesPerSecond`,
+  `FreeCamZoomCmPerSecond` (above 0): the free camera.
+- `bAutoReplay`; `AutoReplayDelaySeconds`, `AutoReplayHoldSeconds` (0 or more): a play with a score
+  or a turnover replays itself this long after it ends, and gives the game back this long after
+  the replay's end (unless the viewer took the controls).
+- `AutoReplays[]`: one rule per `Trigger` (`Score`, `Turnover`): the `Shot` (an `EPSDirectorShot`)
+  the replay opens on and its `PlaybackRate` (above 0, at most 1).
+- `ReducedMotionCamera`: a rig in `Cameras`. With Reduced motion on (Epic 103.5) every replay opens
+  on it, the automatic ones included.
+
+`UPSReplaySubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 
 ## Ball-flight overlay schema (`FPSBallFlightStyle`)
 
@@ -1034,3 +1132,34 @@ control decides what it does. `PSTouchControls::ValidateLayout` and `tools/valid
 check all of this. **Adding an action means adding its touch control and its Touch glyph in
 the same change; adding a context means adding its touch button set (or listing it in
 `ContextsWithoutTouch`).**
+
+## Defensive pre-snap schema (`FPSDefensivePreSnapTuning`)
+
+Single object (Epic 67; how the defense lines up, disguises and adjusts before the snap,
+`UPSDefenderPreSnapSubsystem`). Depths are cm past the front of the offensive line, widths cm
+across the field from its centre:
+- `ShellSafeties[]`: each coverage shell (a play's `CoverageShell`) and its `DeepSafeties`
+  (0, 1 or 2). A shell not listed plays one.
+- `TwoHighDepth`, `TwoHighWidth`: two-high safeties' spots. `SingleHighDepth`: the single-high
+  safety's, in the middle. `RobberDepth`, `RobberWidth`: a safety rolled down into the box.
+- `DeepSafetyDepth`: the offense counts a defender this deep as a deep safety. It must lie past
+  `RobberDepth` and no deeper than the deep spots.
+- `ShowBlitzDepth`: a linebacker or back showing blitz walks up to here. The offense reads a
+  blitz from one within `BlitzLookDepth` of the line and `BlitzLookWidth` of its centre
+  (`ShowBlitzDepth` must be within `BlitzLookDepth`). `ShowBlitzCount`: how many linebackers,
+  nearest the ball, show a blitz that isn't coming.
+- `CreepDelaySeconds`, `CreepSpeedScale` (0-1): when creeping blitzers start walking up, and how
+  fast.
+- `MaxDisguiseLeak` (0-1): at Awareness 0 a disguising safety lines up this fraction of the way
+  to his real spot (none at 100).
+- `DisguiseChance*`, `ShowBlitzChance*`, `CreepChance*` (0-1, `Conservative` and `Aggressive`):
+  how often a CPU defense uses each disguise, from AggressionScore 0 to 1, times the involved
+  defenders' average Awareness / 100.
+- `bCpuShadowsTopReceiver`: on a CPU man call, its best defensive back shadows the best
+  receiver.
+- `AudibleAction`, `SelectAction`, `ShadowAction`, `ShowBlitzAction`, `DisguiseAction`,
+  `CreepAction`: the human defense's buttons, each a different Boolean action in the input
+  catalog's `DefensePreSnap` context (`DefenseAudible`, `ShadowSelect`, `Shadow`, `ShowBlitz`,
+  `DisguiseShell`, `Creep`), on while he controls a defender before the snap.
+
+`UPSDefenderPreSnapSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
