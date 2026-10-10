@@ -1,5 +1,6 @@
 #include "AgenticLink.h"
 #include "AgenticLinkEngineTools.h"
+#include "AgenticLinkToolProviders.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -25,12 +26,15 @@ void FAgenticLinkModule::StartupModule()
 
     McpServer = MakeShared<FAgenticLinkMcpServer>();
     FAgenticLinkEngineTools::Register(*McpServer);
+    // Other modules' tools (Autonomix's, opt-in by their own switches) join before anyone connects.
+    FAgenticLinkToolProviders::RegisterAll(*McpServer);
     Transport = MakeUnique<FAgenticLinkHttpTransport>(McpServer.ToSharedRef());
     if (!Transport->Start(Port))
     {
         Transport.Reset();
         return;
     }
+    FAgenticLinkToolProviders::SetServingServer(McpServer);
 
     // The bridge is online: game code gates its model hooks on this name (Epic 82).
     IModularFeatures::Get().RegisterModularFeature(GetBridgeFeatureName(), this);
@@ -43,6 +47,10 @@ void FAgenticLinkModule::ShutdownModule()
     {
         IModularFeatures::Get().UnregisterModularFeature(GetBridgeFeatureName(), this);
         bBridgeFeatureRegistered = false;
+    }
+    if (McpServer.IsValid() && FAgenticLinkToolProviders::GetServingServer() == McpServer)
+    {
+        FAgenticLinkToolProviders::SetServingServer(nullptr);
     }
     Transport.Reset();
     McpServer.Reset();

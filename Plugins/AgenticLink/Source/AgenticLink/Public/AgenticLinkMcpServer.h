@@ -50,7 +50,11 @@ public:
     /** Newest first. */
     static TArray<FString> GetSupportedProtocolVersions();
 
+    /** Adds Tool, replacing a tool of the same name. */
     void RegisterTool(const FAgenticLinkTool& Tool);
+
+    /** Takes the tool named ToolName off the list; false when there was none. */
+    bool UnregisterTool(const FString& ToolName);
 
     const TArray<FAgenticLinkTool>& GetTools() const { return Tools; }
 

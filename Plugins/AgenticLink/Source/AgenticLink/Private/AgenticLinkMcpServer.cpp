@@ -52,6 +52,11 @@ void FAgenticLinkMcpServer::RegisterTool(const FAgenticLinkTool& Tool)
     Tools.Add(Tool);
 }
 
+bool FAgenticLinkMcpServer::UnregisterTool(const FString& ToolName)
+{
+    return Tools.RemoveAll([&ToolName](const FAgenticLinkTool& Existing) { return Existing.Name == ToolName; }) > 0;
+}
+
 FString FAgenticLinkMcpServer::HandleMessage(const FString& MessageJson)
 {
     TSharedPtr<FJsonValue> Parsed;

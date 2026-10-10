@@ -16,7 +16,7 @@ are deliberately thin skeletons meant to be built out incrementally, several by 
 ```
 play-sports.uproject          UE5.8 project definition, enables the two plugins below
 Source/PlaySports/            Runtime game module ("PlaySports")
-Plugins/Autonomix/            Editor-time AI bridge plugin (stub)
+Plugins/Autonomix/            Editor-time agent tools: T3D import, Python (opt-in, via AgenticLink)
 Plugins/AgenticLink/          External agent bridge: MCP server over engine reflection (opt-in)
 Data/                         External data assets consumed by ingestion code
 RawAssets/                    Source (non-.uasset) assets with provenance: the world kit (CC0/own GLB, textures, skies)
@@ -45,11 +45,14 @@ JsonUtilities` (see `PlaySports.Build.cs`). Implemented systems, all real (not s
 
 ### `Plugins/Autonomix`
 
-"Headless AI bridge for T3D injection and Unreal Python operations" — **stub only**. The module
-(`Developer` type, `PostEngineInit`) currently just logs on startup/shutdown. Depends on
-`EditorScriptingUtilities` and `PythonScriptPlugin`, signaling the intended direction: this is
-where in-editor agent actions (spawning/mutating actors via T3D text import, Python scripting)
-are meant to live once built.
+"Headless AI bridge for T3D injection and Unreal Python operations" (Core 25.1, 25.2). The module
+(`Developer` type, `PostEngineInit`, never in a shipping build) serves its tools through
+AgenticLink's one MCP server (`FAgenticLinkToolProviders`), each opt-in by its own switch on top of
+`-AgenticLinkMcp`: `import_t3d` (`FAutonomixT3D`, `-AutonomixT3D`) spawns actors from T3D text or
+changes the ones it names, as one undoable transaction; `run_python` (`FAutonomixPython`,
+`-AutonomixPython`) runs a script through the Python Editor Script Plugin and returns its result and
+log. Without the switches it only logs. Python runs only where the project enables that plugin.
+Headless tests: `PlaySports.Autonomix.*`.
 
 ### `Plugins/AgenticLink`
 
@@ -67,8 +70,8 @@ module is registered as the `AgenticLinkBridge` modular feature: game code gates
 that name with no link to the plugin (Epic 82's `UPSGameIntelligenceSubsystem`; relay:
 `python -m tools.orchestrator game-hooks`). Headless tests: `PlaySports.AgenticLink.*`.
 
-**Autonomix does nothing beyond logging a startup message**, and AgenticLink's server is off
-unless its switch is given. T3D import and the Python escape hatch are not built yet.
+AgenticLink's server is off unless its switch is given, and Autonomix's tools are off unless
+theirs are.
 
 ### `Data/`
 
