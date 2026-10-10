@@ -10,6 +10,7 @@
 #include "Misc/AutomationTest.h"
 #include "PSCoachingAI.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSSpecialTeamsAI.h"
 #include "PSSpecialTeamsData.h"
 #include "PSStaffData.h"
 #include "PSStaffManager.h"
