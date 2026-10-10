@@ -1,0 +1,10 @@
+{
+    "Kinds": [
+        { "Kind": "Highlight", "Stencil": 1, "Priority": 1 },
+        { "Kind": "Mismatch", "Stencil": 2, "Priority": 2 },
+        { "Kind": "Focus", "Stencil": 3, "Priority": 3 }
+    ],
+    "DimStencil": 4,
+    "MaxEmphasized": 4,
+    "bSpotlightDimsEmphasized": false
+}

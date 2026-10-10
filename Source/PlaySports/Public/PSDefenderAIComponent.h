@@ -126,10 +126,16 @@ public:
 
     static FString GetDefaultTuningPath();
 
-    /** The tuning in use, loaded from the default path on first use. */
+    /** The tuning in use, loaded from the default path on first use: as loaded, with this play's
+     *  defender's style applied (ApplyPlayerDNA). */
     const FDefenderAITuningRow& GetTuning();
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
+
+    /** Puts Self's style into this play's tuning (Epic 79): the tuning as loaded, scaled by
+     *  Data/player_dna.json's DefenderAI bindings for his DNA (UPSPlayerDNASubsystem). Called as
+     *  he takes up each play's assignment. */
+    void ApplyPlayerDNA(const APSPlayerPawn* Self);
 
     /** Listens for the snap, throws, pump fakes and the end of the play. Idempotent. */
     void BindToBus();
@@ -216,6 +222,10 @@ private:
 
     UPROPERTY(Transient)
     FDefenderAITuningRow Tuning;
+
+    /** The tuning as loaded; Tuning is this with the defender's DNA applied. */
+    UPROPERTY(Transient)
+    FDefenderAITuningRow BaseTuning;
 
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
     TWeakObjectPtr<APSPlayerPawn> CoveredReceiver;

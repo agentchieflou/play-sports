@@ -44,11 +44,14 @@ with the control's value type, every action of a covered context is reachable by
 touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
-coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "LeverageShade" files
-against FPSCoverageMatchupTuning (Epic 69): its shell rules (each coverage shell the playbook calls
-has one) and a press spot inside the route-running PressRadius. Teams, the league config, the
-playbook, player rating ranges and every reference between files are tools/content_contracts.py's
-(Epic 125), run from here.
+coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "DimStencil" files against
+FPSEmphasisStyle (Epic 36); "Axes" + "Bindings" files against FPSPlayerDNACatalog, each axis an
+FPSPlayerDNA field, each binding a numeric field of its target's tuning file and each rush move in
+pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
+"LeverageShade" files against FPSCoverageMatchupTuning (Epic 69): its shell rules (each coverage
+shell the playbook calls has one) and a press spot inside the route-running PressRadius. Teams, the
+league config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -99,7 +102,7 @@ def err(path, message):
     errors.append(f"{path.relative_to(REPO)}: {message}")
 
 
-def validate_players(path, players):
+def validate_players(path, players, dna_catalog=None):
     seen_ids = set()
     for idx, row in enumerate(players):
         where = f"Players[{idx}]"
@@ -111,12 +114,14 @@ def validate_players(path, players):
                 err(path, f"{where}: missing field '{field}'")
             elif not isinstance(row[field], ftype):
                 err(path, f"{where}.{field}: expected {ftype}, got {type(row[field]).__name__}")
-        extra = set(row) - set(PLAYER_FIELDS)
+        extra = set(row) - set(PLAYER_FIELDS) - {"DNA"}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPlayerAttributes exactly")
         role = row.get("Role")
         if isinstance(role, str) and role not in PLAYER_ROLES:
             err(path, f"{where}.Role: '{role}' is not a valid EPlayerRole")
+        if "DNA" in row:
+            validate_player_dna(path, where, row, dna_catalog)
         pid = row.get("PlayerId")
         if isinstance(pid, str):
             if not pid:
@@ -2620,6 +2625,211 @@ def validate_overlay_badges(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOverlayBadgeStyle exactly")
 
 
+EMPHASIS_KINDS = ("Highlight", "Mismatch", "Focus")
+
+
+def validate_player_emphasis(path, payload):
+    """FPSEmphasisStyle (Data/player_emphasis.json, Epic 36); mirrors
+    UPSOverlayEmphasisSubsystem::ValidateStyle."""
+    kinds = payload.get("Kinds")
+    if not isinstance(kinds, list):
+        err(path, "'Kinds' must be an array")
+        kinds = []
+    seen = {}
+    stencils = []
+    for idx, row in enumerate(kinds):
+        where = f"Kinds[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        kind = row.get("Kind")
+        if kind not in EMPHASIS_KINDS:
+            err(path, f"{where}.Kind: '{kind}' must be one of {list(EMPHASIS_KINDS)}")
+        seen[kind] = seen.get(kind, 0) + 1
+        stencil = row.get("Stencil")
+        if not isinstance(stencil, int) or isinstance(stencil, bool) or not 1 <= stencil <= 255:
+            err(path, f"{where}.Stencil: '{stencil}' must be a whole number from 1 to 255")
+        stencils.append(stencil)
+        priority = row.get("Priority")
+        if not isinstance(priority, int) or isinstance(priority, bool):
+            err(path, f"{where}.Priority: '{priority}' must be a whole number")
+        extra = set(row) - {"Kind", "Stencil", "Priority"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for kind in EMPHASIS_KINDS:
+        count = seen.get(kind, 0)
+        if count != 1:
+            err(path, f"Kinds: '{kind}' is listed {count} times; it needs exactly one entry")
+    dim = payload.get("DimStencil")
+    if not isinstance(dim, int) or isinstance(dim, bool) or not 1 <= dim <= 255:
+        err(path, f"DimStencil: '{dim}' must be a whole number from 1 to 255")
+    stencils.append(dim)
+    if len(set(map(str, stencils))) != len(stencils):
+        err(path, "Stencil values must differ: the emphasis material tells the looks apart by them")
+    most = payload.get("MaxEmphasized")
+    if not isinstance(most, int) or isinstance(most, bool) or most < 1:
+        err(path, f"MaxEmphasized: '{most}' must be a whole number, 1 or more")
+    if not isinstance(payload.get("bSpotlightDimsEmphasized"), bool):
+        err(path, "bSpotlightDimsEmphasized: must be true or false")
+    extra = set(payload) - {"Kinds", "DimStencil", "MaxEmphasized", "bSpotlightDimsEmphasized"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSEmphasisStyle exactly")
+
+
+PLAYER_ATTRIBUTES_HEADER = REPO / "Source" / "PlaySports" / "Public" / "PSPlayerAttributes.h"
+# What a DNA binding's Target names: its tuning file, whose numeric fields are the struct's.
+DNA_BINDING_TARGETS = {
+    "SkillAI": "skill_ai_tuning.json",
+    "Pocket": "pocket_tuning.json",
+    "DefenderAI": "defense_ai_tuning.json",
+    "RouteRunning": "route_running.json",
+}
+DNA_AXIS_FIELDS = ("Axis", "Roles", "LowTrait", "LowLabel", "LowDescription", "HighTrait", "HighLabel",
+                   "HighDescription", "Generator")
+DNA_GENERATOR_FIELDS = ("HighAttribute", "LowAttribute", "RatingLean", "Spread")
+DNA_BINDING_FIELDS = ("Axis", "Target", "Field", "AtLow", "AtHigh")
+DNA_CATALOG_FIELDS = ("Axes", "Bindings", "RushMoveLeans", "RushStyleWeight", "TraitThreshold")
+
+
+def dna_axes():
+    """FPSPlayerDNA's float fields, read from PSPlayerAttributes.h so a new axis needs no edit
+    here; None when the header can't be read."""
+    try:
+        text = PLAYER_ATTRIBUTES_HEADER.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    match = re.search(r"struct\s+FPSPlayerDNA\s*\{(.*?)\n\};", text, re.S)
+    if not match:
+        return None
+    return set(re.findall(r"^\s*float\s+(\w+)\s*=", match.group(1), re.M))
+
+
+def load_dna_catalog():
+    """Data/player_dna.json, or None when it is missing or broken (its own checks report that)."""
+    try:
+        catalog = json.loads((DATA_DIR / "player_dna.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return catalog if isinstance(catalog, dict) else None
+
+
+def validate_player_dna(path, where, row, catalog):
+    """A player's optional "DNA" (FPSPlayerDNA, Epic 79): an object of axes the catalog lists
+    for his role, each a number from -1 to 1."""
+    dna = row.get("DNA")
+    if not isinstance(dna, dict):
+        err(path, f"{where}.DNA: must be an object of style axes")
+        return
+    axes = {a.get("Axis"): a for a in (catalog or {}).get("Axes", []) if isinstance(a, dict)}
+    for axis, value in dna.items():
+        if not is_number(value) or not -1 <= value <= 1:
+            err(path, f"{where}.DNA.{axis}: '{value}' must be a number from -1 to 1")
+        if catalog is None:
+            continue
+        if axis not in axes:
+            err(path, f"{where}.DNA.{axis}: not an axis in player_dna.json ({sorted(axes)})")
+        elif row.get("Role") not in (axes[axis].get("Roles") or []):
+            err(path, f"{where}.DNA.{axis}: doesn't apply to a {row.get('Role')} (player_dna.json lists it for {axes[axis].get('Roles')})")
+
+
+def validate_player_dna_catalog(path, payload):
+    """FPSPlayerDNACatalog (Data/player_dna.json, Epic 79); mirrors PSPlayerDNA::ValidateCatalog."""
+    extra = set(payload) - set(DNA_CATALOG_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPlayerDNACatalog exactly")
+    weight, threshold = payload.get("RushStyleWeight"), payload.get("TraitThreshold")
+    if not is_number(weight) or not 0 <= weight < 1:
+        err(path, f"RushStyleWeight: '{weight}' must be a number from 0 to below 1")
+    if not is_number(threshold) or not 0 < threshold <= 1:
+        err(path, f"TraitThreshold: '{threshold}' must be a number above 0, at most 1")
+    known_axes = dna_axes()
+    axes, traits = set(), set()
+    for idx, axis in enumerate(payload.get("Axes") if isinstance(payload.get("Axes"), list) else []):
+        where = f"Axes[{idx}]"
+        if not isinstance(axis, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        name = axis.get("Axis")
+        if known_axes is not None and name not in known_axes:
+            err(path, f"{where}.Axis: '{name}' is not an FPSPlayerDNA field ({sorted(known_axes)})")
+        elif name in axes:
+            err(path, f"{where}.Axis: '{name}' is listed twice")
+        axes.add(name)
+        roles = axis.get("Roles")
+        if not isinstance(roles, list) or not roles or any(r not in PLAYER_ROLES for r in roles):
+            err(path, f"{where}.Roles: '{roles}' must be a non-empty list of EPlayerRole names")
+        for end in ("Low", "High"):
+            trait = axis.get(f"{end}Trait")
+            if not isinstance(trait, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*", trait):
+                err(path, f"{where}.{end}Trait: '{trait}' must be an identifier (it names the trait's text rows)")
+            elif trait in traits:
+                err(path, f"{where}.{end}Trait: '{trait}' is used twice")
+            traits.add(trait)
+            for field in (f"{end}Label", f"{end}Description"):
+                if not isinstance(axis.get(field), str) or not axis.get(field).strip():
+                    err(path, f"{where}.{field}: must be a non-empty string")
+        generator = axis.get("Generator")
+        if not isinstance(generator, dict):
+            err(path, f"{where}.Generator: must be an object")
+        else:
+            for field in ("HighAttribute", "LowAttribute"):
+                if generator.get(field) not in content_contracts.RATING_FIELDS:
+                    err(path, f"{where}.Generator.{field}: '{generator.get(field)}' must be one of {list(content_contracts.RATING_FIELDS)}")
+            for field in ("RatingLean", "Spread"):
+                if not is_number(generator.get(field)) or generator[field] < 0:
+                    err(path, f"{where}.Generator.{field}: '{generator.get(field)}' must be a number, 0 or more")
+            if set(generator) - set(DNA_GENERATOR_FIELDS):
+                err(path, f"{where}.Generator: unknown field(s) {sorted(set(generator) - set(DNA_GENERATOR_FIELDS))}")
+        if set(axis) - set(DNA_AXIS_FIELDS):
+            err(path, f"{where}: unknown field(s) {sorted(set(axis) - set(DNA_AXIS_FIELDS))}")
+    target_fields = {}
+    for target, filename in DNA_BINDING_TARGETS.items():
+        try:
+            tuning = json.loads((DATA_DIR / filename).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        if isinstance(tuning, dict):
+            target_fields[target] = {k for k, v in tuning.items() if is_number(v)}
+    for idx, binding in enumerate(payload.get("Bindings") if isinstance(payload.get("Bindings"), list) else []):
+        where = f"Bindings[{idx}]"
+        if not isinstance(binding, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        if binding.get("Axis") not in axes:
+            err(path, f"{where}.Axis: '{binding.get('Axis')}' is not in Axes")
+        target, field = binding.get("Target"), binding.get("Field")
+        if target not in DNA_BINDING_TARGETS:
+            err(path, f"{where}.Target: '{target}' must be one of {sorted(DNA_BINDING_TARGETS)}")
+        elif target in target_fields and field not in target_fields[target]:
+            err(path, f"{where}.Field: '{field}' is not a number in {DNA_BINDING_TARGETS[target]}")
+        for end in ("AtLow", "AtHigh"):
+            if not is_number(binding.get(end)) or binding[end] <= 0:
+                err(path, f"{where}.{end}: '{binding.get(end)}' must be a multiplier above 0")
+        if set(binding) - set(DNA_BINDING_FIELDS):
+            err(path, f"{where}: unknown field(s) {sorted(set(binding) - set(DNA_BINDING_FIELDS))}")
+    try:
+        rush = json.loads((DATA_DIR / "pass_rush_moves.json").read_text(encoding="utf-8"))
+        rush_moves = {m.get("Move") for m in rush.get("RushMoves", []) if isinstance(m, dict)}
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        rush_moves = RUSH_MOVES
+    seen = set()
+    for idx, lean in enumerate(payload.get("RushMoveLeans") if isinstance(payload.get("RushMoveLeans"), list) else []):
+        where = f"RushMoveLeans[{idx}]"
+        if not isinstance(lean, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        move = lean.get("Move")
+        if move not in rush_moves:
+            err(path, f"{where}.Move: '{move}' is not a move in pass_rush_moves.json")
+        elif move in seen:
+            err(path, f"{where}.Move: '{move}' is listed twice")
+        seen.add(move)
+        if not is_number(lean.get("Lean")) or not -1 <= lean["Lean"] <= 1:
+            err(path, f"{where}.Lean: '{lean.get('Lean')}' must be a number from -1 to 1")
+        if set(lean) - {"Move", "Lean"}:
+            err(path, f"{where}: unknown field(s) {sorted(set(lean) - {'Move', 'Lean'})}")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2648,7 +2858,7 @@ def main():
             if not isinstance(payload["Players"], list):
                 err(path, "'Players' must be an array")
             else:
-                validate_players(path, payload["Players"])
+                validate_players(path, payload["Players"], load_dna_catalog())
         if isinstance(payload, dict) and "Contexts" in payload and "Actions" in payload:
             validate_input_catalog(path, payload)
         if isinstance(payload, dict) and "StickDeadZoneLower" in payload:
@@ -2693,6 +2903,8 @@ def main():
             validate_ball_flight_overlay(path, payload)
         if isinstance(payload, dict) and "RoleLabels" in payload:
             validate_overlay_badges(path, payload)
+        if isinstance(payload, dict) and "DimStencil" in payload:
+            validate_player_emphasis(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "KickoffTouchbackChance" in payload:
@@ -2733,6 +2945,8 @@ def main():
             validate_coverage_matchups(path, payload)
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
+        if isinstance(payload, dict) and "Axes" in payload and "Bindings" in payload:
+            validate_player_dna_catalog(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

@@ -732,6 +732,24 @@ bool UPSDataIngestion::LoadPersonnelCatalogFromJson(const FString& JsonFilePath,
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutCatalog, 0, 0);
 }
 
+bool UPSDataIngestion::LoadPlayerDNACatalogFromJson(const FString& JsonFilePath, FPSPlayerDNACatalog& OutCatalog)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutCatalog, 0, 0);
+}
+
 bool UPSDataIngestion::LoadUIAccessibilityTuningFromJson(const FString& JsonFilePath, FPSUIAccessibilityTuning& OutTuning)
 {
     FString JsonString;
@@ -823,6 +841,24 @@ bool UPSDataIngestion::LoadCoachingLeagueFromJson(const FString& JsonFilePath, F
 }
 
 bool UPSDataIngestion::LoadOverlayBadgeStyleFromJson(const FString& JsonFilePath, FPSOverlayBadgeStyle& OutStyle)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutStyle, 0, 0);
+}
+
+bool UPSDataIngestion::LoadEmphasisStyleFromJson(const FString& JsonFilePath, FPSEmphasisStyle& OutStyle)
 {
     FString JsonString;
     if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
