@@ -9,7 +9,7 @@ The map is not made by hand. The content pipeline's `game_map` step
 The Content workflow (`.github/workflows/content.yml`) runs that step, and the result is committed
 through Git LFS as `Content/Maps/GameMap.umap`. `Specs/ADR_Content_Pipeline.md` describes the loop.
 
-The level holds only what the field can't make for itself:
+The level holds:
 
 - **Daylight that needs no lighting build:** a movable directional light (the sun, used as the
   atmosphere's sun), a movable sky light, a sky atmosphere and exponential height fog.
@@ -17,10 +17,13 @@ The level holds only what the field can't make for itself:
 - **The match as its GameMode Override** (`APSGameMode`). The game boots into the map with
   `?game=Menu` (`LocalMapOptions`), which runs the front end instead. Play Now travels back to it
   without a game option, so the override starts the match.
+- **The field grid** (`APSFieldGrid`) at the origin (146.3). At BeginPlay it spawns the field's
+  trigger volumes and its surface (`APSFieldSurface`: the ground, grass, end zones, lines and hash
+  marks), both built from data (`Specs/Field_Geometry_Spec.md`, `Specs/Field_Markings_Spec.md`).
+  So the front end has the field behind it, and the match uses this grid instead of spawning one.
 
-The field itself (surface, markings, end zones) and its trigger volumes are built at runtime from
-data by `APSFieldGrid`, which the game mode spawns when the level has none. So changing the
-field's dimensions or look never means regenerating the map.
+The level holds no field geometry of its own, so changing the field's dimensions or look never
+means regenerating the map.
 
 ## Changing it
 

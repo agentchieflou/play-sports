@@ -5,7 +5,8 @@
 //      is a real level in this checkout, not a Git LFS pointer file. It loads as a world. Its
 //      GameMode Override is the match (APSGameMode), which Play Now relies on: it travels to the
 //      level without a game option. Its daylight needs no lighting build (a movable sun and sky
-//      light, a sky atmosphere), and it has a player start.
+//      light, a sky atmosphere), and it has a player start and the field grid (146.3), which builds
+//      the field from data at BeginPlay.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -20,6 +21,7 @@
 #include "GameMapsSettings.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
+#include "PSFieldGrid.h"
 #include "PSGameMode.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
@@ -98,6 +100,7 @@ bool FPSGameMapTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("One sky light, movable"), MovableSkyLights, 1);
     TestEqual(TEXT("One sky atmosphere"), CountActors<ASkyAtmosphere>(Level), 1);
     TestEqual(TEXT("One player start"), CountActors<APlayerStart>(Level), 1);
+    TestEqual(TEXT("One field grid, which builds the field from data at BeginPlay"), CountActors<APSFieldGrid>(Level), 1);
     return true;
 }
 

@@ -128,6 +128,7 @@ every CI build.
 | `crowd.json` | `FPSCrowdTuning` (single object: the excitement model, `Levels`, `CrowdReactions`) | `UPSDataIngestion::LoadCrowdTuningFromJson`, via `UPSCrowdExcitementSubsystem` |
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
 | `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
+| `field_markings.json` | `FPSFieldMarkingsStyle` (single object) | `UPSDataIngestion::LoadFieldMarkingsStyleFromJson`, via `APSFieldSurface::LoadStyle` (`APSFieldGrid::SpawnFieldSurface`) |
 | `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
@@ -2079,6 +2080,32 @@ Every value is a number above 0.
   reach. `BoundaryHeightCm`: the boundary volumes' height.
 
 `PSField::Validate` and `tools/validate_data.py` check it.
+
+## Field markings schema (`FPSFieldMarkingsStyle`)
+
+Single object: how `APSFieldSurface` draws the field (Epic 146.3). The field is built at runtime from
+engine basic shapes and dynamic material instances, with no level or mesh asset of its own
+(`Specs/ADR_Content_Pipeline.md`). Where each piece goes is the field's frame above; this file says
+only how it looks. Lengths are in yards of that frame, so the markings keep the field's proportions
+at any `CentimetresPerYard`.
+
+- `GroundMeshPath` (a box) and `PlaneMeshPath` (a plane facing +Z), both `MeshSizeCm` on a side at
+  scale 1 and centred on their pivots. `MaterialPath` is a material with a vector parameter named
+  `ColorParameter`; every piece gets a dynamic instance of it in its colour.
+- Colours, `#RRGGBB`: `FieldColor` (end line to end line, sideline to sideline), `SurroundColor`
+  (the ground out of bounds), `NearEndZoneColor` (behind the goal line at X = 0),
+  `FarEndZoneColor`, `LineColor` (every line and hash mark).
+- `GroundThicknessCm` (above 0): the ground slab, whose top is Z = 0. It reaches
+  `OutOfBoundsDepthYards` past the field and has collision, so the ball lands on it.
+  `LayerLiftCm` (0 or more): each layer's height above the one below (ground, field, end zones,
+  lines).
+- `LineWidthYards`: every line's width. `YardLineSpacingYards`: a yard line every this many yards
+  from the near goal line, goal lines included. `HashSpacingYards`, `HashLengthYards` and
+  `HashOffsetYards` (each row's distance from the middle of the field, 0 or more): a pair of hash
+  marks every `HashSpacingYards` between the goal lines, except where a yard line crosses. All but
+  the offset are above 0.
+
+`APSFieldSurface::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Formation schema (`FPSFormationCatalog`)
 

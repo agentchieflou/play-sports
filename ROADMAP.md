@@ -114,8 +114,8 @@ Track P supervisor).
 **Goal:** A regulation-dimensioned field level exists that all gameplay Epics use.
 **Depends on:** —
 
-- [ ] Field geometry: 120yd × 53.3yd playing surface with correct UE unit scaling convention (documented)
-- [ ] Yard lines, hash marks, end zones, and sidelines (materials/decals, placeholder art fine)
+- [x] Field geometry: 120yd × 53.3yd playing surface with correct UE unit scaling convention (documented) *(as built, Epic 146.3: `APSFieldSurface` lays a 120 × 53.3-yard surface on the field's one frame (`PSField`, `Data/field_dimensions.json`), with ground reaching the out-of-bounds depth; the convention, a game yard of 100 cm, is documented in `Specs/Field_Geometry_Spec.md` and the data)*
+- [x] Yard lines, hash marks, end zones, and sidelines (materials/decals, placeholder art fine) *(as built, Epic 146.3: built at runtime from basic shapes and dynamic material instances in `Data/field_markings.json`'s colours: 21 yard lines (goal lines included), 80 pairs of NFL hash marks, sidelines, end lines and both end zones; `Specs/Field_Markings_Spec.md`. Numbers and logos wait for the world kit's materials)*
 - [x] Field coordinate helper (`PSFieldGrid` or similar): yard-line ↔ world-position conversion functions
 - [x] Out-of-bounds and end-zone trigger volumes
 - [x] Default `GameMap` set in project settings so PIE opens into the field

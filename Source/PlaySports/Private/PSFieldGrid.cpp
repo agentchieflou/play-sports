@@ -7,6 +7,8 @@
 #include "PSEndZoneVolume.h"
 #include "PSOutOfBoundsVolume.h"
 #include "Components/BoxComponent.h"
+#include "EngineUtils.h"
+#include "PSFieldSurface.h"
 
 APSFieldGrid::APSFieldGrid()
 {
@@ -17,6 +19,33 @@ void APSFieldGrid::BeginPlay()
 {
     Super::BeginPlay();
     SpawnBoundaryVolumes();
+    SpawnFieldSurface();
+}
+
+APSFieldSurface* APSFieldGrid::SpawnFieldSurface()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return nullptr;
+    }
+    APSFieldSurface* Surface = nullptr;
+    for (TActorIterator<APSFieldSurface> It(World); It; ++It)
+    {
+        Surface = *It;
+        break;
+    }
+    if (!Surface)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        Surface = World->SpawnActor<APSFieldSurface>(APSFieldSurface::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+    }
+    if (Surface && !Surface->IsBuilt())
+    {
+        Surface->BuildFromData();
+    }
+    return Surface;
 }
 
 const TArray<AActor*>& APSFieldGrid::SpawnBoundaryVolumes()

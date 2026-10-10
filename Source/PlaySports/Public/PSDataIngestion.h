@@ -80,6 +80,7 @@
 #include "PSCrowdTypes.h"
 #include "PSCommentaryTypes.h"
 #include "PSFieldDimensions.h"
+#include "PSFieldSurfaceTypes.h"
 #include "PSFormations.h"
 #include "PSDataIngestion.generated.h"
 
@@ -489,6 +490,12 @@ public:
      *  PSField::Validate checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadFieldDimensionsFromJson(const FString& JsonFilePath, FPSFieldDimensions& OutDimensions);
+
+    /** Loads how the field is drawn (Data/field_markings.json, Epic 146.3): APSFieldSurface's
+     *  meshes, colors and line sizes. False on a missing file or malformed JSON;
+     *  APSFieldSurface::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadFieldMarkingsStyleFromJson(const FString& JsonFilePath, FPSFieldMarkingsStyle& OutStyle);
 
     /** Loads every formation, front and shell's alignment (Data/formations.json): where each
      *  player lines up for a call (PSFormations). False on a missing file or malformed JSON;
