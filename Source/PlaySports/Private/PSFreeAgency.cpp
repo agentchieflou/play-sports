@@ -110,6 +110,16 @@ int32 UPSFreeAgency::ReleaseUnsignedToPool(const TMap<FName, int32>& AgeByPlayer
     return Moved;
 }
 
+bool UPSFreeAgency::SetFreeAgentMorale(FName PlayerId, float Morale)
+{
+    FPSFreeAgent* FreeAgent = FindMutable(PlayerId);
+    if (FreeAgent)
+    {
+        FreeAgent->Morale = FMath::Clamp(Morale, 0.f, 1.f);
+    }
+    return FreeAgent != nullptr;
+}
+
 void UPSFreeAgency::BeginPeriod()
 {
     if (!Contracts)

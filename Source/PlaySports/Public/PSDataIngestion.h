@@ -44,6 +44,7 @@
 #include "PSRosterData.h"
 #include "PSContractData.h"
 #include "PSEconomyData.h"
+#include "PSLockerRoomData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSDataIngestion.generated.h"
@@ -266,6 +267,12 @@ public:
      *  UPSOwnerEconomy::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadEconomyTuningFromJson(const FString& JsonFilePath, FPSEconomyTuning& OutTuning);
+
+    /** Loads morale, chemistry and the locker room's events (Data/morale.json, Epic 91). False on
+     *  a missing file, malformed JSON or an unknown Role; UPSLockerRoom::ValidateTuning checks the
+     *  rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadMoraleTuningFromJson(const FString& JsonFilePath, FPSMoraleTuning& OutTuning);
 
     /** Loads the player style axes and their AI bindings (Data/player_dna.json, Epic 79). False
      *  on a missing file or malformed JSON; PSPlayerDNA::ValidateCatalog checks the rest. */

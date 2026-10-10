@@ -6,11 +6,13 @@
 #include "PSStaffData.h"
 #include "PSContractData.h"
 #include "PSEconomyData.h"
+#include "PSLockerRoomData.h"
 #include "PSFranchiseFlow.generated.h"
 
 class UPSContractManager;
 class UPSFranchiseSeason;
 class UPSFreeAgency;
+class UPSLockerRoom;
 class UPSOwnerEconomy;
 class UPSMatchSetup;
 class UPSRoster;
@@ -71,6 +73,25 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSOwnerEconomy* GetEconomy() const { return Economy; }
+
+    /** The league's locker rooms (Epic 91): every simulated game's lineups make chemistry and its
+     *  players play at their morale and cohesion (a holdout sits); each week's AdvanceWeek
+     *  re-evaluates morale; at season end released players take their morale into free agency
+     *  and the new league year's holdouts begin. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetLockerRoom(UPSLockerRoom* InLockerRoom) { LockerRoom = InLockerRoom; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSLockerRoom* GetLockerRoom() const { return LockerRoom; }
+
+    /** Re-evaluates every team's locker room with its record from the standings; bNewLeagueYear
+     *  lets holdouts begin. Returns (and keeps) what happened. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    TArray<FPSLockerRoomEvent> EvaluateLockerRooms(bool bNewLeagueYear);
+
+    /** Everything that has happened in the locker rooms, in order. */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    const TArray<FPSLockerRoomEvent>& GetLockerRoomEvents() const { return LockerRoomEvents; }
 
     /** Every team's books for the season that just ended (empty before then). */
     UFUNCTION(BlueprintPure, Category = "Franchise")
@@ -169,6 +190,12 @@ private:
 
     UPROPERTY(Transient)
     TArray<FPSEconomySeasonReport> EconomyReports;
+
+    UPROPERTY(Transient)
+    UPSLockerRoom* LockerRoom = nullptr;
+
+    UPROPERTY(Transient)
+    TArray<FPSLockerRoomEvent> LockerRoomEvents;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;

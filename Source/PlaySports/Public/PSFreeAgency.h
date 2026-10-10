@@ -58,6 +58,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Contracts|FreeAgency")
     int32 ReleaseUnsignedToPool(const TMap<FName, int32>& AgeByPlayerId);
 
+    /** Sets a free agent's morale (0-1; Epic 91's locker room): what his old team's offers are
+     *  worth to him. False when he isn't in the pool. */
+    UFUNCTION(BlueprintCallable, Category = "Contracts|FreeAgency")
+    bool SetFreeAgentMorale(FName PlayerId, float Morale);
+
     /** Opens free agency on day 1: every free agent's ask is set. */
     UFUNCTION(BlueprintCallable, Category = "Contracts|FreeAgency")
     void BeginPeriod();
