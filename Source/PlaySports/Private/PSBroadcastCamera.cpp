@@ -1,6 +1,7 @@
 #include "PSBroadcastCamera.h"
 #include "PSCameraAll22Component.h"
 #include "PSCameraDirectorComponent.h"
+#include "PSCameraSkycamComponent.h"
 #include "PSPlayerController.h"
 
 APSBroadcastCamera::APSBroadcastCamera()
@@ -9,6 +10,7 @@ APSBroadcastCamera::APSBroadcastCamera()
 
     All22Component = CreateDefaultSubobject<UPSCameraAll22Component>(TEXT("All22Comp"));
     DirectorComponent = CreateDefaultSubobject<UPSCameraDirectorComponent>(TEXT("DirectorComp"));
+    SkycamComponent = CreateDefaultSubobject<UPSCameraSkycamComponent>(TEXT("SkycamComp"));
 
     TargetActor = nullptr;
     SidelineY = -2800.0f; // Standard sideline placement (field width is Y = +/- 2438.4 cm)
@@ -34,6 +36,12 @@ APSBroadcastCamera::APSBroadcastCamera()
 void APSBroadcastCamera::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    // The skycam (Epic 39) flies whether or not it is on air.
+    if (SkycamComponent)
+    {
+        SkycamComponent->AdvanceTime(DeltaTime);
+    }
 
     if (bIsFreeCam)
     {

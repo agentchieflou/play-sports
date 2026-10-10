@@ -72,6 +72,7 @@ every CI build.
 | `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
 | `camera_all22.json` | `FPSAll22CameraTuning` (single object: `All22Rigs`, framing tuning) | `UPSDataIngestion::LoadAll22CameraTuningFromJson`, via `UPSCameraAll22Component` |
 | `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
+| `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -601,16 +602,19 @@ Single object (Epic 40; the coaches film view, `UPSCameraAll22Component` on the 
 Single object (Epic 38; `UPSCameraDirectorComponent` on the broadcast camera cuts the game by itself):
 - `bDirectorEnabled`: off leaves the broadcast camera to its plain follow.
 - `Shots[]`, the vocabulary, each `Shot` once: `LosWide`, `All22High`, `TightFollow`, `EndZone`,
-  `SidelineReaction`.
+  `SidelineReaction`, `Skycam`.
   - `All22High` and `EndZone` are taken by the Epic 40 rig named by `RigId`, which must be in
     `camera_all22.json`.
+  - `Skycam` is Epic 39's cable rig (`camera_skycam.json`), which flies itself; its numbers here
+    are only a fallback for a camera without one.
   - The others stand `DistanceCm` from their target toward the camera side, at `HeightCm`, with a
     `FieldOfView` (0-170 degrees), aiming `AimHeightCm` above the field. The target is the ball
     for `LosWide` and the live subject for the rest. `TightFollow` aims `LeadSeconds` ahead of
     him along his run.
 - `CutRules[]`: `Trigger` (`PreSnap`, `Snap`, `Throw`, `Catch`, `Tackle`, `Fumble`, `Score`,
-  `PlayEnd`; each once, and `PreSnap` is required: it is the opening shot) to the `Shot` it asks
-  for.
+  `PlayEnd`, `Breakaway`; each once, and `PreSnap` is required: it is the opening shot) to the
+  `Shot` it asks for. `Breakaway` fires when the live subject breaks into the clear (see
+  `Interest`).
 - `Interest`: how a player's interest is scored to pick the live subject. It is the sum of:
   - `BallWeight` for holding the ball;
   - `ProximityWeight` falling off to nothing at `ProximityRadiusCm` from the ball;
@@ -673,3 +677,22 @@ Track C's branding reskins the broadcast by swapping this file:
   (above 0).
 
 `UPSOverlayBroadcastSubsystem::ValidateTheme` and `tools/validate_data.py` check it.
+
+## Skycam schema (`FPSSkycamTuning`)
+
+Single object (Epic 39; `UPSCameraSkycamComponent`, a camera hung from four cables over the field):
+- `AnchorHalfLengthCm`, `AnchorHalfWidthCm`, `AnchorHeightCm`: the cable towers stand at
+  (±half length, ±half width) and the cables leave them at this height.
+- `CatenaryParameterCm` (tension over weight per length): the cables hang in catenaries, so the
+  camera's ceiling at a point is the anchor height less both cable families' sag there. It is
+  highest by the towers and lowest over midfield.
+- `EdgeMarginCm`: how far inside the towers' rectangle the camera keeps. `MinHeightCm`: the lowest
+  it flies (it must be below the ceiling over midfield).
+- `StiffnessPerSecSq`, `DampingPerSec`: the rig's mass, a damped spring toward where it wants to
+  be (2·√stiffness damps it critically). `MaxSpeedCms`, `MaxAccelerationCms2`: the winches.
+- `BehindQuarterbackDistanceCm`, `BehindQuarterbackHeightCm`: where it parks before the snap.
+- `ChaseDistanceCm`, `ChaseHeightCm`: how far behind the ball carrier, along his run, it chases
+  from the snap.
+- `LookAheadCm`: how far ahead of whoever it follows it looks. `FieldOfView` (0-170 degrees).
+
+`UPSCameraSkycamComponent::ValidateTuning` and `tools/validate_data.py` check it.

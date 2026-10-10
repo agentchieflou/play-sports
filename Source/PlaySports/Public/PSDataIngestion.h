@@ -32,6 +32,7 @@
 #include "PSRouteRunning.h"
 #include "PSCameraFraming.h"
 #include "PSCameraDirectorComponent.h"
+#include "PSCameraSkycamComponent.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -188,6 +189,10 @@ public:
      *  unrecognized Shot or Trigger. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCameraDirectorTuningFromJson(const FString& JsonFilePath, FPSCameraDirectorTuning& OutTuning);
+
+    /** Loads the skycam's cable rig and flying (Data/camera_skycam.json, Epic 39). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSkycamTuningFromJson(const FString& JsonFilePath, FPSSkycamTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

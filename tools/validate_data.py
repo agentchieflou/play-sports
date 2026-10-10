@@ -32,13 +32,16 @@ FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuning
 action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files against
 FPSBroadcastOverlayTheme; "Settings" files against FPSSettingsCatalog (Epic 103.1). Teams, the
 league config, the playbook, player rating ranges and every reference between files are
-tools/content_contracts.py's (Epic 125), run from here.
+tools/content_contracts.py's (Epic 125), run from here; "CatenaryParameterCm" files against
+FPSSkycamTuning. Teams, the league config, the playbook, player rating ranges and every reference
+between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
 """
 
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -1553,9 +1556,9 @@ def validate_all22_camera(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSAll22CameraTuning exactly")
 
 
-DIRECTOR_SHOTS = ("LosWide", "All22High", "TightFollow", "EndZone", "SidelineReaction")
+DIRECTOR_SHOTS = ("LosWide", "All22High", "TightFollow", "EndZone", "SidelineReaction", "Skycam")
 DIRECTOR_RIG_SHOTS = {"All22High", "EndZone"}
-DIRECTOR_TRIGGERS = {"PreSnap", "Snap", "Throw", "Catch", "Tackle", "Fumble", "Score", "PlayEnd"}
+DIRECTOR_TRIGGERS = {"PreSnap", "Snap", "Throw", "Catch", "Tackle", "Fumble", "Score", "PlayEnd", "Breakaway"}
 DIRECTOR_SHOT_NUMBERS = ("HeightCm", "DistanceCm", "FieldOfView", "AimHeightCm", "LeadSeconds")
 DIRECTOR_INTEREST_NUMBERS = ("BallWeight", "ProximityWeight", "ProximityRadiusCm", "BreakawayWeight", "BreakawaySpeedCms",
                              "BreakawayClearanceCm", "BigHitWeight", "BigHitSeconds", "BigHitDamage", "SwitchMargin")
@@ -1734,6 +1737,40 @@ def validate_broadcast_overlay(path, payload):
             err(path, f"ChyronKinds: no '{kind}' entry")
 
 
+SKYCAM_POSITIVE = ("AnchorHalfLengthCm", "AnchorHalfWidthCm", "AnchorHeightCm", "CatenaryParameterCm", "StiffnessPerSecSq",
+                   "MaxSpeedCms", "MaxAccelerationCms2", "FieldOfView")
+SKYCAM_NON_NEGATIVE = ("EdgeMarginCm", "MinHeightCm", "DampingPerSec", "BehindQuarterbackDistanceCm",
+                       "BehindQuarterbackHeightCm", "ChaseDistanceCm", "ChaseHeightCm", "LookAheadCm")
+
+
+def validate_skycam(path, payload):
+    """FPSSkycamTuning (Data/camera_skycam.json, Epic 39); mirrors
+    UPSCameraSkycamComponent::ValidateTuning, including the catenary ceiling over midfield."""
+    for field in SKYCAM_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a positive number")
+    for field in SKYCAM_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    extra = set(payload) - set(SKYCAM_POSITIVE) - set(SKYCAM_NON_NEGATIVE)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSSkycamTuning exactly")
+    if not all(is_number(payload.get(f)) and payload[f] > 0 for f in SKYCAM_POSITIVE) \
+            or not all(is_number(payload.get(f)) for f in SKYCAM_NON_NEGATIVE):
+        return
+    if payload["FieldOfView"] >= 170:
+        err(path, "FieldOfView must be below 170")
+    if payload["EdgeMarginCm"] >= min(payload["AnchorHalfLengthCm"], payload["AnchorHalfWidthCm"]):
+        err(path, "EdgeMarginCm must leave room inside the towers")
+    a = payload["CatenaryParameterCm"]
+    ceiling = payload["AnchorHeightCm"] - sum(a * (math.cosh(span / a) - 1.0)
+                                              for span in (payload["AnchorHalfLengthCm"], payload["AnchorHalfWidthCm"]))
+    if payload["MinHeightCm"] >= ceiling:
+        err(path, f"MinHeightCm ({payload['MinHeightCm']}) must be below the cables' ceiling over midfield ({ceiling:.0f})")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1825,6 +1862,8 @@ def main():
             validate_settings_catalog(path, payload)
         if isinstance(payload, dict) and "CutRules" in payload:
             validate_camera_director(path, payload, load_all22_rig_ids())
+        if isinstance(payload, dict) and "CatenaryParameterCm" in payload:
+            validate_skycam(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")

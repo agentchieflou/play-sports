@@ -9,6 +9,7 @@
 
 class ACameraActor;
 class UPSCameraAll22Component;
+class UPSCameraSkycamComponent;
 struct FPSSnapshotFrame;
 
 /** The director's shot vocabulary (Epic 38). */
@@ -25,7 +26,9 @@ enum class EPSDirectorShot : uint8
     /** The all-22 end-zone rig (Epic 40), behind the offense. */
     EndZone,
     /** Low and close from the near sideline on the subject: reactions after the whistle. */
-    SidelineReaction
+    SidelineReaction,
+    /** The skycam (Epic 39): the cable rig's own shot, chasing the play from above. */
+    Skycam
 };
 
 /** What the director cuts on: the play's phases and its events on the bus. */
@@ -41,7 +44,9 @@ enum class EPSDirectorTrigger : uint8
     Fumble,
     Score,
     /** The whistle (PhaseChange to Scoring). */
-    PlayEnd
+    PlayEnd,
+    /** The live subject breaks into the clear (interest scoring's breakaway). */
+    Breakaway
 };
 
 /** One shot of the vocabulary, as data (Data/camera_director.json; rule 4). */
@@ -233,9 +238,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPSDirectorShotChangedSignature, EP
  * UPSCameraDirectorComponent is the camera director (Epic 38): it cuts the broadcast camera
  * between its shots by itself, so a whole game can be watched with no camera work.
  *
- * - Shot vocabulary: LOS wide, all-22 high, tight follow, end zone and sideline reaction. The
- *   two high shots are Epic 40's all-22 rigs, framed by UPSCameraFraming; the others stand
- *   their DistanceCm toward the camera side of their target.
+ * - Shot vocabulary: LOS wide, all-22 high, tight follow, end zone, sideline reaction and
+ *   skycam. The two high shots are Epic 40's all-22 rigs, framed by UPSCameraFraming; the skycam
+ *   is Epic 39's cable rig, which flies on its own and hands the director its shot; the others
+ *   stand their DistanceCm toward the camera side of their target.
  * - Cut rules: the play's phases and events on UPSTelemetryBus (rule 5) each ask for a shot
  *   (Data/camera_director.json): wide before the snap, follow from the snap, tight after the
  *   whistle.
@@ -244,7 +250,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPSDirectorShotChangedSignature, EP
  *   live subject, with SwitchMargin of hysteresis.
  * - Constraints: no shot is cut away from before MinShotSeconds, and every shot stays on the
  *   CameraSide of the line of action, so a cut never flips screen direction (the 180-degree
- *   rule). Within a shot the camera eases after its target; cuts are instant.
+ *   rule). The skycam flies over the line of action and is exempt. Within a shot the camera
+ *   eases after its target (the skycam's own mass does that for it); cuts are instant.
  *
  * It lives on APSBroadcastCamera, which hands it the camera every tick while it is enabled and
  * the film view (Epic 40) is off. Headless tests step it with AdvanceTime.
@@ -365,11 +372,12 @@ private:
 
     ACameraActor* GetCamera() const;
     UPSCameraAll22Component* GetAll22Component() const;
+    UPSCameraSkycamComponent* GetSkycamComponent() const;
     const FPSDirectorShotDef* FindShotDef(EPSDirectorShot Shot) const;
 
     /** Builds this step's view from Frame and picks the subject; false when the frame has no
-     *  players. */
-    bool BuildView(const FPSSnapshotFrame& Frame, FPSDirectorView& OutView);
+     *  players. bOutSubjectBreakaway is whether the subject is in the clear at speed. */
+    bool BuildView(const FPSSnapshotFrame& Frame, FPSDirectorView& OutView, bool& bOutSubjectBreakaway);
 
     void CutTo(EPSDirectorShot Shot);
     void ApplyToCamera(bool bSnap, float DeltaSeconds);
@@ -393,6 +401,10 @@ private:
     bool bSnapNextStep = false;
 
     FName SubjectId;
+
+    /** Whether the subject was on a breakaway last step; the trigger fires as he breaks clear. */
+    bool bSubjectWasBreakaway = false;
+
     FPSCameraShot TargetShot;
     double LineOfActionY = 0.0;
 
