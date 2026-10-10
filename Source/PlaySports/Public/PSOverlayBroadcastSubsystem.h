@@ -23,7 +23,10 @@
  *    come first served within a priority. A higher priority one cuts in once the one on
  *    screen has been up ChyronMinShowSeconds; the queue holds ChyronMaxQueued at most. The
  *    bus feeds it: points (score alerts), finished drives (drive summaries), sacks, runs and
- *    interceptions (play lines). PushStatLine is the door for a stats source (Epic 92).
+ *    interceptions (play lines). A tackle's line waits for the play's result: its yards are
+ *    the simulation's (PlayResult), measured from the line of scrimmage; the Tackle event
+ *    only names who was down and who brought him down. PushStatLine is the door for a stats
+ *    source (Epic 92).
  *  - Detail: the platform tier's OverlayDetail. Minimal keeps the score bug and turns chyrons
  *    off.
  *
@@ -126,6 +129,7 @@ private:
     void HandleScore(const FPSTelemetryScoreEvent& Event);
     void HandleCatch(const FPSTelemetryCatchEvent& Event);
     void HandleTackle(const FPSTelemetryTackleEvent& Event);
+    void HandlePlayResult(const FPSTelemetryPlayResultEvent& Event);
 
     /** Texts and special states from the numbers in ScoreBug. */
     void RefreshDerived();
@@ -146,6 +150,12 @@ private:
      *  announce it again. */
     int32 AnnouncedHomeScore = 0;
     int32 AnnouncedAwayScore = 0;
+
+    /** The tackle that ended the play in progress (the first one heard since the last result):
+     *  its names wait for the play's result, which has the yards. */
+    FString PendingTacklerName;
+    FString PendingCarrierName;
+    bool bTacklePending = false;
 
     FName HomeTeamId;
     FName AwayTeamId;

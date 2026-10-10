@@ -788,8 +788,8 @@ void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
     }
 
     // The play's yards run from the line of scrimmage, this simulation's spot, to where the
-    // carrier went down (the event's spot, in the offense's yard lines). The event's own
-    // YardsGained counts from where the carrier lined up, behind the line for a back.
+    // carrier went down (the event's spot, in the offense's yard lines). This is their one
+    // measure: the overlay, the highlights and the stats read it from the play's result.
     CurrentPlayResult.ResultType = EPlayResultType::Tackle;
     CurrentPlayResult.YardsGained = FMath::Clamp(Event.YardLine, 0, 100) - CurrentState.YardLine;
     const FName CarrierId = FindPlayerIdByName(Event.BallCarrierName);
@@ -962,8 +962,9 @@ void UPSPlaySimulation::RecordTouchdown()
         SetPlayPhase(EPlayPhase::Scoring);
         return;
     }
+    // The play gained the rest of the field: from the line of scrimmage to the goal line.
     CurrentPlayResult.ResultType = EPlayResultType::Touchdown;
-    CurrentPlayResult.YardsGained = 100;
+    CurrentPlayResult.YardsGained = 100 - CurrentState.YardLine;
     SetPlayPhase(EPlayPhase::Scoring);
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Touchdown recorded."));
 }

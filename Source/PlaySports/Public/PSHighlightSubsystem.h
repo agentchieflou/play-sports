@@ -18,7 +18,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPSHighlightReelSignature);
  *  - Importance: it follows every play on the telemetry bus, from the snap to the moment the
  *    play is settled (the first game state after the whistle that isn't the whistle's own, or
  *    SettleAfterWhistleSeconds after it, or the next snap). It reads the play's yards (the
- *    longest tackle or catch, else the yard line's move), the points (the game state's score,
+ *    simulation's PlayResult, the outcome authority's measure from the line of scrimmage;
+ *    without one, the longest catch, else the yard line's move), the points (the game state's score,
  *    the authority, or Score events), a turnover (an interception, a lost fumble, the ball
  *    changing hands on a play that wasn't a kick), the tackles the carrier broke (a hit he
  *    survived) and the swing in the home team's chance of winning (HomeWinProbability), and
@@ -156,6 +157,9 @@ private:
         bool bHaveStateAtSnap = false;
         int32 LongestYards = 0;
         bool bHaveYards = false;
+        /** The play's yards as the simulation measured them (its PlayResult). */
+        int32 ResultYards = 0;
+        bool bHaveResult = false;
         int32 EventPoints = 0;
         bool bTurnoverEvent = false;
         int32 BrokenTackles = 0;

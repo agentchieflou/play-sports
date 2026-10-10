@@ -70,7 +70,6 @@ namespace PSForceFeedbackTests
         FPSTelemetryTackleEvent Event;
         Event.TacklerName = Tackler;
         Event.BallCarrierName = Carrier;
-        Event.YardsGained = bIsSack ? -7 : 3;
         Event.bIsSack = bIsSack;
         Bus->PublishTackle(Event);
     }

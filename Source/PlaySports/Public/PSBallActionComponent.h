@@ -7,6 +7,8 @@
 
 class APSPlayerPawn;
 class APSBall;
+class UPSTelemetryBus;
+struct FPSTelemetrySnapEvent;
 
 /**
  * UPSBallActionComponent encapsulates ball-action mechanics (passing, handoffs, lateral tosses,
@@ -51,9 +53,30 @@ public:
     void FumbleBall();
 
     /** Resolves a physical tackle contest against an incoming defender. A carrier it downs is
-     *  announced as a Tackle event on the telemetry bus (tackler, carrier, spot, yards, sack);
-     *  the play simulation records the play from that event. True when the tackle succeeded,
-     *  even if the carrier survived the hit or fumbled. */
+     *  announced as a Tackle event on the telemetry bus (tackler, carrier, spot, sack); the
+     *  play simulation, the outcome authority, rules on the play from that event and measures
+     *  its yards from the line of scrimmage. True when the tackle succeeded, even if the
+     *  carrier survived the hit or fumbled. */
     UFUNCTION(BlueprintCallable, Category = "BallAction")
     bool ResolveTackle(APSPlayerPawn* Defender);
+
+    /** Hears the snap's line of scrimmage on the bus, for the sack call. BeginPlay binds;
+     *  headless tests call it. Idempotent. */
+    void BindToBus();
+
+    void UnbindFromBus();
+
+protected:
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+private:
+    void HandleSnap(const FPSTelemetrySnapEvent& Event);
+
+    /** The last snap's line of scrimmage (world X; the offense attacks +X), once one is heard.
+     *  A quarterback with the ball brought down behind it is sacked. */
+    float LineOfScrimmageX = 0.f;
+    bool bHasLineOfScrimmage = false;
+
+    TWeakObjectPtr<UPSTelemetryBus> BoundBus;
 };

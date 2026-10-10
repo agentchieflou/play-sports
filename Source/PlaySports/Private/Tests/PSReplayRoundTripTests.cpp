@@ -128,7 +128,7 @@ bool FPSReplayRecorderDrainsBusTest::RunTest(const FString& Parameters)
         Bus->PublishSnap(MakeSnap(Tick));
     }
     FPSTelemetryTackleEvent Tackle;
-    Tackle.YardsGained = 7;
+    Tackle.YardLine = 27;
     Bus->PublishTackle(Tackle);
 
     const FPSReplayRecording Recording = Recorder->EndRecording();

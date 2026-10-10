@@ -377,7 +377,6 @@ FPSPerfReport UPSPerfHarness::RunStandardPlay(UWorld* World, const FPSPlatformTi
     Tackle.TacklerName = Tackler ? Tackler->GetAttributes().DisplayName : FString();
     Tackle.BallCarrierName = Receiver ? Receiver->GetAttributes().DisplayName : FString();
     Tackle.YardLine = 38;
-    Tackle.YardsGained = 18;
     Bus->PublishTackle(Tackle);
     FPSTelemetryPhaseChangeEvent Whistle;
     Whistle.OldPhase = TEXT("BallCarrierMovement");
