@@ -53,10 +53,8 @@ editor handoff: what exists in code, and what an editor session adds.
     player may remap with its key on the active device. Choose one, then press the new key or
     button; Back cancels, and the screen says what happened ("Juke is now B", or why the key
     was refused). See `Specs/Input_Architecture.md` section 6.
-  - The other audio volumes and the motion settings (reduced motion, camera shake, flashes
-    and pyro) are stored for the systems they concern, which don't exist yet: sound classes,
-    camera shake and pyro. They read the values with `GetNumber`/`GetBool` and hear changes on
-    `OnSettingChanged`.
+  - The other audio volumes are stored for the sound classes, which don't exist yet. They read
+    the values with `GetNumber` and hear changes on `OnSettingChanged`.
 - **Accessibility (Epic 103.2/103.3).** `UPSUIAccessibilitySubsystem` (world) owns what the
   player reads and sees:
   - Captions. Whoever speaks -- the commentary booth (Epic 96), the PA, a referee -- publishes
@@ -74,6 +72,16 @@ editor handoff: what exists in code, and what an editor session adds.
     still sees, and `ResolveMatchupColors` falls back to a secondary color when home and away
     still look alike. Team select's accents go through it today; Epic 37's team colors and
     the Track A overlays are to call it as they arrive.
+  - Motion and flashes (Epic 103.5), all on `UPSUIAccessibilitySubsystem`:
+    - With Reduced motion on, every blended change of view is a cut. `APSPlayerController`
+      overrides `SetViewTarget` and passes the blend time through `GetTransitionSeconds`.
+    - Menus don't fade (`UPSMenuComponent::GetTransitionSeconds`).
+    - A camera's follow speed through `GetCameraFollowSpeed` is 0, so `FInterpTo` snaps and
+      there is no lag to swing through.
+    - Nothing shakes. Every gameplay shake starts through `StartCameraShake`, which plays it at
+      the Camera shake setting's strength, or not at all.
+    - `GetFlashScale` is the Flashes and pyro setting, for stadium pyro and screen flashes to
+      scale by.
 - **Localization (Epic 106).** All UI text comes through `UPSLocalization`, from two UE string
   tables: `Data/ui_text.csv` (the code's own text, written by hand) and
   `Data/ui_text_data.csv` (generated from the menu, settings and tip files by
@@ -101,6 +109,11 @@ editor handoff: what exists in code, and what an editor session adds.
   text-to-speech hook subscribes.
 - Color vision covers team select only: the match's team colors (Epic 37) and the broadcast
   overlays (Track A) don't exist yet.
+- Motion gaps (Epic 103.5):
+  - The broadcast camera's follow (`APSBroadcastCamera::Tick`, `TrackingSpeed`) doesn't read
+    `GetCameraFollowSpeed` yet. That file has open camera-lane changes (Epics 38 and 39).
+  - Nothing in the game shakes the camera or fires pyro yet; the first shake or flash is to
+    use `StartCameraShake`/`GetFlashScale`.
 - Localization gaps (Epic 106):
   - The play-call screens' generated text is still built in English in
     `UPSPlayCallSubsystem`, so those screens are left out of the pseudo-localization check.

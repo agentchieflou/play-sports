@@ -1,4 +1,5 @@
-// PSUIAccessibilityTests.cpp -- Epic 103.2/103.3 (color vision, captions, UI narration)
+// PSUIAccessibilityTests.cpp -- Epic 103.2/103.3/103.5 (color vision, captions, UI narration,
+// motion and flashes)
 //
 // Tests covered:
 //   1. Color vision: the tuning validates; Standard leaves colors alone; for each deficiency a red
@@ -9,6 +10,9 @@
 //      CaptionMaxLines; with captions off nothing is shown.
 //   3. UI narration: with the setting off nothing is said; on, a menu screen is said as it
 //      opens and an option as it takes focus.
+//   4. Reduced motion: shakes and flashes follow their settings; with reduced motion nothing
+//      shakes, a camera follows without lag, menus don't fade and the controller's blended
+//      change of view is a cut.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -18,6 +22,7 @@
 #include "PSTelemetryBus.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSUIColorAccessibility.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
@@ -246,6 +251,87 @@ bool FPSNarrationTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Back says where the player is again"), Menu->HandleBack() && Said.Last().StartsWith(Menu->GetPresentedScreen(Menu->GetTopScreenId()).Title));
 
     Accessibility->OnNarrationMC.Remove(Handle);
+    DestroyTestWorld(World);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 4 -- Reduced motion
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSReducedMotionTest,
+    "PlaySports.Accessibility.ReducedMotion",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSReducedMotionTest::RunTest(const FString& Parameters)
+{
+    using namespace PSUIAccessibilityTests;
+
+    UWorld* World = CreateTestWorld();
+    UPSUIAccessibilitySubsystem* Accessibility = World ? World->GetSubsystem<UPSUIAccessibilitySubsystem>() : nullptr;
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    APSPlayerController* Controller = World ? World->SpawnActor<APSPlayerController>(APSPlayerController::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : nullptr;
+    if (!TestNotNull(TEXT("Accessibility subsystem"), Accessibility) || !TestNotNull(TEXT("Controller"), Controller))
+    {
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return false;
+    }
+    UPSSettingsSubsystem* Settings = MakeSettings();
+    Accessibility->SetSettings(Settings);
+    for (const FName& SettingId : { Accessibility->ReducedMotionSettingId, Accessibility->CameraShakeSettingId, Accessibility->FlashSettingId })
+    {
+        TestNotNull(*FString::Printf(TEXT("%s is a setting"), *SettingId.ToString()), Settings->GetCatalog().FindSetting(SettingId));
+    }
+    UPSMenuComponent* Menu = Controller->GetMenuComponent();
+    const float AuthoredFade = Menu->GetCatalog().TransitionSeconds;
+    const float AuthoredFollow = 5.f;
+    const float AuthoredBlend = 2.f;
+
+    // By default everything moves as authored, at full strength.
+    TestFalse(TEXT("Reduced motion starts off"), Accessibility->IsReducedMotion());
+    TestEqual(TEXT("Shakes play at full strength"), Accessibility->GetCameraShakeScale(), 1.f);
+    TestEqual(TEXT("...and flashes"), Accessibility->GetFlashScale(), 1.f);
+    TestEqual(TEXT("Blends take their time"), Accessibility->GetTransitionSeconds(AuthoredBlend), AuthoredBlend);
+    TestEqual(TEXT("Cameras follow at their speed"), Accessibility->GetCameraFollowSpeed(AuthoredFollow), AuthoredFollow);
+    TestEqual(TEXT("Menus fade as authored"), Menu->GetTransitionSeconds(), AuthoredFade);
+
+    // The sliders scale shakes and flashes.
+    Settings->SetValue(Accessibility->CameraShakeSettingId, 50.f);
+    Settings->SetValue(Accessibility->FlashSettingId, 25.f);
+    TestTrue(TEXT("Camera shake at 50% halves shakes"), FMath::IsNearlyEqual(Accessibility->GetCameraShakeScale(), 0.5f));
+    TestTrue(TEXT("Flashes at 25% are a quarter as bright"), FMath::IsNearlyEqual(Accessibility->GetFlashScale(), 0.25f));
+    TestFalse(TEXT("No shake plays without a shake to play"), Accessibility->StartCameraShake(Controller, nullptr, 1.f));
+
+    // Reduced motion: no shake, no lag, no fades, cuts.
+    Settings->SetValue(Accessibility->ReducedMotionSettingId, 1.f);
+    TestTrue(TEXT("Reduced motion is on"), Accessibility->IsReducedMotion());
+    TestEqual(TEXT("Nothing shakes"), Accessibility->GetCameraShakeScale(), 0.f);
+    TestTrue(TEXT("...flashes still follow their own setting"), FMath::IsNearlyEqual(Accessibility->GetFlashScale(), 0.25f));
+    TestEqual(TEXT("A blend is a cut"), Accessibility->GetTransitionSeconds(AuthoredBlend), 0.f);
+    TestEqual(TEXT("Menus don't fade"), Menu->GetTransitionSeconds(), 0.f);
+    TestEqual(TEXT("A camera following at the reduced speed is on its target at once"),
+        FMath::FInterpTo(0.f, 100.f, 1.f / 60.f, Accessibility->GetCameraFollowSpeed(AuthoredFollow)), 100.f);
+
+    APlayerCameraManager* CameraManager = Controller->PlayerCameraManager;
+    AActor* First = World->SpawnActor<AActor>(AActor::StaticClass(), FVector(100.f, 0.f, 0.f), FRotator::ZeroRotator, SpawnParams);
+    AActor* Second = World->SpawnActor<AActor>(AActor::StaticClass(), FVector(200.f, 0.f, 0.f), FRotator::ZeroRotator, SpawnParams);
+    if (CameraManager && First && Second)
+    {
+        Controller->SetViewTargetWithBlend(First, AuthoredBlend);
+        TestTrue(TEXT("With reduced motion a blended change of view cuts straight to it"), CameraManager->GetViewTarget() == First);
+        Settings->SetValue(Accessibility->ReducedMotionSettingId, 0.f);
+        Controller->SetViewTargetWithBlend(Second, AuthoredBlend);
+        TestTrue(TEXT("...and without it, the view blends over"), CameraManager->GetViewTarget() != Second);
+    }
+    else
+    {
+        AddInfo(TEXT("No camera manager in this headless world; the view-blend cut was not checked."));
+    }
+
     DestroyTestWorld(World);
     return true;
 }

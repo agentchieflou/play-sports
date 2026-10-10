@@ -20,6 +20,7 @@
 #include "PSHealthComponent.h"
 #include "PSPossessionComponent.h"
 #include "PSTelemetryBus.h"
+#include "PSUIAccessibilitySubsystem.h"
 #include "AIController.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "EnhancedInputComponent.h"
@@ -427,6 +428,16 @@ void APSPlayerController::PublishControlChange(const APSPlayerPawn* PlayerPawn, 
     Event.PlayerId = Attributes.PlayerId;
     Event.bHumanControlled = bHumanControlled;
     Bus->PublishControlChange(Event);
+}
+
+void APSPlayerController::SetViewTarget(AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams)
+{
+    UWorld* World = GetWorld();
+    if (UPSUIAccessibilitySubsystem* Accessibility = World ? World->GetSubsystem<UPSUIAccessibilitySubsystem>() : nullptr)
+    {
+        TransitionParams.BlendTime = Accessibility->GetTransitionSeconds(TransitionParams.BlendTime);
+    }
+    Super::SetViewTarget(NewViewTarget, TransitionParams);
 }
 
 void APSPlayerController::ViewThroughBroadcastCamera()

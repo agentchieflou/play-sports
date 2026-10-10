@@ -219,6 +219,13 @@ bool UPSMenuComponent::IsMenuOpen() const
     return Stack && !Stack->IsEmpty();
 }
 
+float UPSMenuComponent::GetTransitionSeconds()
+{
+    UPSUIAccessibilitySubsystem* Accessibility = GetWorld() ? GetWorld()->GetSubsystem<UPSUIAccessibilitySubsystem>() : nullptr;
+    const float Authored = GetCatalog().TransitionSeconds;
+    return Accessibility ? Accessibility->GetTransitionSeconds(Authored) : Authored;
+}
+
 FName UPSMenuComponent::GetTopScreenId() const
 {
     return Stack ? Stack->Top() : NAME_None;
@@ -890,7 +897,7 @@ void UPSMenuComponent::ShowTopScreen()
     ActiveWidget = CreateWidget<UPSMenuScreenWidget>(Player, ScreenWidgetClass);
     if (ActiveWidget)
     {
-        ActiveWidget->SetScreen(GetPresentedScreen(Stack->Top()), this, GetCatalog().TransitionSeconds);
+        ActiveWidget->SetScreen(GetPresentedScreen(Stack->Top()), this, GetTransitionSeconds());
         ActiveWidget->AddToViewport();
         ActiveWidget->FocusFirstOption(Player);
     }
