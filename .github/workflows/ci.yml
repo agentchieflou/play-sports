@@ -75,6 +75,17 @@ jobs:
           python tools/content.py check --root Saved/GeneratedLeague --strict
           if ($LASTEXITCODE -ne 0) { throw "The generated league fails the content contracts or the content report" }
 
+      - name: Validate the generated playbooks
+        # Epic 121: PlaySports.Content.PlaybookGenerator.WritesValidContent writes each coaching
+        # identity's generated playbook to Saved/GeneratedPlaybooks, beside the route library. Every
+        # play must pass the playbook contract, and every route must resolve; between them the books
+        # must leave no category the coaching AI calls empty.
+        shell: powershell
+        run: |
+          if (-not (Test-Path "Saved/GeneratedPlaybooks/Data/playbooks")) { throw "The playbook generator's test wrote no playbooks" }
+          python tools/content.py check --root Saved/GeneratedPlaybooks --strict
+          if ($LASTEXITCODE -ne 0) { throw "A generated playbook fails the content contracts or the content report" }
+
       - name: Performance budgets
         # Epic 114: PlaySports.Perf.StandardPlayProfile wrote Saved/Profiling/StandardPlay_<tier>.json.
         # A system over its budget warns; over HardFailMultiplier times it (Data/perf_harness.json)

@@ -12,6 +12,7 @@
 #include "PSPlatformTiers.h"
 #include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
+#include "PSPlayResolution.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
 
@@ -26,14 +27,10 @@ namespace PSDefenderAIPrivate
     }
 
     /** A player the defense covers: receivers, tight ends and backs of the offense. Role is
-     *  the pawn's role from the field snapshot. */
+     *  the pawn's role from the field snapshot. One rule with the play art's (PSPlayResolution). */
     bool IsEligibleReceiver(const APSPlayerPawn* Pawn, EPlayerRole Role)
     {
-        if (!Pawn || Pawn->TeamSide != EPSTeamSide::Offense)
-        {
-            return false;
-        }
-        return Role == EPlayerRole::WideReceiver || Role == EPlayerRole::TightEnd || Role == EPlayerRole::RunningBack;
+        return PSPlayResolution::IsCoverable(Pawn, Role);
     }
 }
 
@@ -420,23 +417,8 @@ APSPlayerPawn* UPSDefenderAIComponent::PickReceiverToCover(const APSPlayerPawn* 
         }
     }
 
-    APSPlayerPawn* Nearest = nullptr;
-    float NearestDistance = TNumericLimits<float>::Max();
-    for (int32 Index = 0; Index < Pawns.Num(); ++Index)
-    {
-        APSPlayerPawn* Candidate = Pawns[Index];
-        if (!PSDefenderAIPrivate::IsEligibleReceiver(Candidate, Roles[Index]) || Taken.Contains(Candidate))
-        {
-            continue;
-        }
-        const float Distance = FVector::Dist2D(Candidate->GetActorLocation(), Self->GetActorLocation());
-        if (Distance < NearestDistance)
-        {
-            NearestDistance = Distance;
-            Nearest = Candidate;
-        }
-    }
-    return Nearest;
+    // The nearest of the rest: the rule the pre-snap play art draws the matchups with.
+    return PSPlayResolution::NearestOpenReceiver(Self, Pawns, Roles, Taken);
 }
 
 bool UPSDefenderAIComponent::IsBallOut(const APSPlayerPawn* Carrier) const

@@ -62,12 +62,14 @@
 #include "PSAIDecisionTypes.h"
 #include "PSDefenderGapOverlayTypes.h"
 #include "PSLeagueGeneratorData.h"
+#include "PSPlaybookGeneratorData.h"
 #include "PSPlayerProgression.h"
 #include "PSCoverageMatchupTypes.h"
 #include "PSLooseBallSubsystem.h"
 #include "PSDifficultyTypes.h"
 #include "PSDeceptionSubsystem.h"
 #include "PSPerfTypes.h"
+#include "PSPlayArtTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -392,6 +394,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadProgressionTuningFromJson(const FString& JsonFilePath, FPSProgressionTuning& OutTuning);
 
+    /** Loads the playbook generator's concept grammar, call-sheet parts and scheme flavors
+     *  (Data/playbook_generator.json, Epic 121). False on a missing file, malformed JSON or an
+     *  unknown enum; PSPlaybookGenerator::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlaybookGeneratorTuningFromJson(const FString& JsonFilePath, FPSPlaybookGeneratorTuning& OutTuning);
+
     /** Loads what makes a highlight and how the reel plays (Data/highlights.json, Epic 42).
      *  False on a missing file or malformed JSON; UPSHighlightSubsystem::ValidateTuning checks
      *  the rest. */
@@ -413,6 +421,11 @@ public:
      *  the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPhotoModeTuningFromJson(const FString& JsonFilePath, FPSPhotoModeTuning& OutTuning);
+
+    /** Loads the play art's style (Data/play_art.json, Epic 27). False on a missing file or
+     *  malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlayArtStyleFromJson(const FString& JsonFilePath, FPSPlayArtStyle& OutStyle);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

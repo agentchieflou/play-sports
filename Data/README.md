@@ -114,9 +114,11 @@ every CI build.
 | `ai_scenarios.json` | `FPSAIScenarioCatalog` (single object: `Scenarios`) | `UPSDataIngestion::LoadAIScenariosFromJson`, via `UPSAIScenarioRunner` |
 | `gap_overlay.json` | `FPSGapOverlayStyle` (single object) | `UPSDataIngestion::LoadGapOverlayStyleFromJson`, via `UPSDefenderGapOverlaySubsystem` |
 | `league_generator.json` | `FPSLeagueGeneratorTuning` (single object: league shape, `RoleProfiles`, `NameCultures`, `NameBlocklist`, `DraftClass`) | `UPSDataIngestion::LoadLeagueGeneratorTuningFromJson`, via `UPSLeagueGenerator` |
+| `playbook_generator.json` | `FPSPlaybookGeneratorTuning` (single object: `OffenseFormations`, `Concepts`, `DefensiveFronts`, `Coverages`, `Pressures`, `SchemeFlavors`, sizes) | `UPSDataIngestion::LoadPlaybookGeneratorTuningFromJson`, via `UPSPlaybookGenerator` |
 | `player_progression.json` | `FPSProgressionTuning` (single object: the age curve) | `UPSDataIngestion::LoadProgressionTuningFromJson`, via `UPSLeagueGenerator` (and `UPSPlayerProgression`'s callers) |
 | `difficulty.json` | `FPSDifficultyCatalog` (single object: `DifficultyTiers`, the assists' setting IDs, `SuggestedPlayAccent`) | `UPSDataIngestion::LoadDifficultyCatalogFromJson`, via `UPSDifficultySubsystem` |
 | `perf_harness.json` | `FPSPerfHarnessTuning` (single object) | `UPSDataIngestion::LoadPerfHarnessTuningFromJson`, via `UPSPerfHarness`; also read by `tools/perf_budget.py` |
+| `play_art.json` | `FPSPlayArtStyle` (single object) | `UPSDataIngestion::LoadPlayArtStyleFromJson`, via `UPSOverlayPlayArtSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -318,6 +320,17 @@ are:
   - defense: `ManCoverage`, `ZoneCoverage`, `PassRush`, `RunFit`, `Blitz`.
 - Only a `Route` assignment names a `RouteId`, and it must exist in the route library. A `Route`
   assignment without one is "go to your spot", such as the QB's drop.
+- A route may carry a `ReadOrder` (Epic 27): 1 for the quarterback's primary read, then 2, 3,
+  ... down to the check-down. Leave it out for a route the play doesn't rank. Only a `Route`
+  with a `RouteId` has one, and a play's ranks run 1, 2, 3, ... with no gap or repeat. The
+  pre-snap route art colors routes by it (`play_art.json`); the AI doesn't read it. Several
+  players repeating one role's slot share its rank.
+- Any assignment may carry an `Art` block (Epic 35), the play art's annotation layer, which the
+  AI ignores: `Color` (`#RRGGBB`, the assignment's art in this color instead of its read's or its
+  icon's), `bEmphasis` (drawn `EmphasisScale` larger: the key route, the blitzer) and
+  `BadgeLetter` (one or two capitals or digits the player wears on his position badge this play,
+  where he wears no pass button). Leave out what the play doesn't set. A letter on a slot that
+  several players repeat labels them all.
 - `PlayCategory` may also be a clock play, `Spike` or `Kneel` (Epic 76), which the simulation
   resolves at the snap.
 - The route library's own rules are under "Route schema extras" below.
@@ -381,6 +394,50 @@ The automation test `PlaySports.Content.LeagueGenerator.WritesValidContent` writ
 game's loaders. CI then runs `python tools/content.py check --root Saved/GeneratedLeague --strict`
 on it, so a generated league passes every contract here and the content report finds nothing to
 warn about.
+
+## Playbook generator schema (`FPSPlaybookGeneratorTuning`, Epic 121)
+
+`playbook_generator.json` is the concept grammar `UPSPlaybookGenerator` makes playbooks from,
+instead of hand-authoring each play. Every field is required:
+
+- `OffenseFormations`: the formations concepts line up in, each in a personnel package (Epic
+  19.5), which says how many of each role it puts on the field. `PlayActionDrop` is the
+  quarterback's spot on a play-action pass, in cm (below 0).
+- `Concepts[]`: `ConceptId` (letters and digits), `Label`, `Family` (flood, mesh, dagger, zone,
+  ...), `Category` (`Run`, `ShortPass`, `DeepPass` or `Screen`), `Formations` (a subset of
+  `OffenseFormations`; empty for all), `QBDrop` (the quarterback's spot), `BackSpot` (a run's
+  carrier's spot), `LineKind` (`PassBlock` or `RunBlock`: the line, and a tight end or back no slot
+  claims) and `BacksideRoute` (what a wide receiver no slot claims runs; empty: he blocks).
+  - `Slots[]`, in the quarterback's read order: `Roles` (receivers, in preference) and `Routes` (route
+    library IDs). Each slot goes to the first receiver of its roles the formation still has. A
+    concept makes a play for every combination of its slots' routes (at most 64) in every formation
+    its slots fit.
+  - `Deceptions`: the Epic 72 variants it is made with: `None`, `PlayAction` on a pass (a
+    `PlayAction` play from `PlayActionDrop`), `ZoneRead` or `RPO` on a run.
+- `DefensiveFronts[]`: `Formation` (a defensive personnel package's), `Front` (in `run_fits.json`)
+  and `LineKind` (`PassRush`, or `RunFit` on the goal line).
+- `Coverages[]`: `Shell` (with rules in `coverage_matchups.json`), `Label`, `Category` (`Base` or
+  `Prevent`), `MaxBlitzers` (the most it can send and still cover) and `Slots[]`: `Role`, `Kind`
+  (`ZoneCoverage` or `ManCoverage`) and `Zone` (a zone landmark from the ball, cm, played on the
+  defender's own side). Each role's jobs are in priority order, deep help first, so a blitzer takes
+  the last one.
+- `Pressures[]`: `PressureId`, `Label` and `Blitzers` (`EPlayerRole` name to count). One must send
+  nobody. The call sheet is every front x coverage x pressure the coverage can afford; a call that
+  sends anyone is a `Blitz`.
+- `SchemeFlavors[]`: per coaching identity (a `SchemeId` in `coaching_staffs.json`), how much it likes
+  each concept (`ConceptWeights`, offense) or each shell and pressure (`ShellWeights` and
+  `PressureWeights`, defense); 1 when unlisted.
+- `OffensePlaybookSize`, `DefensePlaybookSize` and `CategoryEmphasis`: a scheme's generated book has
+  this many plays, shared out by its `CategoryWeights` raised to `CategoryEmphasis` (every category
+  it weighs gets one), then drawn by its flavor.
+
+Generated plays are ordinary `FPSPlayDefinition`s with PlayIds `<SchemeId>_<ConceptId>_<Formation>_<n>`
+(or `<SchemeId>_Def_<Formation>_<Shell>_<PressureId>`), so the play loader, the AI and the playbook
+contract treat them like the hand-written book. The automation test
+`PlaySports.Content.PlaybookGenerator.WritesValidContent` writes every scheme's book to
+`Saved/GeneratedPlaybooks/Data/playbooks/`. CI checks those books with
+`python tools/content.py check --root Saved/GeneratedPlaybooks --strict`. `validate_data.py` checks
+this file (`PSPlaybookGenerator::ValidateTuning` is the same check in C++).
 
 ## Age curve schema (`FPSProgressionTuning`)
 
@@ -576,6 +633,9 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
     Exactly one per system; together they fit in a frame (1000 / `TargetFrameRate`), and the
     `Telemetry` budget covers `TelemetrySampleBudgetMs`. The profiling harness and CI hold the
     measured times to them (`Specs/Platform_Audit.md` section 7).
+  - `PlayArtRefreshHz` (0 or more): how often a second the pre-snap route art (Epic 27) resolves
+    the call again to follow the players as they shift and go in motion; 0 rebuilds it only on
+    events (a call, a hot route, a new spot).
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -1680,3 +1740,38 @@ budgets themselves are per tier, in `platform_tiers.json`.
   the median of its last `TrendWindow` runs recorded on main.
 
 `UPSPerfHarness::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Play art schema (`FPSPlayArtStyle`)
+
+Single object (Epics 27 and 31; both sides' calls drawn before the snap,
+`UPSOverlayPlayArtSubsystem`, `Specs/Route_Ribbons_Spec.md`, `Specs/Defensive_Icons_Spec.md`). Sizes
+are cm, colors `#RRGGBB`:
+- `RibbonWidth` (above 0): a route ribbon's width. `PrimaryWidthScale` (above 0): the primary
+  read's ribbon is this many times as wide.
+- `GroundOffset` (0 or more): the art lies this far above the turf.
+- `RingRadius` (above 0): the ring where a route ends. `BreakMarkerRadius` (0 or more): the debug
+  draw's mark at a cut.
+- `EmphasisScale` (above 0): an assignment the play emphasizes (its `Art.bEmphasis`) is drawn this
+  many times as large.
+- `ReadColors` (at least one): route colors by the play's `ReadOrder`, the first for the primary
+  read; a read past the list takes the last. `UnrankedColor`: a route the play doesn't rank.
+- `BranchOpacity` (0 to 1): an option route's branches, each run on one read only, are drawn this
+  opaque.
+- `SnapFadeSeconds` (0 or more): at the snap the art fades out over this long on a `Full` tier;
+  on other tiers it goes at once, and a `Minimal` tier draws none (`platform_tiers.json`).
+- `NoRouteArtCategories`: offensive `PlayCategory` values that draw no route art (kicks and clock
+  plays).
+- The defense's icons (Epic 31): `ZoneStarRadius` (above 0) and `ZoneStarColor`, the star at a zone
+  landmark; `ManLineWidth` (above 0) and `ManLineColor`, the line from a man defender to his
+  receiver; `RushArrowWidth` (above 0), `RushArrowDepth` (0 or more: how far behind the line a
+  rusher's arrow reaches), `BlitzArrowColor` (the call's blitzers) and `RushArrowColor` (the other
+  rushers).
+- `NoDefenseArtCategories`: defensive `PlayCategory` values that draw no icons (the kicking game's).
+- `bDrawDebug`: development builds draw the art as debug lines until the editor-made renderer
+  exists.
+
+What a cut is comes from the route-running tuning (`BreakMinAngleDegrees` in
+`route_running.json`). The `RouteArt` and `DefenseIcons` settings (Gameplay, `ui_settings.json`)
+turn each side's art off; `StudyMode` shows the defense's icons to the offense too, outside
+head-to-head games, where `versus_rules.json` decides.
+`UPSOverlayPlayArtSubsystem::ValidateStyle` and `tools/validate_data.py` check it.

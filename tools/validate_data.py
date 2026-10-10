@@ -78,13 +78,17 @@ FPSPhotoModeTuning (Epic 45); "RoleProfiles" + "NameCultures" files against FPSL
 (Epic 122): a profile per EPlayerRole with a curve for every float field of FPlayerAttributes, name
 pools and the real-person NameBlocklist, which every roster's DisplayNames are checked against;
 "PeakAgeStart" files against FPSProgressionTuning (the age curve; Epic 122); a player's optional
-"Age" is a whole number; "CombineDrills" files against FPSDraftTuning (Epic 86): positive
-uncertainties and costs, 0-1 shares and guarantees, each drill reading a rating, a rookie deal no
-longer than contracts.json's MaxContractYears; "HallOfFame" files against FPSLegacyTuning (Epic 94):
-the hall of fame's waits and score, each threshold and archived leader a player stat category,
-listed once, each role's age curve and the retirement chances. Teams, the league config, the
-playbook, player rating ranges and every reference between files are tools/content_contracts.py's
-(Epic 125), run from here.
+"Age" is a whole number; "ReadColors" files against FPSPlayArtStyle (Epics 27 and 31), each no-art
+category one of its side's play categories; "Concepts" + "Coverages" files against
+FPSPlaybookGeneratorTuning (Epic 121): its concepts' routes in the route library and formations in
+personnel packages, each front in run_fits.json, each coverage shell in coverage_matchups.json and
+each flavor's scheme in coaching_staffs.json; "CombineDrills" files against FPSDraftTuning (Epic
+86): positive uncertainties and costs, 0-1 shares and guarantees, each drill reading a rating, a
+rookie deal no longer than contracts.json's MaxContractYears; "HallOfFame" files against
+FPSLegacyTuning (Epic 94): the hall of fame's waits and score, each threshold and archived leader a
+player stat category, listed once, each role's age curve and the retirement chances. Teams, the
+league config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -729,11 +733,15 @@ def validate_platform_tiers(path, payload):
         pose_rate = tier.get("ReplayPoseRateHz")
         if not is_number(pose_rate) or pose_rate < 0:
             err(path, f"{where}.ReplayPoseRateHz: '{pose_rate}' must be a number, 0 (every frame) or more")
+        art_rate = tier.get("PlayArtRefreshHz")
+        if not is_number(art_rate) or art_rate < 0:
+            err(path, f"{where}.PlayArtRefreshHz: '{art_rate}' must be a number, 0 (only on events) or more")
         if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
             err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
         validate_system_budgets(path, where, tier)
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
-                             "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", *TIER_TELEMETRY_NUMBERS}
+                             "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", "PlayArtRefreshHz",
+                             *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -4014,6 +4022,224 @@ def validate_progression(path, payload):
         err(path, "LowSnapShareThreshold: 0 to 1")
 
 
+PLAYBOOK_GENERATOR_FIELDS = {
+    "OffenseFormations": list, "PlayActionDrop": (int, float), "OffensePlaybookSize": int, "DefensePlaybookSize": int,
+    "CategoryEmphasis": (int, float), "Concepts": list, "DefensiveFronts": list, "Coverages": list, "Pressures": list,
+    "SchemeFlavors": list,
+}
+CONCEPT_FIELDS = {"ConceptId": str, "Label": str, "Family": str, "Category": str, "Formations": list, "QBDrop": (int, float),
+                  "BackSpot": dict, "Slots": list, "BacksideRoute": str, "LineKind": str, "Deceptions": list}
+CONCEPT_SLOT_FIELDS = {"Roles": list, "Routes": list}
+FRONT_FIELDS = {"Formation": str, "Front": str, "LineKind": str}
+COVERAGE_FIELDS = {"Shell": str, "Label": str, "Category": str, "MaxBlitzers": int, "Slots": list}
+COVERAGE_SLOT_FIELDS = {"Role": str, "Kind": str, "Zone": dict}
+PRESSURE_FIELDS = {"PressureId": str, "Label": str, "Blitzers": dict}
+FLAVOR_FIELDS = {"SchemeId": str, "ConceptWeights": dict, "ShellWeights": dict, "PressureWeights": dict}
+RECEIVER_ROLES = {"RunningBack", "WideReceiver", "TightEnd"}
+
+
+def load_data(name, key):
+    """Data/<name>'s <key> (None when the file is missing or broken; its own checks report that)."""
+    try:
+        payload = json.loads((DATA_DIR / name).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return payload.get(key) if isinstance(payload, dict) else None
+
+
+def formation_roles(packages, formation, offense):
+    """{role: count} of the personnel package that lists formation on its side, or None."""
+    for package in packages or []:
+        if isinstance(package, dict) and package.get("bOffense") == offense and formation in (package.get("Formations") or []):
+            counts = package.get("RoleCounts") or {}
+            return {role: n for role, n in counts.items() if isinstance(n, int) and n > 0}
+    return None
+
+
+def concept_fits(concept, roles):
+    """Whether every slot of concept finds a receiver in roles (PSPlaybookGenerator::BuildConceptPlays)."""
+    if not roles or roles.get("Quarterback", 0) < 1:
+        return False
+    open_roles = dict(roles)
+    if concept.get("Category") == "Run":
+        if open_roles.get("RunningBack", 0) < 1:
+            return False
+        open_roles["RunningBack"] -= 1
+    for slot in concept.get("Slots") or []:
+        taken = next((r for r in (slot.get("Roles") or []) if r in RECEIVER_ROLES and open_roles.get(r, 0) > 0), None)
+        if taken is None or not slot.get("Routes"):
+            return False
+        open_roles[taken] -= 1
+    return True
+
+
+def validate_playbook_generator(path, payload):
+    """FPSPlaybookGeneratorTuning (Data/playbook_generator.json, Epic 121); mirrors
+    PSPlaybookGenerator::ValidateTuning, plus what only other files know: each coverage's shell in
+    coverage_matchups.json, each front in run_fits.json, each flavor's scheme in
+    coaching_staffs.json with weights for its side."""
+    if not check_typed(path, "playbook generator", payload, PLAYBOOK_GENERATOR_FIELDS, "FPSPlaybookGeneratorTuning"):
+        return
+    packages = load_data("personnel_packages.json", "Packages")
+    route_ids = load_route_ids()
+    shells_known = {s.get("Shell") for s in (load_data("coverage_matchups.json", "Shells") or []) if isinstance(s, dict)}
+    fronts_known = {f.get("Front") for f in (load_data("run_fits.json", "Fronts") or []) if isinstance(f, dict)}
+    schemes = {s.get("SchemeId"): s for s in (load_data("coaching_staffs.json", "Schemes") or []) if isinstance(s, dict)}
+
+    def check_route(where, route):
+        if route_ids is not None and route not in route_ids:
+            err(path, f"{where}: route '{route}' is not in sample_routes.json")
+
+    def is_id(value):
+        return isinstance(value, str) and value.isascii() and value.isalnum()
+
+    formations = payload.get("OffenseFormations") or []
+    if not formations:
+        err(path, "OffenseFormations: at least one")
+    for formation in formations:
+        if packages is not None and formation_roles(packages, formation, True) is None:
+            err(path, f"OffenseFormations: '{formation}' is in no offensive personnel package")
+    for field in ("OffensePlaybookSize", "DefensePlaybookSize"):
+        if isinstance(payload.get(field), int) and payload[field] < 1:
+            err(path, f"{field}: 1 or more")
+    if is_number(payload.get("CategoryEmphasis")) and payload["CategoryEmphasis"] < 0:
+        err(path, "CategoryEmphasis: 0 or more")
+    if is_number(payload.get("PlayActionDrop")) and payload["PlayActionDrop"] >= 0:
+        err(path, "PlayActionDrop: behind the line (below 0)")
+
+    concept_ids = set()
+    for idx, concept in enumerate(payload.get("Concepts") or []):
+        where = f"Concepts[{idx}]"
+        if not check_typed(path, where, concept, CONCEPT_FIELDS, "FPSPlayConcept"):
+            continue
+        cid = concept.get("ConceptId")
+        where = f"Concepts[{idx}] '{cid}'"
+        if not is_id(cid) or cid in concept_ids:
+            err(path, f"{where}.ConceptId: empty, not letters and digits, or used twice")
+        concept_ids.add(cid)
+        if not str(concept.get("Label", "")).strip():
+            err(path, f"{where}.Label: empty")
+        category = concept.get("Category")
+        if category not in ("Run", "ShortPass", "DeepPass", "Screen"):
+            err(path, f"{where}.Category: '{category}' is not Run, ShortPass, DeepPass or Screen")
+        if is_number(concept.get("QBDrop")) and concept["QBDrop"] >= 0:
+            err(path, f"{where}.QBDrop: behind the line (below 0)")
+        content_contracts.check_vector(path, f"{where}.BackSpot", concept.get("BackSpot"), err)
+        if concept.get("LineKind") not in ("PassBlock", "RunBlock"):
+            err(path, f"{where}.LineKind: PassBlock or RunBlock")
+        for formation in concept.get("Formations") or []:
+            if formation not in formations:
+                err(path, f"{where}.Formations: '{formation}' is not in OffenseFormations")
+        variants = 1
+        for sidx, slot in enumerate(concept.get("Slots") or []):
+            swhere = f"{where}.Slots[{sidx}]"
+            if not check_typed(path, swhere, slot, CONCEPT_SLOT_FIELDS, "FPSConceptSlot"):
+                continue
+            if not slot.get("Roles") or not slot.get("Routes"):
+                err(path, f"{swhere}: needs Roles and Routes")
+            for role in slot.get("Roles") or []:
+                if role not in RECEIVER_ROLES:
+                    err(path, f"{swhere}: {role} is not a receiver")
+            for route in slot.get("Routes") or []:
+                check_route(swhere, route)
+            variants *= max(1, len(slot.get("Routes") or []))
+        if variants > 64:
+            err(path, f"{where}: {variants} route variants; at most 64")
+        if concept.get("BacksideRoute"):
+            check_route(f"{where}.BacksideRoute", concept["BacksideRoute"])
+        for deception in concept.get("Deceptions") or []:
+            fits = (deception == "None" or (deception == "PlayAction" and category in ("ShortPass", "DeepPass"))
+                    or (deception in ("ZoneRead", "RPO") and category == "Run"))
+            if not fits:
+                err(path, f"{where}.Deceptions: {deception} doesn't go with a {category} concept (play-action on a pass, ZoneRead or RPO on a run)")
+            if deception == "RPO" and not concept.get("BacksideRoute"):
+                err(path, f"{where}: an RPO needs a BacksideRoute for its pass option")
+        if packages is not None:
+            usable = [f for f in formations if not concept.get("Formations") or f in concept["Formations"]]
+            if not any(concept_fits(concept, formation_roles(packages, f, True)) for f in usable):
+                err(path, f"{where}: its slots fit none of its formations")
+
+    for idx, front in enumerate(payload.get("DefensiveFronts") or []):
+        where = f"DefensiveFronts[{idx}]"
+        if not check_typed(path, where, front, FRONT_FIELDS, "FPSDefensiveFrontDef"):
+            continue
+        where = f"DefensiveFronts[{idx}] '{front.get('Formation')}'"
+        if packages is not None and formation_roles(packages, front.get("Formation"), False) is None:
+            err(path, f"{where}: in no defensive personnel package")
+        if fronts_known and front.get("Front") not in fronts_known:
+            err(path, f"{where}.Front: '{front.get('Front')}' has no run fits in run_fits.json ({sorted(fronts_known)})")
+        if front.get("LineKind") not in ("PassRush", "RunFit"):
+            err(path, f"{where}.LineKind: PassRush or RunFit")
+
+    shells = set()
+    for idx, coverage in enumerate(payload.get("Coverages") or []):
+        where = f"Coverages[{idx}]"
+        if not check_typed(path, where, coverage, COVERAGE_FIELDS, "FPSCoverageTemplate"):
+            continue
+        shell = coverage.get("Shell")
+        where = f"Coverages[{idx}] '{shell}'"
+        if not is_id(shell) or shell in shells:
+            err(path, f"{where}.Shell: empty, not letters and digits, or used twice")
+        shells.add(shell)
+        if shells_known and shell not in shells_known:
+            err(path, f"{where}.Shell: has no rules in coverage_matchups.json ({sorted(shells_known)})")
+        if coverage.get("Category") not in ("Base", "Prevent"):
+            err(path, f"{where}.Category: Base or Prevent")
+        if not str(coverage.get("Label", "")).strip() or (isinstance(coverage.get("MaxBlitzers"), int) and coverage["MaxBlitzers"] < 0):
+            err(path, f"{where}: needs a Label, and MaxBlitzers 0 or more")
+        jobs = [j for j in (coverage.get("Slots") or []) if isinstance(j, dict)]
+        for role in ("Linebacker", "DefensiveBack"):
+            if not any(j.get("Role") == role for j in jobs):
+                err(path, f"{where}: no job for a {role}")
+        for jidx, job in enumerate(coverage.get("Slots") or []):
+            jwhere = f"{where}.Slots[{jidx}]"
+            if not check_typed(path, jwhere, job, COVERAGE_SLOT_FIELDS, "FPSCoverageSlotDef"):
+                continue
+            if job.get("Role") not in content_contracts.DEFENSE_ROLES or job.get("Kind") not in ("ZoneCoverage", "ManCoverage"):
+                err(path, f"{jwhere}: a defender's ZoneCoverage or ManCoverage")
+            content_contracts.check_vector(path, f"{jwhere}.Zone", job.get("Zone"), err)
+
+    pressure_ids = set()
+    any_base = False
+    for idx, pressure in enumerate(payload.get("Pressures") or []):
+        where = f"Pressures[{idx}]"
+        if not check_typed(path, where, pressure, PRESSURE_FIELDS, "FPSPressureDef"):
+            continue
+        pid = pressure.get("PressureId")
+        where = f"Pressures[{idx}] '{pid}'"
+        if not is_id(pid) or pid in pressure_ids:
+            err(path, f"{where}.PressureId: empty, not letters and digits, or used twice")
+        pressure_ids.add(pid)
+        blitzers = pressure.get("Blitzers") or {}
+        for role, count in blitzers.items():
+            if role not in content_contracts.DEFENSE_ROLES or not isinstance(count, int) or isinstance(count, bool) or count < 0:
+                err(path, f"{where}.Blitzers: '{role}' is not a defensive role, or its count isn't a whole number from 0")
+        any_base |= not any(isinstance(n, int) and n > 0 for n in blitzers.values())
+    if not any_base:
+        err(path, "Pressures: one must send nobody, so coverages have a base call")
+
+    flavors = set()
+    for idx, flavor in enumerate(payload.get("SchemeFlavors") or []):
+        where = f"SchemeFlavors[{idx}]"
+        if not check_typed(path, where, flavor, FLAVOR_FIELDS, "FPSSchemeFlavor"):
+            continue
+        sid = flavor.get("SchemeId")
+        where = f"SchemeFlavors[{idx}] '{sid}'"
+        if not sid or sid in flavors:
+            err(path, f"{where}.SchemeId: empty or used twice")
+        flavors.add(sid)
+        scheme = schemes.get(sid)
+        if schemes and scheme is None:
+            err(path, f"{where}.SchemeId: no such scheme in coaching_staffs.json ({sorted(schemes)})")
+        for field, known in (("ConceptWeights", concept_ids), ("ShellWeights", shells), ("PressureWeights", pressure_ids)):
+            weights = flavor.get(field) or {}
+            for key, weight in weights.items():
+                if key not in known or not is_number(weight) or weight < 0:
+                    err(path, f"{where}.{field}: '{key}' is not one of the tuning's, or its weight is below 0")
+            if scheme is not None and weights and (field == "ConceptWeights") != bool(scheme.get("bOffense")):
+                err(path, f"{where}.{field}: {sid} is a{'n offensive' if scheme.get('bOffense') else ' defensive'} scheme; it weighs the other side")
+
+
 def load_name_forms():
     """The blocked forms of Data/league_generator.json's NameBlocklist (empty when the file is
     missing or broken; its own checks report that)."""
@@ -4205,6 +4431,55 @@ def validate_training(path, payload, tracked):
         validate_rating_weights(path, f"{where}.Ratings", focus.get("Ratings"), True)
         if set(focus) - TRAINING_FOCUS_FIELDS:
             err(path, f"{where}: unknown field(s) {sorted(set(focus) - TRAINING_FOCUS_FIELDS)} - names must match FPSGameplanFocusDef exactly")
+
+
+PLAY_ART_NUMBERS = {
+    "RibbonWidth": "above 0", "PrimaryWidthScale": "above 0", "GroundOffset": "0 or more",
+    "RingRadius": "above 0", "BreakMarkerRadius": "0 or more", "SnapFadeSeconds": "0 or more",
+    "EmphasisScale": "above 0", "ZoneStarRadius": "above 0", "ManLineWidth": "above 0", "RushArrowWidth": "above 0",
+    "RushArrowDepth": "0 or more",
+}
+PLAY_ART_COLORS = ("UnrankedColor", "ZoneStarColor", "ManLineColor", "BlitzArrowColor", "RushArrowColor")
+PLAY_ART_FIELDS = set(PLAY_ART_NUMBERS) | set(PLAY_ART_COLORS) | {
+    "ReadColors", "BranchOpacity", "NoRouteArtCategories", "NoDefenseArtCategories", "bDrawDebug"}
+
+
+def validate_play_art(path, payload):
+    """FPSPlayArtStyle (Data/play_art.json, Epics 27 and 31); mirrors PSPlayArt::ValidateStyle,
+    plus each no-art category one of its side's play categories."""
+    for field, rule in PLAY_ART_NUMBERS.items():
+        value = payload.get(field)
+        bad = not is_number(value) or (value <= 0 if rule == "above 0" else value < 0)
+        if bad:
+            err(path, f"{field}: '{value}' must be a number {rule}")
+    colors = payload.get("ReadColors")
+    if not isinstance(colors, list) or not colors:
+        err(path, "ReadColors: needs a color for the primary read at least")
+    else:
+        for idx, value in enumerate(colors):
+            if not isinstance(value, str) or not HEX_COLOR.match(value):
+                err(path, f"ReadColors[{idx}]: '{value}' must be #RRGGBB")
+    for field in PLAY_ART_COLORS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not HEX_COLOR.match(value):
+            err(path, f"{field}: '{value}' must be #RRGGBB")
+    opacity = payload.get("BranchOpacity")
+    if not is_number(opacity) or not 0 <= opacity <= 1:
+        err(path, f"BranchOpacity: '{opacity}' must be a number from 0 to 1")
+    for field, side, known in (("NoRouteArtCategories", "an offensive", content_contracts.OFFENSE_CATEGORIES),
+                               ("NoDefenseArtCategories", "a defensive", content_contracts.DEFENSE_CATEGORIES)):
+        categories = payload.get(field)
+        if not isinstance(categories, list):
+            err(path, f"{field}: must be an array of play categories")
+            continue
+        for idx, category in enumerate(categories):
+            if category not in known:
+                err(path, f"{field}[{idx}]: '{category}' is not {side} play category")
+    if not isinstance(payload.get("bDrawDebug"), bool):
+        err(path, "bDrawDebug: must be true or false")
+    extra = set(payload) - PLAY_ART_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPlayArtStyle exactly")
 
 
 DRAFT_POSITIVE = ("PublicUncertainty", "ReportNoise", "ReportCost", "RangeSigmas", "RookieScaleExponent")
@@ -4642,6 +4917,8 @@ def main(root=None):
             validate_league_generator(path, payload)
         if isinstance(payload, dict) and "PeakAgeStart" in payload and "GrowthPerYear" in payload:
             validate_progression(path, payload)
+        if isinstance(payload, dict) and "Concepts" in payload and "Coverages" in payload:
+            validate_playbook_generator(path, payload)
         if isinstance(payload, dict) and "ReelSize" in payload:
             validate_highlights(path, payload)
         if isinstance(payload, dict) and "PlayerPickRadius" in payload:
@@ -4654,6 +4931,8 @@ def main(root=None):
             validate_training(path, payload, load_opponent_model_tracked())
         if isinstance(payload, dict) and "CaptureResolutionMultiplier" in payload:
             validate_photo_mode(path, payload)
+        if isinstance(payload, dict) and "ReadColors" in payload:
+            validate_play_art(path, payload)
         if isinstance(payload, dict) and "CombineDrills" in payload:
             validate_draft(path, payload, load_contract_max_years())
         if isinstance(payload, dict) and "HallOfFame" in payload:
