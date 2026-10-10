@@ -117,8 +117,12 @@ void UPSPlaySimulation::RecordTackle(int32 YardsGained)
     {
         return;
     }
-    CurrentPlayResult.ResultType = EPlayResultType::Tackle;
-    CurrentPlayResult.YardsGained = YardsGained;
+    // A downed interceptor only ends the return; the turnover stands.
+    if (CurrentPlayResult.ResultType != EPlayResultType::Interception)
+    {
+        CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+        CurrentPlayResult.YardsGained = YardsGained;
+    }
     SetPlayPhase(EPlayPhase::Scoring);
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Tackle recorded. Yards Gained: %d"), YardsGained);
 }
@@ -518,6 +522,16 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         bTurnover = GetSpecialTeams()->ApplyOutcome(CurrentState, LastSpecialTeamsOutcome, Rules->TouchdownPoints, Rules->FieldGoalPoints, Rules->PATSuccessChance);
         CurrentDriveSummary.Result = UEnum::GetValueAsString(LastSpecialTeamsOutcome.Result);
     }
+    // An interception (this simulation owns possession, Epic C2/C3): the defense takes the ball
+    // where the return ended; down in the end zone it defends, at the touchback line (the 20,
+    // the non-kickoff touchback in Data/special_teams.json).
+    else if (CurrentPlayResult.ResultType == EPlayResultType::Interception)
+    {
+        CurrentState.YardLine = InterceptionSpot >= 100 ? 100 - GetSpecialTeams()->GetTuning().PuntTouchbackYardLine : InterceptionSpot;
+        CurrentDriveSummary.Result = TEXT("Interception");
+        bTurnover = true;
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: INTERCEPTION! The return ended at the offense's %d."), InterceptionSpot);
+    }
     else
     {
         // First down calculations
@@ -696,6 +710,13 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
         if (Event.bIsInterception)
         {
             PlayLog.InterceptorId = CatcherId;
+            // Only a pass is intercepted. The play is now a turnover: the offense gains nothing,
+            // and the defense gets the ball where the return ends (where he caught it, until a
+            // tackle or the end zone says otherwise).
+            PlayLog.bPass = true;
+            CurrentPlayResult.ResultType = EPlayResultType::Interception;
+            CurrentPlayResult.YardsGained = 0;
+            InterceptionSpot = FMath::Clamp(FMath::RoundToInt(Event.CatchLocation.X / 100.f), 0, 100);
         }
         else
         {
@@ -715,6 +736,16 @@ void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
     // Physical tackle resolves the play, unless the whistle already blew.
     if (bQuickSimMode || IsBallDead())
     {
+        return;
+    }
+
+    // The interceptor is down: his return ends at the tackle's spot. Tackling him is no
+    // defensive stat, so the play's tackler stays empty.
+    if (CurrentPlayResult.ResultType == EPlayResultType::Interception)
+    {
+        InterceptionSpot = FMath::Clamp(Event.YardLine, 0, 100);
+        SetPlayPhase(EPlayPhase::Scoring);
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusTackle -- interceptor %s down at the %d."), *Event.BallCarrierName, Event.YardLine);
         return;
     }
 
@@ -805,6 +836,8 @@ void UPSPlaySimulation::AnnouncePlayResult(const FPlayState& AtSnap, bool bTurno
     PlayLog.PlayNumber = ++PlaysAnnounced;
     PlayLog.Result = StaticEnum<EPlayResultType>()->GetNameStringByValue(static_cast<int64>(Result));
     PlayLog.YardsGained = CurrentPlayResult.YardsGained;
+    // A defensive flag the offense accepted wiped the interception out.
+    PlayLog.bInterception = PlayLog.bInterception && Result == EPlayResultType::Interception;
     PlayLog.HomePoints = CurrentState.HomeScore - AtSnap.HomeScore;
     PlayLog.AwayPoints = CurrentState.AwayScore - AtSnap.AwayScore;
     PlayLog.bTurnoverOnDowns = bTurnover && !bKick && !PlayLog.bInterception;
@@ -847,6 +880,13 @@ void UPSPlaySimulation::OnBusTimeoutEvent(const FPSTelemetryTimeoutEvent& Event)
 
 void UPSPlaySimulation::RecordTouchdown()
 {
+    // The end zone the offense attacks is the one the interceptor defends: down in it.
+    if (CurrentPlayResult.ResultType == EPlayResultType::Interception)
+    {
+        InterceptionSpot = 100;
+        SetPlayPhase(EPlayPhase::Scoring);
+        return;
+    }
     CurrentPlayResult.ResultType = EPlayResultType::Touchdown;
     CurrentPlayResult.YardsGained = 100;
     SetPlayPhase(EPlayPhase::Scoring);
