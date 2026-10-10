@@ -24,6 +24,8 @@
 //   7. The franchise: every shipped roster signed at its demands, a season played and ended through
 //      UPSFranchiseFlow, the league year rolled over, expired players in free agency and signed
 //      under the cap; the ledger round-trips through the franchise save.
+//   8. Retirement (Epic 94): the deal ends, its unearned guarantees with it; only the bonus already
+//      paid is dead money, this year's share now and the rest next year.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -702,6 +704,43 @@ bool FPSContractFranchiseTest::RunTest(const FString& Parameters)
     IFileManager::Get().Delete(*UPSSaveSubsystem::GetSlotPath(Slot), false, true, true);
     IFileManager::Get().Delete(*(UPSSaveSubsystem::GetSlotPath(Slot) + TEXT(".bak")), false, true, true);
     TestFalse(TEXT("A save from before contracts keeps the current ledger"), Restored->LoadFrom(NewObject<UPSFranchiseSaveGame>()));
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 8 -- Retirement (Epic 94): the deal ends, the unearned guarantees with it
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSContractRetirementTest,
+    "PlaySports.Contracts.RetirementForfeitsGuarantees",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSContractRetirementTest::RunTest(const FString& Parameters)
+{
+    using namespace PSContractTests;
+
+    UPSContractManager* Manager = MakeManager();
+    const FName Hawks(TEXT("Hawks"));
+    const FName Retiree(TEXT("RetireMe"));
+    // Four years at 10,000: 8,000 base and a 2,000 bonus share each year, 12,000 of base guaranteed.
+    TestTrue(TEXT("The deal"), Sign(Manager, TEXT("RetireMe"), MakeOffer(TEXT("Hawks"), 4, 10000, 8000, 0.5f)));
+
+    const FPSCapPreview AsCut = Manager->PreviewCut(Retiree, false);
+    const FPSCapPreview Preview = Manager->PreviewRetirement(Retiree);
+    TestTrue(TEXT("He can retire"), Preview.bValid);
+    TestEqual(TEXT("This year's bonus share is dead money now"), Preview.DeadMoneyThisYear, 2000);
+    TestEqual(TEXT("...the later years' next year"), Preview.DeadMoneyNextYear, 6000);
+    TestEqual(TEXT("A cut would also charge his 12,000 of guarantees"),
+        (AsCut.DeadMoneyThisYear + AsCut.DeadMoneyNextYear) - (Preview.DeadMoneyThisYear + Preview.DeadMoneyNextYear), 12000);
+    TestTrue(TEXT("A preview changes nothing"), Manager->FindContract(Retiree) != nullptr && Manager->GetDeadMoney(Hawks, 2026) == 0);
+
+    const FPSCapPreview Done = Manager->RetirePlayer(Retiree);
+    TestTrue(TEXT("He retires"), Done.bValid);
+    TestNull(TEXT("...his deal gone"), Manager->FindContract(Retiree));
+    TestEqual(TEXT("Dead money this year"), Manager->GetDeadMoney(Hawks, 2026), 2000);
+    TestEqual(TEXT("...and next"), Manager->GetDeadMoney(Hawks, 2027), 6000);
+    TestEqual(TEXT("This year's cap space: his 10,000 hit less the 2,000 bonus share"), Done.CapSpaceAfter - Done.CapSpaceBefore, 8000);
+    TestFalse(TEXT("A player without a contract has none to end"), Manager->RetirePlayer(Retiree).bValid);
     return true;
 }
 
