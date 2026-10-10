@@ -27,6 +27,7 @@ class UPSKickMeterComponent;
 class UPSSettingsComponent;
 class UPSControlHandoffComponent;
 class UPSOverlayReticleComponent;
+class UPSOverlayBadgeComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -64,7 +65,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * pre-snap pick buttons go to, and this controller moves control there. A handoff in either
  * direction keeps the pawn's velocity, so neither the human nor the resuming AI starts from a
  * standstill. UPSOverlayReticleComponent draws the selected-player reticle under the
- * controlled pawn.
+ * controlled pawn; UPSOverlayBadgeComponent lays out the position badges over the others
+ * (Epic 28).
  *
  * Touch (Epic 130) is UPSTouchInputComponent's: its stick, buttons and swipes resolve to catalog
  * actions and come back here through InjectCatalogInput, so every handler below and every
@@ -150,6 +152,10 @@ public:
     /** The selected-player reticle (Epic 30). */
     UFUNCTION(BlueprintPure, Category = "Overlay")
     UPSOverlayReticleComponent* GetOverlayReticleComponent() const { return OverlayReticleComponent; }
+
+    /** The floating position badges (Epic 28). */
+    UFUNCTION(BlueprintPure, Category = "Overlay")
+    UPSOverlayBadgeComponent* GetOverlayBadgeComponent() const { return OverlayBadgeComponent; }
 
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -320,6 +326,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Overlay")
     UPSOverlayReticleComponent* OverlayReticleComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Overlay")
+    UPSOverlayBadgeComponent* OverlayBadgeComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

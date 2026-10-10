@@ -1,4 +1,5 @@
 #include "PSHUD.h"
+#include "PSOverlayBadgeWidget.h"
 #include "PSOverlayScoreBugWidget.h"
 #include "PSPlatformTiers.h"
 
@@ -8,11 +9,24 @@ APSHUD::APSHUD()
     ScoreboardWidget = nullptr;
     ChyronWidgetClass = UPSOverlayChyronWidget::StaticClass();
     ChyronWidget = nullptr;
+    BadgeWidgetClass = UPSOverlayBadgeWidget::StaticClass();
+    BadgeWidget = nullptr;
 }
 
 void APSHUD::BeginPlay()
 {
     Super::BeginPlay();
+
+    // Under the score bug: badges float over the field. Their own component trims them on a
+    // Minimal tier.
+    if (BadgeWidgetClass)
+    {
+        BadgeWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), BadgeWidgetClass);
+        if (BadgeWidget)
+        {
+            BadgeWidget->AddToViewport();
+        }
+    }
 
     if (ScoreboardWidgetClass)
     {
