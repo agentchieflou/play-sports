@@ -26,7 +26,9 @@ files against FPSSituationalTuning, its route IDs against the route library; "Ke
 files against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header
 declares it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts"
 files against FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow;
-"Routes" files against the FPSRoute library (timing, fakes, option branches).
+"Routes" files against the FPSRoute library (timing, fakes, option branches);
+"ShellSafeties" files against FPSDefensivePreSnapTuning, each action a Boolean in the PreSnap
+context.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1284,6 +1286,71 @@ def validate_routes(path, payload):
                 err(path, f"Routes[{idx}].{field}: '{route.get(field)}' is itself an option route")
 
 
+DEFENSIVE_PRESNAP_NUMBERS = ("TwoHighDepth", "TwoHighWidth", "SingleHighDepth", "RobberDepth", "RobberWidth",
+                             "DeepSafetyDepth", "ShowBlitzDepth", "BlitzLookDepth", "BlitzLookWidth", "CreepDelaySeconds")
+DEFENSIVE_PRESNAP_FRACTIONS = ("CreepSpeedScale", "MaxDisguiseLeak", "DisguiseChanceConservative", "DisguiseChanceAggressive",
+                               "ShowBlitzChanceConservative", "ShowBlitzChanceAggressive", "CreepChanceConservative",
+                               "CreepChanceAggressive")
+DEFENSIVE_PRESNAP_ACTIONS = ("AudibleAction", "SelectAction", "ShadowAction", "ShowBlitzAction", "DisguiseAction",
+                             "CreepAction")
+
+
+def validate_defensive_presnap(path, payload, catalog):
+    """FPSDefensivePreSnapTuning (Data/defensive_presnap.json, Epic 67); mirrors
+    UPSDefenderPreSnapSubsystem::ValidateTuning plus the catalog cross-check."""
+    for field in DEFENSIVE_PRESNAP_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in DEFENSIVE_PRESNAP_FRACTIONS:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    count = payload.get("ShowBlitzCount")
+    if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+        err(path, f"ShowBlitzCount: '{count}' must be a whole number, 0 or more")
+    if not isinstance(payload.get("bCpuShadowsTopReceiver"), bool):
+        err(path, "bCpuShadowsTopReceiver: must be true or false")
+    deep, robber = payload.get("DeepSafetyDepth"), payload.get("RobberDepth")
+    high = [payload.get(f) for f in ("TwoHighDepth", "SingleHighDepth")]
+    if is_number(deep) and is_number(robber) and all(is_number(h) for h in high) and not robber < deep <= min(high):
+        err(path, "DeepSafetyDepth must lie past RobberDepth and no deeper than the deep safeties' spots")
+    show, look = payload.get("ShowBlitzDepth"), payload.get("BlitzLookDepth")
+    if is_number(show) and is_number(look) and show > look:
+        err(path, "ShowBlitzDepth must be within BlitzLookDepth, or a shown blitz can't be seen")
+    shells = payload.get("ShellSafeties")
+    if not isinstance(shells, list):
+        err(path, "'ShellSafeties' must be an array")
+        shells = []
+    seen = set()
+    for idx, row in enumerate(shells):
+        where = f"ShellSafeties[{idx}]"
+        shell = row.get("Shell") if isinstance(row, dict) else None
+        deep_count = row.get("DeepSafeties") if isinstance(row, dict) else None
+        if not isinstance(shell, str) or not shell or shell in seen:
+            err(path, f"{where}.Shell: empty or listed twice")
+        seen.add(shell)
+        if deep_count not in (0, 1, 2) or isinstance(deep_count, bool):
+            err(path, f"{where}.DeepSafeties: '{deep_count}' must be 0, 1 or 2")
+    extra = set(payload) - set(DEFENSIVE_PRESNAP_NUMBERS) - set(DEFENSIVE_PRESNAP_FRACTIONS) - set(DEFENSIVE_PRESNAP_ACTIONS) \
+        - {"ShellSafeties", "ShowBlitzCount", "bCpuShadowsTopReceiver"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSDefensivePreSnapTuning exactly")
+    if catalog is None:
+        return
+    actions = {a.get("ActionId"): a for a in catalog.get("Actions", []) if isinstance(a, dict)}
+    used = [payload.get(field) for field in DEFENSIVE_PRESNAP_ACTIONS]
+    if len(set(used)) != len(used):
+        err(path, "each defensive pre-snap button must be a different action")
+    for field in DEFENSIVE_PRESNAP_ACTIONS:
+        action_id = payload.get(field)
+        action = actions.get(action_id)
+        if action is None:
+            err(path, f"{field}: '{action_id}' is not an action in input_actions.json")
+        elif action.get("ValueType") != "Boolean" or "PreSnap" not in (action.get("Contexts") or []):
+            err(path, f"{field}: '{action_id}' must be a Boolean action in the PreSnap context")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1356,6 +1423,8 @@ def main():
             validate_rush_moves(path, payload)
         if isinstance(payload, dict) and "Fronts" in payload:
             validate_run_fits(path, payload)
+        if isinstance(payload, dict) and "ShellSafeties" in payload:
+            validate_defensive_presnap(path, payload, load_input_catalog())
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

@@ -26,7 +26,8 @@ enum class EPSTelemetryEventType : uint8
     PreSnap,
     Timeout,
     GapIntegrity,
-    RouteRunning
+    RouteRunning,
+    DefensivePreSnap
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -487,6 +488,30 @@ struct FPSTelemetryRouteEvent
     float Seconds = 0.f;
 };
 
+/** The defense changed its look or its call before the snap (Epic 67). UPSDefenderPreSnapSubsystem
+ *  is the authority on these; this announces them. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryDefensivePreSnapEvent
+{
+    GENERATED_BODY()
+
+    /** "Audible", "DisguiseShell", "ShowBlitz", "Creep" or "Shadow". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Action;
+
+    /** The defender a shadow assigns; empty for a team call. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** The audible's PlayId, the shadowed receiver's name, or "On"/"Off" for a disguise. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Detail;
+
+    /** True when a person made the change; false for the CPU's. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHumanCall = false;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -531,6 +556,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapSignature, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutSignature, const FPSTelemetryTimeoutEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegritySignature, const FPSTelemetryGapIntegrityEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteSignature, const FPSTelemetryRouteEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDefensivePreSnapSignature, const FPSTelemetryDefensivePreSnapEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -554,6 +580,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutMC, const FPSTelemetryTim
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryEventRecordedMC, const FPSTelemetryEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegrityMC, const FPSTelemetryGapIntegrityEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteMC, const FPSTelemetryRouteEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDefensivePreSnapMC, const FPSTelemetryDefensivePreSnapEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -619,6 +646,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishRouteRunning(const FPSTelemetryRouteEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishDefensivePreSnap(const FPSTelemetryDefensivePreSnapEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -703,6 +733,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryRouteSignature OnRouteRunning;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryDefensivePreSnapSignature OnDefensivePreSnap;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -726,6 +759,7 @@ public:
     FPSTelemetryEventRecordedMC OnEventRecordedMC;
     FPSTelemetryGapIntegrityMC OnGapIntegrityMC;
     FPSTelemetryRouteMC OnRouteRunningMC;
+    FPSTelemetryDefensivePreSnapMC OnDefensivePreSnapMC;
 
 private:
     UPROPERTY(Transient)

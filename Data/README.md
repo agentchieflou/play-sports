@@ -41,6 +41,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
 | `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
+| `defensive_presnap.json` | `FPSDefensivePreSnapTuning` (single object) | `UPSDataIngestion::LoadDefensivePreSnapTuningFromJson`, via `UPSDefenderPreSnapSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -472,3 +473,33 @@ On top of `RouteId` and `Waypoints` (`Offset`, `TimingSeconds`) in `sample_route
   read point and whose timings count from the read; it is authored breaking outside, and turns
   inside against a man defender with outside leverage. Branches must exist and not be options
   themselves.
+
+## Defensive pre-snap schema (`FPSDefensivePreSnapTuning`)
+
+Single object (Epic 67; how the defense lines up, disguises and adjusts before the snap,
+`UPSDefenderPreSnapSubsystem`). Depths are cm past the front of the offensive line, widths cm
+across the field from its centre:
+- `ShellSafeties[]`: each coverage shell (a play's `CoverageShell`) and its `DeepSafeties`
+  (0, 1 or 2). A shell not listed plays one.
+- `TwoHighDepth`, `TwoHighWidth`: two-high safeties' spots. `SingleHighDepth`: the single-high
+  safety's, in the middle. `RobberDepth`, `RobberWidth`: a safety rolled down into the box.
+- `DeepSafetyDepth`: the offense counts a defender this deep as a deep safety. It must lie past
+  `RobberDepth` and no deeper than the deep spots.
+- `ShowBlitzDepth`: a linebacker or back showing blitz walks up to here. The offense reads a
+  blitz from one within `BlitzLookDepth` of the line and `BlitzLookWidth` of its centre
+  (`ShowBlitzDepth` must be within `BlitzLookDepth`). `ShowBlitzCount`: how many linebackers,
+  nearest the ball, show a blitz that isn't coming.
+- `CreepDelaySeconds`, `CreepSpeedScale` (0-1): when creeping blitzers start walking up, and how
+  fast.
+- `MaxDisguiseLeak` (0-1): at Awareness 0 a disguising safety lines up this fraction of the way
+  to his real spot (none at 100).
+- `DisguiseChance*`, `ShowBlitzChance*`, `CreepChance*` (0-1, `Conservative` and `Aggressive`):
+  how often a CPU defense uses each disguise, from AggressionScore 0 to 1, times the involved
+  defenders' average Awareness / 100.
+- `bCpuShadowsTopReceiver`: on a CPU man call, its best defensive back shadows the best
+  receiver.
+- `AudibleAction`, `SelectAction`, `ShadowAction`, `ShowBlitzAction`, `DisguiseAction`,
+  `CreepAction`: the human defense's buttons, each a different Boolean action in the input
+  catalog's `PreSnap` context (the offense's pre-snap buttons, with defensive meanings).
+
+`UPSDefenderPreSnapSubsystem::ValidateTuning` and `tools/validate_data.py` check it.

@@ -24,6 +24,7 @@
 #include "PSSessionTelemetryTypes.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSRouteRunning.h"
+#include "PSDefenderPreSnapTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -142,6 +143,11 @@ public:
      *  file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRunFitsFromJson(const FString& JsonFilePath, FPSRunFitCatalog& OutCatalog);
+
+    /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
+     *  missing file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadDefensivePreSnapTuningFromJson(const FString& JsonFilePath, FPSDefensivePreSnapTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

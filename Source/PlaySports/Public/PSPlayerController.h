@@ -18,6 +18,7 @@ class UPSPlayContextComponent;
 class UPSPassingComponent;
 class UPSCarrierInputComponent;
 class UPSPreSnapInputComponent;
+class UPSDefenderPreSnapInputComponent;
 class UPSInputBufferComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
@@ -97,6 +98,11 @@ public:
     /** The human offense's pre-snap buttons: audible, hot route, motion, protection (Epic 66). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSPreSnapInputComponent* GetPreSnapInputComponent() const { return PreSnapInputComponent; }
+
+    /** The human defense's pre-snap buttons: audible, shadow, show blitz, disguise, creep
+     *  (Epic 67). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSDefenderPreSnapInputComponent* GetDefenderPreSnapInputComponent() const { return DefenderPreSnapInputComponent; }
 
     /** Buffers catalog presses whose target is busy (Epic 104.4). */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -237,6 +243,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSPreSnapInputComponent* PreSnapInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSDefenderPreSnapInputComponent* DefenderPreSnapInputComponent;
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSInputBufferComponent* InputBufferComponent;
