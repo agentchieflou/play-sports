@@ -24,24 +24,26 @@ check-parallel` (Epic 138) validates this file against a fresh roadmap crawl.
    fast-follows (ball-action component extraction; roster single source of truth), both
    done; they stay because other entries depend on them.
 
-## Dispatchable today (2026-10-10)
+## Dispatchable today (2026-10-10, afternoon re-sync)
 
-Statuses re-synced from the roadmap checkboxes on 2026-10-10. Group G1 (Phase 0/1.5 cleanup)
-is finished apart from Epic 2's two editor stories (2.1 field geometry, 2.2 markings), which
-wait for a human editor session. Group G6 (Track M, 126–128) and Epic 101 are done, so the rest
-of Track I is open as G9.
+Statuses re-synced from the roadmap checkboxes on 2026-10-10 after the parallel-lane push. Since
+the morning sync these landed: 26 (telemetry sampling), 68 (route running), 70 (pass-rush
+moves), 76 (situational football), 117 (crash reporting and session telemetry), 104.4 (input
+buffering), and most of 66 (pre-snap), 81 (run fits), 131 (iOS settings, runbook, packaging
+stub) and 132 (extraction design and schema). Group G1 is finished apart from Epic 2's two
+editor stories (2.1 field geometry, 2.2 markings), which wait for a human editor session.
 
 These groups can run at the same time (see the scope note under the table):
 
 | Group | Label | Epics (order) | Owner suggestion |
 |---|---|---|---|
 | G2 | Orchestrator (Track P) | 138 (135–137 done) | Claude Code |
-| G3 | Playbook extraction (Track O) | 132 → 133 → 134 | Any agent (Python-only) |
-| G4 | Platform ports (Track N, iPhone first) | 131 decision record and iOS settings → 130 touch (129 done) | Claude Code; packaging waits on a Mac |
+| G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
+| G4 | Platform ports (Track N, iPhone first) | 130 touch (129 done; 131 done but its ADR, which waits on the owner's answer about a Mac and an Apple account) | Claude Code; packaging waits on a Mac |
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 17.4–17.5 (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
-| G9 | Front end and input feel (Track I) | 104.4/104.5 → 103 → 106 → 105 (101 done; 102 done but 102.1's play art, which waits on Epic 35; 104.1–104.3 done) | Claude Code |
+| G9 | Front end and input feel (Track I) | 104.5 → 103 → 106 → 105 (101 done; 102 done but 102.1's play art, which waits on Epic 35; 104.1–104.4 done) | Claude Code |
 
 Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
 (`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G8's and G9's track scopes on
@@ -51,13 +53,20 @@ take it on trust.
 
 Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 
-- **Tier 1, Track E:** 70 pass-rush moves, 75 special-teams depth, 76 situational football.
-- **Tier 2:** 81 run-fit and gap integrity, 89 coaching staffs, 19.5 personnel packages.
-- **Tier 3 / infra:** 117 crash reporting, 125 content validation CLI, 24 test expansion.
-- **Overlay and camera code:** 26 telemetry sampling layer, 30 selected-player indicator,
-  33 score bug, 40 all-22 camera. **Epic 26 is the biggest single unblocker:** 15 epics
-  depend on it directly (27, 28, 31, 32, 34, 36, 38, 41, 49, 78, 82, 85, 92, 96, 115).
+- **Tier 1, Track E:** 67 defensive pre-snap (66 is in), 71 QB pocket play, 75 special-teams
+  depth.
+- **Tier 2:** 89 coaching staffs, 19.5 personnel packages.
+- **Tier 3 / infra:** 125 content validation CLI, 24 test expansion.
+- **Overlay and camera code:** 30 selected-player indicator, 33 score bug, 40 all-22 camera.
+  With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
+  38, 41, 49, 78, 82, 85, 92, 96, 115.
 - **Editor or mixed, waiting for an editor session:** 2.1–2.2, 22, 23.
+
+**Shared-file landing.** Every code epic appends to the same registries (`PSTelemetryBus.h`
+events, `PSDataIngestion` loaders, `tools/validate_data.py` validators, `Data/README.md`), so
+parallel PRs always conflict there. When several land at once, merge them in an integration
+batch (one branch, conflicts resolved by keeping both sides with `merge.conflictStyle=diff3`,
+one CI run) rather than re-merging main into each PR after every landing.
 
 ```json parallel-matrix
 {
@@ -116,7 +125,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "23":  {"track": "core", "mode": "mixed", "status": "open", "depends_on": ["8", "11"]},
     "24":  {"track": "core", "mode": "code", "status": "open", "depends_on": []},
     "25":  {"track": "core", "mode": "code", "status": "open", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"]},
-    "26":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["C1", "3", "6"]},
+    "26":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["C1", "3", "6"]},
     "27":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "16"]},
     "28":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
     "29":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["5", "19"]},
@@ -156,22 +165,22 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "63":  {"track": "D", "mode": "editor", "status": "open", "depends_on": ["22", "14"]},
     "64":  {"track": "D", "mode": "editor", "status": "open", "depends_on": ["9", "22"]},
     "65":  {"track": "D", "mode": "mixed", "status": "open", "depends_on": ["11", "2"]},
-    "66":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["14", "16"]},
+    "66":  {"track": "E", "mode": "code", "status": "partial", "depends_on": ["14", "16"], "open_stories": ["66.5 crowd-noise interference on road audibles (waits on Epic 49)"]},
     "67":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["15", "16", "66"]},
-    "68":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["C3", "C4", "14", "16"]},
+    "68":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "14", "16"]},
     "69":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["C3", "C4", "15", "68"]},
-    "70":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["C3", "C4", "9"]},
+    "70":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "9"]},
     "71":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["14", "9"]},
     "72":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["66", "68", "14", "15"]},
     "73":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["11", "69", "61"]},
     "74":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["7", "8", "61"]},
     "75":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["13"]},
-    "76":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["12", "18"]},
+    "76":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["12", "18"]},
     "77":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["6", "49"]},
     "78":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["18", "26"]},
     "79":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["14", "15", "19"]},
     "80":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["15", "68", "72"]},
-    "81":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["15", "9"]},
+    "81":  {"track": "F", "mode": "code", "status": "partial", "depends_on": ["15", "9"], "open_stories": ["81.4 live gap-integrity visualization (needs Track A iconography and an editor session)"]},
     "82":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["25", "26", "18"]},
     "83":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["20", "24"]},
     "84":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["78", "79"]},
@@ -194,7 +203,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "101": {"track": "I", "mode": "code", "status": "done", "depends_on": ["5"]},
     "102": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["16", "101"]},
     "103": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101"]},
-    "104": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["3", "6", "126", "127"], "open_stories": ["104.4 input buffering", "104.5 kick meter and defensive inputs"]},
+    "104": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["3", "6", "126", "127"], "open_stories": ["104.5 kick meter and defensive inputs"]},
     "105": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101", "104", "24"]},
     "106": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101"]},
     "107": {"track": "J", "mode": "code", "status": "open", "depends_on": ["104", "102"]},
@@ -207,7 +216,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "114": {"track": "K", "mode": "code", "status": "open", "depends_on": ["17"]},
     "115": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["17", "26"], "open_stories": ["115.4 record/playback round-trip test", "115.5 divergence bisection tool"]},
     "116": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
-    "117": {"track": "K", "mode": "code", "status": "open", "depends_on": []},
+    "117": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "118": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25"]},
     "119": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25", "135"]},
     "120": {"track": "K", "mode": "code", "status": "done", "depends_on": ["112", "113"]},
@@ -221,8 +230,8 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "128": {"track": "M", "mode": "code", "status": "done", "depends_on": ["127"]},
     "129": {"track": "N", "mode": "code", "status": "done", "depends_on": []},
     "130": {"track": "N", "mode": "code", "status": "open", "depends_on": ["126", "128", "129"]},
-    "131": {"track": "N", "mode": "mixed", "status": "open", "depends_on": ["129"]},
-    "132": {"track": "O", "mode": "code", "status": "open", "depends_on": []},
+    "131": {"track": "N", "mode": "mixed", "status": "partial", "depends_on": ["129"], "open_stories": ["131.1 ADR_iOS_Build.md accepted (Proposed; waits on the owner's answer about a Mac and an Apple account)"]},
+    "132": {"track": "O", "mode": "code", "status": "partial", "depends_on": [], "open_stories": ["132.1 compliance review (written: NOT cleared; owner chooses manual authoring or permission, tools/playbook_scraper/COMPLIANCE.md)", "132.2 site recon (blocked by the compliance gate)"]},
     "133": {"track": "O", "mode": "code", "status": "open", "depends_on": ["132"]},
     "134": {"track": "O", "mode": "code", "status": "open", "depends_on": ["133"]},
     "135": {"track": "P", "mode": "code", "status": "done", "depends_on": []},
