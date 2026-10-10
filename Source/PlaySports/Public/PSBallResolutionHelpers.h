@@ -55,6 +55,45 @@ struct FCatchTuningRow : public FTableRowBase
 };
 
 /**
+ * Tuning for a tackle's chance of success, extracted from
+ * UPSBallActionComponent::ResolveTackle (Epic 104.2) with the defaults it had inline:
+ * chance = Base + (DefenderPower - CarrierPower) * PowerScalar, clamped to [Min, Max], where
+ * each side's power is its weighted Strength/Agility plus weighted speed (cm/s).
+ */
+USTRUCT(BlueprintType)
+struct FTackleTuningRow : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float TackleBaseChance = 0.50f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float PowerScalar = 0.005f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float TackleChanceMin = 0.10f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float TackleChanceMax = 0.95f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float DefenderStrengthWeight = 0.5f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float DefenderSpeedWeight = 0.1f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CarrierStrengthWeight = 0.3f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CarrierAgilityWeight = 0.3f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CarrierSpeedWeight = 0.05f;
+};
+
+/**
  * Pure, deterministic probability/resolution functions extracted from
  * APSBall::OnBallOverlap so the catch/interception/fumble rules are unit
  * testable without a World (Epic C4).
@@ -69,4 +108,10 @@ namespace PSBallResolutionHelpers
 
     /** Roll <= ComputeCatchChance(Attributes, Tuning). Deterministic given Roll. */
     bool ResolveCatch(const FPlayerAttributes& Attributes, float Roll, const FCatchTuningRow& Tuning = FCatchTuningRow());
+
+    /** A tackle's chance of success. CarrierMoveMultiplier is the carrier's active move
+     *  (UPSCarrierMoveComponent::GetTackleChanceMultiplier, Epic 104.2): it scales the clamped
+     *  chance, so a good move can beat the floor; the result never exceeds the maximum. */
+    float ComputeTackleChance(const FPlayerAttributes& Carrier, const FPlayerAttributes& Defender, float CarrierSpeed, float DefenderSpeed,
+        float CarrierMoveMultiplier = 1.f, const FTackleTuningRow& Tuning = FTackleTuningRow());
 }

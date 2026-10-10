@@ -46,6 +46,7 @@ keeps that mapping.
 | Play calling | `UPSPlayCallComponent` (on the controller, Epic 102) | Opens the play-call screens for the player's side; Confirm on the field hikes. |
 | Play context | `UPSPlayContextComponent` (on the controller, Epic 104) | Which gameplay-depth context (section 3) is on, from the snap and the end of the play on the bus and the controlled pawn's possession. |
 | Passing | `Data/passing_input.json` → `UPSPassingComponent` (on the controller, Epic 104) | The human passer: receiver slots, touch and bullet, stick placement, pump fake. |
+| Carrier moves | `Data/carrier_moves.json` → `UPSCarrierMoveComponent` (on every `APSPlayerPawn`), pressed through `UPSCarrierInputComponent` (on the controller, Epic 104.2) | Juke, spin, truck, stiff-arm, hurdle, slide: attribute gates, stamina, the velocity change, and the tackle-odds window `ResolveTackle` reads. |
 
 ## 3. The context stack
 
@@ -59,7 +60,7 @@ bind the same key.
 | `Menu` | 2 | not pushed on Enhanced Input | Names the keys menus treat as Confirm (Enter, A) and Back (Escape, B). While a screen is open the player is in UI input mode and Slate moves focus (D-pad, stick, arrows, Tab); `UPSMenuComponent` reads its Back keys from this context. |
 | `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | Pre-snap inputs (empty so far: hiking stays Confirm on `OnField`). |
 | `Passing` | 3 | `UPSPlayContextComponent`: the controlled QB holds the ball behind the line | The pass buttons and the pump fake. They take A, X and LB from `OnField` while on. |
-| `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | Epic 104.2's move set. |
+| `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | The move set (Epic 104.2). It takes the face buttons and both bumpers from `OnField` while on. |
 | `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | Epic 104.5's defensive inputs. |
 
 The four gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
@@ -92,6 +93,12 @@ as the Xbox glyph set labels them.
 | Picker | Boolean | World | C | Menu (Start) | `OnCatalogActionStarted` (Epic 143) |
 | PassTarget1-5 | Boolean | Passing | 1-5 | X, Y, B, RB, A | `UPSPassingComponent`: throws on release to receiver slots 1-5, left to right across the field. A tap throws touch, a hold throws a bullet, and the Move stick places the ball. |
 | PumpFake | Boolean | Passing | Q | LB | `UPSPassingComponent`: publishes `PumpFake`; low-Awareness coverage freezes |
+| Juke | Boolean | BallCarrier | Z | X | `UPSCarrierInputComponent` → `UPSCarrierMoveComponent::TryMove`; a cut toward the Move stick's side |
+| Spin | Boolean | BallCarrier | X | B | the same: spin through contact (Agility 40+) |
+| Truck | Boolean | BallCarrier | C | A | the same: power through (Strength 50+) |
+| StiffArm | Boolean | BallCarrier | V | RB | the same: an arm bar (Strength 30+) |
+| Hurdle | Boolean | BallCarrier | Space | Y | the same: leap a low tackle (Agility 65+) |
+| Slide | Boolean | BallCarrier | Left Ctrl | LB | the same: give yourself up (down at the next contact, no hit, no fumble) |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
 every context. Start opens the character sheet off the field and pauses on it (Epic 101). The

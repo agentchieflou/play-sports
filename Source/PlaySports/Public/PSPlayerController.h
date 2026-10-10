@@ -16,6 +16,7 @@ class UPSMenuComponent;
 class UPSPlayCallComponent;
 class UPSPlayContextComponent;
 class UPSPassingComponent;
+class UPSCarrierInputComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -41,8 +42,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * the authored pattern on this controller's gamepad. Play calling (Epic 102) is
  * UPSPlayCallComponent's: it opens the play-call screens and hikes on Confirm. Input depth
  * (Epic 104) is two components': UPSPlayContextComponent keeps the gameplay-depth context
- * (PreSnap, Passing, BallCarrier, Defense) matching the moment of the play, and
- * UPSPassingComponent throws to receiver slots when the controlled QB passes.
+ * (PreSnap, Passing, BallCarrier, Defense) matching the moment of the play,
+ * UPSPassingComponent throws to receiver slots when the controlled QB passes, and
+ * UPSCarrierInputComponent turns the move buttons into the carrier's moves.
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -83,6 +85,10 @@ public:
     /** The human passer: receiver slots, touch and bullet, placement, pump fake (Epic 104). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSPassingComponent* GetPassingComponent() const { return PassingComponent; }
+
+    /** The human ball carrier's move buttons (Epic 104.2). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSCarrierInputComponent* GetCarrierInputComponent() const { return CarrierInputComponent; }
 
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -212,6 +218,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSPassingComponent* PassingComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSCarrierInputComponent* CarrierInputComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

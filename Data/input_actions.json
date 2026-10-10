@@ -226,6 +226,66 @@
                 { "Key": "Q" },
                 { "Key": "Gamepad_LeftShoulder" }
             ]
+        },
+        {
+            "ActionId": "Juke",
+            "ValueType": "Boolean",
+            "Description": "A hard cut toward the Move stick's side: tacklers whiff (Agility). UPSCarrierInputComponent; the move itself is Data/carrier_moves.json.",
+            "Contexts": ["BallCarrier"],
+            "Bindings": [
+                { "Key": "Z" },
+                { "Key": "Gamepad_FaceButton_Left" }
+            ]
+        },
+        {
+            "ActionId": "Spin",
+            "ValueType": "Boolean",
+            "Description": "Spin through contact at a cost in speed (Agility 40+). UPSCarrierInputComponent; the move itself is Data/carrier_moves.json.",
+            "Contexts": ["BallCarrier"],
+            "Bindings": [
+                { "Key": "X" },
+                { "Key": "Gamepad_FaceButton_Right" }
+            ]
+        },
+        {
+            "ActionId": "Truck",
+            "ValueType": "Boolean",
+            "Description": "Lower the shoulder and power through (Strength 50+). UPSCarrierInputComponent; the move itself is Data/carrier_moves.json.",
+            "Contexts": ["BallCarrier"],
+            "Bindings": [
+                { "Key": "C" },
+                { "Key": "Gamepad_FaceButton_Bottom" }
+            ]
+        },
+        {
+            "ActionId": "StiffArm",
+            "ValueType": "Boolean",
+            "Description": "An arm bar that keeps a tackler off (Strength 30+). UPSCarrierInputComponent; the move itself is Data/carrier_moves.json.",
+            "Contexts": ["BallCarrier"],
+            "Bindings": [
+                { "Key": "V" },
+                { "Key": "Gamepad_RightShoulder" }
+            ]
+        },
+        {
+            "ActionId": "Hurdle",
+            "ValueType": "Boolean",
+            "Description": "Leap a low tackle (Agility 65+). UPSCarrierInputComponent; the move itself is Data/carrier_moves.json.",
+            "Contexts": ["BallCarrier"],
+            "Bindings": [
+                { "Key": "SpaceBar" },
+                { "Key": "Gamepad_FaceButton_Top" }
+            ]
+        },
+        {
+            "ActionId": "Slide",
+            "ValueType": "Boolean",
+            "Description": "Give yourself up: down at the next contact, with no hit and no fumble. UPSCarrierInputComponent; the move itself is Data/carrier_moves.json.",
+            "Contexts": ["BallCarrier"],
+            "Bindings": [
+                { "Key": "LeftControl" },
+                { "Key": "Gamepad_LeftShoulder" }
+            ]
         }
     ]
 }

@@ -1,0 +1,10 @@
+{
+    "Moves": [
+        { "Move": "Juke",     "ActionId": "Juke",     "Attribute": "Agility",  "MinAttribute": 0,  "WindowSeconds": 0.4,  "CooldownSeconds": 1.0, "StaminaCost": 6,  "TackleChanceScale": 0.4,  "SpeedRetained": 0.85, "LateralSpeed": 350, "ForwardSpeed": 0,   "bGivesUp": false },
+        { "Move": "Spin",     "ActionId": "Spin",     "Attribute": "Agility",  "MinAttribute": 40, "WindowSeconds": 0.5,  "CooldownSeconds": 1.2, "StaminaCost": 8,  "TackleChanceScale": 0.5,  "SpeedRetained": 0.7,  "LateralSpeed": 0,   "ForwardSpeed": 0,   "bGivesUp": false },
+        { "Move": "Truck",    "ActionId": "Truck",    "Attribute": "Strength", "MinAttribute": 50, "WindowSeconds": 0.4,  "CooldownSeconds": 1.5, "StaminaCost": 10, "TackleChanceScale": 0.55, "SpeedRetained": 1.0,  "LateralSpeed": 0,   "ForwardSpeed": 150, "bGivesUp": false },
+        { "Move": "StiffArm", "ActionId": "StiffArm", "Attribute": "Strength", "MinAttribute": 30, "WindowSeconds": 0.6,  "CooldownSeconds": 1.2, "StaminaCost": 7,  "TackleChanceScale": 0.6,  "SpeedRetained": 0.9,  "LateralSpeed": 0,   "ForwardSpeed": 0,   "bGivesUp": false },
+        { "Move": "Hurdle",   "ActionId": "Hurdle",   "Attribute": "Agility",  "MinAttribute": 65, "WindowSeconds": 0.35, "CooldownSeconds": 2.0, "StaminaCost": 10, "TackleChanceScale": 0.3,  "SpeedRetained": 0.9,  "LateralSpeed": 0,   "ForwardSpeed": 100, "bGivesUp": false },
+        { "Move": "Slide",    "ActionId": "Slide",    "Attribute": "Speed",    "MinAttribute": 0,  "WindowSeconds": 0,    "CooldownSeconds": 0,   "StaminaCost": 0,  "TackleChanceScale": 1.0,  "SpeedRetained": 0,    "LateralSpeed": 0,   "ForwardSpeed": 0,   "bGivesUp": true }
+    ]
+}

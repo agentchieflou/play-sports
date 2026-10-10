@@ -6,6 +6,8 @@
 #include "PSPlaySimulation.h"
 #include "PSHealthComponent.h"
 #include "PSCombatRulesModel.h"
+#include "PSBallResolutionHelpers.h"
+#include "PSCarrierMoveComponent.h"
 #include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -313,11 +315,11 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
     float CarrierSpeed = OwnerPawn->GetVelocity().Size();
     float DefenderSpeed = Defender->GetVelocity().Size();
 
-    float DefenderPower = DefenderAttr.Strength * 0.5f + (DefenderSpeed * 0.1f);
-    float CarrierPower = CarrierAttr.Strength * 0.3f + CarrierAttr.Agility * 0.3f + (CarrierSpeed * 0.05f);
-
-    float TackleChance = 0.50f + (DefenderPower - CarrierPower) * 0.005f;
-    TackleChance = FMath::Clamp(TackleChance, 0.10f, 0.95f);
+    // The carrier's move (Epic 104.2) changes the odds; a carrier who slid is simply down.
+    const UPSCarrierMoveComponent* Moves = OwnerPawn->GetCarrierMoveComponent();
+    const bool bGaveUp = Moves && Moves->HasGivenUp();
+    const float TackleChance = bGaveUp ? 1.f
+        : PSBallResolutionHelpers::ComputeTackleChance(CarrierAttr, DefenderAttr, CarrierSpeed, DefenderSpeed, Moves ? Moves->GetTackleChanceMultiplier() : 1.f);
 
     float Roll = FMath::FRand();
     if (Roll <= TackleChance)
@@ -325,10 +327,10 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Tackle SUCCESS! Defender %s tackled carrier %s (Roll: %.2f <= Chance: %.2f)"), 
             *DefenderAttr.DisplayName, *CarrierAttr.DisplayName, Roll, TackleChance);
 
-        // Fumble chance check
+        // Fumble chance check (a slide protects the ball)
         float FumbleChance = 0.02f + (DefenderSpeed * 0.0001f);
         FumbleChance = FMath::Clamp(FumbleChance, 0.01f, 0.25f);
-        if (FMath::FRand() <= FumbleChance)
+        if (!bGaveUp && FMath::FRand() <= FumbleChance)
         {
             FumbleBall();
             return true;
@@ -366,7 +368,7 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         // tackle and keeps the play alive.
         bool bCarrierDowned = true;
         UPSHealthComponent* CarrierHealth = OwnerPawn->GetHealthComponent();
-        if (CarrierHealth)
+        if (CarrierHealth && !bGaveUp)
         {
             UPSCombatRulesModel* CombatRules = NewObject<UPSCombatRulesModel>(this);
             const float Damage = CombatRules->ResolveTackleDamage(CarrierAttr, DefenderAttr, GM->ArchetypeTuningSettings);
