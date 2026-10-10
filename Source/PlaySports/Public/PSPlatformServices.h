@@ -16,6 +16,9 @@ class UWorld;
  *  flushes its writes on a suspend). Gameplay listens on the bus instead. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSPlatformLifecycleMC, EPSPlatformLifecycle);
 
+/** Someone signed in or out on the platform (UPSControllerPairingSubsystem checks its pairings). */
+DECLARE_MULTICAST_DELEGATE(FPSPlatformUsersChangedMC);
+
 /**
  * UPSPlatformServices is the game's one door to the platform (Epic 152): who is signed in, where
  * saves go, achievements and presence, and what the platform does to the running game (suspend,
@@ -70,6 +73,12 @@ public:
      *  slot has none. */
     UFUNCTION(BlueprintCallable, Category = "Platform")
     FPSPlatformUser GetSignedInUser(int32 LocalUserIndex = 0) const;
+
+    /** A backend reports that a user signed in or out: broadcasts OnUsersChangedMC. */
+    void HandleUsersChanged();
+
+    /** Sign-in changes, as the backend reports them (Epic 150: XR-112 and XR-115 on Xbox). */
+    FPSPlatformUsersChangedMC OnUsersChangedMC;
 
     // --- Storage --------------------------------------------------------------------------
 

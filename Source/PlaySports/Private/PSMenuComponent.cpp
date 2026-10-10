@@ -1,4 +1,5 @@
 #include "PSMenuComponent.h"
+#include "PSControllerPairingSubsystem.h"
 #include "PSMenuStack.h"
 #include "PSMenuScreenWidget.h"
 #include "PSDataIngestion.h"
@@ -11,6 +12,7 @@
 #include "PSLoadingScreenSubsystem.h"
 #include "PSSettingsSubsystem.h"
 #include "PSSettingsComponent.h"
+#include "PSTitleSafeArea.h"
 #include "PSInputDeviceComponent.h"
 #include "PSInputGlyphs.h"
 #include "PSLocalization.h"
@@ -743,6 +745,18 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
         AuthoredOption.Detail = UPSLocalization::GetDataText(UPSLocalization::MenuOptionKey(ScreenId, AuthoredOption.OptionId, TEXT("Detail")), AuthoredOption.Detail).ToString();
     }
 
+    // A lost controller or a signed-out user: the pause screen says how to play on (Epic 150).
+    if (ScreenId == GetCatalog().PauseScreen)
+    {
+        const APSPlayerController* Human = Cast<APSPlayerController>(GetOwner());
+        const UPSControllerPairingSubsystem* Pairing = GetWorld() ? GetWorld()->GetSubsystem<UPSControllerPairingSubsystem>() : nullptr;
+        const FText Status = (Human && Pairing) ? Pairing->DescribeStatus(Human->HumanIndex) : FText::GetEmpty();
+        if (!Status.IsEmpty())
+        {
+            Presented.Body = Status.ToString();
+        }
+    }
+
     if (Presented.Content == EPSMenuScreenContent::TeamSelect)
     {
         // Team colors as the player's color vision needs them (Epic 103.2), sizes in the
@@ -991,7 +1005,8 @@ void UPSMenuComponent::ShowTopScreen()
     if (ActiveWidget)
     {
         ActiveWidget->SetScreen(GetPresentedScreen(Stack->Top()), this, GetTransitionSeconds());
-        ActiveWidget->AddToViewport();
+        // The backdrop covers the screen; the screen's content keeps to the title-safe area.
+        PSTitleSafeArea::AddWholeScreen(ActiveWidget);
         ActiveWidget->FocusFirstOption(Player);
     }
 }

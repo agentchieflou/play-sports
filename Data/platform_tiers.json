@@ -4,7 +4,8 @@
         { "Platform": "Windows", "Tier": "DesktopHigh" },
         { "Platform": "Mac", "Tier": "DesktopHigh" },
         { "Platform": "IOS", "Tier": "MobileBaseline" },
-        { "Platform": "Android", "Tier": "MobileLow" }
+        { "Platform": "Android", "Tier": "MobileLow" },
+        { "Platform": "XSX", "Tier": "XboxSeries" }
     ],
     "Tiers": [
         {
@@ -16,6 +17,7 @@
             "TelemetrySampleBudgetMs": 0.25,
             "ReplayPoseRateHz": 0,
             "OverlayDetail": "Full",
+            "TitleSafeArea": 1.0,
             "PlayArtRefreshHz": 30,
             "AudioUpdateHz": 0,
             "AudioMaxVoices": 32,
@@ -41,6 +43,7 @@
             "TelemetrySampleBudgetMs": 0.15,
             "ReplayPoseRateHz": 30,
             "OverlayDetail": "Simplified",
+            "TitleSafeArea": 1.0,
             "PlayArtRefreshHz": 15,
             "AudioUpdateHz": 30,
             "AudioMaxVoices": 16,
@@ -66,6 +69,7 @@
             "TelemetrySampleBudgetMs": 0.1,
             "ReplayPoseRateHz": 15,
             "OverlayDetail": "Minimal",
+            "TitleSafeArea": 1.0,
             "PlayArtRefreshHz": 0,
             "AudioUpdateHz": 15,
             "AudioMaxVoices": 12,
@@ -79,6 +83,32 @@
                 { "System": "UI", "BudgetMs": 1.0 },
                 { "System": "Animation", "BudgetMs": 4.0 },
                 { "System": "Crowd", "BudgetMs": 0.5 },
+                { "System": "Audio", "BudgetMs": 1.0 }
+            ]
+        },
+        {
+            "TierId": "XboxSeries",
+            "Description": "Xbox Series X|S, budgeted for Series S (the floor): 60 fps, AI every frame on the consoles' desktop-class CPU, HUD and menus inside the inner 90% of a TV.",
+            "DeviceProfile": "XSX",
+            "AIDecisionInterval": 0,
+            "TelemetrySampleRateHz": 30,
+            "TelemetrySampleBudgetMs": 0.25,
+            "ReplayPoseRateHz": 60,
+            "OverlayDetail": "Full",
+            "TitleSafeArea": 0.9,
+            "PlayArtRefreshHz": 30,
+            "AudioUpdateHz": 0,
+            "AudioMaxVoices": 32,
+            "CrowdUpdateHz": 30,
+            "TargetFrameRate": 60,
+            "SystemBudgets": [
+                { "System": "Simulation", "BudgetMs": 1.0 },
+                { "System": "AI", "BudgetMs": 2.0 },
+                { "System": "Telemetry", "BudgetMs": 0.5 },
+                { "System": "Overlays", "BudgetMs": 1.0 },
+                { "System": "UI", "BudgetMs": 1.0 },
+                { "System": "Animation", "BudgetMs": 3.0 },
+                { "System": "Crowd", "BudgetMs": 1.5 },
                 { "System": "Audio", "BudgetMs": 1.0 }
             ]
         }

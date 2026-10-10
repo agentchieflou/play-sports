@@ -10,7 +10,8 @@
  * what Win64 and every headless test run on.
  *
  *  - Users: no sign-in on a PC, so every local player slot has a user: "Local<index>", shown as
- *    "Player <index + 1>" (Data/ui_text.csv Platform.LocalUser).
+ *    "Player <index + 1>" (Data/ui_text.csv Platform.LocalUser). SetUserSignedIn stands in for a
+ *    console's sign-out, so the game's handling of one is tested on Win64 (Epic 150).
  *  - Storage: Saved/SaveGames under the project, or StorageRoot when set (a test standing in for
  *    a second platform).
  *  - Achievements and presence: remembered in memory and logged; nothing leaves the machine.
@@ -31,6 +32,9 @@ public:
     virtual void SetPresence(FName PresenceId) override;
     virtual FName GetPresence() const override;
 
+    /** Signs local slot LocalUserIndex's user out or back in, and tells the services. */
+    void SetUserSignedIn(int32 LocalUserIndex, bool bSignedIn);
+
     /** Where saves go instead of Saved/SaveGames, when not empty. */
     UPROPERTY(EditAnywhere, Category = "Platform")
     FString StorageRoot;
@@ -41,5 +45,6 @@ public:
 
 private:
     TSet<FName> UnlockedAchievements;
+    TSet<int32> SignedOutUsers;
     FName Presence;
 };

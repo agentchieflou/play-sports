@@ -4,6 +4,7 @@
 #include "PSOverlayPlayArtSubsystem.h"
 #include "PSPlayCallSubsystem.h"
 #include "PSPlayDiagramWidget.h"
+#include "PSTitleSafeArea.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
@@ -68,7 +69,9 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
     Background->SetBrushColor(PSMenuStyle::Backdrop);
     Background->SetHorizontalAlignment(HAlign_Center);
     Background->SetVerticalAlignment(VAlign_Center);
+    Background->SetPadding(TitleSafeMargin);
     WidgetTree->RootWidget = Background;
+    Backdrop = Background;
 
     UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Column"));
     Background->SetContent(Column);
@@ -266,6 +269,17 @@ FReply UPSMenuScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
 void UPSMenuScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
+
+    // The content keeps to the title-safe area at whatever size the screen has (Epic 150).
+    const FMargin SafeMargin = PSTitleSafeArea::MakeMargin(MyGeometry.GetLocalSize(), PSTitleSafeArea::GetActiveFraction());
+    if (SafeMargin != TitleSafeMargin)
+    {
+        TitleSafeMargin = SafeMargin;
+        if (Backdrop)
+        {
+            Backdrop->SetPadding(TitleSafeMargin);
+        }
+    }
 
     if (FadeSeconds > 0.f && FadeElapsed < FadeSeconds)
     {

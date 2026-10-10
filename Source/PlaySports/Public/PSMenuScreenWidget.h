@@ -7,6 +7,7 @@
 #include "PSMenuTypes.h"
 #include "PSMenuScreenWidget.generated.h"
 
+class UBorder;
 class UPSMenuComponent;
 class UTextBlock;
 class UWidget;
@@ -40,6 +41,10 @@ private:
  * widget builds a plain, fully working layout in code (title, body, one button per option),
  * so the front end runs before any UMG asset exists. Gamepad and keyboard navigation between
  * buttons is Slate's; Back comes from the input catalog's keys (UPSMenuComponent::IsBackKey).
+ *
+ * The backdrop covers the whole screen; the content keeps to the platform's title-safe area
+ * (Epic 150, PSTitleSafeArea): the code-built layout pads the backdrop by GetTitleSafeMargin, and
+ * a Widget Blueprint's layout does the same.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSMenuScreenWidget : public UUserWidget
@@ -64,6 +69,11 @@ public:
 
     /** Gives OptionId's button focus (the first option when it is not on the screen). */
     void FocusOption(FName OptionId, APlayerController* Player);
+
+    /** The padding that keeps this screen's content inside the title-safe area, for its current
+     *  size (Epic 150). */
+    UFUNCTION(BlueprintPure, Category = "Menu")
+    FMargin GetTitleSafeMargin() const { return TitleSafeMargin; }
 
     /** True for an option that calls a play (Epic 102): the code-built layout shows that play's
      *  diagram beside its name (UPSPlayDiagramWidget, Epic 102.1). */
@@ -91,6 +101,13 @@ private:
 
     UPROPERTY(Transient)
     TArray<UPSMenuButton*> OptionButtons;
+
+    /** The code-built layout's full-screen backdrop, padded to the title-safe area. */
+    UPROPERTY(Transient)
+    UBorder* Backdrop = nullptr;
+
+    /** The title-safe padding for the size the widget last had (Epic 150). */
+    FMargin TitleSafeMargin;
 
     /** The live play clock on the play-call screens (Epic 102.5); null elsewhere. */
     UPROPERTY(Transient)

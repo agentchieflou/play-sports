@@ -13,6 +13,10 @@ Enforces the conventions documented in AGENTS.md over Source/ and Plugins/:
     implementation (PSPlatformBackend*) and never forks on #if PLATFORM_*.
     It reaches the platform through UPSPlatformServices; a platform
     difference lives in data or in a backend.
+  - Title-safe area (Epic 150): game code puts widgets on screen only through
+    PSTitleSafeArea (AddInside / AddWholeScreen), never with a direct
+    AddToViewport or AddToPlayerScreen, so every HUD and menu widget keeps to
+    the platform's title-safe area.
 
 Two tiers:
   errors   - structural violations (placement, pragma once, type prefixes);
@@ -96,12 +100,33 @@ def strip_comments(text):
     return "".join(out)
 
 
+def in_game_module(rel_path):
+    """Whether rel_path (relative to the repo) is the game module's own code, tests excluded."""
+    parts = Path(rel_path).parts
+    return len(parts) >= 2 and parts[0] == "Source" and parts[1] == "PlaySports" and "Tests" not in parts
+
+
 def is_gameplay_code(rel_path):
     """Whether rel_path (relative to the repo) is gameplay code the platform rule covers."""
-    parts = Path(rel_path).parts
-    if len(parts) < 2 or parts[0] != "Source" or parts[1] != "PlaySports" or "Tests" in parts:
-        return False
-    return not Path(rel_path).name.startswith(PLATFORM_LAYER_PREFIXES)
+    return in_game_module(rel_path) and not Path(rel_path).name.startswith(PLATFORM_LAYER_PREFIXES)
+
+
+# Epic 150: the one door to the screen.
+TITLE_SAFE_LAYER_PREFIX = "PSTitleSafeArea"
+VIEWPORT_ADD_RE = re.compile(r"\b(?:AddToViewport|AddToPlayerScreen)\s*\(")
+
+
+def title_safe_problems(rel_path, text):
+    """[(line, message)]: where game code puts a widget on screen without PSTitleSafeArea."""
+    if not in_game_module(rel_path) or Path(rel_path).name.startswith(TITLE_SAFE_LAYER_PREFIX):
+        return []
+    found = []
+    for number, line in enumerate(strip_comments(text).splitlines(), start=1):
+        if VIEWPORT_ADD_RE.search(line):
+            found.append((number, "a widget added to the screen directly - use PSTitleSafeArea::AddInside "
+                                  "(or AddWholeScreen for field-following overlays and full-screen backdrops) "
+                                  "so it keeps to the title-safe area (Epic 150)"))
+    return found
 
 
 def platform_problems(rel_path, text):
@@ -142,6 +167,8 @@ def check_file(path):
         finding(path, 1, "header missing #pragma once")
 
     for line_no, message in platform_problems(path.relative_to(REPO), text):
+        finding(path, line_no, message)
+    for line_no, message in title_safe_problems(path.relative_to(REPO), text):
         finding(path, line_no, message)
 
     pending_macro = None  # UCLASS/USTRUCT/UENUM seen, awaiting the declaration

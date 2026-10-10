@@ -220,6 +220,8 @@
 "Versus.Call.Choosing","Opponent is choosing a play","Head to head play calling: the other player has not called yet"
 "Versus.Call.Called","Opponent is ready","Head to head play calling: the other player has called (never which play)"
 "Platform.LocalUser","Player {Number}","A local player's name on a platform without accounts (a PC): the first is Player 1"
+"Pairing.ControllerLost","{Player}: reconnect your controller, or press {Button} on another controller to continue","Pause screen: the player's controller disconnected; {Button} is the continue button's label (A)"
+"Pairing.UserSignedOut","{Player} signed out. Sign in again to keep playing.","Pause screen: the player's profile signed out while the game was away"
 "Broadcast.Quarter1","1st","Score bug: the quarter"
 "Broadcast.Quarter2","2nd","Score bug: the quarter"
 "Broadcast.Quarter3","3rd","Score bug: the quarter"

@@ -95,12 +95,12 @@
         },
         {
             "SettingId": "Vibration", "Category": "Controls", "Label": "Vibration", "Kind": "Toggle", "Default": 1,
-            "Description": "The controller rumbles on hits, catches and scores."
+            "Description": "The controller vibrates on hits, catches and scores."
         },
         {
             "SettingId": "VibrationStrength", "Category": "Controls", "Label": "Vibration strength", "Kind": "Slider",
             "Min": 25, "Max": 100, "Step": 25, "Unit": "%", "Default": 100,
-            "Description": "How hard it rumbles."
+            "Description": "How hard it vibrates."
         },
         {
             "SettingId": "StickDeadZone", "Category": "Controls", "Label": "Stick dead zone", "Kind": "Choice",

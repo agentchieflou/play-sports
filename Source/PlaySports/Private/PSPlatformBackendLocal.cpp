@@ -1,5 +1,6 @@
 #include "PSPlatformBackendLocal.h"
 #include "PSLocalization.h"
+#include "PSPlatformServices.h"
 #include "Misc/Paths.h"
 
 FName UPSPlatformBackendLocal::GetBackendName() const
@@ -11,7 +12,7 @@ FPSPlatformUser UPSPlatformBackendLocal::GetUser(int32 LocalUserIndex) const
 {
     FPSPlatformUser User;
     User.LocalUserIndex = LocalUserIndex;
-    if (LocalUserIndex < 0 || LocalUserIndex >= MaxLocalUsers)
+    if (LocalUserIndex < 0 || LocalUserIndex >= MaxLocalUsers || SignedOutUsers.Contains(LocalUserIndex))
     {
         return User;
     }
@@ -21,6 +22,22 @@ FPSPlatformUser UPSPlatformBackendLocal::GetUser(int32 LocalUserIndex) const
     User.DisplayName = UPSLocalization::Format(TEXT("Platform.LocalUser"), Arguments);
     User.bSignedIn = true;
     return User;
+}
+
+void UPSPlatformBackendLocal::SetUserSignedIn(int32 LocalUserIndex, bool bSignedIn)
+{
+    const bool bChanged = bSignedIn ? SignedOutUsers.Remove(LocalUserIndex) > 0 : !SignedOutUsers.Contains(LocalUserIndex);
+    if (!bSignedIn)
+    {
+        SignedOutUsers.Add(LocalUserIndex);
+    }
+    if (bChanged)
+    {
+        if (UPSPlatformServices* Served = GetServices())
+        {
+            Served->HandleUsersChanged();
+        }
+    }
 }
 
 FString UPSPlatformBackendLocal::GetSaveStorageRoot() const

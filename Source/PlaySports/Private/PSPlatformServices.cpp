@@ -39,6 +39,7 @@ void UPSPlatformServices::Deinitialize()
 {
     UseBackend(nullptr);
     OnLifecycleMC.Clear();
+    OnUsersChangedMC.Clear();
     Super::Deinitialize();
 }
 
@@ -95,6 +96,12 @@ FPSPlatformUser UPSPlatformServices::GetSignedInUser(int32 LocalUserIndex) const
         return NoUser;
     }
     return Backend->GetUser(LocalUserIndex);
+}
+
+void UPSPlatformServices::HandleUsersChanged()
+{
+    UE_LOG(LogTemp, Display, TEXT("UPSPlatformServices: The signed-in users changed."));
+    OnUsersChangedMC.Broadcast();
 }
 
 FString UPSPlatformServices::GetSaveStorageRoot() const
