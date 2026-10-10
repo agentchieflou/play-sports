@@ -110,10 +110,10 @@ public:
 
     // --- Playback ------------------------------------------------------------------------
 
-    /** Starts playing Clip from its first frame at the first playback rate, ending any replay
+    /** Starts playing InClip from its first frame at the first playback rate, ending any replay
      *  already playing. False when the clip has no frames. */
     UFUNCTION(BlueprintCallable, Category = "Replay")
-    bool StartReplay(const FPSReplayRecording& Clip);
+    bool StartReplay(const FPSReplayRecording& InClip);
 
     /** Ends the replay and gives the field back: every posed pawn and the ball where they
      *  were, with their velocity and collision, the sampler live again, the game unpaused if
@@ -157,7 +157,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Replay")
     int32 GetPoseCount() const { return PoseCount; }
 
-    /** Everyone at Time on Clip's clock: the frame there, blended from the frames either side,
+    /** Everyone at Time on InClip's clock: the frame there, blended from the frames either side,
      *  or the first or last frame outside the clip. False when the clip has no frames. */
     static bool SampleClip(const FPSReplayRecording& InClip, float Time, FPSSnapshotFrame& OutFrame);
 
