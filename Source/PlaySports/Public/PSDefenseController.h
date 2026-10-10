@@ -9,6 +9,7 @@ class UBehaviorTree;
 class UBlackboardComponent;
 class APSPlayerPawn;
 class UPSDefenderAIComponent;
+class UPSRushMoveComponent;
 
 UENUM(BlueprintType)
 enum class EPSDefensiveAssignmentType : uint8
@@ -24,7 +25,8 @@ enum class EPSDefensiveAssignmentType : uint8
 /**
  * APSDefenseController drives defensive positions (DL, LB, DB). Assignment
  * (man/zone/rush/run-fit) is set externally per-play (Epic 16/17 feed this; defaults to a
- * sensible per-role assignment when unset), and its UPSDefenderAIComponent plays it in C++.
+ * sensible per-role assignment when unset), and its UPSDefenderAIComponent plays it in C++;
+ * its UPSRushMoveComponent works pass-rush moves on a blocker (Epic 70).
  * The blackboard keys are kept in sync for Behavior Tree assets an editor session may add.
  */
 UCLASS(Blueprintable)
@@ -61,6 +63,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "AI|Defense")
     UPSDefenderAIComponent* GetDefenderAI() const { return DefenderAI; }
 
+    /** Works pass-rush moves on the blocker while the defender rushes (Epic 70). */
+    UFUNCTION(BlueprintPure, Category = "AI|Defense")
+    UPSRushMoveComponent* GetRushMoves() const { return RushMoves; }
+
 protected:
     virtual void OnPossess(APawn* InPawn) override;
     virtual void OnUnPossess() override;
@@ -73,6 +79,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
     UPSDefenderAIComponent* DefenderAI;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+    UPSRushMoveComponent* RushMoves;
 
 private:
     UFUNCTION()
