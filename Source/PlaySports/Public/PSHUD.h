@@ -37,6 +37,13 @@ public:
     UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
     UUserWidget* ChyronWidget;
 
+    /** The offense and defense personnel panels (Epic 29); left out on a Minimal tier. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
+    TSubclassOf<UUserWidget> PersonnelWidgetClass;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
+    UUserWidget* PersonnelWidget;
+
     /** The position badge widget class (Epic 28). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
     TSubclassOf<UUserWidget> BadgeWidgetClass;
