@@ -1,0 +1,36 @@
+{
+    "MoveCmPerSecond": 800,
+    "RiseCmPerSecond": 400,
+    "TurnDegreesPerSecond": 60,
+    "TurnStepDegrees": 5,
+    "MaxPitchDegrees": 85,
+    "MaxDistanceCm": 3000,
+    "MinHeightCm": 30,
+    "MinFieldOfView": 10,
+    "MaxFieldOfView": 110,
+    "ZoomDegreesPerSecond": 30,
+    "MaxRollDegrees": 45,
+    "RollDegreesPerSecond": 30,
+    "MinFocusCm": 50,
+    "MaxFocusCm": 20000,
+    "FocusDoublingsPerSecond": 1,
+    "DefaultFocusCm": 2000,
+    "Apertures": [0, 1.4, 2.8, 5.6, 11],
+    "Filters": [
+        {"FilterId": "Mono", "Saturation": 0},
+        {"FilterId": "Punch", "Contrast": 1.2},
+        {"FilterId": "Vivid", "Saturation": 1.35},
+        {"FilterId": "Warm", "WhiteTemp": 5200, "Tint": "#FFF0DC"},
+        {"FilterId": "Cool", "WhiteTemp": 8000},
+        {"FilterId": "Vignette", "Vignette": 0.6}
+    ],
+    "Presets": [
+        {"PresetId": "Natural", "Filters": []},
+        {"PresetId": "Broadcast", "Filters": ["Vivid", "Punch"]},
+        {"PresetId": "Noir", "Filters": ["Mono", "Punch", "Vignette"]},
+        {"PresetId": "Golden", "Filters": ["Warm", "Vignette"]},
+        {"PresetId": "Night", "Filters": ["Cool", "Punch"]}
+    ],
+    "CaptureResolutionMultiplier": 2,
+    "MaxCaptureDimension": 7680
+}

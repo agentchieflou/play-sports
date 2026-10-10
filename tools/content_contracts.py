@@ -5,7 +5,9 @@ validate_data.py already holds:
   - teams (FPSTeamInfo, Source/PlaySports/Public/PSLeagueData.h);
   - the league config (FPSLeagueConfig, same header);
   - the playbook (FPSPlayDefinition, PSPlaybookData.h);
-  - rating and body ranges on every player (FPlayerAttributes).
+  - rating, body and age ranges on every player (FPlayerAttributes);
+  - the no-real-person name policy (validate_name_policy, Epic 122), against the blocklist in
+    Data/league_generator.json that validate_data.py loads.
 The route library itself (FPSRoute) is validate_data.py's validate_routes (Epic 68).
 
 Also the references between files, which no single file can check:
@@ -22,10 +24,13 @@ front door. Each check reports through the err(path, message) callback it is giv
 no content type yet (Epic 124 makes one); their contract belongs here when it lands.
 """
 
+import re
 from pathlib import Path
 
 RATING_FIELDS = ("Speed", "Agility", "Strength", "Acceleration", "Awareness", "Stamina")
 BODY_FIELDS = ("WeightKg", "HeightCm")
+# FPlayerAttributes::Age (Epic 122): 0 means unknown, otherwise a professional's age.
+AGE_RANGE = (18, 50)
 
 OFFENSE_ROLES = {"Quarterback", "RunningBack", "WideReceiver", "TightEnd", "OffensiveLineman"}
 DEFENSE_ROLES = {"DefensiveLineman", "Linebacker", "DefensiveBack"}
@@ -57,7 +62,12 @@ DECEPTION_FIELDS = {"Type": str, "PlaySide": int, "PassRole": str, "PitchRole": 
 DECEPTION_TYPES = {"None", "PlayAction", "RPO", "ZoneRead", "TripleOption"}
 RUN_OPTIONS = {"RPO", "ZoneRead", "TripleOption"}
 PLAY_REQUIRED = ("PlayId", "DisplayName", "Formation", "bIsOffensivePlay", "PlayCategory", "Assignments")
-ASSIGNMENT_FIELDS = {"Role": str, "Kind": str, "RouteId": str, "ZoneOffset": dict, "FormationOffset": dict}
+ASSIGNMENT_FIELDS = {"Role": str, "Kind": str, "RouteId": str, "ZoneOffset": dict, "FormationOffset": dict, "ReadOrder": int,
+                     "Art": dict}
+# FPSPlayArtAnnotation (Epic 35): how the play art draws an assignment; the AI ignores it.
+ART_FIELDS = {"Color": str, "bEmphasis": bool, "BadgeLetter": str}
+HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+BADGE_LETTER = re.compile(r"^[A-Z0-9]{1,2}$")
 
 
 def is_number(value):
@@ -106,7 +116,8 @@ def check_vector(path, where, value, err):
 # ---------------------------------------------------------------------------
 
 def validate_player_ranges(path, players, err):
-    """FPlayerAttributes ranges: ratings 0-100, weight and height above 0."""
+    """FPlayerAttributes ranges: ratings 0-100, weight and height above 0, an age of 0 (unknown)
+    or AGE_RANGE."""
     for idx, row in enumerate(players):
         if not isinstance(row, dict):
             continue
@@ -119,6 +130,46 @@ def validate_player_ranges(path, players, err):
             value = row.get(field)
             if is_number(value) and value <= 0:
                 err(path, f"{where}.{field}: {value} must be above 0")
+        age = row.get("Age")
+        if is_number(age) and age != 0 and not AGE_RANGE[0] <= age <= AGE_RANGE[1]:
+            err(path, f"{where}.Age: {age} is outside {AGE_RANGE[0]}-{AGE_RANGE[1]} (0 means unknown)")
+
+
+def normalize_name(name):
+    """A name as the no-real-person policy compares it (PSLeagueGenerator::NormalizeName):
+    lowercase letters and digits and single spaces, a hyphen read as a space, other punctuation
+    dropped."""
+    letters = []
+    for char in name:
+        if char.isalnum():
+            letters.append(char.lower())
+        elif char.isspace() or char == "-":
+            letters.append(" ")
+    return " ".join("".join(letters).split())
+
+
+def blocked_name_forms(blocklist):
+    """Every form of the blocklist's names a DisplayName must not take: each normalized, and its
+    initial form ("j allen" for "Josh Allen")."""
+    forms = set()
+    for entry in blocklist:
+        name = normalize_name(entry) if isinstance(entry, str) else ""
+        if not name:
+            continue
+        forms.add(name)
+        if " " in name:
+            forms.add(name[0] + name[name.index(" "):])
+    return forms
+
+
+def validate_name_policy(path, players, forms, err):
+    """The no-real-person policy (Epic 122): no DisplayName is a blocklisted real person's name,
+    in full or initial form. forms comes from blocked_name_forms."""
+    for idx, row in enumerate(players):
+        name = row.get("DisplayName") if isinstance(row, dict) else None
+        if isinstance(name, str) and normalize_name(name) in forms:
+            err(path, f"Players[{idx}] '{row.get('PlayerId')}'.DisplayName: '{name}' is a real person's name "
+                      "(league_generator.json's NameBlocklist) - players are fictional")
 
 
 def validate_teams(path, teams, err):
@@ -164,7 +215,10 @@ def validate_league_config(path, payload, err):
 
 
 def validate_playbook(path, plays, err):
-    """FPSPlayDefinition rows: each assignment's role and kind belong to the play's side."""
+    """FPSPlayDefinition rows: each assignment's role and kind belong to the play's side. A
+    route's optional ReadOrder (the play art's primary read and check-downs, Epic 27) is on a
+    route with a RouteId only, and a play's ranks run 1, 2, 3, ... without a gap or a repeat. An
+    assignment's optional Art block (Epic 35) is checked by validate_art_annotation."""
     seen = set()
     for idx, play in enumerate(plays):
         where = f"Plays[{idx}]"
@@ -196,6 +250,7 @@ def validate_playbook(path, plays, err):
             continue
         if not assignments:
             err(path, f"{where}.Assignments: empty, so nobody has a job")
+        reads = []
         for aidx, assignment in enumerate(assignments):
             awhere = f"{where}.Assignments[{aidx}]"
             if not check_object(path, awhere, assignment, ASSIGNMENT_FIELDS, ("Role", "Kind"), err, "FPSPlayAssignment"):
@@ -209,7 +264,33 @@ def validate_playbook(path, plays, err):
                 err(path, f"{awhere}.RouteId: only a Route assignment runs one (Kind is '{kind}')")
             for field in ("ZoneOffset", "FormationOffset"):
                 check_vector(path, f"{awhere}.{field}", assignment.get(field), err)
+            validate_art_annotation(path, f"{awhere}.Art", assignment.get("Art"), err)
+            read = assignment.get("ReadOrder")
+            if "ReadOrder" in assignment and has_type(read, int):
+                if read < 1:
+                    err(path, f"{awhere}.ReadOrder: {read} - 1 is the primary read, then 2, 3, ...; leave it out for an unranked route")
+                elif kind != "Route" or not assignment.get("RouteId"):
+                    err(path, f"{awhere}.ReadOrder: only a route with a RouteId is read (Kind '{kind}', RouteId '{assignment.get('RouteId', '')}')")
+                else:
+                    reads.append(read)
+        if sorted(reads) != list(range(1, len(reads) + 1)):
+            err(path, f"{where}: ReadOrder values {sorted(reads)} must run 1, 2, 3, ... with no gap or repeat")
         validate_deception(path, where, play, err)
+
+
+def validate_art_annotation(path, where, art, err):
+    """FPSPlayArtAnnotation (Epic 35): a color ("#RRGGBB" or empty), an emphasis flag, a badge
+    letter (one or two capitals or digits, or empty). Absent is fine."""
+    if art is None:
+        return
+    if not check_object(path, where, art, ART_FIELDS, (), err, "FPSPlayArtAnnotation"):
+        return
+    color = art.get("Color", "")
+    if isinstance(color, str) and color and not HEX_COLOR.match(color):
+        err(path, f"{where}.Color: '{color}' must be #RRGGBB (or left out)")
+    letter = art.get("BadgeLetter", "")
+    if isinstance(letter, str) and letter and not BADGE_LETTER.match(letter):
+        err(path, f"{where}.BadgeLetter: '{letter}' must be one or two capitals or digits")
 
 
 def validate_deception(path, where, play, err):

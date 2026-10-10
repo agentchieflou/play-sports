@@ -86,12 +86,15 @@ every CI build.
 | `replay.json` | `FPSReplayTuning` (single object) | `UPSDataIngestion::LoadReplayTuningFromJson`, via `UPSReplaySubsystem` |
 | `highlights.json` | `FPSHighlightTuning` (single object) | `UPSDataIngestion::LoadHighlightTuningFromJson`, via `UPSHighlightSubsystem` |
 | `telestrator.json` | `FPSTelestratorTuning` (single object) | `UPSDataIngestion::LoadTelestratorTuningFromJson`, via `UPSTelestratorSubsystem` |
+| `photo_mode.json` | `FPSPhotoModeTuning` (single object) | `UPSDataIngestion::LoadPhotoModeTuningFromJson`, via `UPSPhotoModeSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
 | `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
+| `draft.json` | `FPSDraftTuning` (single object: prospect uncertainty, `CombineDrills`, scouting, the CPU's board, the rookie scale) | `UPSDataIngestion::LoadDraftTuningFromJson`, via `UPSDraft` |
+| `training.json` | `FPSTrainingTuning` (single object: allocation, development, funding, gameplan `FocusAreas`, fatigue, `PracticeInjury`, recommendation fields) | `UPSDataIngestion::LoadTrainingTuningFromJson`, via `UPSWeeklyPreparation` |
 | `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
 | `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -109,14 +112,27 @@ every CI build.
 | `ai_debug.json` | `FPSAIDebugTuning` (single object: switches, post-mortem folder and limits, overlay placement) | `UPSDataIngestion::LoadAIDebugTuningFromJson`, via `UPSAIDecisionLog` |
 | `ai_scenarios.json` | `FPSAIScenarioCatalog` (single object: `Scenarios`) | `UPSDataIngestion::LoadAIScenariosFromJson`, via `UPSAIScenarioRunner` |
 | `gap_overlay.json` | `FPSGapOverlayStyle` (single object) | `UPSDataIngestion::LoadGapOverlayStyleFromJson`, via `UPSDefenderGapOverlaySubsystem` |
+| `league_generator.json` | `FPSLeagueGeneratorTuning` (single object: league shape, `RoleProfiles`, `NameCultures`, `NameBlocklist`, `DraftClass`) | `UPSDataIngestion::LoadLeagueGeneratorTuningFromJson`, via `UPSLeagueGenerator` |
+| `playbook_generator.json` | `FPSPlaybookGeneratorTuning` (single object: `OffenseFormations`, `Concepts`, `DefensiveFronts`, `Coverages`, `Pressures`, `SchemeFlavors`, sizes) | `UPSDataIngestion::LoadPlaybookGeneratorTuningFromJson`, via `UPSPlaybookGenerator` |
+| `player_progression.json` | `FPSProgressionTuning` (single object: the age curve) | `UPSDataIngestion::LoadProgressionTuningFromJson`, via `UPSLeagueGenerator` (and `UPSPlayerProgression`'s callers) |
 | `difficulty.json` | `FPSDifficultyCatalog` (single object: `DifficultyTiers`, the assists' setting IDs, `SuggestedPlayAccent`) | `UPSDataIngestion::LoadDifficultyCatalogFromJson`, via `UPSDifficultySubsystem` |
 | `perf_harness.json` | `FPSPerfHarnessTuning` (single object) | `UPSDataIngestion::LoadPerfHarnessTuningFromJson`, via `UPSPerfHarness`; also read by `tools/perf_budget.py` |
+| `play_art.json` | `FPSPlayArtStyle` (single object) | `UPSDataIngestion::LoadPlayArtStyleFromJson`, via `UPSOverlayPlayArtSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
 Field names must match exactly (case-sensitive): `PlayerId`, `DisplayName`, `Role`, `WeightKg`,
 `HeightCm`, `Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`, `Stamina`. Ratings run
 0-100; `WeightKg` and `HeightCm` are above 0.
+
+`Age` is optional (Epic 122): a whole number from 18 to 50, or 0 (the same as leaving it out) for
+unknown. The contract manager prices a player at his age, and at `contracts.json`'s
+`DefaultPlayerAge` when it is unknown. The shipped hand-written rosters give none; generated ones
+(`UPSLeagueGenerator`) always do.
+
+`DisplayName` must not be a real person's (the no-real-person policy, Epic 122): no name on
+`league_generator.json`'s `NameBlocklist`, in full or initial form ("J. Allen"), ignoring case and
+punctuation. `validate_data.py` checks every roster against it.
 
 `DNA` is optional: the player's style (`FPSPlayerDNA`, Epic 79), an object of the style axes
 `player_dna.json` lists for his role, each from -1 to 1, e.g. `"DNA": { "Mobility": 0.6,
@@ -303,6 +319,17 @@ are:
   - defense: `ManCoverage`, `ZoneCoverage`, `PassRush`, `RunFit`, `Blitz`.
 - Only a `Route` assignment names a `RouteId`, and it must exist in the route library. A `Route`
   assignment without one is "go to your spot", such as the QB's drop.
+- A route may carry a `ReadOrder` (Epic 27): 1 for the quarterback's primary read, then 2, 3,
+  ... down to the check-down. Leave it out for a route the play doesn't rank. Only a `Route`
+  with a `RouteId` has one, and a play's ranks run 1, 2, 3, ... with no gap or repeat. The
+  pre-snap route art colors routes by it (`play_art.json`); the AI doesn't read it. Several
+  players repeating one role's slot share its rank.
+- Any assignment may carry an `Art` block (Epic 35), the play art's annotation layer, which the
+  AI ignores: `Color` (`#RRGGBB`, the assignment's art in this color instead of its read's or its
+  icon's), `bEmphasis` (drawn `EmphasisScale` larger: the key route, the blitzer) and
+  `BadgeLetter` (one or two capitals or digits the player wears on his position badge this play,
+  where he wears no pass button). Leave out what the play doesn't set. A letter on a slot that
+  several players repeat labels them all.
 - `PlayCategory` may also be a clock play, `Spike` or `Kneel` (Epic 76), which the simulation
   resolves at the snap.
 - The route library's own rules are under "Route schema extras" below.
@@ -331,6 +358,94 @@ calls and returns only; a scrimmage down everything else. The CPU calls one only
 `UPSSpecialTeamsAI` says it's due, and `UPSPlaySimulation` resolves it through
 `UPSSpecialTeamsModel`.
 
+## League generator schema (`FPSLeagueGeneratorTuning`, Epic 122)
+
+`league_generator.json` is what `UPSLeagueGenerator` makes fictional leagues and draft classes
+from. The same seed and tuning always make the same league. Every field is required:
+
+- The league: `LeagueName`, `NumTeams`, `NumWeeks`, `ByeWeekNumbers`, `NumPlayoffTeams` (2 to
+  `NumTeams`), `Divisions` (a team given none joins the smallest). Teams the caller doesn't supply
+  get stand-ins until Epic 123 generates identities: `PlaceholderTeamName` ("League Team 05",
+  TeamId and abbreviation `T05`) and `PlaceholderColors` (`#RRGGBB`, taken in turn).
+- Talent: `TeamTalentSpread` (a team's talent, added to all its players'),
+  `TalentPerExperienceYear` and `MaxExperienceTalent` (veterans who lasted are better).
+- Ages: `EntryAgeMin`/`EntryAgeMax` (18 or more), the ages players enter the league at.
+- `RoleProfiles[]`, one per `EPlayerRole`: `Role`, `RosterCount` (the shipped profiles sum to 53),
+  `IdCode` (PlayerIds are `<TeamId>_<IdCode>_<NNN>`, best first), `Attrition` (above 0, below 1:
+  how fast the role's age pyramid thins), `MaxAge` (`EntryAgeMax` to 50), and `Attributes[]`: one
+  curve for every float field of `FPlayerAttributes` at a player's prime: `Attribute`, `Mean`,
+  `StdDev`, `Min`, `Max` (0-100 for a rating, above 0 for `WeightKg`/`HeightCm`) and
+  `TalentWeight` (0-1: how much of the spread is his talent, shared by his ratings; 0 for his
+  body). The age curve (`player_progression.json`) then takes a younger player below his prime and
+  an older one past his decline, so ratings and ages agree.
+- Names: `NameCultures[]` (`Culture`, `Weight`, `FirstNames`, `LastNames`: a player's first and
+  last names come from one culture), `NameBlocklist` (real people no player is named after) and
+  `MaxNameAttempts` (draws for a new, unblocked name before a middle initial separates the last).
+- `DraftClass`: `ProspectsPerTeam` (a class has this many per team in the league), `TalentShift`
+  and `TalentSpread` (a class's talent against the league's).
+
+DNA is generated by Epic 79's rule from `player_dna.json` (`PSPlayerDNA::GenerateProfile`),
+centered on the league's own players. `validate_data.py` checks this file
+(`PSLeagueGenerator::ValidateTuning` is the same check in C++).
+
+The automation test `PlaySports.Content.LeagueGenerator.WritesValidContent` writes a generated
+32-team league to `Saved/GeneratedLeague/`, laid out like `Data/`, and imports it through the
+game's loaders. CI then runs `python tools/content.py check --root Saved/GeneratedLeague --strict`
+on it, so a generated league passes every contract here and the content report finds nothing to
+warn about.
+
+## Playbook generator schema (`FPSPlaybookGeneratorTuning`, Epic 121)
+
+`playbook_generator.json` is the concept grammar `UPSPlaybookGenerator` makes playbooks from,
+instead of hand-authoring each play. Every field is required:
+
+- `OffenseFormations`: the formations concepts line up in, each in a personnel package (Epic
+  19.5), which says how many of each role it puts on the field. `PlayActionDrop` is the
+  quarterback's spot on a play-action pass, in cm (below 0).
+- `Concepts[]`: `ConceptId` (letters and digits), `Label`, `Family` (flood, mesh, dagger, zone,
+  ...), `Category` (`Run`, `ShortPass`, `DeepPass` or `Screen`), `Formations` (a subset of
+  `OffenseFormations`; empty for all), `QBDrop` (the quarterback's spot), `BackSpot` (a run's
+  carrier's spot), `LineKind` (`PassBlock` or `RunBlock`: the line, and a tight end or back no slot
+  claims) and `BacksideRoute` (what a wide receiver no slot claims runs; empty: he blocks).
+  - `Slots[]`, in the quarterback's read order: `Roles` (receivers, in preference) and `Routes` (route
+    library IDs). Each slot goes to the first receiver of its roles the formation still has. A
+    concept makes a play for every combination of its slots' routes (at most 64) in every formation
+    its slots fit.
+  - `Deceptions`: the Epic 72 variants it is made with: `None`, `PlayAction` on a pass (a
+    `PlayAction` play from `PlayActionDrop`), `ZoneRead` or `RPO` on a run.
+- `DefensiveFronts[]`: `Formation` (a defensive personnel package's), `Front` (in `run_fits.json`)
+  and `LineKind` (`PassRush`, or `RunFit` on the goal line).
+- `Coverages[]`: `Shell` (with rules in `coverage_matchups.json`), `Label`, `Category` (`Base` or
+  `Prevent`), `MaxBlitzers` (the most it can send and still cover) and `Slots[]`: `Role`, `Kind`
+  (`ZoneCoverage` or `ManCoverage`) and `Zone` (a zone landmark from the ball, cm, played on the
+  defender's own side). Each role's jobs are in priority order, deep help first, so a blitzer takes
+  the last one.
+- `Pressures[]`: `PressureId`, `Label` and `Blitzers` (`EPlayerRole` name to count). One must send
+  nobody. The call sheet is every front x coverage x pressure the coverage can afford; a call that
+  sends anyone is a `Blitz`.
+- `SchemeFlavors[]`: per coaching identity (a `SchemeId` in `coaching_staffs.json`), how much it likes
+  each concept (`ConceptWeights`, offense) or each shell and pressure (`ShellWeights` and
+  `PressureWeights`, defense); 1 when unlisted.
+- `OffensePlaybookSize`, `DefensePlaybookSize` and `CategoryEmphasis`: a scheme's generated book has
+  this many plays, shared out by its `CategoryWeights` raised to `CategoryEmphasis` (every category
+  it weighs gets one), then drawn by its flavor.
+
+Generated plays are ordinary `FPSPlayDefinition`s with PlayIds `<SchemeId>_<ConceptId>_<Formation>_<n>`
+(or `<SchemeId>_Def_<Formation>_<Shell>_<PressureId>`), so the play loader, the AI and the playbook
+contract treat them like the hand-written book. The automation test
+`PlaySports.Content.PlaybookGenerator.WritesValidContent` writes every scheme's book to
+`Saved/GeneratedPlaybooks/Data/playbooks/`. CI checks those books with
+`python tools/content.py check --root Saved/GeneratedPlaybooks --strict`. `validate_data.py` checks
+this file (`PSPlaybookGenerator::ValidateTuning` is the same check in C++).
+
+## Age curve schema (`FPSProgressionTuning`)
+
+`player_progression.json`: `PeakAgeStart` and `PeakAgeEnd` (the prime window, 18 to 50),
+`GrowthPerYear` (rating points a younger player gains each offseason; awareness half as much),
+`DeclinePerYear` (lost each offseason past the window; strength half, awareness a quarter as
+much), `LowSnapShareThreshold` (a backup under this snap share grows half as fast).
+`UPSPlayerProgression::ApplyOffseasonProgression` applies it.
+
 ## Adding a new team
 
 1. Add a `rosters/team_<name>.json` roster file following the player schema above (aim for at
@@ -350,7 +465,10 @@ possesses a pawn.
   `Description`, optional `bRemappable` (default true). An action in a context with
   `bRemappable` false keeps its keys: the menus read `Menu`'s through Slate (Epic 103.4).
 - `Actions[]`: `ActionId` (unique), `ValueType` (`Boolean`, `Axis1D`, `Axis2D`, `Axis3D` --
-  the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`.
+  the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`,
+  optional `bTriggerWhenPaused` (default false; `UInputAction::bTriggerWhenPaused`). Enhanced
+  Input drops every other action while the game is paused, so the actions used over a paused
+  game set it: `Move`, `Pause` and the `Replay` buttons (a replay pauses the game under it).
 - `Bindings[]`: `Key` (an engine `EKeys` name such as `W`, `Mouse2D`, `Gamepad_Left2D`),
   optional `bSwizzleYX` (route a 1D key onto a 2D action's Y axis) and `bNegate`.
 
@@ -514,6 +632,9 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
     Exactly one per system; together they fit in a frame (1000 / `TargetFrameRate`), and the
     `Telemetry` budget covers `TelemetrySampleBudgetMs`. The profiling harness and CI hold the
     measured times to them (`Specs/Platform_Audit.md` section 7).
+  - `PlayArtRefreshHz` (0 or more): how often a second the pre-snap route art (Epic 27) resolves
+    the call again to follow the players as they shift and go in motion; 0 rebuilds it only on
+    events (a call, a hot route, a new spot).
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -840,7 +961,8 @@ numbers): `255000` is a $255 million cap. The contracts themselves live in the f
   `YearsMismatchPenalty`, `AcceptRatio`, `WalkAwayRatio` (counter at or above, reject below).
 - Free agency (`UPSFreeAgency`): `FreeAgencyDays`, `DecisionDays`, `InstantAcceptRatio`,
   `DemandDecayPerDay`, `DemandFloorFraction`, the CPU's `AIBidRatio`, `AINeedPremium`,
-  `AICapCushionFraction`, `AIOffersPerDay`, and `DefaultPlayerAge` (players have no age field yet).
+  `AICapCushionFraction`, `AIOffersPerDay`, and `DefaultPlayerAge` (the age of a player whose
+  roster gives none; `UPSContractManager::GetPlayerAge`).
 - `PositionMarkets[]`: one per `EPlayerRole`: `Role`, `TopCapFraction` (an elite player's ask as
   a fraction of the cap), `RosterTarget` (how many a team wants; fewer is a free-agency need).
 
@@ -866,6 +988,65 @@ default packages in `personnel_packages.json`, not from here.
 
 `tools/validate_data.py` checks it: fractions at most 1, inertia and swing below 1, each unit's role,
 games and bonus.
+
+## Training schema (`FPSTrainingTuning`)
+
+Single object (Epic 90), read by `UPSWeeklyPreparation`. Each player's freshness and injury and each
+team's practice and gameplan live in the franchise save (`UPSFranchiseSaveGame::Training`), not here.
+- Allocation: `DefaultAllocation` (`Develop`, `Gameplan`, `Rest` shares; only the proportions
+  matter); a week's intensity is `Develop` x `DevelopIntensity` + `Gameplan` x `GameplanIntensity`.
+- Development: `DevelopPointsPerWeek` rating points a full week adds at weight 1, split by
+  `DevelopRatings` (`Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`), in proportion
+  for a rating within `DevelopHeadroom` of 100; times the coordinator's Development
+  (`MinCoachDevelopment` at 0 to `MaxCoachDevelopment` at 100, `coaching_staffs.json`).
+- Funding (the training budget, `owner_economics.json`): x `FundingFloor` + (1 - `FundingFloor`) x
+  the team's funding index, at most `MaxFundingMultiplier`.
+- Gameplan: `GameplanBonusPerShare` x the gameplan share x funding, split between up to
+  `MaxFocusAreas` focus areas, each times its relevance (the opponent's share of its categories
+  against an even mix, at most `MaxRelevance`; `UnscoutedRelevance` with no read), at most
+  `MaxGameplanBonus`.
+- `FocusAreas[]`: `FocusId`, `Label`, `bVersusOffense` (prepares for the opponent's offense or
+  defense), `Categories` (the opponent model's play categories on that side: `Run`, `ShortPass`,
+  `DeepPass`, `PlayAction`, `Screen`; `Base`, `Blitz`, `Prevent`), `Roles` it lifts, `Ratings`
+  (how much of the bonus each rating takes).
+- Fatigue (freshness 0-1, Core 19's stamina ratio): `GameFatigue` a game, `PracticeFatigue` a
+  full-intensity week, each less `StaminaFatigueRelief` x Stamina / 100 of it; `WeeklyRecovery`
+  every week plus `RestRecovery` x the rest share; `FatiguePerformanceSwing` below his ratings at 0.
+- `PracticeInjury` (`FPSInjuryTuning`, Core 19's injury model): `BaseInjuryChance` a player's chance
+  in a full-intensity week (times the week's intensity), `MaxFatigueMultiplier` at freshness 0,
+  `MinRecoveryWeeks`..`MaxRecoveryWeeks` out; `RandomSeed` seeds each team's week.
+- The recommendation (every team without its own choice, CPU or not): `AIRestShift` from development
+  to rest under `AIRestFreshness` average freshness, `AILateGameplanShift` to the gameplan from
+  `AILateSeasonProgress` of the season, the `AIFocusAreas` most relevant focus areas.
+
+`tools/validate_data.py` checks it: fractions at most 1, the bonus and swing below 1, the injury
+tuning's ranges, each focus area's roles, rating weights and categories (each one
+`opponent_model.json` tracks on its side).
+
+## Draft schema (`FPSDraftTuning`)
+
+Single object (Epic 86), read by `UPSDraft`. The class itself comes from `league_generator.json`'s
+draft-class mode (Epic 122); the class, every team's scouting and the picks live in the franchise
+save (`UPSFranchiseSaveGame::Draft`). Grades are the contract market's overall rating (0-100);
+money is in thousands of dollars.
+- `NumRounds`.
+- Prospects: the public projection is the true grade plus a hidden error drawn with
+  `PublicUncertainty` (`CombineCertainty` times it for a combine attendee); `BoomBustChance` of a
+  class is off by a further `BoomBustSwing` either way. `ProDayShare` skip the combine: their
+  measurables are seen only by teams that scout them.
+- `CombineDrills[]`: `DrillId`, `Label`, `Attribute` (the rating it reads), result `Base` +
+  `PerPoint` x the true rating + a draw of `Noise`.
+- Scouting: `PointsPerSeason` at average scouting funding (x `FundingFloor` + (1 - `FundingFloor`) x
+  the owner economy's index, at most `MaxFundingMultiplier`); a report costs `ReportCost` and reads
+  the true grade within `ReportNoise`, or `MisleadChance` of the time a further `MisleadSwing` off; a
+  range is the estimate +/- `RangeSigmas` of its uncertainty.
+- The CPU: scouts the `AIScoutTargets` best-projected; a pick's value is its estimate plus
+  `NeedWeight` x its need at his role (`contracts.json`'s `RosterTarget`).
+- Rookies: `RookieYears`; `FirstPickSalary` falling to the minimum salary as
+  (1 - t)^`RookieScaleExponent`; guarantees from `FirstPickGuarantee` to `LastPickGuarantee`.
+
+`tools/validate_data.py` checks it: positive uncertainties and costs, 0-1 shares and guarantees,
+each drill reading a rating, `RookieYears` within `contracts.json`'s `MaxContractYears`.
 
 ## Owner economics schema (`FPSEconomyTuning`)
 
@@ -1331,6 +1512,29 @@ view):
 
 `UPSTelestratorSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 
+## Photo mode schema (`FPSPhotoModeTuning`)
+
+Single object (Epic 45; `UPSPhotoModeSubsystem`'s free camera, filters and photos):
+- The camera: `MoveCmPerSecond`, `RiseCmPerSecond`, `TurnDegreesPerSecond` (all above 0) and
+  `TurnStepDegrees` (0 or more: one press or swipe turns this much at once). `MaxPitchDegrees`
+  (above 0, below 90). `MaxDistanceCm` (above 0): how far it flies from where photo mode began.
+  `MinHeightCm`: the lowest world height it goes to.
+- Zoom, roll and focus: `MinFieldOfView` < `MaxFieldOfView` (degrees, within 0 to 180) and
+  `ZoomDegreesPerSecond`; `MaxRollDegrees` and `RollDegreesPerSecond`; `MinFocusCm` <
+  `MaxFocusCm`, `FocusDoublingsPerSecond`, and `DefaultFocusCm` between them (the focus when the
+  camera follows nobody).
+- `Apertures`: f-stops, ascending, stepped through by the aperture button; a leading 0 is depth
+  of field off. Photo mode starts on the first.
+- `Filters[]`: `FilterId` (unique) and what it changes, each defaulting to no change:
+  `Saturation` (0 is black and white), `Contrast` (both 0 or more, 1 unchanged), `Tint`
+  (`#RRGGBB`, multiplied in), `WhiteTemp` (K, 6500 unchanged), `Vignette` (0 to 1).
+- `Presets[]` (at least one): `PresetId` (unique) and `Filters`, a stack of filter ids. The
+  filter button steps through them; photo mode starts on the first.
+- `CaptureResolutionMultiplier` (1 or more) and `MaxCaptureDimension` (1 or more): a photo is the
+  viewport's size times the multiplier, its longer side at most the maximum.
+
+`UPSPhotoModeSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
 ## Ball-flight overlay schema (`FPSBallFlightStyle`)
 
 Single object (Epic 32; the pass and kick indicators, `UPSOverlayBallFlightSubsystem`, drawn by
@@ -1512,3 +1716,38 @@ budgets themselves are per tier, in `platform_tiers.json`.
   the median of its last `TrendWindow` runs recorded on main.
 
 `UPSPerfHarness::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Play art schema (`FPSPlayArtStyle`)
+
+Single object (Epics 27 and 31; both sides' calls drawn before the snap,
+`UPSOverlayPlayArtSubsystem`, `Specs/Route_Ribbons_Spec.md`, `Specs/Defensive_Icons_Spec.md`). Sizes
+are cm, colors `#RRGGBB`:
+- `RibbonWidth` (above 0): a route ribbon's width. `PrimaryWidthScale` (above 0): the primary
+  read's ribbon is this many times as wide.
+- `GroundOffset` (0 or more): the art lies this far above the turf.
+- `RingRadius` (above 0): the ring where a route ends. `BreakMarkerRadius` (0 or more): the debug
+  draw's mark at a cut.
+- `EmphasisScale` (above 0): an assignment the play emphasizes (its `Art.bEmphasis`) is drawn this
+  many times as large.
+- `ReadColors` (at least one): route colors by the play's `ReadOrder`, the first for the primary
+  read; a read past the list takes the last. `UnrankedColor`: a route the play doesn't rank.
+- `BranchOpacity` (0 to 1): an option route's branches, each run on one read only, are drawn this
+  opaque.
+- `SnapFadeSeconds` (0 or more): at the snap the art fades out over this long on a `Full` tier;
+  on other tiers it goes at once, and a `Minimal` tier draws none (`platform_tiers.json`).
+- `NoRouteArtCategories`: offensive `PlayCategory` values that draw no route art (kicks and clock
+  plays).
+- The defense's icons (Epic 31): `ZoneStarRadius` (above 0) and `ZoneStarColor`, the star at a zone
+  landmark; `ManLineWidth` (above 0) and `ManLineColor`, the line from a man defender to his
+  receiver; `RushArrowWidth` (above 0), `RushArrowDepth` (0 or more: how far behind the line a
+  rusher's arrow reaches), `BlitzArrowColor` (the call's blitzers) and `RushArrowColor` (the other
+  rushers).
+- `NoDefenseArtCategories`: defensive `PlayCategory` values that draw no icons (the kicking game's).
+- `bDrawDebug`: development builds draw the art as debug lines until the editor-made renderer
+  exists.
+
+What a cut is comes from the route-running tuning (`BreakMinAngleDegrees` in
+`route_running.json`). The `RouteArt` and `DefenseIcons` settings (Gameplay, `ui_settings.json`)
+turn each side's art off; `StudyMode` shows the defense's icons to the offense too, outside
+head-to-head games, where `versus_rules.json` decides.
+`UPSOverlayPlayArtSubsystem::ValidateStyle` and `tools/validate_data.py` check it.

@@ -97,6 +97,7 @@ Landed so far:
 | Position badges (Epic 28), on the same field | `OverlayDetail` | Every group, fading in | Every group, no fade | The pass buttons only |
 | Player emphasis (Epic 36): custom-depth marks for outline, glow and dimming | `OverlayDetail` | Drawn, up to `MaxEmphasized` players | Drawn, up to `MaxEmphasized` players | Not drawn (requests kept) |
 | Replay playback (Epic 41): posing every pawn and the ball at the playhead | `ReplayPoseRateHz` | Every frame (0) | 30 a second | 15 a second |
+| Pre-snap route art (Epic 27): resolving every player's route to follow shifts and motion | `PlayArtRefreshHz`, `OverlayDetail` | 30 a second; fades at the snap | 15 a second; gone at the snap | Not drawn (0: events only) |
 
 The sampler also halves its own rate when its frames run over the tier's budget
 (`PlaySports.TelemetrySampling.BudgetDegradesAndRecovers`); `stat PSTelemetrySampling` shows its

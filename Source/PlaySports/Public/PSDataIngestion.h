@@ -45,11 +45,14 @@
 #include "PSReplayTypes.h"
 #include "PSHighlightTypes.h"
 #include "PSTelestratorTypes.h"
+#include "PSPhotoModeTypes.h"
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
 #include "PSContractData.h"
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
+#include "PSDraftData.h"
+#include "PSTrainingData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSDefenderPreSnapTypes.h"
@@ -57,11 +60,15 @@
 #include "PSVersusTypes.h"
 #include "PSAIDecisionTypes.h"
 #include "PSDefenderGapOverlayTypes.h"
+#include "PSLeagueGeneratorData.h"
+#include "PSPlaybookGeneratorData.h"
+#include "PSPlayerProgression.h"
 #include "PSCoverageMatchupTypes.h"
 #include "PSLooseBallSubsystem.h"
 #include "PSDifficultyTypes.h"
 #include "PSDeceptionSubsystem.h"
 #include "PSPerfTypes.h"
+#include "PSPlayArtTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -326,6 +333,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadMoraleTuningFromJson(const FString& JsonFilePath, FPSMoraleTuning& OutTuning);
 
+    /** Loads the draft: prospects' hidden error, the combine's drills, scouting, the CPU's board and
+     *  the rookie scale (Data/draft.json, Epic 86). False on a missing file or malformed JSON;
+     *  UPSDraft::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadDraftTuningFromJson(const FString& JsonFilePath, FPSDraftTuning& OutTuning);
+
+    /** Loads the practice week: allocation, development, gameplan focus areas, fatigue and practice
+     *  injuries (Data/training.json, Epic 90). False on a missing file, malformed JSON or an
+     *  unknown Role; UPSWeeklyPreparation::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTrainingTuningFromJson(const FString& JsonFilePath, FPSTrainingTuning& OutTuning);
+
     /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
@@ -356,6 +375,24 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadGapOverlayStyleFromJson(const FString& JsonFilePath, FPSGapOverlayStyle& OutStyle);
 
+    /** Loads the roster and league generator's tuning (Data/league_generator.json, Epic 122).
+     *  False on a missing file, malformed JSON or an unknown Role; PSLeagueGenerator::ValidateTuning
+     *  checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadLeagueGeneratorTuningFromJson(const FString& JsonFilePath, FPSLeagueGeneratorTuning& OutTuning);
+
+    /** Loads the age curve players grow and decline along (Data/player_progression.json, Epic 19;
+     *  the league generator walks generated players along it, Epic 122). False on a missing file
+     *  or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadProgressionTuningFromJson(const FString& JsonFilePath, FPSProgressionTuning& OutTuning);
+
+    /** Loads the playbook generator's concept grammar, call-sheet parts and scheme flavors
+     *  (Data/playbook_generator.json, Epic 121). False on a missing file, malformed JSON or an
+     *  unknown enum; PSPlaybookGenerator::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlaybookGeneratorTuningFromJson(const FString& JsonFilePath, FPSPlaybookGeneratorTuning& OutTuning);
+
     /** Loads what makes a highlight and how the reel plays (Data/highlights.json, Epic 42).
      *  False on a missing file or malformed JSON; UPSHighlightSubsystem::ValidateTuning checks
      *  the rest. */
@@ -371,6 +408,17 @@ public:
      *  False on a missing file or malformed JSON; PSDifficulty::ValidateCatalog checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadDifficultyCatalogFromJson(const FString& JsonFilePath, FPSDifficultyCatalog& OutCatalog);
+
+    /** Loads photo mode's camera, filters and capture size (Data/photo_mode.json, Epic 45).
+     *  False on a missing file or malformed JSON; UPSPhotoModeSubsystem::ValidateTuning checks
+     *  the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPhotoModeTuningFromJson(const FString& JsonFilePath, FPSPhotoModeTuning& OutTuning);
+
+    /** Loads the play art's style (Data/play_art.json, Epic 27). False on a missing file or
+     *  malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlayArtStyleFromJson(const FString& JsonFilePath, FPSPlayArtStyle& OutStyle);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

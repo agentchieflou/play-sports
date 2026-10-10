@@ -5,7 +5,9 @@
 #include "PSPlayerProgression.generated.h"
 
 /** Age-curve tuning: growth before PeakAge, decline after. Tuning lives in data,
- *  not code (Architecture rule 4). */
+ *  not code (Architecture rule 4): Data/player_progression.json, read through
+ *  UPSDataIngestion::LoadProgressionTuningFromJson. The league generator (Epic 122) walks each
+ *  generated player along this same curve, so his ratings fit his age. */
 USTRUCT(BlueprintType)
 struct FPSProgressionTuning : public FTableRowBase
 {
@@ -37,6 +39,9 @@ class PLAYSPORTS_API UPSPlayerProgression : public UObject
     GENERATED_BODY()
 
 public:
+    /** Data/player_progression.json under the project directory. */
+    static FString GetDefaultTuningPath();
+
     /** Mutates Attributes in place. SeasonSnapShare is this player's fraction (0-1)
      *  of their team's offensive/defensive snaps played this season. */
     UFUNCTION(BlueprintCallable, Category = "Roster|Progression")

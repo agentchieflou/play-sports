@@ -1,0 +1,401 @@
+{
+    "OffenseFormations": ["Trips Right", "Trips Left", "Twins", "Shotgun", "Spread", "Ace", "I-Form", "Strong-I"],
+    "PlayActionDrop": -300,
+    "OffensePlaybookSize": 40,
+    "DefensePlaybookSize": 24,
+    "CategoryEmphasis": 2.0,
+    "Concepts": [
+        {
+            "ConceptId": "Flood",
+            "Label": "Flood",
+            "Family": "Flood",
+            "Category": "ShortPass",
+            "Formations": [],
+            "QBDrop": -500,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["WideReceiver", "TightEnd"], "Routes": ["Go", "Seam"] },
+                { "Roles": ["WideReceiver", "TightEnd"], "Routes": ["Out", "Corner"] },
+                { "Roles": ["RunningBack", "TightEnd", "WideReceiver"], "Routes": ["Flat"] }
+            ],
+            "BacksideRoute": "Curl",
+            "LineKind": "PassBlock",
+            "Deceptions": ["None", "PlayAction"]
+        },
+        {
+            "ConceptId": "Mesh",
+            "Label": "Mesh",
+            "Family": "Mesh",
+            "Category": "ShortPass",
+            "Formations": ["Trips Right", "Trips Left", "Twins", "Shotgun", "Spread"],
+            "QBDrop": -300,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["WideReceiver"], "Routes": ["Drag"] },
+                { "Roles": ["WideReceiver", "TightEnd"], "Routes": ["Drag"] },
+                { "Roles": ["TightEnd", "WideReceiver"], "Routes": ["Curl", "Hitch"] },
+                { "Roles": ["RunningBack", "WideReceiver"], "Routes": ["Flat"] }
+            ],
+            "BacksideRoute": "Go",
+            "LineKind": "PassBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "Dagger",
+            "Label": "Dagger",
+            "Family": "Dagger",
+            "Category": "DeepPass",
+            "Formations": [],
+            "QBDrop": -700,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["WideReceiver", "TightEnd"], "Routes": ["Seam", "Go"] },
+                { "Roles": ["WideReceiver"], "Routes": ["Dig"] },
+                { "Roles": ["RunningBack", "TightEnd"], "Routes": ["Flat", "Curl"] }
+            ],
+            "BacksideRoute": "Hitch",
+            "LineKind": "PassBlock",
+            "Deceptions": ["None", "PlayAction"]
+        },
+        {
+            "ConceptId": "Smash",
+            "Label": "Smash",
+            "Family": "Smash",
+            "Category": "ShortPass",
+            "Formations": [],
+            "QBDrop": -500,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["WideReceiver", "TightEnd"], "Routes": ["Corner"] },
+                { "Roles": ["WideReceiver"], "Routes": ["Hitch", "Curl"] },
+                { "Roles": ["RunningBack"], "Routes": ["Flat"] }
+            ],
+            "BacksideRoute": "Slant",
+            "LineKind": "PassBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "Verticals",
+            "Label": "Four Verticals",
+            "Family": "Verticals",
+            "Category": "DeepPass",
+            "Formations": ["Trips Right", "Trips Left", "Twins", "Shotgun", "Spread"],
+            "QBDrop": -700,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["WideReceiver"], "Routes": ["Go"] },
+                { "Roles": ["WideReceiver"], "Routes": ["Go", "Seam"] },
+                { "Roles": ["TightEnd", "WideReceiver"], "Routes": ["Seam"] },
+                { "Roles": ["RunningBack"], "Routes": ["Flat"] }
+            ],
+            "BacksideRoute": "Go",
+            "LineKind": "PassBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "QuickSlant",
+            "Label": "Slant-Flat",
+            "Family": "Quick",
+            "Category": "ShortPass",
+            "Formations": [],
+            "QBDrop": -200,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["WideReceiver"], "Routes": ["Slant"] },
+                { "Roles": ["RunningBack", "TightEnd", "WideReceiver"], "Routes": ["Flat"] }
+            ],
+            "BacksideRoute": "Hitch",
+            "LineKind": "PassBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "Mills",
+            "Label": "Post-Dig",
+            "Family": "Mills",
+            "Category": "DeepPass",
+            "Formations": [],
+            "QBDrop": -700,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["WideReceiver"], "Routes": ["Post"] },
+                { "Roles": ["WideReceiver", "TightEnd"], "Routes": ["Dig"] },
+                { "Roles": ["RunningBack", "TightEnd"], "Routes": ["Flat"] }
+            ],
+            "BacksideRoute": "Curl",
+            "LineKind": "PassBlock",
+            "Deceptions": ["None", "PlayAction"]
+        },
+        {
+            "ConceptId": "Stick",
+            "Label": "Stick",
+            "Family": "Stick",
+            "Category": "ShortPass",
+            "Formations": [],
+            "QBDrop": -300,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["TightEnd", "WideReceiver"], "Routes": ["Hitch"] },
+                { "Roles": ["RunningBack", "WideReceiver"], "Routes": ["Flat"] },
+                { "Roles": ["WideReceiver"], "Routes": ["Go"] }
+            ],
+            "BacksideRoute": "Slant",
+            "LineKind": "PassBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "InsideZone",
+            "Label": "Inside Zone",
+            "Family": "Zone",
+            "Category": "Run",
+            "Formations": [],
+            "QBDrop": -100,
+            "BackSpot": { "X": -400, "Y": 0, "Z": 0 },
+            "Slots": [],
+            "BacksideRoute": "Go",
+            "LineKind": "RunBlock",
+            "Deceptions": ["None", "ZoneRead"]
+        },
+        {
+            "ConceptId": "OutsideZone",
+            "Label": "Outside Zone",
+            "Family": "Zone",
+            "Category": "Run",
+            "Formations": [],
+            "QBDrop": -100,
+            "BackSpot": { "X": -400, "Y": 400, "Z": 0 },
+            "Slots": [],
+            "BacksideRoute": "Go",
+            "LineKind": "RunBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "Power",
+            "Label": "Power",
+            "Family": "Gap",
+            "Category": "Run",
+            "Formations": ["I-Form", "Strong-I", "Ace", "Twins"],
+            "QBDrop": -100,
+            "BackSpot": { "X": -400, "Y": 200, "Z": 0 },
+            "Slots": [],
+            "BacksideRoute": "Go",
+            "LineKind": "RunBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "Draw",
+            "Label": "Draw",
+            "Family": "Draw",
+            "Category": "Run",
+            "Formations": ["Trips Right", "Trips Left", "Twins", "Shotgun", "Spread"],
+            "QBDrop": -500,
+            "BackSpot": { "X": -450, "Y": 0, "Z": 0 },
+            "Slots": [],
+            "BacksideRoute": "Curl",
+            "LineKind": "PassBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "RPOSlant",
+            "Label": "RPO Slant",
+            "Family": "RPO",
+            "Category": "Run",
+            "Formations": [],
+            "QBDrop": -100,
+            "BackSpot": { "X": -400, "Y": 0, "Z": 0 },
+            "Slots": [],
+            "BacksideRoute": "Slant",
+            "LineKind": "RunBlock",
+            "Deceptions": ["RPO"]
+        },
+        {
+            "ConceptId": "RBScreen",
+            "Label": "RB Screen",
+            "Family": "Screen",
+            "Category": "Screen",
+            "Formations": [],
+            "QBDrop": -500,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["RunningBack"], "Routes": ["Flat"] }
+            ],
+            "BacksideRoute": "Curl",
+            "LineKind": "PassBlock",
+            "Deceptions": []
+        },
+        {
+            "ConceptId": "Bubble",
+            "Label": "Bubble Screen",
+            "Family": "Screen",
+            "Category": "Screen",
+            "Formations": ["Trips Right", "Trips Left", "Twins", "Shotgun", "Spread"],
+            "QBDrop": -300,
+            "BackSpot": { "X": 0, "Y": 0, "Z": 0 },
+            "Slots": [
+                { "Roles": ["WideReceiver"], "Routes": ["Flat"] }
+            ],
+            "BacksideRoute": "Go",
+            "LineKind": "PassBlock",
+            "Deceptions": []
+        }
+    ],
+    "DefensiveFronts": [
+        { "Formation": "Base 4-3", "Front": "4-3", "LineKind": "PassRush" },
+        { "Formation": "Base 3-4", "Front": "3-4", "LineKind": "PassRush" },
+        { "Formation": "Nickel", "Front": "Nickel", "LineKind": "PassRush" },
+        { "Formation": "Blitz Package", "Front": "Nickel", "LineKind": "PassRush" },
+        { "Formation": "Goal Line", "Front": "6-2", "LineKind": "RunFit" }
+    ],
+    "Coverages": [
+        {
+            "Shell": "Cover2",
+            "Label": "Cover 2",
+            "Category": "Base",
+            "MaxBlitzers": 1,
+            "Slots": [
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1300, "Y": 900, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1300, "Y": 900, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 300, "Y": 1800, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 300, "Y": 1800, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 700, "Y": 1100, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 700, "Y": 1100, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 600, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 600, "Y": 700, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 600, "Y": 700, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 600, "Y": 700, "Z": 0 } }
+            ]
+        },
+        {
+            "Shell": "Cover3",
+            "Label": "Cover 3",
+            "Category": "Base",
+            "MaxBlitzers": 2,
+            "Slots": [
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1500, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1300, "Y": 1600, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1300, "Y": 1600, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 500, "Y": 1500, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 500, "Y": 1500, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 700, "Y": 600, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 600, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 600, "Y": 800, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 600, "Y": 800, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 600, "Y": 800, "Z": 0 } }
+            ]
+        },
+        {
+            "Shell": "Cover4",
+            "Label": "Quarters",
+            "Category": "Prevent",
+            "MaxBlitzers": 1,
+            "Slots": [
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1600, "Y": 600, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1600, "Y": 600, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1600, "Y": 1600, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1600, "Y": 1600, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 800, "Y": 1200, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 800, "Y": 1200, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 700, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 700, "Y": 700, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 700, "Y": 700, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 700, "Y": 700, "Z": 0 } }
+            ]
+        },
+        {
+            "Shell": "Cover1",
+            "Label": "Cover 1",
+            "Category": "Base",
+            "MaxBlitzers": 2,
+            "Slots": [
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "Zone": { "X": 1500, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "Zone": { "X": 500, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } }
+            ]
+        },
+        {
+            "Shell": "Cover0",
+            "Label": "Cover 0",
+            "Category": "Base",
+            "MaxBlitzers": 3,
+            "Slots": [
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } },
+                { "Role": "Linebacker", "Kind": "ManCoverage", "Zone": { "X": 0, "Y": 0, "Z": 0 } }
+            ]
+        }
+    ],
+    "Pressures": [
+        { "PressureId": "None", "Label": "", "Blitzers": {  } },
+        { "PressureId": "Mike", "Label": "Mike", "Blitzers": { "Linebacker": 1 } },
+        { "PressureId": "DoubleA", "Label": "Double A", "Blitzers": { "Linebacker": 2 } },
+        { "PressureId": "NickelFire", "Label": "Nickel Fire", "Blitzers": { "DefensiveBack": 1 } },
+        { "PressureId": "Zero", "Label": "Zero", "Blitzers": { "Linebacker": 2, "DefensiveBack": 1 } }
+    ],
+    "SchemeFlavors": [
+        {
+            "SchemeId": "AirRaid",
+            "ConceptWeights": {
+                "Mesh": 3.0,
+                "Verticals": 2.5,
+                "Flood": 1.5,
+                "Stick": 1.5,
+                "QuickSlant": 1.5,
+                "Dagger": 1.5,
+                "Draw": 1.5,
+                "Bubble": 1.5,
+                "Power": 0.4
+            },
+            "ShellWeights": {  },
+            "PressureWeights": {  }
+        },
+        {
+            "SchemeId": "WestCoast",
+            "ConceptWeights": { "QuickSlant": 2.5, "Stick": 2.0, "Flood": 2.0, "Smash": 1.5, "Mesh": 1.5, "RBScreen": 2.0 },
+            "ShellWeights": {  },
+            "PressureWeights": {  }
+        },
+        {
+            "SchemeId": "PowerRun",
+            "ConceptWeights": { "Power": 3.0, "InsideZone": 1.5, "Mills": 2.0, "Dagger": 1.5, "OutsideZone": 0.6, "Mesh": 0.4 },
+            "ShellWeights": {  },
+            "PressureWeights": {  }
+        },
+        {
+            "SchemeId": "ZoneRun",
+            "ConceptWeights": { "InsideZone": 3.0, "OutsideZone": 3.0, "RPOSlant": 2.0, "Bubble": 1.5, "Flood": 1.5, "Power": 0.5 },
+            "ShellWeights": {  },
+            "PressureWeights": {  }
+        },
+        {
+            "SchemeId": "Cover2Zone",
+            "ConceptWeights": {  },
+            "ShellWeights": { "Cover2": 3.0, "Cover4": 1.5, "Cover3": 1.0, "Cover0": 0.3 },
+            "PressureWeights": { "None": 2.0, "Zero": 0.3 }
+        },
+        {
+            "SchemeId": "Pressure34",
+            "ConceptWeights": {  },
+            "ShellWeights": { "Cover3": 2.0, "Cover1": 2.0, "Cover0": 1.5, "Cover2": 0.5 },
+            "PressureWeights": { "DoubleA": 2.0, "Zero": 2.0, "Mike": 1.5, "None": 0.5 }
+        },
+        {
+            "SchemeId": "NickelMan",
+            "ConceptWeights": {  },
+            "ShellWeights": { "Cover1": 3.0, "Cover0": 1.5, "Cover2": 0.5 },
+            "PressureWeights": { "NickelFire": 2.5, "Mike": 1.5 }
+        }
+    ]
+}

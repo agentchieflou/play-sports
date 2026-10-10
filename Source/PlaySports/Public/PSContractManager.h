@@ -99,8 +99,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Contracts")
     EPSCapResult SignContract(const FPSContract& Contract);
 
-    /** A new franchise's contracts: each of Players (a team's roster) signed at his demand at
-     *  DefaultPlayerAge, their lengths staggered (1 year, 2 years, ...) so they don't all run out
+    /** A new franchise's contracts: each of Players (a team's roster) signed at his demand at his
+     *  age (GetPlayerAge), their lengths staggered (1 year, 2 years, ...) so they don't all run out
      *  together. A player who doesn't fit under the cap is left unsigned. Returns those signed. */
     UFUNCTION(BlueprintCallable, Category = "Contracts")
     int32 SignRosterAtDemand(FName TeamId, const TArray<FPlayerAttributes>& Players);
@@ -141,6 +141,11 @@ public:
     float GetLeagueCapSpaceFraction() const;
 
     // --- Negotiation -----------------------------------------------------------------------
+
+    /** Player's age for negotiation: his Age when it is above 0, else the tuning's
+     *  DefaultPlayerAge (a roster that gives no ages). */
+    UFUNCTION(BlueprintPure, Category = "Contracts")
+    int32 GetPlayerAge(const FPlayerAttributes& Player) const;
 
     /** What Player brings to a negotiation in this league: his rating, the market. */
     UFUNCTION(BlueprintPure, Category = "Contracts")

@@ -166,7 +166,7 @@ struct FPSContractTuning
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Contracts|FreeAgency")
     int32 AIOffersPerDay = 1;
 
-    /** The age of a player nobody gave one (FPlayerAttributes has no age yet). */
+    /** The age of a player whose FPlayerAttributes::Age is 0 (unknown). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Contracts|FreeAgency")
     int32 DefaultPlayerAge = 27;
 

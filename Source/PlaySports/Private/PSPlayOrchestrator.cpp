@@ -1,87 +1,27 @@
 #include "PSPlayOrchestrator.h"
 #include "PSAIFieldSnapshot.h"
-#include "PSDefenderPreSnapSubsystem.h"
+#include "PSPlayResolution.h"
 #include "PSPlayerPawn.h"
 #include "PSOffenseController.h"
 #include "PSDefenseController.h"
-#include "PSPreSnapSubsystem.h"
 #include "PSRouteRunnerComponent.h"
 #include "PSDataIngestion.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 
-EPSDefensiveAssignmentType UPSPlayOrchestrator::ToDefensiveAssignmentType(EPSAssignmentKind Kind)
-{
-    switch (Kind)
-    {
-    case EPSAssignmentKind::PassRush:
-        return EPSDefensiveAssignmentType::PassRush;
-    case EPSAssignmentKind::RunFit:
-        return EPSDefensiveAssignmentType::RunFit;
-    case EPSAssignmentKind::ManCoverage:
-        return EPSDefensiveAssignmentType::ManCoverage;
-    case EPSAssignmentKind::ZoneCoverage:
-        return EPSDefensiveAssignmentType::ZoneCoverage;
-    case EPSAssignmentKind::Blitz:
-        return EPSDefensiveAssignmentType::PassRush;
-    default:
-        return EPSDefensiveAssignmentType::RunFit;
-    }
-}
-
-TArray<FVector> UPSPlayOrchestrator::ResolveRouteWaypoints(const FName& RouteId, const UDataTable* RouteLibrary, const FVector& Origin, float MirrorY) const
-{
-    TArray<FVector> WorldWaypoints;
-    if (!RouteLibrary || RouteId.IsNone())
-    {
-        return WorldWaypoints;
-    }
-
-    const FPSRoute* Route = RouteLibrary->FindRow<FPSRoute>(RouteId, TEXT("PSPlayOrchestrator"));
-    if (!Route)
-    {
-        return WorldWaypoints;
-    }
-
-    for (const FPSRouteWaypoint& Waypoint : Route->Waypoints)
-    {
-        WorldWaypoints.Add(Origin + FVector(Waypoint.Offset.X, Waypoint.Offset.Y * MirrorY, Waypoint.Offset.Z));
-    }
-
-    return WorldWaypoints;
-}
-
 const FPSPlayAssignment* UPSPlayOrchestrator::FindAssignmentSlot(const FPSPlayDefinition& Play, EPlayerRole Role, int32 RoleIndex)
 {
-    // The sample plays list one slot per role; a role with more players than slots repeats
-    // its last slot, so every receiver runs a route and every defender has a job (Epic 14).
-    const FPSPlayAssignment* Matched = nullptr;
-    int32 SeenForRole = 0;
-    for (const FPSPlayAssignment& Assignment : Play.Assignments)
-    {
-        if (Assignment.Role != Role)
-        {
-            continue;
-        }
-        Matched = &Assignment;
-        if (SeenForRole == RoleIndex)
-        {
-            break;
-        }
-        ++SeenForRole;
-    }
-    return Matched;
+    return PSPlayResolution::FindAssignmentSlot(Play, Role, RoleIndex);
 }
 
 void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, const TArray<APSPlayerPawn*>& OnFieldPawns, const UDataTable* RouteLibrary, const FVector& LineOfScrimmage)
 {
-    // Track how many pawns of each role have already been assigned so repeated
-    // role slots in the play (e.g. multiple WideReceiver assignments) map to
-    // distinct pawns rather than all receiving the first assignment.
-    TMap<EPlayerRole, int32> RoleAssignmentCursor;
-
-    for (APSPlayerPawn* Pawn : OnFieldPawns)
+    // The call resolves once, in PSPlayResolution: the same jobs the play art draws before the
+    // snap (Epic 27) are the ones handed out here.
+    const TArray<FPSResolvedAssignment> Resolved = PSPlayResolution::ResolvePlay(Play, OnFieldPawns, RouteLibrary, LineOfScrimmage);
+    for (const FPSResolvedAssignment& Entry : Resolved)
     {
+        APSPlayerPawn* Pawn = Entry.Pawn.Get();
         if (!Pawn)
         {
             continue;
@@ -89,10 +29,7 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
         // The play it hands out is the one it re-coordinates if it breaks down.
         BindToBus(Pawn->GetWorld());
 
-        const EPlayerRole PawnRole = Pawn->GetAttributes().Role;
-        int32& Cursor = RoleAssignmentCursor.FindOrAdd(PawnRole, 0);
-        const FPSPlayAssignment* MatchedAssignment = FindAssignmentSlot(Play, PawnRole, Cursor);
-        if (!MatchedAssignment)
+        if (!Entry.bHasSlot)
         {
             // An offensive player the play gives no job doesn't run last play's route.
             APSOffenseController* Unassigned = (Play.bIsOffensivePlay && Pawn->TeamSide == EPSTeamSide::Offense) ? Cast<APSOffenseController>(Pawn->GetController()) : nullptr;
@@ -106,12 +43,6 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
             }
             continue;
         }
-        ++Cursor;
-
-        // Assignments are authored for a player lined up right of the ball (+Y); one lined
-        // up left of it runs them mirrored.
-        const float PawnY = Pawn->GetActorLocation().Y;
-        const float Mirror = PawnY < 0.f ? -1.f : 1.f;
 
         if (Play.bIsOffensivePlay)
         {
@@ -121,37 +52,19 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
                 continue;
             }
 
-            // The offense's pre-snap changes for this player (Epic 66): a hot route, a back
-            // kept in to block, a tight end released.
-            FPSPlayAssignment Assignment = *MatchedAssignment;
-            UWorld* World = Pawn->GetWorld();
-            if (UPSPreSnapSubsystem* PreSnap = World ? World->GetSubsystem<UPSPreSnapSubsystem>() : nullptr)
+            if (Entry.Assignment.Kind == EPSAssignmentKind::Route)
             {
-                PreSnap->ApplyAdjustment(Pawn, Assignment);
-            }
-
-            if (Assignment.Kind == EPSAssignmentKind::Route)
-            {
-                // A route starts from the player's own split, not the ball.
-                const FVector Offset = Assignment.FormationOffset;
-                const FVector Origin(LineOfScrimmage.X + Offset.X, PawnY + Offset.Y * Mirror, LineOfScrimmage.Z + Offset.Z);
-                TArray<FVector> Waypoints = ResolveRouteWaypoints(Assignment.RouteId, RouteLibrary, Origin, Mirror);
-                // A route with no RouteId is "go to your spot": the QB's drop, the RB's mesh
-                // point on a run (Epic 14).
-                if (Waypoints.Num() == 0 && Assignment.RouteId.IsNone())
-                {
-                    Waypoints.Add(Origin);
-                }
-                OffenseController->SetAssignedRoute(Waypoints);
+                OffenseController->SetAssignedRoute(Entry.Waypoints);
 
                 // The pattern itself -- its break, fakes, option read -- goes to his route
                 // runner, with this play's seed for his contests (Epic 68).
-                const FPSRoute* Route = (RouteLibrary && !Assignment.RouteId.IsNone()) ? RouteLibrary->FindRow<FPSRoute>(Assignment.RouteId, TEXT("PSPlayOrchestrator"), false) : nullptr;
+                const FName RouteId = Entry.Assignment.RouteId;
+                const FPSRoute* Route = (RouteLibrary && !RouteId.IsNone()) ? RouteLibrary->FindRow<FPSRoute>(RouteId, TEXT("PSPlayOrchestrator"), false) : nullptr;
                 if (UPSRouteRunnerComponent* Runner = OffenseController->GetRouteRunner())
                 {
                     if (Route)
                     {
-                        Runner->SetRoutePlan(*Route, Waypoints, Mirror, RouteLibrary, DeterminismStream.RandHelper(MAX_int32));
+                        Runner->SetRoutePlan(*Route, Entry.Waypoints, Entry.Mirror, RouteLibrary, DeterminismStream.RandHelper(MAX_int32));
                     }
                     else
                     {
@@ -169,29 +82,9 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
                 }
             }
         }
-        else
+        else if (APSDefenseController* DefenseController = Cast<APSDefenseController>(Pawn->GetController()))
         {
-            APSDefenseController* DefenseController = Cast<APSDefenseController>(Pawn->GetController());
-            if (!DefenseController)
-            {
-                continue;
-            }
-
-            // A zone is played on the defender's own side of the field.
-            FVector Zone = MatchedAssignment->ZoneOffset;
-            if (PawnY * Zone.Y < 0.f)
-            {
-                Zone.Y = -Zone.Y;
-            }
-            EPSDefensiveAssignmentType AssignmentType = ToDefensiveAssignmentType(MatchedAssignment->Kind);
-            AActor* CoverageTarget = nullptr;
-            // A shadow matchup set before the snap overrides the call for its defender (Epic 67).
-            UWorld* World = Pawn->GetWorld();
-            if (const UPSDefenderPreSnapSubsystem* DefensePreSnap = World ? World->GetSubsystem<UPSDefenderPreSnapSubsystem>() : nullptr)
-            {
-                DefensePreSnap->ApplyMatchup(Pawn, AssignmentType, CoverageTarget);
-            }
-            DefenseController->SetAssignment(AssignmentType, CoverageTarget, LineOfScrimmage + Zone);
+            DefenseController->SetAssignment(Entry.DefensiveType, Entry.CoverageTarget.Get(), Entry.ZoneSpot);
         }
     }
 }

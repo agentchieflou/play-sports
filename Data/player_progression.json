@@ -1,0 +1,7 @@
+{
+    "PeakAgeStart": 26,
+    "PeakAgeEnd": 29,
+    "GrowthPerYear": 2.5,
+    "DeclinePerYear": 2.0,
+    "LowSnapShareThreshold": 0.2
+}
