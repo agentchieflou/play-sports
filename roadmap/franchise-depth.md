@@ -52,10 +52,10 @@ its own persistence or event capture.
 **Goal:** Teams have coaches whose schemes visibly shape how they play and what players fit.
 **Depends on:** Core 18, Core 16
 
-- [ ] Coach entities: HC/OC/DC with scheme affinities and skill ratings
-- [ ] Scheme-playbook binding: a team's playbook (16) derives from its coordinators
-- [ ] Player-scheme fit modifiers (a zone-scheme lineman misfit in power)
-- [ ] Carousel: firings, hirings, and scheme churn between seasons
+- [x] Coach entities: HC/OC/DC with scheme affinities and skill ratings *(`UPSStaffManager` over `Data/coaching_staffs.json` (`FPSCoachingLeague`): seven schemes (West Coast, Air Raid, Power Run, Zone Run; Cover 2 Zone, 3-4 Pressure, Nickel Man) and 21 coaches, free agents included, each with a scheme, play-calling and development ratings, and a head coach's aggression)*
+- [x] Scheme-playbook binding: a team's playbook (16) derives from its coordinators *(`BuildTeamPlan`: the plays in the coordinators' scheme formations plus every kick and clock play, and a tendency of the head coach's aggression and the scheme's category lean, scaled by the coordinator's play calling. `UPSPlayCallSubsystem::SetTeamPlan` holds each team's plan: CPU calls, suggestions and human calls stay in the team's book, the call screen and the reasons name the scheme. `ApplyToPlayCall` sets both; no game mode calls it yet, since a match has no team identity)*
+- [x] Player-scheme fit modifiers (a zone-scheme lineman misfit in power) *(`GetSchemeFit` / `ApplySchemeFit`: a player's weighted ratings in his coordinator's scheme against his average across the side's schemes, as a multiplier between `WorstFitMultiplier` and `BestFitMultiplier` that a developing coordinator softens; the roster keeps the player's own ratings)*
+- [x] Carousel: firings, hirings, and scheme churn between seasons *(`RunCarousel`, deterministic: losing head coaches past their grace seasons and the worst units' coordinators are fired, winning teams' coordinators are hired away as head coaches, a new head coach's scheme displaces the coordinator running another, and vacancies fill worst team first, the head coach's scheme preferred. Staffs persist in `UPSFranchiseSaveGame`)*
 
 ### Epic 90: Training, Gameplan & Weekly Preparation
 

@@ -21,6 +21,7 @@
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSSpecialTeamsData.h"
+#include "PSStaffData.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -126,6 +127,11 @@ public:
      *  file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSpecialTeamsTuningFromJson(const FString& JsonFilePath, FPSSpecialTeamsTuning& OutTuning);
+
+    /** Loads the coaching league: schemes, coaches, staffs and tuning (Data/coaching_staffs.json,
+     *  Epic 89). False on a missing file, malformed JSON, or an unrecognized Role string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCoachingLeagueFromJson(const FString& JsonFilePath, FPSCoachingLeague& OutLeague);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

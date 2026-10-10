@@ -27,6 +27,10 @@ route in the route library and each action a Boolean in the PreSnap context.
 
 "KickoffTouchbackChance" files against FPSSpecialTeamsTuning, each return scheme a KickReturn formation.
 
+"Schemes" + "Staffs" files against FPSCoachingLeague (Epic 89): each scheme's formations in the playbook
+on its side (an offense keeping a run and a pass, a defense a base call), coaches' schemes and roles,
+each staff's team in sample_teams.json and its jobs held by coaches of that role.
+
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
 """
@@ -1094,6 +1098,200 @@ def validate_special_teams(path, payload, return_formations):
             err(path, f"{where}.BigReturnChance: '{chance}' must be a chance, 0-1")
 
 
+COACH_ROLES = ("HeadCoach", "OffensiveCoordinator", "DefensiveCoordinator")
+OFFENSE_ROLES = {"Quarterback", "RunningBack", "WideReceiver", "TightEnd", "OffensiveLineman"}
+FIT_ATTRIBUTES = {"Speed", "Agility", "Strength", "Acceleration", "Awareness", "Stamina"}
+PASS_CATEGORIES = {"ShortPass", "DeepPass", "PlayAction", "Screen"}
+SCHEME_FIELDS = {"SchemeId", "Label", "bOffense", "Formations", "CategoryWeights", "FitWeights", "Description"}
+COACH_FIELDS = {"CoachId", "DisplayName", "Role", "SchemeId", "PlayCalling", "Development", "Aggression"}
+STAFF_JOBS = {"HeadCoachId": "HeadCoach", "OffensiveCoordinatorId": "OffensiveCoordinator",
+              "DefensiveCoordinatorId": "DefensiveCoordinator"}
+STAFF_FIELDS = set(STAFF_JOBS) | {"TeamId", "HeadCoachSeasons"}
+STAFF_TUNING_NUMBERS = ("MinSchemeAdherence", "MaxSchemeAdherence", "FitSpan", "BestFitMultiplier", "WorstFitMultiplier",
+                        "PromotionBonus", "SchemeMatchBonus")
+STAFF_TUNING_CHANCES = ("DevelopmentMisfitRelief", "FitLabelThreshold", "FireWinPercentage", "CoordinatorSafeWinPercentage",
+                        "PromoteWinPercentage")
+STAFF_TUNING_COUNTS = ("GraceSeasons", "CoordinatorFiresPerSide")
+
+
+def load_playbook_plays():
+    """The playbook's plays, or None when it is missing or broken (its own checks report that)."""
+    try:
+        playbook = json.loads((DATA_DIR / "sample_playbook.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(playbook, dict) or not isinstance(playbook.get("Plays"), list):
+        return None
+    return [p for p in playbook["Plays"] if isinstance(p, dict)]
+
+
+def load_team_ids():
+    """The league's team IDs, or None when the teams file is missing or broken."""
+    try:
+        teams = json.loads((DATA_DIR / "sample_teams.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(teams, dict) or not isinstance(teams.get("Teams"), list):
+        return None
+    return {t.get("TeamId") for t in teams["Teams"] if isinstance(t, dict)}
+
+
+def validate_coaching_staffs(path, payload, plays, team_ids):
+    """FPSCoachingLeague (Data/coaching_staffs.json, Epic 89); mirrors UPSStaffManager::Validate."""
+    extra = set(payload) - {"Schemes", "Coaches", "Staffs", "Tuning"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCoachingLeague exactly")
+
+    schemes = {}
+    for idx, row in enumerate(payload.get("Schemes") if isinstance(payload.get("Schemes"), list) else []):
+        where = f"Schemes[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        unknown = set(row) - SCHEME_FIELDS
+        if unknown:
+            err(path, f"{where}: unknown field(s) {sorted(unknown)}")
+        scheme_id = row.get("SchemeId")
+        if not isinstance(scheme_id, str) or not scheme_id or scheme_id in schemes:
+            err(path, f"{where}.SchemeId: '{scheme_id}' is empty or listed twice")
+            continue
+        schemes[scheme_id] = row
+        where = f"Schemes '{scheme_id}'"
+        offense = row.get("bOffense")
+        if not isinstance(offense, bool):
+            err(path, f"{where}.bOffense: must be true or false")
+            continue
+        if not isinstance(row.get("Label"), str) or not row["Label"]:
+            err(path, f"{where}.Label: must be a non-empty string")
+        formations = row.get("Formations")
+        if not isinstance(formations, list) or not formations:
+            err(path, f"{where}.Formations: must list at least one formation")
+            formations = []
+        weights = row.get("CategoryWeights")
+        if not isinstance(weights, dict):
+            err(path, f"{where}.CategoryWeights: must be an object")
+            weights = {}
+        if plays is not None:
+            side = [p for p in plays if p.get("bIsOffensivePlay") is offense]
+            for formation in formations:
+                if not any(p.get("Formation") == formation for p in side):
+                    err(path, f"{where}.Formations: '{formation}' is no {'offensive' if offense else 'defensive'} formation in sample_playbook.json")
+            kept = {p.get("PlayCategory") for p in side if p.get("Formation") in formations}
+            if offense and not ("Run" in kept and kept & PASS_CATEGORIES):
+                err(path, f"{where}.Formations: the scheme's plays need a run and a pass")
+            if not offense and "Base" not in kept:
+                err(path, f"{where}.Formations: the scheme's plays need a Base defense")
+            categories = {p.get("PlayCategory") for p in side}
+            for category in weights:
+                if category not in categories:
+                    err(path, f"{where}.CategoryWeights: '{category}' is no {'offensive' if offense else 'defensive'} PlayCategory in sample_playbook.json")
+        for category, value in weights.items():
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.CategoryWeights.{category}: '{value}' must be a number, 0 or more")
+        fit_weights = row.get("FitWeights")
+        if not isinstance(fit_weights, list):
+            err(path, f"{where}.FitWeights: must be an array")
+            fit_weights = []
+        for fidx, entry in enumerate(fit_weights):
+            fwhere = f"{where}.FitWeights[{fidx}]"
+            if not isinstance(entry, dict) or set(entry) != {"Role", "Attribute", "Weight"}:
+                err(path, f"{fwhere}: must have exactly Role, Attribute and Weight")
+                continue
+            if entry["Role"] not in PLAYER_ROLES:
+                err(path, f"{fwhere}.Role: '{entry['Role']}' is not an EPlayerRole")
+            elif (entry["Role"] in OFFENSE_ROLES) != offense:
+                err(path, f"{fwhere}.Role: {entry['Role']} plays the other side")
+            if entry["Attribute"] not in FIT_ATTRIBUTES:
+                err(path, f"{fwhere}.Attribute: '{entry['Attribute']}' must be one of {sorted(FIT_ATTRIBUTES)}")
+            if not is_number(entry["Weight"]) or entry["Weight"] <= 0:
+                err(path, f"{fwhere}.Weight: '{entry['Weight']}' must be above 0")
+
+    coaches = {}
+    for idx, row in enumerate(payload.get("Coaches") if isinstance(payload.get("Coaches"), list) else []):
+        where = f"Coaches[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        if set(row) != COACH_FIELDS:
+            err(path, f"{where}: fields must be exactly {sorted(COACH_FIELDS)}")
+        coach_id = row.get("CoachId")
+        if not isinstance(coach_id, str) or not coach_id or coach_id in coaches:
+            err(path, f"{where}.CoachId: '{coach_id}' is empty or listed twice")
+            continue
+        coaches[coach_id] = row
+        where = f"Coaches '{coach_id}'"
+        role = row.get("Role")
+        if role not in COACH_ROLES:
+            err(path, f"{where}.Role: '{role}' must be one of {list(COACH_ROLES)}")
+        scheme = schemes.get(row.get("SchemeId"))
+        if scheme is None:
+            err(path, f"{where}.SchemeId: '{row.get('SchemeId')}' is not a scheme in this file")
+        elif role in ("OffensiveCoordinator", "DefensiveCoordinator") and scheme.get("bOffense") != (role == "OffensiveCoordinator"):
+            err(path, f"{where}.SchemeId: a {role} cannot run the {scheme.get('Label')}")
+        for field in ("PlayCalling", "Development"):
+            value = row.get(field)
+            if not is_number(value) or not 0 <= value <= 100:
+                err(path, f"{where}.{field}: '{value}' must be 0-100")
+        value = row.get("Aggression")
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{where}.Aggression: '{value}' must be 0-1")
+
+    teams = set()
+    employed = set()
+    for idx, row in enumerate(payload.get("Staffs") if isinstance(payload.get("Staffs"), list) else []):
+        where = f"Staffs[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        if set(row) != STAFF_FIELDS:
+            err(path, f"{where}: fields must be exactly {sorted(STAFF_FIELDS)}")
+        team = row.get("TeamId")
+        if not isinstance(team, str) or not team or team in teams:
+            err(path, f"{where}.TeamId: '{team}' is empty or listed twice")
+        elif team_ids is not None and team not in team_ids:
+            err(path, f"{where}.TeamId: '{team}' is not a team in sample_teams.json")
+        teams.add(team)
+        for field, role in STAFF_JOBS.items():
+            coach_id = row.get(field)
+            if coach_id in (None, "", "None"):
+                continue
+            coach = coaches.get(coach_id)
+            if coach is None:
+                err(path, f"{where}.{field}: '{coach_id}' is not a coach in this file")
+            elif coach.get("Role") != role:
+                err(path, f"{where}.{field}: '{coach_id}' is not a {role}")
+            if coach_id in employed:
+                err(path, f"{where}.{field}: '{coach_id}' is on two staffs")
+            employed.add(coach_id)
+        seasons = row.get("HeadCoachSeasons")
+        if not isinstance(seasons, int) or isinstance(seasons, bool) or seasons < 0:
+            err(path, f"{where}.HeadCoachSeasons: '{seasons}' must be a whole number, 0 or more")
+
+    tuning = payload.get("Tuning")
+    if not isinstance(tuning, dict):
+        err(path, "'Tuning' must be an object")
+        return
+    known = set(STAFF_TUNING_NUMBERS) | set(STAFF_TUNING_CHANCES) | set(STAFF_TUNING_COUNTS)
+    if set(tuning) - known:
+        err(path, f"Tuning: unknown field(s) {sorted(set(tuning) - known)} - names must match FPSStaffTuning exactly")
+    for field in STAFF_TUNING_NUMBERS:
+        if not is_number(tuning.get(field)) or tuning[field] < 0:
+            err(path, f"Tuning.{field}: '{tuning.get(field)}' must be a number, 0 or more")
+    for field in STAFF_TUNING_CHANCES:
+        if not is_number(tuning.get(field)) or not 0 <= tuning[field] <= 1:
+            err(path, f"Tuning.{field}: '{tuning.get(field)}' must be 0-1")
+    for field in STAFF_TUNING_COUNTS:
+        value = tuning.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            err(path, f"Tuning.{field}: '{value}' must be a whole number, 0 or more")
+    if is_number(tuning.get("FitSpan")) and tuning["FitSpan"] <= 0:
+        err(path, "Tuning.FitSpan: must be above 0")
+    if is_number(tuning.get("BestFitMultiplier")) and tuning["BestFitMultiplier"] < 1:
+        err(path, "Tuning.BestFitMultiplier: a fit never plays below his ratings (1 or more)")
+    if is_number(tuning.get("WorstFitMultiplier")) and not 0 < tuning["WorstFitMultiplier"] <= 1:
+        err(path, "Tuning.WorstFitMultiplier: must be above 0 and at most 1")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1152,6 +1350,8 @@ def main():
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "KickoffTouchbackChance" in payload:
             validate_special_teams(path, payload, load_return_formations())
+        if isinstance(payload, dict) and "Schemes" in payload and "Staffs" in payload:
+            validate_coaching_staffs(path, payload, load_playbook_plays(), load_team_ids())
         if isinstance(payload, dict) and "HotRouteSets" in payload:
             validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
         if isinstance(payload, dict) and "MaxQueued" in payload:

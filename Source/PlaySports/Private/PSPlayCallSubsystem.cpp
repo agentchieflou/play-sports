@@ -204,12 +204,37 @@ const FPlayCallTuningRow& UPSPlayCallSubsystem::GetTuning()
 TArray<FPSPlayDefinition> UPSPlayCallSubsystem::GetPlays(bool bOffense)
 {
     EnsurePlaybookLoaded();
-    // A kickoff runs kickoff calls and returns; a scrimmage down everything else (Epic 75).
+    // A kickoff runs kickoff calls and returns; a scrimmage down everything else (Epic 75). The
+    // team keeps its scheme's plays (Epic 89).
     const bool bKickoff = Situation.bKickoff;
-    return Plays.FilterByPredicate([bOffense, bKickoff](const FPSPlayDefinition& Play)
+    const TArray<FName>& Kept = GetCallingPlan(bOffense).PlayIds;
+    return Plays.FilterByPredicate([bOffense, bKickoff, &Kept](const FPSPlayDefinition& Play)
     {
-        return Play.bIsOffensivePlay == bOffense && PSSpecialTeams::IsCallableAt(PSSpecialTeams::FromCategory(Play.PlayCategory), bKickoff);
+        return Play.bIsOffensivePlay == bOffense && PSSpecialTeams::IsCallableAt(PSSpecialTeams::FromCategory(Play.PlayCategory), bKickoff)
+            && (Kept.Num() == 0 || Kept.Contains(Play.PlayId));
     });
+}
+
+const TArray<FPSPlayDefinition>& UPSPlayCallSubsystem::GetPlaybook()
+{
+    EnsurePlaybookLoaded();
+    return Plays;
+}
+
+void UPSPlayCallSubsystem::SetTeamPlan(bool bHome, const FPSTeamPlan& Plan)
+{
+    (bHome ? HomePlan : AwayPlan) = Plan;
+}
+
+void UPSPlayCallSubsystem::ClearTeamPlans()
+{
+    HomePlan = FPSTeamPlan();
+    AwayPlan = FPSTeamPlan();
+}
+
+const FPSTeamPlan& UPSPlayCallSubsystem::GetCallingPlan(bool bOffense) const
+{
+    return GetTeamPlan(Situation.bHomeHasPossession == bOffense);
 }
 
 TArray<FString> UPSPlayCallSubsystem::GetFormations(bool bOffense)
@@ -290,8 +315,8 @@ TArray<FPSPlaySuggestion> UPSPlayCallSubsystem::RankPlays(bool bOffense)
     {
         CoachingAI = NewObject<UPSCoachingAI>(this);
     }
-    const FPSTendencyProfile Tendency = FPSTendencyProfile();
-    return CoachingAI->RankPlays(Situation, Tendency, GetPlays(bOffense), bOffense);
+    const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
+    return CoachingAI->RankPlays(Situation, bOffense ? Plan.OffenseTendency : Plan.DefenseTendency, GetPlays(bOffense), bOffense);
 }
 
 TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildSuggestionOptions(bool bOffense)
@@ -573,6 +598,14 @@ FString UPSPlayCallSubsystem::BuildCallScreenBody(bool bOffense) const
             SituationLine += FString::Printf(TEXT("\nTempo: %s"), *TempoDef->Label);
         }
     }
+
+    // The team's scheme (Epic 89).
+    const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
+    const FString& Scheme = bOffense ? Plan.OffenseTendency.Label : Plan.DefenseTendency.Label;
+    if (!Scheme.IsEmpty())
+    {
+        SituationLine += FString::Printf(TEXT("\nScheme: %s"), *Scheme);
+    }
     return Tendencies.IsEmpty() ? SituationLine : FString::Printf(TEXT("%s\n%s"), *SituationLine, *Tendencies);
 }
 
@@ -676,6 +709,7 @@ FPSSituationContext UPSPlayCallSubsystem::MakeSituation(const FPlayState& State)
     Context.OpponentTimeoutsRemaining = State.bHomeHasPossession ? State.AwayTimeoutsRemaining : State.HomeTimeoutsRemaining;
     Context.bClockRunning = State.bIsClockRunning;
     Context.bKickoff = State.bKickoff;
+    Context.bHomeHasPossession = State.bHomeHasPossession;
     return Context;
 }
 
@@ -778,6 +812,11 @@ bool UPSPlayCallSubsystem::CallPlay(FName PlayId, EPSPlayCaller Caller)
     {
         return false;
     }
+    const TArray<FName>& Kept = GetCallingPlan(Play.bIsOffensivePlay).PlayIds;
+    if (Kept.Num() > 0 && !Kept.Contains(PlayId))
+    {
+        return false;
+    }
     SetCall(Play, Caller);
     return true;
 }
@@ -844,7 +883,8 @@ void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
         CoachingAI = NewObject<UPSCoachingAI>(this);
     }
 
-    FPSTendencyProfile Tendency;
+    const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
+    const FPSTendencyProfile& Tendency = bOffense ? Plan.OffenseTendency : Plan.DefenseTendency;
     const FName Chosen = bOffense
         ? CoachingAI->SelectOffensivePlay(Situation, Tendency, Candidates)
         : CoachingAI->SelectDefensivePlay(Situation, Tendency, Candidates);

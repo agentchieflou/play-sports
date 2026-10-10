@@ -25,6 +25,11 @@ struct FPSTendencyProfile : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TMap<FString, float> CategoryWeights;
+
+    /** Where the weights come from, when a coordinator's scheme sets them (Epic 89): "West
+     *  Coast". The play-call reasons then read "West Coast scheme (x1.4)". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString Label;
 };
 
 /** Down/distance/clock/score snapshot the coaching AI reads to weight play
@@ -74,6 +79,32 @@ struct FPSSituationContext
      *  once the offense has called. The defense picks its return or block against it. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EPSSpecialTeamsPlay OffenseKick = EPSSpecialTeamsPlay::None;
+
+    /** The home team has the ball: which team's plan (FPSTeamPlan) each side calls with. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bHomeHasPossession = true;
+};
+
+/** A team's identity for a game (Epic 89, from its coaching staff): the tendencies its
+ *  coordinators call with and the plays its playbook keeps. Empty, it calls from the whole
+ *  playbook with neutral tendencies. */
+USTRUCT(BlueprintType)
+struct FPSTeamPlan
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName TeamId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FPSTendencyProfile OffenseTendency;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FPSTendencyProfile DefenseTendency;
+
+    /** The playbook plays the team runs, both sides; empty for all of them. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<FName> PlayIds;
 };
 
 /** One play as the coaching AI rates it for a situation (Epic 102's suggestions): its
