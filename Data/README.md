@@ -62,6 +62,7 @@ every CI build.
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
 | `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
+| `blown_coverage.json` | `FBlownCoverageTuningRow` (single object) | `UPSDataIngestion::LoadBlownCoverageTuningFromJson`, via `UPSBlownCoverageSubsystem` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `defensive_techniques.json` | `FDefensiveTechniqueTuningRow` (single object) | `UPSDataIngestion::LoadDefensiveTechniquesFromJson`, via `UPSDefenderTechniqueComponent` |
@@ -565,6 +566,19 @@ and `PSRouteRunning`). Every field is a number, 0 or more; distances are cm, cha
   own Awareness / 100 times its weight, clamped; one who bites freezes `BiteFreezeSeconds`.
 - `ManReadRadius`: an option route's receiver reads man when a defender is this close at the
   read point.
+
+## Blown-coverage tuning schema (`FBlownCoverageTuningRow`)
+
+Single object (Epic 17.4; the defense's reaction to a receiver running free,
+`UPSBlownCoverageSubsystem`). Every field is a number, 0 or more; distances are cm:
+- `CheckIntervalSeconds` (above 0): how often the defense looks, while the quarterback holds the
+  ball behind the line.
+- `UncoveredSeparation`, `MinDepthPastLine`: a receiver at least `MinDepthPastLine` past the
+  line with every defender this far from him is running free.
+- `HelpRadius`: the nearest defender playing a zone (or in man with nobody to cover) within this
+  distance of him leaves his zone to cover him. Each receiver and each helper once per play.
+
+`tools/validate_data.py` checks it.
 
 ## Route schema extras (`FPSRoute`, Epic 68)
 

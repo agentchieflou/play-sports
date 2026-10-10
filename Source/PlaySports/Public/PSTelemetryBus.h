@@ -29,7 +29,8 @@ enum class EPSTelemetryEventType : uint8
     RouteRunning,
     Kick,
     JumpSnap,
-    GameState
+    GameState,
+    BlownCoverage
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -632,6 +633,30 @@ struct FPSTelemetryGameStateEvent
     }
 };
 
+/** A receiver is running free downfield, every defender far from him (Epic 17's broken-play
+ *  reactions). UPSBlownCoverageSubsystem spots it once per receiver per play and names the
+ *  defender who leaves his zone to pick him up (empty when nobody can). */
+USTRUCT(BlueprintType)
+struct FPSTelemetryBlownCoverageEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString ReceiverName;
+
+    /** The defender who rotates to him; empty when no zone defender was free to. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString HelperName;
+
+    /** How far the nearest defender was from him (cm). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Separation = 0.f;
+
+    /** Where the receiver was. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Location = FVector::ZeroVector;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -679,6 +704,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteSignature, const FP
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryKickSignature, const FPSTelemetryKickEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryJumpSnapSignature, const FPSTelemetryJumpSnapEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryGameStateSignature, const FPSTelemetryGameStateEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageSignature, const FPSTelemetryBlownCoverageEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -705,6 +731,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryGameStateMC, const FPSTelemetryG
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryEventRecordedMC, const FPSTelemetryEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegrityMC, const FPSTelemetryGapIntegrityEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteMC, const FPSTelemetryRouteEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageMC, const FPSTelemetryBlownCoverageEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -779,6 +806,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishGameState(const FPSTelemetryGameStateEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -872,6 +902,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryGameStateSignature OnGameState;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryBlownCoverageSignature OnBlownCoverage;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -898,6 +931,7 @@ public:
     FPSTelemetryEventRecordedMC OnEventRecordedMC;
     FPSTelemetryGapIntegrityMC OnGapIntegrityMC;
     FPSTelemetryRouteMC OnRouteRunningMC;
+    FPSTelemetryBlownCoverageMC OnBlownCoverageMC;
 
 private:
     UPROPERTY(Transient)

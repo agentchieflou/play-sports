@@ -33,7 +33,7 @@ action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files aga
 FPSBroadcastOverlayTheme; "Settings" files against FPSSettingsCatalog (Epic 103.1);
 "CatenaryParameterCm" files against FPSSkycamTuning. Teams, the league config, the playbook, player
 rating ranges and every reference between files are tools/content_contracts.py's (Epic 125), run
-from here.
+from here; "UncoveredSeparation" files against FBlownCoverageTuningRow.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1440,6 +1440,22 @@ def validate_route_running(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FRouteRunningTuningRow exactly")
 
 
+BLOWN_COVERAGE_FIELDS = ("CheckIntervalSeconds", "UncoveredSeparation", "MinDepthPastLine", "HelpRadius")
+
+
+def validate_blown_coverage(path, payload):
+    """FBlownCoverageTuningRow (Data/blown_coverage.json, Epic 17.4)."""
+    for field in BLOWN_COVERAGE_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if is_number(payload.get("CheckIntervalSeconds")) and payload["CheckIntervalSeconds"] <= 0:
+        err(path, "CheckIntervalSeconds: must be above 0")
+    extra = set(payload) - set(BLOWN_COVERAGE_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FBlownCoverageTuningRow exactly")
+
+
 ROUTE_FIELDS = {"RouteId", "Waypoints", "OptionReadWaypoint", "VsManBranch", "VsZoneBranch"}
 ROUTE_WAYPOINT_FIELDS = {"Offset", "TimingSeconds", "bFake"}
 
@@ -1841,6 +1857,8 @@ def main():
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "PressRadius" in payload:
             validate_route_running(path, payload)
+        if isinstance(payload, dict) and "UncoveredSeparation" in payload:
+            validate_blown_coverage(path, payload)
         if isinstance(payload, dict) and "Routes" in payload:
             validate_routes(path, payload)
         if isinstance(payload, dict) and "HotRouteSets" in payload:
