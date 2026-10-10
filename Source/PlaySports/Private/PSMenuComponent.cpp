@@ -508,8 +508,9 @@ FString UPSMenuComponent::BuildTravelOptions(EPSMenuCommand Command, FName Paylo
     case EPSMenuCommand::StartPlayNow:
         return UPSMatchSetup::BuildOptions(EPSMatchMode::PlayNow, Payload);
     case EPSMenuCommand::StartVersus:
-        // Which local seat plays home (Epic 107); home= is UPSMatchSetup's team ID.
-        return Payload.IsNone() ? FString(TEXT("mode=Versus")) : FString::Printf(TEXT("mode=Versus?homeseat=%s"), *Payload.ToString());
+        // Which local seat plays home (Epic 107). The two players' teams travel as home= and
+        // away= once the Head to Head screen picks them (its team-pick widget is editor work).
+        return UPSMatchSetup::BuildOptions(EPSMatchMode::Versus, NAME_None, NAME_None, NAME_None, Payload.IsNone() ? INDEX_NONE : FCString::Atoi(*Payload.ToString()));
     case EPSMenuCommand::StartFranchise:
         return UPSMatchSetup::BuildOptions(EPSMatchMode::Franchise, NAME_None);
     case EPSMenuCommand::StartPractice:

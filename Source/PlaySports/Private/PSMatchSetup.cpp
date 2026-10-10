@@ -53,6 +53,8 @@ FString UPSMatchSetup::ModeToString(EPSMatchMode InMode)
         return TEXT("Franchise");
     case EPSMatchMode::Practice:
         return TEXT("Practice");
+    case EPSMatchMode::Versus:
+        return TEXT("Versus");
     default:
         return TEXT("PlayNow");
     }
@@ -68,15 +70,31 @@ EPSMatchMode UPSMatchSetup::ModeFromString(const FString& Text)
     {
         return EPSMatchMode::Practice;
     }
+    if (Text == TEXT("Versus"))
+    {
+        return EPSMatchMode::Versus;
+    }
     return EPSMatchMode::PlayNow;
 }
 
-FString UPSMatchSetup::BuildOptions(EPSMatchMode InMode, FName InUserTeamId)
+FString UPSMatchSetup::BuildOptions(EPSMatchMode InMode, FName InUserTeamId, FName InHomeTeamId, FName InAwayTeamId, int32 InHomeSeat)
 {
     FString Options = FString::Printf(TEXT("mode=%s"), *ModeToString(InMode));
+    if (!InHomeTeamId.IsNone())
+    {
+        Options += FString::Printf(TEXT("?home=%s"), *InHomeTeamId.ToString());
+    }
+    if (!InAwayTeamId.IsNone())
+    {
+        Options += FString::Printf(TEXT("?away=%s"), *InAwayTeamId.ToString());
+    }
     if (!InUserTeamId.IsNone())
     {
         Options += FString::Printf(TEXT("?team=%s"), *InUserTeamId.ToString());
+    }
+    if (InHomeSeat >= 0)
+    {
+        Options += FString::Printf(TEXT("?homeseat=%d"), InHomeSeat);
     }
     return Options;
 }

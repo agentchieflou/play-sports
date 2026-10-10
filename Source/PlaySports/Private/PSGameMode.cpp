@@ -25,6 +25,7 @@
 #include "PSStaffManager.h"
 #include "PSStatsEngine.h"
 #include "PSUITeamCatalog.h"
+#include "PSVersusSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
 
@@ -90,6 +91,11 @@ void APSGameMode::StartPlay()
     // Who plays: the travel options name the teams (UPSMatchSetup reads them).
     MatchSetup = NewObject<UPSMatchSetup>(this);
     MatchSetup->InitializeFromOptions(OptionsString, UPSMatchSetup::LoadLeagueTeamIds(UPSUITeamCatalog::GetDefaultTeamsPath()));
+    // A head-to-head game's seats play these teams (Epic 107): the versus subsystem reads them here.
+    if (UPSVersusSubsystem* Versus = GetWorld()->GetSubsystem<UPSVersusSubsystem>())
+    {
+        Versus->SetMatchSetup(MatchSetup);
+    }
 
     // Load movement tuning from DataTable or JSON
     if (MovementTuningTable)
