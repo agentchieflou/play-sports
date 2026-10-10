@@ -8,7 +8,7 @@ and platform services differ.
 This file replaces `roadmap/MILESTONE_FIRST_GAME.md` as the launch-critical path. That milestone's
 definition, an editor Play session on a pad, stopped at the editor. Every goal here is a packaged
 build on real hardware. The Epics these ladders add are in Track S (`roadmap/platform-release.md`,
-Epics 145–153). Each rung below names the Epic or story that climbs it, and is ticked in the PR that
+Epics 145–154). Each rung below names the Epic or story that climbs it, and is ticked in the PR that
 completes that story.
 
 ## The three dream states
@@ -25,13 +25,16 @@ PIE never counts.
 - 60 fps at the `DesktopHigh` tier in a Shipping build on the owner's PC. Settings for graphics,
   audio and controls are saved.
 
-**iOS (the owner's iPhone 17 Pro)**
-- A signed build from the Mac CI runner is installed on the phone with the owner's free Apple ID
-  (it is reinstalled every 7 days). TestFlight comes later, with the Developer Program.
-- A full game is played with touch: the touch HUD, safe areas and landscape lock work. A
-  connected Xbox or MFi pad works too.
-- 60 fps at `MobileBaseline`, and a 30-minute session without thermal throttling below 30 fps.
-- Backgrounding mid-play pauses and saves; resuming continues the game.
+**iOS (the owner's iPhone 17 Pro): playable on the phone, not App Store ready**
+- A Development build from the Mac CI runner is installed on the phone with the owner's free Apple
+  ID (it is reinstalled every 7 days).
+- A full game is played with touch: the touch HUD, safe areas and landscape lock work. A paired
+  Xbox pad works too.
+- Smooth enough to play: targeting 60 fps at `MobileBaseline`, never below 30 fps in play, through
+  a full game without thermal throttling below 30 fps.
+- Backgrounding mid-play pauses and saves; returning resumes the game.
+- Not part of this goal (later, Epic 154): the Developer Program, TestFlight, the App Store's
+  requirements and submission.
 
 **Xbox Series X|S** (the owner applies to ID@Xbox later; until then the work is the parts that
 build and test on PC, Epic 150)
@@ -79,8 +82,8 @@ the CI runner, which already runs the editor headlessly for tests.
 - [x] **I0a, decisions:** `Specs/ADR_iOS_Build.md` accepted: a Mac as a second CI runner, with a free Apple ID (131.1)
 - [ ] **I0b, the Mac runner:** the owner provides the Mac, registered as the `mac` runner, with the iPhone paired once (149.1)
 - [ ] **I1, on the phone:** a signed Development build installed on the iPhone (149.2)
-- [ ] **I2, iOS playable:** a full game with touch at 60 fps, the thermal session passes, and lifecycle behaves (149.3–149.5, closes 17.5 for iOS)
-- [ ] **I3, TestFlight (deferred):** testers install it (149.6, after the owner joins the Developer Program)
+- [ ] **I2, iOS playable:** a full game on the phone with touch, smooth enough to play (60 fps target, 30 floor) through a full game, and backgrounding behaves (149.3–149.5, closes 17.5 for iOS). **This is the iOS goal.**
+- [ ] **Later, App Store (154):** the Developer Program, TestFlight, the App Store's requirements and submission, when the owner chooses. Not part of the iOS goal.
 
 ## Xbox ladder
 
@@ -133,6 +136,8 @@ Answered 2026-10-10:
 - **D4, PC distribution (148.5):** a private zip first; Steam later.
 - **D5, online play:** left alone for now (parked, not in the platform dream states).
 - **D6, order:** PC, then iOS, then Xbox.
+- **D7, the iOS goal:** playable on the owner's iPhone, not App Store ready. App Store work
+  (Epic 154) comes later.
 
 Still open from earlier work:
 

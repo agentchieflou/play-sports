@@ -284,12 +284,12 @@ Antigravity Settings → Customizations) still works alongside it.
 It is the same game on all three; only packaging, input defaults, the scalability tier and platform
 services differ. The ladder to each platform, and the owner decisions it waits on, are in
 `roadmap/MILESTONES_PLATFORMS.md`. The Epics it adds are Track S (`roadmap/platform-release.md`,
-145–153). Platform rules: no `#if PLATFORM_*` in gameplay systems (differences live in data or
+145–154). Platform rules: no `#if PLATFORM_*` in gameplay systems (differences live in data or
 behind `UPSPlatformServices`), and a rung counts only on a packaged build on that platform's
 hardware.
 
 All open work is tracked in `ROADMAP.md` (repo root): a 25-Epic vertical-slice-first core
-(Phases 0–4, inline) plus 128 expansion Epics (26–153) in themed track files under `roadmap/` —
+(Phases 0–4, inline) plus 129 expansion Epics (26–154) in themed track files under `roadmap/` —
 the index table, size (S/M/L/XL) and mode (code/editor/mixed) legend are at the top of
 `ROADMAP.md`. When picking up work, follow the platform tiers in `ROADMAP.md` (Tier 0, getting a
 packaged game out of the editor, comes first), then choose a story from the earliest unblocked Epic

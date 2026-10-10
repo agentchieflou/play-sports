@@ -682,6 +682,17 @@ bool UPSVersusSubsystem::RequestPause(int32 Seat)
     return true;
 }
 
+bool UPSVersusSubsystem::PauseForInterruption()
+{
+    if (Phase != EPSVersusPhase::Playing)
+    {
+        return false;
+    }
+    // Nobody chose it, so nobody's pauses count it; the first seated player stands as the pauser.
+    EnterPause(Seats[0].IsClaimed() ? 0 : 1);
+    return true;
+}
+
 void UPSVersusSubsystem::EnterPause(int32 Seat)
 {
     Phase = EPSVersusPhase::Paused;

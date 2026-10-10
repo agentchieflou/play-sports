@@ -1,8 +1,8 @@
 # ROADMAP.md
 
-Development roadmap for `play-sports`: **153 Epics** — a 25-Epic core (this file, Phases 0–4)
+Development roadmap for `play-sports`: **154 Epics** — a 25-Epic core (this file, Phases 0–4)
 sequenced **vertical-slice first** (Phase 0 produces one crude but complete, watchable play as
-early as possible; later phases deepen it), plus **128 expansion Epics (26–153)** in themed
+early as possible; later phases deepen it), plus **129 expansion Epics (26–154)** in themed
 track files under `roadmap/` (see the track index below).
 
 Conventions used throughout:
@@ -33,7 +33,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 11(L) 12(M) 13(L) 14(XL) 15(XL) 16(L) 17(XL) 18(M) 19(L) 20(L) 21(M) 22(XL-editor) 23(L-mixed)
 24(L) 25(XL).
 
-## Expansion track index (Epics 26–153)
+## Expansion track index (Epics 26–154)
 
 | Track | File | Epics | Theme |
 |---|---|---|---|
@@ -55,14 +55,14 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 | P | `roadmap/agent-orchestration.md` | 135–138 | Agent orchestration graph: model clients, worker harness, benchmark duels, supervisor graph |
 | Q | `roadmap/character-combat.md` | 139–141 | Character archetypes & combat rules: hitpoints, death/respawn, no-punting, 4th-down overload, leveling/XP |
 | R | `roadmap/world-kit.md` | 142–144 | World kit import (from this-next-please's browser world, 2026-10-08): assets into Content, inclusive character looks, rain/day-night port |
-| S | `roadmap/platform-release.md` | 145–153 | Three-platform release (2026-10-10): packaged builds, content as code, minimum playable content, PC/iOS/Xbox bring-up, platform services, parity QA |
+| S | `roadmap/platform-release.md` | 145–154 | Three-platform release (2026-10-10): packaged builds, content as code, minimum playable content, PC/iOS/Xbox bring-up, platform services, parity QA, App Store release (later) |
 
 ## North star: one game, three platforms (re-pointed 2026-10-10)
 
 The goal is one football game, playable start to finish on **iOS, Xbox and PC**. It is the same
 game on each: one code base, one data set, one rule set. Each platform's dream state, the ladder to
 it and the owner decisions it needs are in `roadmap/MILESTONES_PLATFORMS.md`. Track S
-(`roadmap/platform-release.md`, 145–153) holds the Epics no other track covered.
+(`roadmap/platform-release.md`, 145–154) holds the Epics no other track covered.
 
 Why the re-point: core Epics 1–21 and most code tracks are done. The AI plays four full quarters,
 and the pad, keyboard and touch input paths are built. But `Content/` is empty, so nothing runs
@@ -77,8 +77,10 @@ in `roadmap/PARALLEL.md`, which stays the source of truth for what is unblocked.
   2026-10-10).
 - **Tier 1, PC playable and complete:** 147's newcomer playtest, then 148 (settings, input
   parity, 60 fps, Shipping, and a private zip; Steam later).
-- **Tier 2, iOS:** 149, once the owner's Mac is registered as the second CI runner (131.1 is
-  accepted: Option B with a free Apple ID), with 152 (platform services) landing first.
+- **Tier 2, iOS:** 149, playable on the owner's iPhone (a sideloaded Development build, not App
+  Store ready), once the owner's Mac is registered as the second CI runner (131.1 is accepted:
+  Option B with a free Apple ID), with 152 (platform services) landing first. App Store work is
+  Epic 154, later, when the owner chooses.
 - **Tier 3, Xbox:** 150 (the guts: everything Xbox needs that builds and tests on PC; pure code,
   so a spare lane may pull it forward), then 151 (console bring-up and certification readiness),
   which waits for the owner's ID@Xbox application.
