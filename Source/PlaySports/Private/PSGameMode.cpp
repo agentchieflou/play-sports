@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #include "PSHUD.h"
 #include "PSPlayerController.h"
+#include "PSHumanTeamComponent.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "JsonObjectConverter.h"
@@ -99,6 +100,15 @@ void APSGameMode::StartPlay()
     if (UPSVersusSubsystem* Versus = GetWorld()->GetSubsystem<UPSVersusSubsystem>())
     {
         Versus->SetMatchSetup(MatchSetup);
+    }
+    // A single human plays for the player's team, on offense and defense (UPSHumanTeamComponent).
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        const APSPlayerController* Human = Cast<APSPlayerController>(It->Get());
+        if (UPSHumanTeamComponent* HumanTeam = Human ? Human->GetHumanTeamComponent() : nullptr)
+        {
+            HumanTeam->SetMatchSetup(MatchSetup);
+        }
     }
 
     // Load movement tuning from DataTable or JSON
