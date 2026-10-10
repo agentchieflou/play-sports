@@ -6,6 +6,8 @@
 #include "PSTelemetryBus.h"
 #include "PSBall.generated.h"
 
+class APSPlayerPawn;
+
 class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
@@ -66,8 +68,33 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Tuning")
     FCatchTuningRow CatchTuningSettings;
 
+    /**
+     * A player reached the ball while it was loose or in the air (the overlap calls this): a
+     * fumble's recovery roll, else a pass's catch roll for the offense or interception roll for
+     * the defense. True when he took the ball. Each outcome goes out on the bus (Fumble, Catch;
+     * an interception also downs the pass's intended receiver, Epic 140) and the play
+     * simulation, the outcome authority, moves the play on from there (rules 5 and 6): the ball
+     * never reaches into the game mode or the simulation. A ball held, or at rest and not
+     * fumbled, can't be taken.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Ball")
+    bool ResolveTouch(APSPlayerPawn* PlayerPawn);
+
+    /** The ball came down (the bounce calls this): a thrown or kicked ball nobody holds, not a
+     *  fumble, is reported on the bus (BallGrounded) once per flight; the play simulation rules
+     *  on it. True when reported. */
+    UFUNCTION(BlueprintCallable, Category = "Ball")
+    bool ReportGrounded();
+
+    /** Hears the passes on the bus: their intended receivers (Epic 140). BeginPlay binds;
+     *  headless tests call it. Idempotent. */
+    void BindToBus();
+
+    void UnbindFromBus();
+
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     USphereComponent* CollisionComponent;
@@ -86,12 +113,17 @@ private:
      *  consumed by an interception so it can't leak into a later, unrelated play. */
     FString LastThrowTargetName;
 
+    /** This flight's landing was reported (ReportGrounded); a new launch or a catch clears it. */
+    bool bGroundedReported = false;
+
     UFUNCTION()
     void OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
     UFUNCTION()
     void OnBallBounce(const FHitResult& ImpactResult, const FVector& ImpactVelocity);
 
-    UFUNCTION()
-    void OnBusThrowEvent(const FPSTelemetryThrowEvent& Event);
+    void HandleBusThrow(const FPSTelemetryThrowEvent& Event);
+
+    TWeakObjectPtr<UPSTelemetryBus> BoundBus;
+    FDelegateHandle ThrowHandle;
 };
