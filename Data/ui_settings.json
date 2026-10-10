@@ -82,6 +82,10 @@
             "Description": "The play your coach suggests stands out on the play-call screens."
         },
         {
+            "SettingId": "RouteArt", "Category": "Gameplay", "Label": "Route art", "Kind": "Toggle", "Default": 1,
+            "Description": "Before the snap, your receivers' routes are drawn on the field, the primary read in its own color."
+        },
+        {
             "SettingId": "Vibration", "Category": "Controls", "Label": "Vibration", "Kind": "Toggle", "Default": 1,
             "Description": "The controller rumbles on hits, catches and scores."
         },

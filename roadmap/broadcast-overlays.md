@@ -32,9 +32,29 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Depends on:** 26, Core 16
 
 - [ ] Route-ribbon renderer: spline decal/mesh projected on the field following route waypoints
-- [ ] Endpoint ring marker at each route terminus; break-point articulation on cuts
-- [ ] Show/hide policy tied to play phase (visible pre-snap, fade at snap) and to user settings
-- [ ] Per-route color/emphasis coding (primary read vs. check-down)
+  *Code half built: `UPSOverlayPlayArtSubsystem` resolves the offense's call with
+  `PSPlayResolution::ResolvePlay` -- the one resolution, which `UPSPlayOrchestrator` now hands
+  the AI at the snap -- against the line the `GameState` event now carries, and compiles it into
+  art primitives (`PSPlayArt`: ribbon, ring, star, connector, arrow; Epics 31 and 35 reuse them):
+  a ribbon from each receiver's feet through the waypoints he will run. Development builds draw
+  them as debug lines. Still open, so unticked: the spline-mesh or decal renderer that reads
+  `GetRouteArt()`, and a PIE check (`Specs/Route_Ribbons_Spec.md`).*
+- [x] Endpoint ring marker at each route terminus; break-point articulation on cuts *(a `Ring`
+  primitive at each route's end; a ribbon's `BreakIndices` are the corners where it turns by the
+  route-running model's `BreakMinAngleDegrees` (and an option route's read), its `FakeIndices` a
+  double move's fakes; an option route's branches are lighter ribbons from the read, placed as
+  the route runner places them, each with its ring. Drawn as debug circles until story 1's
+  renderer)*
+- [x] Show/hide policy tied to play phase (visible pre-snap, fade at snap) and to user settings
+  *(from the offense's call to the snap, rebuilt after each `PlayCall`, `PreSnap` and `GameState`
+  event and `PlayArtRefreshHz` times a second (a new per-tier field) to follow motion; at the snap
+  it fades over `SnapFadeSeconds` on a `Full` tier, goes at once on `Simplified`, and a `Minimal`
+  tier draws none. The `RouteArt` setting (Gameplay) turns it off; head to head the versus rules
+  decide who sees it; otherwise a player on defense doesn't. No art for kicks and clock plays)*
+- [x] Per-route color/emphasis coding (primary read vs. check-down) *(a new optional per-route
+  `ReadOrder` in the play data (1 primary, then 2, 3, ...; checked by `tools/content_contracts.py`),
+  set on five sample plays; ribbons and rings take `ReadColors` by it, the primary read wider,
+  unranked routes `UnrankedColor`, all in `Data/play_art.json`. The AI doesn't read it)*
 - [ ] Editor pass: material/glow polish so ribbons read on grass at broadcast camera distance
 
 ### Epic 28: Player Position Badge System

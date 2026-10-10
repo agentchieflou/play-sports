@@ -126,7 +126,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "24":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "open_stories": ["24.1 gym map and one APSFunctionalGym test per core system (editor)"]},
     "25":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"], "open_stories": ["25.1 Autonomix T3D injection", "25.2 Autonomix Python escape hatch", "25.4 register the server in .mcp.json and .vscode/mcp.json (documented in AGENTS.md; registration waits on the owner)", "25.6 agent smoke test over MCP"]},
     "26":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["C1", "3", "6"]},
-    "27":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "16"]},
+    "27":  {"track": "A", "mode": "mixed", "status": "partial", "depends_on": ["26", "16"], "open_stories": ["27.1 ribbon renderer: the art primitives are built and debug-drawn (#153); the decal or spline mesh is an editor job", "27.5 editor pass: the ribbon material and glow (Specs/Route_Ribbons_Spec.md)"]},
     "28":  {"track": "A", "mode": "mixed", "status": "done", "depends_on": ["26"]},
     "29":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["5", "19"]},
     "30":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["3"]},

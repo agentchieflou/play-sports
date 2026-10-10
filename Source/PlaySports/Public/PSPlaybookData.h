@@ -89,6 +89,13 @@ struct FPSPlayAssignment
     /** Pre-snap formation offset from the ball's spot. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector FormationOffset = FVector::ZeroVector;
+
+    /** Where the route sits in the quarterback's progression, as the play art colors it
+     *  (Epic 27): 1 for the primary read, 2, 3, ... for the reads after it, down to the
+     *  check-down; 0 for a route the play doesn't rank. Only a Route with a RouteId has one.
+     *  The AI doesn't read it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 ReadOrder = 0;
 };
 
 /** What a play's quarterback fakes or reads after the snap (Epic 72). */

@@ -70,6 +70,12 @@ struct FPSPlatformTier
      *  measured times to them (Specs/Platform_Audit.md section 7). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     TArray<FPSSystemBudget> SystemBudgets;
+
+    /** How often a second the pre-snap play art (Epic 27) resolves the call again to follow the
+     *  players as they shift and go in motion; 0 redraws it only when something is announced
+     *  (a call, a hot route, a new spot). Each refresh resolves every player's route. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float PlayArtRefreshHz = 30.f;
 };
 
 /** Which tier a platform runs by default (platform names as UGameplayStatics::GetPlatformName
