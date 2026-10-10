@@ -16,10 +16,10 @@ camera behaviors are components/classes, each epic ships tests.
 **Goal:** An automated director cuts between camera rigs based on play context — no manual camera work needed to watch a full game.
 **Depends on:** Core 4, 26
 
-- [ ] Shot vocabulary: LOS wide, all-22 high, tight follow, end-zone, sideline reaction
-- [ ] Cut rules driven by phase/events (pre-snap wide → snap follow → post-play tight)
-- [ ] Interest scoring (ball, big hits, breakaways) to pick the live subject
-- [ ] Smoothing/constraint layer so cuts never disorient (180° rule, minimum shot length)
+- [x] Shot vocabulary: LOS wide, all-22 high, tight follow, end-zone, sideline reaction *(`UPSCameraDirectorComponent` on `APSBroadcastCamera`, shots in `Data/camera_director.json`. All-22 high and end zone are Epic 40's rigs, framed by `UPSCameraFraming`. The other three stand their distance toward the camera side of their target: the ball for LOS wide, and the live subject for tight follow (led along his run) and sideline reaction (low and close))*
+- [x] Cut rules driven by phase/events (pre-snap wide → snap follow → post-play tight) *(each `CutRules` row maps a bus trigger to a shot: `PhaseChange` to PreSnap → LOS wide, `Snap` → tight follow, `Throw` → all-22 high, `Catch` → follow, `Fumble` → end zone, `Tackle`/`Score`/the whistle → sideline reaction. The director is the broadcast camera's normal presentation; the film view (Epic 40) and the free cam override it, and with `bDirectorEnabled` off the plain follow returns)*
+- [x] Interest scoring (ball, big hits, breakaways) to pick the live subject *(read from Epic 26's latest snapshot plus the bus's tackles and hits. A player's interest is the sum of weights for holding the ball, closeness to it, a breakaway (fast, nobody within the clearance) and a big hit fading over `BigHitSeconds`. A new subject must beat the current one by `SwitchMargin`)*
+- [x] Smoothing/constraint layer so cuts never disorient (180° rule, minimum shot length) *(no shot is cut away from before `MinShotSeconds`: an earlier ask waits and the latest wins, and an ask for the live shot does nothing. Every shot stays on `CameraSide` of the line of action through the ball: one across it is mirrored back and re-aimed, while end-zone angles on the line are allowed. Cuts are instant; within a shot the camera eases at `FollowInterpSpeed`. Tests: `PlaySports.Camera.Director*`)*
 
 ### Epic 39: Skycam / Cable-Cam Rig Simulation
 

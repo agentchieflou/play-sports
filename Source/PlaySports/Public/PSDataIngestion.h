@@ -25,6 +25,7 @@
 #include "PSDefenderGapSubsystem.h"
 #include "PSRouteRunning.h"
 #include "PSCameraFraming.h"
+#include "PSCameraDirectorComponent.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -148,6 +149,12 @@ public:
      *  missing file, malformed JSON, or an unrecognized Placement. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadAll22CameraTuningFromJson(const FString& JsonFilePath, FPSAll22CameraTuning& OutTuning);
+
+    /** Loads the camera director's shots, cut rules and interest scoring
+     *  (Data/camera_director.json, Epic 38). False on a missing file, malformed JSON, or an
+     *  unrecognized Shot or Trigger. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCameraDirectorTuningFromJson(const FString& JsonFilePath, FPSCameraDirectorTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
