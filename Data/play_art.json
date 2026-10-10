@@ -3,6 +3,7 @@
     "PrimaryWidthScale": 1.5,
     "GroundOffset": 2.0,
     "RingRadius": 45.0,
+    "EmphasisScale": 1.5,
     "BreakMarkerRadius": 12.0,
     "ReadColors": ["#F2C94C", "#56CCF2", "#BB6BD9"],
     "UnrankedColor": "#FFFFFF",

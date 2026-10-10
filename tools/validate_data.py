@@ -3766,7 +3766,7 @@ def validate_perf_harness(path, payload):
 PLAY_ART_NUMBERS = {
     "RibbonWidth": "above 0", "PrimaryWidthScale": "above 0", "GroundOffset": "0 or more",
     "RingRadius": "above 0", "BreakMarkerRadius": "0 or more", "SnapFadeSeconds": "0 or more",
-    "ZoneStarRadius": "above 0", "ManLineWidth": "above 0", "RushArrowWidth": "above 0",
+    "EmphasisScale": "above 0", "ZoneStarRadius": "above 0", "ManLineWidth": "above 0", "RushArrowWidth": "above 0",
     "RushArrowDepth": "0 or more",
 }
 PLAY_ART_COLORS = ("UnrankedColor", "ZoneStarColor", "ManLineColor", "BlitzArrowColor", "RushArrowColor")

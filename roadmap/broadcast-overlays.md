@@ -157,10 +157,28 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** One data format drives both AI route execution (Epic 16) and overlay rendering (27/31) — art is never hand-drawn twice.
 **Depends on:** 27, 31, Core 16
 
-- [ ] Overlay-annotation schema layered onto play definitions (colors, emphasis, badge letters)
-- [ ] Compiler from play data → renderable art primitives (ribbons, rings, stars, arrows)
-- [ ] Validation: every eligible player in a play has consistent art + AI assignment
-- [ ] Round-trip test: authored play renders identically to what the AI runs
+- [x] Overlay-annotation schema layered onto play definitions (colors, emphasis, badge letters)
+  *(an optional `Art` block on each assignment (`FPSPlayArtAnnotation`): `Color`, `bEmphasis`
+  (`EmphasisScale` larger, `bEmphasized` on the primitives) and `BadgeLetter`, which Epic 28's
+  position badges now wear where a player has no pass button, for a viewer allowed to see that
+  side's art (`UPSOverlayPlayArtSubsystem::GetBadgeLetter`). It sits beside Epic 27's
+  `ReadOrder`; the AI ignores both. Checked by `tools/content_contracts.py` and
+  `PSPlayArt::ValidateAnnotation`; five sample plays carry one)*
+- [x] Compiler from play data → renderable art primitives (ribbons, rings, stars, arrows)
+  *(`PSPlayArt::CompilePlayArt`: a play, resolved for the players where they stand by the AI's
+  own resolution (`PSPlayResolution`, its man matchups too), into Epic 27's primitives -- ribbons,
+  rings, stars, connectors, arrows -- with the annotations layered on; nothing for a category
+  that draws none. The overlay subsystem compiles through it, so no art is hand-drawn)*
+- [x] Validation: every eligible player in a play has consistent art + AI assignment
+  *(`PSPlayArt::ValidatePlayArt` holds a play's art to the jobs its players are handed: one ribbon
+  through each runner's waypoints, with an end and his read order, nothing on blockers or spots, a
+  library-less or ranked-but-undrawn route reported; one star, line or arrow per defender by his
+  job, nothing on run fits; no stray art. `PlaySports.PlayArt.ValidationCatchesDrift` shows it
+  catching each kind of drift)*
+- [x] Round-trip test: authored play renders identically to what the AI runs
+  *(`PlaySports.PlayArt.PlaybookRoundTrip`: every play in the shipped playbook, lined up in its
+  formation's personnel package, compiles to art that validates, and after the snap every
+  receiver runs his ribbon and every defender plays his star, line or arrow)*
 
 ### Epic 36: Player Highlight & Emphasis Rendering
 

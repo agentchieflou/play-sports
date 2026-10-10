@@ -309,6 +309,12 @@ are:
   with a `RouteId` has one, and a play's ranks run 1, 2, 3, ... with no gap or repeat. The
   pre-snap route art colors routes by it (`play_art.json`); the AI doesn't read it. Several
   players repeating one role's slot share its rank.
+- Any assignment may carry an `Art` block (Epic 35), the play art's annotation layer, which the
+  AI ignores: `Color` (`#RRGGBB`, the assignment's art in this color instead of its read's or its
+  icon's), `bEmphasis` (drawn `EmphasisScale` larger: the key route, the blitzer) and
+  `BadgeLetter` (one or two capitals or digits the player wears on his position badge this play,
+  where he wears no pass button). Leave out what the play doesn't set. A letter on a slot that
+  several players repeat labels them all.
 - `PlayCategory` may also be a clock play, `Spike` or `Kneel` (Epic 76), which the simulation
   resolves at the snap.
 - The route library's own rules are under "Route schema extras" below.
@@ -1532,6 +1538,8 @@ are cm, colors `#RRGGBB`:
 - `GroundOffset` (0 or more): the art lies this far above the turf.
 - `RingRadius` (above 0): the ring where a route ends. `BreakMarkerRadius` (0 or more): the debug
   draw's mark at a cut.
+- `EmphasisScale` (above 0): an assignment the play emphasizes (its `Art.bEmphasis`) is drawn this
+  many times as large.
 - `ReadColors` (at least one): route colors by the play's `ReadOrder`, the first for the primary
   read; a read past the list takes the last. `UnrankedColor`: a route the play doesn't rank.
 - `BranchOpacity` (0 to 1): an option route's branches, each run on one read only, are drawn this

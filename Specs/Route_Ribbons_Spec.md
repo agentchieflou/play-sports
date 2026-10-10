@@ -24,6 +24,9 @@ ribbon, ring and glow look, and checking it in PIE, are editor work.
     with its own ring. Branches carry `bBranch` and a lower `Opacity`.
   - **Color:** by the play's `ReadOrder`: the primary read, then the reads after it, then
     unranked routes (`ReadColors`, `UnrankedColor` in `Data/play_art.json`).
+  - **Annotations (Epic 35):** a play's `Art` block can set an assignment's color and emphasize
+    it. An emphasized primitive carries `bEmphasized` and is `EmphasisScale` larger; the renderer
+    can make it stand out further, for example with a brighter glow.
   - **Who has art:** only routes from the route library. Blockers and "go to your spot" jobs
     (the QB's drop, a back's mesh point) have none, and neither do kicks or clock plays
     (`NoRouteArtCategories`).

@@ -149,6 +149,22 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(any("ReadOrder: expected int" in e for e in errors), errors)
 
 
+class ArtAnnotationTests(unittest.TestCase):
+    def test_art_annotation(self):
+        # Epic 35: the play art's annotation layer.
+        plays = copy.deepcopy(PLAYBOOK)
+        plays["Plays"][0]["Assignments"][1]["Art"] = {"Color": "#3FB950", "bEmphasis": True, "BadgeLetter": "X"}
+        plays["Plays"][1]["Assignments"][0]["Art"] = {"BadgeLetter": "M"}
+        self.assertEqual(check(league(**{"Data/playbook.json": plays})), [])
+
+        plays["Plays"][0]["Assignments"][1]["Art"] = {"Color": "green", "bEmphasis": "yes", "BadgeLetter": "xyz", "Glow": 2}
+        errors = check(league(**{"Data/playbook.json": plays}))
+        self.assertTrue(any("Art.Color: 'green' must be #RRGGBB" in e for e in errors), errors)
+        self.assertTrue(any("Art.BadgeLetter: 'xyz' must be one or two capitals" in e for e in errors), errors)
+        self.assertTrue(any("Art.bEmphasis: expected bool" in e for e in errors), errors)
+        self.assertTrue(any("unknown field(s) ['Glow']" in e for e in errors), errors)
+
+
 class ReferenceTests(unittest.TestCase):
     def test_missing_roster_and_orphan_roster(self):
         teams = copy.deepcopy(TEAMS)

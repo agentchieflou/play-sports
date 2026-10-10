@@ -9,8 +9,8 @@
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -200, "Y": 0, "Z": 0 } },
                 { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Slant", "ReadOrder": 1 },
-                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat", "ReadOrder": 2 },
-                { "Role": "TightEnd", "Kind": "PassBlock" },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat", "ReadOrder": 2, "Art": { "BadgeLetter": "F" } },
+                { "Role": "TightEnd", "Kind": "PassBlock", "Art": { "BadgeLetter": "Y" } },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" }
             ]
         },
@@ -78,7 +78,7 @@
             "PlayCategory": "PlayAction",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -300, "Y": 0, "Z": 0 } },
-                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post", "ReadOrder": 1 },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post", "ReadOrder": 1, "Art": { "bEmphasis": true } },
                 { "Role": "TightEnd", "Kind": "Route", "RouteId": "Out", "ReadOrder": 2 },
                 { "Role": "RunningBack", "Kind": "PassBlock" },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" }
@@ -93,7 +93,7 @@
             "PlayCategory": "Screen",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -500, "Y": 0, "Z": 0 } },
-                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat", "Art": { "Color": "#3FB950" } },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" },
                 { "Role": "TightEnd", "Kind": "PassBlock" },
                 { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Curl" }
@@ -420,7 +420,7 @@
             "CoverageShell": "Cover1",
             "Assignments": [
                 { "Role": "DefensiveLineman", "Kind": "PassRush" },
-                { "Role": "Linebacker", "Kind": "Blitz" },
+                { "Role": "Linebacker", "Kind": "Blitz", "Art": { "bEmphasis": true } },
                 { "Role": "DefensiveBack", "Kind": "ManCoverage" }
             ]
         },
