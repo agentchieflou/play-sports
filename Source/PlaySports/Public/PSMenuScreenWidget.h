@@ -8,6 +8,7 @@
 #include "PSMenuScreenWidget.generated.h"
 
 class UPSMenuComponent;
+class UTextBlock;
 
 DECLARE_DELEGATE_OneParam(FPSMenuOptionChosen, FName /* OptionId */);
 
@@ -76,6 +77,10 @@ private:
 
     UPROPERTY(Transient)
     TArray<UPSMenuButton*> OptionButtons;
+
+    /** The live play clock on the play-call screens (Epic 102.5); null elsewhere. */
+    UPROPERTY(Transient)
+    UTextBlock* ClockText = nullptr;
 
     TWeakObjectPtr<UPSMenuComponent> OwnerMenu;
 

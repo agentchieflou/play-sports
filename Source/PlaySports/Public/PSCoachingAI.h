@@ -33,6 +33,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AI|Coaching")
     FName SelectDefensivePlay(const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, const TArray<FPSPlayDefinition>& Candidates);
 
+    /** Every candidate with its situational weight and the reasons behind it, best first
+     *  (no roll, so a person sees the same ranking the CPU's weighting would favour). Feeds
+     *  the play-call screen's suggestions (Epic 102). */
+    UFUNCTION(BlueprintCallable, Category = "AI|Coaching")
+    TArray<FPSPlaySuggestion> RankPlays(const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, const TArray<FPSPlayDefinition>& Candidates, bool bOffense) const;
+
     UFUNCTION(BlueprintPure, Category = "AI|Coaching")
     bool ShouldGoForItOnFourthDown(const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency) const;
 
@@ -45,7 +51,9 @@ public:
     bool ShouldCallTimeoutForClockManagement(const FPSSituationContext& Situation, bool bIsTrailing) const;
 
 private:
-    float GetSituationalCategoryWeight(const FString& Category, const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, bool bOffense) const;
+    /** The category's weight for the situation; OutReasons, when given, collects one line
+     *  per rule that moved it. */
+    float GetSituationalCategoryWeight(const FString& Category, const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, bool bOffense, TArray<FString>* OutReasons = nullptr) const;
 
     FName SelectWeightedPlay(const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, const TArray<FPSPlayDefinition>& Candidates, bool bOffense);
 

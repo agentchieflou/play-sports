@@ -3,7 +3,7 @@
 How a play gets called and run: who owns the call, the screens a person calls from, how the CPU
 calls, and what makes the ball snap. This is also the editor handoff for the screens' look.
 
-## 1. What runs today (code, part 1)
+## 1. What runs today (code)
 
 - **One authority per call (rule 6).** `UPSPlayCallSubsystem` (a world subsystem) holds each
   side's call for the coming snap.
@@ -35,6 +35,28 @@ calls, and what makes the ball snap. This is also the editor handoff for the scr
   - Below each play is a text line of what everyone does, e.g. `WR Slant · RB Flat · TE pass
     block`. This stands in for play art until Track A's art pipeline (Epic 35) exists.
   - Choosing a play calls it and closes the screens.
+- **Suggestions (102.2).** The call screen's first option is the coaching AI's top-ranked play
+  for the situation. `UPSCoachingAI::RankPlays` is the same weighting the CPU rolls on, but
+  without the roll, so the suggestion is always the top-weighted play.
+  - The option's detail line gives the reasons, e.g.
+    `Short yardage: run it (+1.5) · 3rd down: the percentage play (+0.8)`.
+  - The screen's body states the situation, e.g. `3rd & 7 at own 35`.
+- **Recent plays and your tendencies (102.3, in part).**
+  - Every play a human calls and runs is kept for the game (`GetCallHistory`).
+  - Once there is history, the call screen offers **Recent plays**: the last
+    `RecentPlaysShown` distinct calls for the side, each calling it again.
+  - The body adds a readout of what you've been calling, e.g.
+    `Your calls: Run 67% · Short pass 33%`, which is what an opponent would key on (ties to
+    Epic 78).
+  - Quick-calls and CPU calls don't count.
+- **Play clock (102.5).**
+  - The play-call screens show the live play clock. The game mode passes it to the subsystem
+    every pre-snap tick (`SetPlayClock`).
+  - When it reaches `QuickCallPlayClockSeconds` with a human's side still uncalled, the top
+    suggestion is called for them (caller `QuickCall`) and the screens close.
+  - A quick-called offense snaps like a CPU one, after `CpuSnapDelaySeconds`, so the down
+    starts before the clock expires.
+  - A human who called but doesn't hike still takes the delay-of-game penalty.
 - **The human side.** `UPSPlayCallComponent` on `APSPlayerController` opens the screens when its
   player's side is asked for a call.
   - The player's side is the side of the pawn they control, otherwise the controller's
@@ -44,12 +66,8 @@ calls, and what makes the ball snap. This is also the editor handoff for the scr
 
 ## 2. Not yet (102's remaining stories and other epics)
 
-- **Suggestions with reasoning (102.2).** The coaching AI's category weights for the situation,
-  shown on the screens.
-- **Recent and favourite plays, and a tendency readout (102.3).**
-- **Play clock (102.5).** The play clock runs while the human decides, and when it expires the
-  existing delay-of-game penalty applies. The quick-call fallback (auto-call the suggestion
-  shortly before expiry) is still to come.
+- **Favourite plays (102.3's remainder).** A player-starred list needs a second action on a
+  menu option (say Y to star) and storage that outlives the level, such as the save system.
 - **Defensive adjustments (102.4).** Pre-snap shifts and changing the coverage once the offense
   lines up. Today the defensive call is its front and coverage.
 - **Play art (102.1).** Drawn route diagrams need Epic 35.

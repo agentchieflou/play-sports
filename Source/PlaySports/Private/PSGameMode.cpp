@@ -296,11 +296,16 @@ void APSGameMode::Tick(float DeltaSeconds)
         }
 
         // Epic 102: the play-call authority decides when the offense snaps -- after both
-        // calls are in, on the human's hike or after the CPU's delay.
+        // calls are in, on the human's hike or after the CPU's delay. It sees the live play
+        // clock so a human who runs low gets the suggestion called for them.
         UPSPlayCallSubsystem* PlayCall = GetWorld()->GetSubsystem<UPSPlayCallSubsystem>();
-        if (CurrentPhase == EPlayPhase::PreSnap && PlayCall && PlayCall->PollReadyToSnap(DeltaSeconds))
+        if (CurrentPhase == EPlayPhase::PreSnap && PlayCall)
         {
-            ExecuteSnap();
+            PlayCall->SetPlayClock(PlaySimulation->GetPlayState().PlayClockSeconds);
+            if (PlayCall->PollReadyToSnap(DeltaSeconds))
+            {
+                ExecuteSnap();
+            }
         }
     }
 }

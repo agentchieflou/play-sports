@@ -33,7 +33,9 @@ enum class EPSMenuScreenContent : uint8
      *  PlayCallPlays screen for that formation. */
     PlayCallFormations,
     /** One option per play in the chosen formation, each calling that play. */
-    PlayCallPlays
+    PlayCallPlays,
+    /** The plays the player called most recently for their side, each calling it again. */
+    PlayCallRecent
 };
 
 /** How the screen stack changed; screen widgets use it to pick a transition. */

@@ -102,6 +102,12 @@
             "Title": "Plays",
             "Content": "PlayCallPlays",
             "Options": []
+        },
+        {
+            "ScreenId": "PlayCallRecent",
+            "Title": "Recent plays",
+            "Content": "PlayCallRecent",
+            "Options": []
         }
     ]
 }

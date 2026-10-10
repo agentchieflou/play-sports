@@ -1,3 +1,5 @@
 {
-    "CpuSnapDelaySeconds": 2.0
+    "CpuSnapDelaySeconds": 2.0,
+    "QuickCallPlayClockSeconds": 5.0,
+    "RecentPlaysShown": 5
 }

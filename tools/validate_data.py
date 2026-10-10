@@ -171,7 +171,7 @@ def validate_input_catalog(path, payload):
 
 
 MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay"}
-MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays"}
+MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays", "PlayCallRecent"}
 TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -422,10 +422,14 @@ def validate_input_glyphs(path, payload, catalog):
 
 def validate_play_call_tuning(path, payload):
     """FPlayCallTuningRow (Data/play_call.json)."""
-    delay = payload.get("CpuSnapDelaySeconds")
-    if not is_number(delay) or delay < 0:
-        err(path, f"CpuSnapDelaySeconds: '{delay}' must be a number of seconds, 0 or more")
-    extra = set(payload) - {"CpuSnapDelaySeconds"}
+    for field in ("CpuSnapDelaySeconds", "QuickCallPlayClockSeconds"):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number of seconds, 0 or more")
+    shown = payload.get("RecentPlaysShown")
+    if not isinstance(shown, int) or isinstance(shown, bool) or shown < 1:
+        err(path, f"RecentPlaysShown: '{shown}' must be a whole number, 1 or more")
+    extra = set(payload) - {"CpuSnapDelaySeconds", "QuickCallPlayClockSeconds", "RecentPlaysShown"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPlayCallTuningRow exactly")
 

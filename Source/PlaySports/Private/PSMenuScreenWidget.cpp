@@ -1,5 +1,6 @@
 #include "PSMenuScreenWidget.h"
 #include "PSMenuComponent.h"
+#include "PSPlayCallSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
@@ -86,6 +87,9 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
     {
         AddText(Screen.Body, PSMenuStyle::BodyFontSize, PSMenuStyle::TitlePadding);
     }
+    ClockText = UPSMenuComponent::IsPlayCallContent(Screen.Content)
+        ? AddText(FString(), PSMenuStyle::BodyFontSize, PSMenuStyle::TitlePadding)
+        : nullptr;
 
     OptionButtons.Reset();
     for (const FPSMenuOptionDef& Option : Screen.Options)
@@ -177,5 +181,13 @@ void UPSMenuScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
     {
         FadeElapsed += InDeltaTime;
         SetRenderOpacity(FMath::Clamp(FadeElapsed / FadeSeconds, 0.f, 1.f));
+    }
+
+    // The play clock keeps running while the player picks (Epic 102.5).
+    const UWorld* World = GetWorld();
+    const UPSPlayCallSubsystem* PlayCall = (ClockText && World) ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+    if (PlayCall && PlayCall->GetPlayClockSeconds() >= 0.f)
+    {
+        ClockText->SetText(FText::FromString(FString::Printf(TEXT("Play clock  %d"), FMath::CeilToInt(PlayCall->GetPlayClockSeconds()))));
     }
 }

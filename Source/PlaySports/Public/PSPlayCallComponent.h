@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "PSTelemetryBus.h"
 #include "PSPlayCallComponent.generated.h"
 
 class APSPlayerController;
@@ -12,7 +13,9 @@ class UPSPlayCallSubsystem;
  * UPSPlayCallComponent connects a human player to UPSPlayCallSubsystem: when the player's
  * side waits for a call it opens the play-call screens (Data/ui_menus.json's PlayCallScreen,
  * run by UPSMenuComponent), and on the field the Confirm action hikes the ball once the
- * player's offense has called -- or reopens the screens if no call is in yet.
+ * player's offense has called -- or reopens the screens if no call is in yet. When the
+ * play clock forces a quick-call for the player's side (PlayCall on the bus), the open
+ * screens close.
  *
  * The player's side is the side of the pawn the controller possesses, else the controller's
  * HumanSide. APSPlayerController owns one; it binds at BeginPlay, headless tests call
@@ -53,9 +56,11 @@ protected:
 
 private:
     void HandleHumanCallNeeded(bool bOffense);
+    void HandlePlayCall(const FPSTelemetryPlayCallEvent& Event);
     APSPlayerController* GetOwningController() const;
     UPSPlayCallSubsystem* GetPlayCall() const;
 
     TWeakObjectPtr<UPSPlayCallSubsystem> BoundPlayCall;
+    TWeakObjectPtr<UPSTelemetryBus> BoundBus;
     FDelegateHandle CallNeededHandle;
 };

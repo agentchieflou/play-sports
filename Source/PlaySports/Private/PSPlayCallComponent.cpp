@@ -39,6 +39,11 @@ void UPSPlayCallComponent::BindToPlayCall()
     {
         Controller->OnCatalogActionStarted.AddUniqueDynamic(this, &UPSPlayCallComponent::HandleCatalogAction);
     }
+    if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    {
+        Bus->OnPlayCallMC.AddUObject(this, &UPSPlayCallComponent::HandlePlayCall);
+        BoundBus = Bus;
+    }
 }
 
 void UPSPlayCallComponent::UnbindFromPlayCall()
@@ -49,6 +54,12 @@ void UPSPlayCallComponent::UnbindFromPlayCall()
     }
     CallNeededHandle.Reset();
     BoundPlayCall.Reset();
+
+    if (UPSTelemetryBus* Bus = BoundBus.Get())
+    {
+        Bus->OnPlayCallMC.RemoveAll(this);
+    }
+    BoundBus.Reset();
 
     if (APSPlayerController* Controller = GetOwningController())
     {
@@ -86,6 +97,21 @@ void UPSPlayCallComponent::HandleHumanCallNeeded(bool bOffense)
     if (bOffense == IsCallingForOffense())
     {
         OpenCallScreen();
+    }
+}
+
+void UPSPlayCallComponent::HandlePlayCall(const FPSTelemetryPlayCallEvent& Event)
+{
+    // The player's own call already closed the screens; this is the clock calling for them.
+    if (Event.bHumanCall || Event.bOffense != IsCallingForOffense())
+    {
+        return;
+    }
+    APSPlayerController* Controller = GetOwningController();
+    UPSMenuComponent* Menu = Controller ? Controller->GetMenuComponent() : nullptr;
+    if (Menu && Menu->IsPlayCallScreenOpen())
+    {
+        Menu->Resume();
     }
 }
 

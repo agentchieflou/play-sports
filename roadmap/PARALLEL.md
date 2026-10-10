@@ -41,7 +41,7 @@ These groups can run at the same time (see the scope note under the table):
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 14.2–14.5 → 17.4–17.5 (15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
-| G9 | Front end and input feel (Track I) | 102 (part 1 in review) → 104 → 103 → 106 → 105 (101 done) | Claude Code |
+| G9 | Front end and input feel (Track I) | 102 (102.1/.3/.4 remain) → 104 → 103 → 106 → 105 (101 done) | Claude Code |
 
 Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
 (`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G8's and G9's track scopes on
@@ -192,7 +192,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "99":  {"track": "H", "mode": "code", "status": "open", "depends_on": ["97", "52"]},
     "100": {"track": "H", "mode": "mixed", "status": "open", "depends_on": ["96", "97", "98"]},
     "101": {"track": "I", "mode": "code", "status": "done", "depends_on": ["5"]},
-    "102": {"track": "I", "mode": "code", "status": "open", "depends_on": ["16", "101"]},
+    "102": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["16", "101"]},
     "103": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101"]},
     "104": {"track": "I", "mode": "code", "status": "open", "depends_on": ["3", "6", "126", "127"]},
     "105": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101", "104", "24"]},

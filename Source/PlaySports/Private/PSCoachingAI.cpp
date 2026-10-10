@@ -10,50 +10,62 @@ void UPSCoachingAI::SetSuggestionProvider(TScriptInterface<IPSCoachingSuggestion
     SuggestionProvider = InProvider;
 }
 
-float UPSCoachingAI::GetSituationalCategoryWeight(const FString& Category, const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, bool bOffense) const
+float UPSCoachingAI::GetSituationalCategoryWeight(const FString& Category, const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, bool bOffense, TArray<FString>* OutReasons) const
 {
     float Weight = 1.f;
+
+    // Each rule that moves this category's weight also says why, for the play-call screen's
+    // suggestions (Epic 102).
+    auto Apply = [&Weight, OutReasons](bool bApplies, float Delta, const TCHAR* Reason)
+    {
+        if (!bApplies || Delta == 0.f)
+        {
+            return;
+        }
+        Weight += Delta;
+        if (OutReasons)
+        {
+            OutReasons->Add(FString::Printf(TEXT("%s (%+.1f)"), Reason, Delta));
+        }
+    };
 
     if (bOffense)
     {
         // Short yardage / goal line: ground game and safe short throws.
         if (Situation.Distance <= 3)
         {
-            if (Category == TEXT("Run")) Weight += 1.5f;
-            if (Category == TEXT("ShortPass")) Weight += 0.5f;
-            if (Category == TEXT("DeepPass")) Weight -= 0.75f;
+            Apply(Category == TEXT("Run"), 1.5f, TEXT("Short yardage: run it"));
+            Apply(Category == TEXT("ShortPass"), 0.5f, TEXT("Short yardage: a quick throw"));
+            Apply(Category == TEXT("DeepPass"), -0.75f, TEXT("Short yardage: no need to go deep"));
         }
 
         // Long yardage: need a bigger gain.
         if (Situation.Distance >= 8)
         {
-            if (Category == TEXT("DeepPass")) Weight += 1.f + Tendency.AggressionScore;
-            if (Category == TEXT("PlayAction")) Weight += 0.5f;
-            if (Category == TEXT("Run")) Weight -= 0.5f;
+            Apply(Category == TEXT("DeepPass"), 1.f + Tendency.AggressionScore, TEXT("Long yardage: take a shot"));
+            Apply(Category == TEXT("PlayAction"), 0.5f, TEXT("Long yardage: sell the run"));
+            Apply(Category == TEXT("Run"), -0.5f, TEXT("Long yardage: a run rarely gets there"));
         }
 
         // 3rd down: prioritize the percentage play (ShortPass/Screen), scaled down by aggression.
         if (Situation.Down == 3)
         {
-            if (Category == TEXT("ShortPass") || Category == TEXT("Screen"))
-            {
-                Weight += 1.f - (Tendency.AggressionScore * 0.5f);
-            }
+            Apply(Category == TEXT("ShortPass") || Category == TEXT("Screen"), 1.f - (Tendency.AggressionScore * 0.5f), TEXT("3rd down: the percentage play"));
         }
 
         // Backed up near the own goal line: avoid turnover-risk deep shots.
         if (Situation.YardLine <= 10)
         {
-            if (Category == TEXT("DeepPass")) Weight -= 1.f;
-            if (Category == TEXT("Run") || Category == TEXT("ShortPass")) Weight += 0.5f;
+            Apply(Category == TEXT("DeepPass"), -1.f, TEXT("Backed up: avoid the deep throw"));
+            Apply(Category == TEXT("Run") || Category == TEXT("ShortPass"), 0.5f, TEXT("Backed up: play it safe"));
         }
 
         // Trailing late: need explosive plays, de-prioritize the clock-killing run.
         const bool bTrailingLate = Situation.Quarter == 4 && Situation.GameClockSeconds < 120.f && Situation.ScoreDifferential < 0;
         if (bTrailingLate)
         {
-            if (Category == TEXT("DeepPass") || Category == TEXT("Screen")) Weight += 1.f;
-            if (Category == TEXT("Run")) Weight -= 1.f;
+            Apply(Category == TEXT("DeepPass") || Category == TEXT("Screen"), 1.f, TEXT("Trailing late: need a big play"));
+            Apply(Category == TEXT("Run"), -1.f, TEXT("Trailing late: a run burns clock"));
         }
     }
     else
@@ -63,27 +75,49 @@ float UPSCoachingAI::GetSituationalCategoryWeight(const FString& Category, const
         const bool bLikelyPassingDown = Situation.Distance >= 7 || Situation.Down == 3;
         if (bLikelyPassingDown)
         {
-            if (Category == TEXT("Blitz")) Weight += Tendency.AggressionScore * 1.5f;
+            Apply(Category == TEXT("Blitz"), Tendency.AggressionScore * 1.5f, TEXT("Passing down: bring pressure"));
         }
         else
         {
-            if (Category == TEXT("Base")) Weight += 0.5f;
+            Apply(Category == TEXT("Base"), 0.5f, TEXT("Running down: stay in base"));
         }
 
         const bool bProtectingLead = Situation.Quarter == 4 && Situation.GameClockSeconds < 120.f && Situation.ScoreDifferential > 0;
         if (bProtectingLead)
         {
-            if (Category == TEXT("Prevent")) Weight += 1.5f;
-            if (Category == TEXT("Blitz")) Weight -= 1.f;
+            Apply(Category == TEXT("Prevent"), 1.5f, TEXT("Protecting a late lead: keep it in front"));
+            Apply(Category == TEXT("Blitz"), -1.f, TEXT("Protecting a late lead: don't gamble"));
         }
     }
 
     if (const float* TendencyWeight = Tendency.CategoryWeights.Find(Category))
     {
         Weight *= FMath::Max(*TendencyWeight, 0.01f);
+        if (OutReasons && !FMath::IsNearlyEqual(*TendencyWeight, 1.f))
+        {
+            OutReasons->Add(FString::Printf(TEXT("Team tendency (x%.1f)"), *TendencyWeight));
+        }
     }
 
     return FMath::Max(Weight, 0.01f);
+}
+
+TArray<FPSPlaySuggestion> UPSCoachingAI::RankPlays(const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, const TArray<FPSPlayDefinition>& Candidates, bool bOffense) const
+{
+    TArray<FPSPlaySuggestion> Ranked;
+    for (const FPSPlayDefinition& Candidate : Candidates)
+    {
+        FPSPlaySuggestion Suggestion;
+        Suggestion.PlayId = Candidate.PlayId;
+        Suggestion.DisplayName = Candidate.DisplayName;
+        Suggestion.Category = Candidate.PlayCategory;
+        Suggestion.Weight = GetSituationalCategoryWeight(Candidate.PlayCategory, Situation, Tendency, bOffense, &Suggestion.Reasons);
+        Ranked.Add(MoveTemp(Suggestion));
+    }
+
+    // Stable, so equal weights keep playbook order.
+    Ranked.StableSort([](const FPSPlaySuggestion& A, const FPSPlaySuggestion& B) { return A.Weight > B.Weight; });
+    return Ranked;
 }
 
 FName UPSCoachingAI::SelectWeightedPlay(const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, const TArray<FPSPlayDefinition>& Candidates, bool bOffense)

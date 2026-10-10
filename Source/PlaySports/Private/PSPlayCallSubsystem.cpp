@@ -39,6 +39,17 @@ namespace PSPlayCallPrivate
         return Out;
     }
 
+    const TCHAR* DownOrdinal(int32 Down)
+    {
+        switch (Down)
+        {
+        case 1:  return TEXT("1st");
+        case 2:  return TEXT("2nd");
+        case 3:  return TEXT("3rd");
+        default: return TEXT("4th");
+        }
+    }
+
     const TCHAR* RoleAbbreviation(EPlayerRole Role)
     {
         switch (Role)
@@ -251,6 +262,129 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildPlayOptions(const FString& F
     return Options;
 }
 
+TArray<FPSPlaySuggestion> UPSPlayCallSubsystem::RankPlays(bool bOffense)
+{
+    if (!CoachingAI)
+    {
+        CoachingAI = NewObject<UPSCoachingAI>(this);
+    }
+    const FPSTendencyProfile Tendency = FPSTendencyProfile();
+    return CoachingAI->RankPlays(Situation, Tendency, GetPlays(bOffense), bOffense);
+}
+
+TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildSuggestionOptions(bool bOffense)
+{
+    TArray<FPSMenuOptionDef> Options;
+    const TArray<FPSPlaySuggestion> Ranked = RankPlays(bOffense);
+    if (Ranked.Num() == 0)
+    {
+        return Options;
+    }
+
+    const FPSPlaySuggestion& Top = Ranked[0];
+    FPSMenuOptionDef Option;
+    Option.OptionId = TEXT("Suggested");
+    Option.Label = FString::Printf(TEXT("Suggested: %s"), *Top.DisplayName);
+    Option.Detail = Top.Reasons.Num() > 0 ? FString::Join(Top.Reasons, TEXT(" \u00B7 ")) : FString(TEXT("Nothing in the situation leans either way"));
+    Option.Command = EPSMenuCommand::CallPlay;
+    Option.Payload = Top.PlayId;
+    Options.Add(Option);
+    return Options;
+}
+
+TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildRecentOptions(bool bOffense)
+{
+    TArray<FPSMenuOptionDef> Options;
+    for (const FName PlayId : GetRecentCalls(bOffense, GetTuning().RecentPlaysShown))
+    {
+        FPSPlayDefinition Play;
+        if (!FindPlay(PlayId, Play))
+        {
+            continue;
+        }
+        FPSMenuOptionDef Option;
+        Option.OptionId = Play.PlayId;
+        Option.Label = FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *Play.Formation);
+        Option.Detail = DescribePlay(Play);
+        Option.Command = EPSMenuCommand::CallPlay;
+        Option.Payload = Play.PlayId;
+        Options.Add(Option);
+    }
+    return Options;
+}
+
+FString UPSPlayCallSubsystem::BuildCallScreenBody(bool bOffense) const
+{
+    const FString Tendencies = DescribeTendencies(bOffense);
+    const FString SituationLine = DescribeSituation(Situation);
+    return Tendencies.IsEmpty() ? SituationLine : FString::Printf(TEXT("%s\n%s"), *SituationLine, *Tendencies);
+}
+
+FString UPSPlayCallSubsystem::DescribeSituation(const FPSSituationContext& InSituation)
+{
+    // YardLine counts from the offense's own goal line (0) to the opponent's (100).
+    FString Spot;
+    if (InSituation.YardLine == 50)
+    {
+        Spot = TEXT("midfield");
+    }
+    else if (InSituation.YardLine < 50)
+    {
+        Spot = FString::Printf(TEXT("own %d"), InSituation.YardLine);
+    }
+    else
+    {
+        Spot = FString::Printf(TEXT("opp %d"), 100 - InSituation.YardLine);
+    }
+    return FString::Printf(TEXT("%s & %d at %s"), PSPlayCallPrivate::DownOrdinal(InSituation.Down), InSituation.Distance, *Spot);
+}
+
+TArray<FName> UPSPlayCallSubsystem::GetRecentCalls(bool bOffense, int32 MaxCount) const
+{
+    TArray<FName> Recent;
+    for (int32 Index = CallHistory.Num() - 1; Index >= 0 && Recent.Num() < MaxCount; --Index)
+    {
+        if (CallHistory[Index].bOffense == bOffense)
+        {
+            Recent.AddUnique(CallHistory[Index].PlayId);
+        }
+    }
+    return Recent;
+}
+
+FString UPSPlayCallSubsystem::DescribeTendencies(bool bOffense) const
+{
+    TMap<FString, int32> Counts;
+    TArray<FString> Order;
+    int32 Total = 0;
+    for (const FPSPlayCallRecord& Record : CallHistory)
+    {
+        if (Record.bOffense != bOffense)
+        {
+            continue;
+        }
+        if (!Counts.Contains(Record.PlayCategory))
+        {
+            Order.Add(Record.PlayCategory);
+        }
+        Counts.FindOrAdd(Record.PlayCategory)++;
+        ++Total;
+    }
+    if (Total == 0)
+    {
+        return FString();
+    }
+
+    // Most-called first, so the readout leads with what an opponent would key on.
+    Order.StableSort([&Counts](const FString& A, const FString& B) { return Counts[A] > Counts[B]; });
+    TArray<FString> Parts;
+    for (const FString& Category : Order)
+    {
+        Parts.Add(FString::Printf(TEXT("%s %d%%"), *PSPlayCallPrivate::SplitCategory(Category), FMath::RoundToInt(100.f * Counts[Category] / Total)));
+    }
+    return FString::Printf(TEXT("Your calls: %s"), *FString::Join(Parts, TEXT(" \u00B7 ")));
+}
+
 FString UPSPlayCallSubsystem::DescribePlay(const FPSPlayDefinition& Play)
 {
     TArray<FString> Parts;
@@ -320,7 +454,7 @@ void UPSPlayCallSubsystem::SetCall(const FPSPlayDefinition& Play, EPSPlayCaller 
     TimeSinceCallsComplete = 0.f;
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlayCallSubsystem: %s calls %s (%s)."),
-        Play.bIsOffensivePlay ? TEXT("Offense") : TEXT("Defense"), *Play.DisplayName, Caller == EPSPlayCaller::Human ? TEXT("human") : TEXT("CPU"));
+        Play.bIsOffensivePlay ? TEXT("Offense") : TEXT("Defense"), *Play.DisplayName, *UEnum::GetValueAsString(Caller));
 
     if (UPSTelemetryBus* Bus = BoundBus.Get())
     {
@@ -353,6 +487,17 @@ void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
         : CoachingAI->SelectDefensivePlay(Situation, Tendency, Candidates);
     const FPSPlayDefinition* Play = Candidates.FindByPredicate([Chosen](const FPSPlayDefinition& Candidate) { return Candidate.PlayId == Chosen; });
     SetCall(Play ? *Play : Candidates[0], EPSPlayCaller::CPU);
+}
+
+void UPSPlayCallSubsystem::QuickCall(bool bOffense)
+{
+    const TArray<FPSPlaySuggestion> Ranked = RankPlays(bOffense);
+    FPSPlayDefinition Play;
+    if (Ranked.Num() > 0 && FindPlay(Ranked[0].PlayId, Play))
+    {
+        UE_LOG(LogTemp, Display, TEXT("UPSPlayCallSubsystem: Play clock at %.1f s with no call; quick-calling the suggestion."), PlayClockSeconds);
+        SetCall(Play, EPSPlayCaller::QuickCall);
+    }
 }
 
 bool UPSPlayCallSubsystem::IsHumanSide(bool bOffense) const
@@ -395,6 +540,10 @@ bool UPSPlayCallSubsystem::PollReadyToSnap(float DeltaSeconds)
         {
             CallForCpu(bOffense);
         }
+        else if (!GetCall(bOffense).IsSet() && PlayClockSeconds >= 0.f && PlayClockSeconds <= GetTuning().QuickCallPlayClockSeconds)
+        {
+            QuickCall(bOffense);
+        }
     }
     if (!OffenseCall.IsSet() || !DefenseCall.IsSet())
     {
@@ -428,6 +577,16 @@ void UPSPlayCallSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
         if (!GetCall(bOffense).IsSet())
         {
             CallForCpu(bOffense);
+        }
+        // What the human chose and ran, for the recent list and the tendency readout.
+        FPSPlayDefinition Ran;
+        if (GetCall(bOffense).Caller == EPSPlayCaller::Human && FindPlay(GetCall(bOffense).PlayId, Ran))
+        {
+            FPSPlayCallRecord Record;
+            Record.PlayId = Ran.PlayId;
+            Record.PlayCategory = Ran.PlayCategory;
+            Record.bOffense = bOffense;
+            CallHistory.Add(Record);
         }
     }
 

@@ -114,8 +114,9 @@ open, a `Command`, or both. `Command` is one of `EPSMenuCommand`: `None`, `Resum
 `StartPlayNow`, `StartFranchise`, `StartPractice`, `QuitToMainMenu`, `QuitGame`. A screen's
 `Content` is `Static` (its authored options), `TeamSelect` (one option per team, generated) or
 `Loading` (its body is the loading tip; `LoadingScreen` names it and it is left only by travel),
-`PlayCallFormations` (the player's formations; `PlayCallScreen` names it) or `PlayCallPlays` (a
-formation's plays, each with the `CallPlay` command). Options may carry a `Detail` line.
+`PlayCallFormations` (the player's formations; `PlayCallScreen` names it), `PlayCallPlays` (a
+formation's plays, each with the `CallPlay` command) or `PlayCallRecent` (the player's recent
+calls). Options may carry a `Detail` line.
 `UPSMenuComponent::ValidateCatalog` and `tools/validate_data.py` reject dangling targets,
 options that do nothing, a root screen Back could close, and screens that can never be left.
 
@@ -148,6 +149,9 @@ its device's default set, which `UPSInputGlyphs::Validate` and `tools/validate_d
 
 ## Play-call tuning schema (`FPlayCallTuningRow`)
 
-Single object: `CpuSnapDelaySeconds` (0 or more) -- how long a CPU offense waits after both calls
-are in before it snaps (Epic 102; `Specs/Play_Call_Interface.md`). A human offense snaps when its
-player hikes.
+Single object (Epic 102; `Specs/Play_Call_Interface.md`):
+- `CpuSnapDelaySeconds` (0 or more): how long a CPU (or quick-called) offense waits after both
+  calls are in before it snaps. A human offense snaps when its player hikes.
+- `QuickCallPlayClockSeconds` (0 or more): the play clock at which a human's uncalled side gets
+  the top suggestion called for them.
+- `RecentPlaysShown` (1 or more): how many recent calls the Recent plays screen lists.

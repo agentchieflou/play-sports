@@ -77,6 +77,31 @@ public:
     /** ... and one per play in Formation, calling it. */
     TArray<FPSMenuOptionDef> BuildPlayOptions(const FString& Formation, bool bOffense);
 
+    /** The top-ranked play for the side in the current situation, as one option that calls
+     *  it, with the coaching AI's reasons as its detail (102.2). Empty with no plays. */
+    TArray<FPSMenuOptionDef> BuildSuggestionOptions(bool bOffense);
+
+    /** One option per recent human call for the side, most recent first (102.3). */
+    TArray<FPSMenuOptionDef> BuildRecentOptions(bool bOffense);
+
+    /** The call screen's body: the situation, and the player's tendencies once they have
+     *  called plays (102.3), e.g. "3rd & 7 at own 35" / "Your calls: Run 50% ...". */
+    FString BuildCallScreenBody(bool bOffense) const;
+
+    /** The side's plays ranked for the current situation, with reasons (UPSCoachingAI). */
+    TArray<FPSPlaySuggestion> RankPlays(bool bOffense);
+
+    /** "3rd & 7 at own 35", from the situation the window opened with. */
+    static FString DescribeSituation(const FPSSituationContext& InSituation);
+
+    /** Distinct plays the human called and ran for the side, most recent first. */
+    TArray<FName> GetRecentCalls(bool bOffense, int32 MaxCount) const;
+
+    /** "Your calls: Run 67% / Short pass 33%" over the side's history; empty without one. */
+    FString DescribeTendencies(bool bOffense) const;
+
+    const TArray<FPSPlayCallRecord>& GetCallHistory() const { return CallHistory; }
+
     /** A one-line text stand-in for play art until Track A's art pipeline (Epic 35) exists:
      *  "WR Slant, RB Flat, TE pass block" (dot-separated). */
     static FString DescribePlay(const FPSPlayDefinition& Play);
@@ -89,6 +114,14 @@ public:
     void OpenPlayCall(const FPSSituationContext& InSituation);
 
     bool IsCallWindowOpen() const { return bWindowOpen; }
+
+    const FPSSituationContext& GetSituation() const { return Situation; }
+
+    /** The game mode passes the live play clock every pre-snap tick (102.5). */
+    void SetPlayClock(float Seconds) { PlayClockSeconds = Seconds; }
+
+    /** The live play clock, or a negative number before the game mode has set one. */
+    float GetPlayClockSeconds() const { return PlayClockSeconds; }
 
     /** Calls PlayId for its side (the play says which). False when the window is closed or
      *  the play is unknown. A new call replaces the side's earlier one. */
@@ -107,7 +140,8 @@ public:
     bool RequestSnap();
 
     /** Called every pre-snap tick by the game mode: fills CPU calls for sides no human
-     *  controls, then says whether the offense snaps now. */
+     *  controls, quick-calls a human's side that ran low on play clock, then says whether
+     *  the offense snaps now. */
     bool PollReadyToSnap(float DeltaSeconds);
 
     /** A side now waits for its human's call (bOffense says which). */
@@ -122,6 +156,7 @@ private:
 
     void EnsurePlaybookLoaded();
     void CallForCpu(bool bOffense);
+    void QuickCall(bool bOffense);
     void SetCall(const FPSPlayDefinition& Play, EPSPlayCaller Caller);
     void Distribute(const FVector& LineOfScrimmage);
     APSPlayerPawn* FindPawnByPlayerId(FName PlayerId) const;
@@ -154,11 +189,16 @@ private:
     UPROPERTY(Transient)
     FPSPlayCall DefenseCall;
 
+    /** Every play a human called and ran this game, oldest first. */
+    UPROPERTY(Transient)
+    TArray<FPSPlayCallRecord> CallHistory;
+
     /** PlayerId of each human-controlled pawn -> whether it plays offense. */
     TMap<FName, bool> HumanPawnSides;
 
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
     float TimeSinceCallsComplete = 0.f;
+    float PlayClockSeconds = -1.f;
     bool bWindowOpen = false;
     bool bSnapRequested = false;
     bool bPlaybookLoaded = false;
