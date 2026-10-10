@@ -208,8 +208,10 @@ bool FPSReplayGameRoundTripTest::RunTest(const FString& Parameters)
         TestEqual(*(Label + TEXT(": the format version is stamped")), Recording.Header.FormatVersion, UPSReplayFormat::CurrentFormatVersion);
         TestTrue(*(Label + TEXT(": a whole game is more than the bus's history holds")), Bus && Recording.Events.Num() > Bus->GetMaxHistorySize());
         TestTrue(*(Label + TEXT(": the setup is step 0")), Recording.Events.Num() > 0 && Recording.Events[0].TickIndex == 0);
-        TestTrue(*(Label + TEXT(": every event is the game state")), !Recording.Events.ContainsByPredicate(
-            [](const FPSReplayEventRecord& Event) { return Event.EventType != TEXT("GameState"); }));
+        // The quick sim publishes only its own events: the game state and, since Epic 92, each
+        // play's result.
+        TestTrue(*(Label + TEXT(": every event is the simulation's (game state or play result)")), !Recording.Events.ContainsByPredicate(
+            [](const FPSReplayEventRecord& Event) { return Event.EventType != TEXT("GameState") && Event.EventType != TEXT("PlayResult"); }));
         TestTrue(*(Label + TEXT(": somebody scored")), Recorded.HomeScore + Recorded.AwayScore > 0);
 
         // Recording doesn't change the game: the franchise's quick sim, unrecorded, agrees.
