@@ -10,6 +10,7 @@
 class AActor;
 class APSPlayerPawn;
 class UDataTable;
+class UPSCoverageMatchupSubsystem;
 
 /** One player's job on a play, as the call resolves it for where he lines up. */
 USTRUCT(BlueprintType)
@@ -64,8 +65,17 @@ struct FPSResolvedAssignment
     UPROPERTY(BlueprintReadOnly, Category = "Play")
     FVector ZoneSpot = FVector::ZeroVector;
 
+    /** Defense, man coverage: the receiver he plays, as the defense AI takes him at the snap
+     *  (PSPlayResolution::ResolveManMatchups fills it before the snap). */
+    UPROPERTY()
+    TWeakObjectPtr<APSPlayerPawn> ManReceiver;
+
     /** True for an offensive player whose job is a Route (a pattern or a spot). */
     bool RunsRoute() const { return bHasSlot && Assignment.Kind == EPSAssignmentKind::Route; }
+
+    /** Defense, a zone: where he plays it, as the defender AI takes it up at the snap -- the
+     *  slot's landmark (ZoneSpot), or his own spot when the slot gives no ZoneOffset. */
+    FVector GetZoneLandmark() const { return Assignment.ZoneOffset.IsZero() ? PawnLocation : ZoneSpot; }
 };
 
 /**
@@ -106,4 +116,22 @@ namespace PSPlayResolution
      * bWarnIfRouteMissing logs a RouteId the library doesn't have.
      */
     PLAYSPORTS_API TArray<FPSResolvedAssignment> ResolvePlay(const FPSPlayDefinition& Play, const TArray<APSPlayerPawn*>& Pawns, const UDataTable* RouteLibrary, const FVector& LineOfScrimmage, bool bWarnIfRouteMissing = true);
+
+    /** A player the defense covers in man: a receiver, tight end or back of the offense. Role
+     *  is his role as the field snapshot read it. */
+    PLAYSPORTS_API bool IsCoverable(const APSPlayerPawn* Pawn, EPlayerRole Role);
+
+    /** The receiver a man defender with nobody named takes: the coverable player nearest him on
+     *  the ground that no one in Taken has. Roles is parallel to Pawns. Null when none is left.
+     *  UPSDefenderAIComponent picks with it at the snap. */
+    PLAYSPORTS_API APSPlayerPawn* NearestOpenReceiver(const APSPlayerPawn* Defender, const TArray<APSPlayerPawn*>& Pawns, const TArray<EPlayerRole>& Roles, const TSet<const APSPlayerPawn*>& Taken);
+
+    /**
+     * Each man defender's receiver before the snap, taken as UPSDefenderAIComponent takes them at
+     * it, the defenders in Resolved's order: the receiver the play names (a shadow matchup, in
+     * CoverageTarget), else the one he lined up to press (Matchups, Epic 69), else the nearest
+     * open one -- open meaning no defender before him has him and no other defender lines up to
+     * press him. Fills ManReceiver. Pawns and Roles are the field (UPSAIFieldSnapshot).
+     */
+    PLAYSPORTS_API void ResolveManMatchups(TArray<FPSResolvedAssignment>& Resolved, const TArray<APSPlayerPawn*>& Pawns, const TArray<EPlayerRole>& Roles, const UPSCoverageMatchupSubsystem* Matchups);
 }

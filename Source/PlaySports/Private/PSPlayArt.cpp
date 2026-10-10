@@ -1,4 +1,6 @@
 #include "PSPlayArt.h"
+#include "PSCoverageMatchupSubsystem.h"
+#include "PSPlayerPawn.h"
 #include "PSRouteRunning.h"
 #include "PSUITeamCatalog.h"
 #include "DrawDebugHelpers.h"
@@ -33,6 +35,13 @@ namespace PSPlayArtPrivate
         Ring.FakeIndices.Reset();
         Ring.Size = Style.RingRadius;
         return Ring;
+    }
+
+    FLinearColor ParseColor(const FString& Hex)
+    {
+        FLinearColor Parsed = FLinearColor::White;
+        UPSUITeamCatalog::ParseHexColor(Hex, Parsed);
+        return Parsed;
     }
 
     /** The five-pointed star around Center, its points Radius out, the first one upfield (+X). */
@@ -105,6 +114,36 @@ TArray<FString> PSPlayArt::ValidateStyle(const FPSPlayArtStyle& Style)
         if (Style.NoRouteArtCategories[Index].IsEmpty())
         {
             Problems.Add(FString::Printf(TEXT("NoRouteArtCategories[%d] is empty"), Index));
+        }
+    }
+    if (Style.ZoneStarRadius <= 0.f || Style.ManLineWidth <= 0.f || Style.RushArrowWidth <= 0.f)
+    {
+        Problems.Add(TEXT("ZoneStarRadius, ManLineWidth and RushArrowWidth must be above 0"));
+    }
+    if (Style.RushArrowDepth < 0.f)
+    {
+        Problems.Add(TEXT("RushArrowDepth must be 0 or more"));
+    }
+    struct FNamedColor
+    {
+        const TCHAR* Field;
+        const FString* Hex;
+    };
+    const FNamedColor DefenseColors[] = {
+        { TEXT("ZoneStarColor"), &Style.ZoneStarColor }, { TEXT("ManLineColor"), &Style.ManLineColor },
+        { TEXT("BlitzArrowColor"), &Style.BlitzArrowColor }, { TEXT("RushArrowColor"), &Style.RushArrowColor } };
+    for (const FNamedColor& Named : DefenseColors)
+    {
+        if (!UPSUITeamCatalog::ParseHexColor(*Named.Hex, Parsed))
+        {
+            Problems.Add(FString::Printf(TEXT("%s: '%s' must be #RRGGBB"), Named.Field, **Named.Hex));
+        }
+    }
+    for (int32 Index = 0; Index < Style.NoDefenseArtCategories.Num(); ++Index)
+    {
+        if (Style.NoDefenseArtCategories[Index].IsEmpty())
+        {
+            Problems.Add(FString::Printf(TEXT("NoDefenseArtCategories[%d] is empty"), Index));
         }
     }
     return Problems;
@@ -211,6 +250,66 @@ TArray<FPSPlayArtPrimitive> PSPlayArt::CompileRouteArt(const TArray<FPSResolvedA
             // A plain route ends in a ring; so does an option route with no branch to run, at its read.
             Art.Add(MakeEndRing(Ribbon, Style));
         }
+    }
+    return Art;
+}
+
+TArray<FPSPlayArtPrimitive> PSPlayArt::CompileDefenseArt(const TArray<FPSResolvedAssignment>& Resolved, const FPSPlayArtStyle& Style,
+    const FVector& LineOfScrimmage, const UPSCoverageMatchupSubsystem* Matchups)
+{
+    using namespace PSPlayArtPrivate;
+
+    TArray<FPSPlayArtPrimitive> Art;
+    const float GroundZ = LineOfScrimmage.Z;
+    for (const FPSResolvedAssignment& Entry : Resolved)
+    {
+        const APSPlayerPawn* Defender = Entry.Pawn.Get();
+        if (!Defender || !Entry.bHasSlot)
+        {
+            continue;
+        }
+        FPSPlayArtPrimitive Icon;
+        Icon.Pawn = Entry.Pawn;
+        const APSPlayerPawn* Receiver = Entry.ManReceiver.Get();
+        if (Entry.DefensiveType == EPSDefensiveAssignmentType::ZoneCoverage
+            || (Entry.DefensiveType == EPSDefensiveAssignmentType::ManCoverage && !Receiver))
+        {
+            // A zone's landmark; a man defender with nobody left to cover plays his spot.
+            Icon.Shape = EPSPlayArtShape::Star;
+            Icon.Points = OnTurf({ Entry.DefensiveType == EPSDefensiveAssignmentType::ZoneCoverage ? Entry.GetZoneLandmark() : Entry.PawnLocation }, GroundZ, Style);
+            Icon.Size = Style.ZoneStarRadius;
+            Icon.Color = ParseColor(Style.ZoneStarColor);
+            Icon.Source = TEXT("Zone");
+        }
+        else if (Entry.DefensiveType == EPSDefensiveAssignmentType::ManCoverage)
+        {
+            // Defender to his man, named by how he got him.
+            const AActor* Named = Entry.CoverageTarget.Get();
+            const APSPlayerPawn* Pressed = Matchups ? Matchups->GetPlannedReceiver(Defender) : nullptr;
+            Icon.Shape = EPSPlayArtShape::Connector;
+            Icon.Points = OnTurf({ Entry.PawnLocation, Receiver->GetActorLocation() }, GroundZ, Style);
+            Icon.Size = Style.ManLineWidth;
+            Icon.Color = ParseColor(Style.ManLineColor);
+            Icon.Source = Named == Receiver ? FName(TEXT("Shadow")) : (Pressed == Receiver ? FName(TEXT("Press")) : FName(TEXT("Man")));
+            Icon.Target = Entry.ManReceiver;
+        }
+        else if (Entry.DefensiveType == EPSDefensiveAssignmentType::PassRush)
+        {
+            // Downhill from his spot, through the line into the backfield.
+            const bool bBlitz = Entry.Assignment.Kind == EPSAssignmentKind::Blitz;
+            const FVector Through(LineOfScrimmage.X - Style.RushArrowDepth, Entry.PawnLocation.Y, GroundZ);
+            Icon.Shape = EPSPlayArtShape::Arrow;
+            Icon.Points = OnTurf({ Entry.PawnLocation, Through }, GroundZ, Style);
+            Icon.Size = Style.RushArrowWidth;
+            Icon.Color = ParseColor(bBlitz ? Style.BlitzArrowColor : Style.RushArrowColor);
+            Icon.Source = bBlitz ? FName(TEXT("Blitz")) : FName(TEXT("Rush"));
+        }
+        else
+        {
+            // A run fit reads the play: nothing to draw before it.
+            continue;
+        }
+        Art.Add(Icon);
     }
     return Art;
 }

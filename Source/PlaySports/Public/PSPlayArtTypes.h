@@ -67,13 +67,18 @@ struct FPSPlayArtPrimitive
     UPROPERTY(BlueprintReadOnly, Category = "Overlay")
     bool bBranch = false;
 
-    /** What it draws: the route's RouteId. */
+    /** What it draws: a route's RouteId; on defense "Zone", "Man", "Shadow", "Press", "Blitz"
+     *  or "Rush". */
     UPROPERTY(BlueprintReadOnly, Category = "Overlay")
     FName Source;
 
     /** The player it belongs to. */
     UPROPERTY()
     TWeakObjectPtr<APSPlayerPawn> Pawn;
+
+    /** A connector's other player: the receiver a man defender covers. */
+    UPROPERTY()
+    TWeakObjectPtr<APSPlayerPawn> Target;
 };
 
 /**
@@ -128,6 +133,41 @@ struct FPSPlayArtStyle
      *  "routes" are coverage lanes or none. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
     TArray<FString> NoRouteArtCategories;
+
+    /** The defense's icons (Epic 31). A zone's landmark is a star this size (its points'
+     *  radius) ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float ZoneStarRadius = 60.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString ZoneStarColor = TEXT("#FFFFFF");
+
+    /** ... a man defender is joined to his receiver by a line this wide ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float ManLineWidth = 8.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString ManLineColor = TEXT("#FF8A3D");
+
+    /** ... and a rusher has an arrow this wide, from his spot through the line to this far
+     *  behind it: a blitzer's (the call's Blitz) in BlitzArrowColor, a lineman's rush in
+     *  RushArrowColor. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float RushArrowWidth = 12.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    float RushArrowDepth = 200.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString BlitzArrowColor = TEXT("#F85149");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    FString RushArrowColor = TEXT("#C9D1D9");
+
+    /** Defensive plays of these PlayCategory values draw no icons: the kicking game's returns,
+     *  blocks and hands teams. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")
+    TArray<FString> NoDefenseArtCategories;
 
     /** Development builds draw the art as debug lines until the editor-made renderer exists. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overlay")

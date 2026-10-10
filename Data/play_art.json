@@ -9,5 +9,14 @@
     "BranchOpacity": 0.5,
     "SnapFadeSeconds": 0.4,
     "NoRouteArtCategories": ["Kickoff", "OnsideKick", "Punt", "FieldGoal", "Spike", "Kneel"],
+    "ZoneStarRadius": 60.0,
+    "ZoneStarColor": "#FFFFFF",
+    "ManLineWidth": 8.0,
+    "ManLineColor": "#FF8A3D",
+    "RushArrowWidth": 12.0,
+    "RushArrowDepth": 200.0,
+    "BlitzArrowColor": "#F85149",
+    "RushArrowColor": "#C9D1D9",
+    "NoDefenseArtCategories": ["KickReturn", "KickBlock", "HandsTeam", "ReturnLaterals"],
     "bDrawDebug": true
 }

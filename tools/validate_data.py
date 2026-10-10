@@ -71,8 +71,8 @@ setting's choices in order and each assist a toggle in ui_settings.json (Epic 84
 "MeshRecognizeRadius" files against FPSDeceptionTuning (Epic 72): bite chances 0-1 with the floor
 under the ceiling, a discipline rating 0-100; "HardFailMultiplier" files against
 FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system, within its
-frame; "ReadColors" files against FPSPlayArtStyle (Epic 27), each no-art category an
-offensive play category. Teams, the league config, the playbook, player rating ranges and every
+frame; "ReadColors" files against FPSPlayArtStyle (Epics 27 and 31), each no-art category one
+of its side's play categories. Teams, the league config, the playbook, player rating ranges and every
 reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -3766,13 +3766,17 @@ def validate_perf_harness(path, payload):
 PLAY_ART_NUMBERS = {
     "RibbonWidth": "above 0", "PrimaryWidthScale": "above 0", "GroundOffset": "0 or more",
     "RingRadius": "above 0", "BreakMarkerRadius": "0 or more", "SnapFadeSeconds": "0 or more",
+    "ZoneStarRadius": "above 0", "ManLineWidth": "above 0", "RushArrowWidth": "above 0",
+    "RushArrowDepth": "0 or more",
 }
-PLAY_ART_FIELDS = set(PLAY_ART_NUMBERS) | {"ReadColors", "UnrankedColor", "BranchOpacity", "NoRouteArtCategories", "bDrawDebug"}
+PLAY_ART_COLORS = ("UnrankedColor", "ZoneStarColor", "ManLineColor", "BlitzArrowColor", "RushArrowColor")
+PLAY_ART_FIELDS = set(PLAY_ART_NUMBERS) | set(PLAY_ART_COLORS) | {
+    "ReadColors", "BranchOpacity", "NoRouteArtCategories", "NoDefenseArtCategories", "bDrawDebug"}
 
 
 def validate_play_art(path, payload):
-    """FPSPlayArtStyle (Data/play_art.json, Epic 27); mirrors PSPlayArt::ValidateStyle, plus
-    each no-art category an offensive play category."""
+    """FPSPlayArtStyle (Data/play_art.json, Epics 27 and 31); mirrors PSPlayArt::ValidateStyle,
+    plus each no-art category one of its side's play categories."""
     for field, rule in PLAY_ART_NUMBERS.items():
         value = payload.get(field)
         bad = not is_number(value) or (value <= 0 if rule == "above 0" else value < 0)
@@ -3785,19 +3789,22 @@ def validate_play_art(path, payload):
         for idx, value in enumerate(colors):
             if not isinstance(value, str) or not HEX_COLOR.match(value):
                 err(path, f"ReadColors[{idx}]: '{value}' must be #RRGGBB")
-    unranked = payload.get("UnrankedColor")
-    if not isinstance(unranked, str) or not HEX_COLOR.match(unranked):
-        err(path, f"UnrankedColor: '{unranked}' must be #RRGGBB")
+    for field in PLAY_ART_COLORS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not HEX_COLOR.match(value):
+            err(path, f"{field}: '{value}' must be #RRGGBB")
     opacity = payload.get("BranchOpacity")
     if not is_number(opacity) or not 0 <= opacity <= 1:
         err(path, f"BranchOpacity: '{opacity}' must be a number from 0 to 1")
-    categories = payload.get("NoRouteArtCategories")
-    if not isinstance(categories, list):
-        err(path, "NoRouteArtCategories: must be an array of play categories")
-    else:
+    for field, side, known in (("NoRouteArtCategories", "an offensive", content_contracts.OFFENSE_CATEGORIES),
+                               ("NoDefenseArtCategories", "a defensive", content_contracts.DEFENSE_CATEGORIES)):
+        categories = payload.get(field)
+        if not isinstance(categories, list):
+            err(path, f"{field}: must be an array of play categories")
+            continue
         for idx, category in enumerate(categories):
-            if category not in content_contracts.OFFENSE_CATEGORIES:
-                err(path, f"NoRouteArtCategories[{idx}]: '{category}' is not an offensive play category")
+            if category not in known:
+                err(path, f"{field}[{idx}]: '{category}' is not {side} play category")
     if not isinstance(payload.get("bDrawDebug"), bool):
         err(path, "bDrawDebug: must be true or false")
     extra = set(payload) - PLAY_ART_FIELDS

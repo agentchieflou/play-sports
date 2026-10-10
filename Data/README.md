@@ -1524,8 +1524,9 @@ budgets themselves are per tier, in `platform_tiers.json`.
 
 ## Play art schema (`FPSPlayArtStyle`)
 
-Single object (Epic 27; the offense's routes drawn before the snap, `UPSOverlayPlayArtSubsystem`,
-`Specs/Route_Ribbons_Spec.md`). Sizes are cm, colors `#RRGGBB`:
+Single object (Epics 27 and 31; both sides' calls drawn before the snap,
+`UPSOverlayPlayArtSubsystem`, `Specs/Route_Ribbons_Spec.md`, `Specs/Defensive_Icons_Spec.md`). Sizes
+are cm, colors `#RRGGBB`:
 - `RibbonWidth` (above 0): a route ribbon's width. `PrimaryWidthScale` (above 0): the primary
   read's ribbon is this many times as wide.
 - `GroundOffset` (0 or more): the art lies this far above the turf.
@@ -1539,9 +1540,17 @@ Single object (Epic 27; the offense's routes drawn before the snap, `UPSOverlayP
   on other tiers it goes at once, and a `Minimal` tier draws none (`platform_tiers.json`).
 - `NoRouteArtCategories`: offensive `PlayCategory` values that draw no route art (kicks and clock
   plays).
+- The defense's icons (Epic 31): `ZoneStarRadius` (above 0) and `ZoneStarColor`, the star at a zone
+  landmark; `ManLineWidth` (above 0) and `ManLineColor`, the line from a man defender to his
+  receiver; `RushArrowWidth` (above 0), `RushArrowDepth` (0 or more: how far behind the line a
+  rusher's arrow reaches), `BlitzArrowColor` (the call's blitzers) and `RushArrowColor` (the other
+  rushers).
+- `NoDefenseArtCategories`: defensive `PlayCategory` values that draw no icons (the kicking game's).
 - `bDrawDebug`: development builds draw the art as debug lines until the editor-made renderer
   exists.
 
 What a cut is comes from the route-running tuning (`BreakMinAngleDegrees` in
-`route_running.json`). The `RouteArt` setting (Gameplay, `ui_settings.json`) turns the art off.
+`route_running.json`). The `RouteArt` and `DefenseIcons` settings (Gameplay, `ui_settings.json`)
+turn each side's art off; `StudyMode` shows the defense's icons to the offense too, outside
+head-to-head games, where `versus_rules.json` decides.
 `UPSOverlayPlayArtSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
