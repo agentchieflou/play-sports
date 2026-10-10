@@ -512,7 +512,8 @@ bool FPSTradeAnswersTest::RunTest(const FString& Parameters)
     const FPSTradeEvaluation OverCap = Market->EvaluateTrade(MakeProposal(AAA, BBB, { PlayerAsset(TEXT("AAA_BIG")) }, { PlayerAsset(TEXT("BBB_OffensiveLineman_0")) }));
     TestTrue(TEXT("A trade over the cap is refused"), OverCap.Response == EPSTradeResponse::Reject && HasReason(OverCap, EPSTradeReason::OverCap));
     TestTrue(TEXT("...naming the team"), OverCap.ReasonTexts.Num() > 0 && OverCap.ReasonTexts[0].Contains(TEXT("BBB")));
-    TestTrue(TEXT("...and nothing moved"), IsOn(League.RosterOf(TEXT("AAA")), TEXT("AAA_BIG")) && Contracts->FindContract(FName(TEXT("AAA_BIG")))->TeamId == AAA);
+    const FPSContract* BigDeal = Contracts->FindContract(FName(TEXT("AAA_BIG")));
+    TestTrue(TEXT("...and nothing moved"), IsOn(League.RosterOf(TEXT("AAA")), TEXT("AAA_BIG")) && BigDeal && BigDeal->TeamId == AAA);
 
     // The deadline: week 12 of 20; past it trades close until the season is over.
     TestEqual(TEXT("The deadline week"), Market->GetDeadlineWeek(), 12);
@@ -990,7 +991,10 @@ bool FPSTradeFranchiseTest::RunTest(const FString& Parameters)
         const int32 TradedSlot = Draft->GetPickSlot(TradedPick.DraftYear, TradedPick.Round, TradedPick.OriginalTeamId);
         if (TradedPick.DraftYear == Draft->GetState().DraftYear && TestTrue(TEXT("The traded pick is in the order"), TradedSlot > 0))
         {
-            TestEqual(TEXT("...on the Hawks' clock"), Draft->GetState().Order[TradedSlot - 1], Hawks);
+            // The Hawks hold it, or a CPU team they traded it on to.
+            const FName Holder = Draft->GetPickOwner(TradedPick.DraftYear, TradedPick.Round, TradedPick.OriginalTeamId);
+            TestTrue(TEXT("...held away from the Falcons"), Holder != Falcons && !Holder.IsNone());
+            TestEqual(TEXT("...on its holder's clock"), Draft->GetState().Order[TradedSlot - 1], Holder);
             TestEqual(TEXT("...as the Falcons' pick"), Draft->GetState().OriginalOrder[TradedSlot - 1], Falcons);
         }
         Draft->RunToEnd();
