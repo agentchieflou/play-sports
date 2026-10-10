@@ -57,7 +57,7 @@ never direct sim/GameMode reads.
 - [x] Settings framework (persisted user config; video/audio/gameplay/controls categories) *(`Data/ui_settings.json` declares Video, Audio, Gameplay, Controls and Accessibility settings (toggles, choices, sliders). `UPSSettingsSubsystem` (game instance) keeps the values, saves them in `UPSProfileSaveGame::Settings` as they change, and applies video (outside the editor) and the master volume to the engine. `UPSSettingsComponent` on the player controller applies vibration, its strength, the stick dead zone (a scale on the tuned value) and input buffering. The `Settings` menu lists the categories; a category lists its settings with their values, and choosing one steps it. Other volumes wait on sound classes)*
 - [ ] Colorblind-safe modes flowing through team-color resolution (37) and overlay palettes
 - [ ] Subtitle/caption system for commentary (96) and UI narration hooks
-- [ ] Input remapping surface (consumes 104's action mapping)
+- [x] Input remapping surface (consumes 104's action mapping) *(A remap replaces an action's keys for one kind of device over the catalog (`UPSInputConfig::ApplyRemaps`), checked by the catalog's own validation first, so a key can't mean two things in one context. Menu actions are fixed (`"bRemappable": false` on `Menu`). Remaps are saved in the profile and applied by `UPSSettingsComponent`, and glyphs follow with no glyph edit. Settings → Keys and buttons (`InputRemap` screen) lists the actions with their current keys; choose one, press the new key, Back cancels)*
 - [ ] Motion/flash reduction options (camera shake, pyro intensity)
 
 ### Epic 104: Controller Feel & Input Depth

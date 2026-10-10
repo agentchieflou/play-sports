@@ -4,12 +4,14 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "PSSettingsTypes.h"
+#include "PSInputConfigTypes.h"
 #include "PSSettingsSubsystem.generated.h"
 
 class UPSSaveSubsystem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPSSettingChangedSignature, FName, SettingId, float, Value);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FPSSettingChangedMC, FName, float);
+DECLARE_MULTICAST_DELEGATE(FPSInputRemapsChangedMC);
 
 /**
  * UPSSettingsSubsystem holds the player's settings (Epic 103) for the whole session, across
@@ -81,6 +83,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Settings")
     FString FormatValue(FName SettingId);
 
+    /** The player's own keys over the input catalog's (Epic 103.4), as saved. Each player
+     *  controller's UPSSettingsComponent applies them to its input config. */
+    const TArray<FPSInputRemap>& GetInputRemaps() const { return InputRemaps; }
+
+    /** Replaces the player's remaps, saves the profile and tells OnInputRemapsChangedMC. The
+     *  caller checks them first (UPSSettingsComponent::RequestRemap). */
+    void SetInputRemaps(const TArray<FPSInputRemap>& InRemaps);
+
+    /** The remaps changed. */
+    FPSInputRemapsChangedMC OnInputRemapsChangedMC;
+
     /** Reads the player's values from the profile in Slot (keeping defaults for the rest). */
     bool LoadFromProfile(UPSSaveSubsystem* InSaves, const FString& InSlot);
 
@@ -125,6 +138,9 @@ private:
     /** The player's values; settings missing here are at their default. */
     UPROPERTY(Transient)
     TMap<FName, float> Values;
+
+    UPROPERTY(Transient)
+    TArray<FPSInputRemap> InputRemaps;
 
     /** Where SetValue saves: the game's save subsystem and profile slot. */
     UPROPERTY(Transient)

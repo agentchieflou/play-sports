@@ -65,6 +65,24 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Input")
     TArray<FString> Validate() const;
 
+    /** Validate's checks on any catalog and tuning (a remap is checked before it applies). */
+    static TArray<FString> ValidateCatalog(const FPSInputCatalog& InCatalog, const FInputTuningRow& InTuning);
+
+    /** True for an action a player may give his own keys (Epic 103.4): a Boolean action in no
+     *  context marked bRemappable false. */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    bool IsRemappable(FName ActionId) const;
+
+    /** Rebuilds Catalog as the authored catalog with InRemaps over it, each replacing every key
+     *  its action has for its kind of device, and rebuilds the runtime objects. Applies nothing
+     *  and returns false with OutProblems when a remap names an action that can't be remapped,
+     *  a key of the wrong kind or one no button picture exists for, or the result would break
+     *  the catalog (a key bound twice in one context). Glyphs follow on their own. */
+    bool ApplyRemaps(const TArray<FPSInputRemap>& InRemaps, TArray<FString>& OutProblems);
+
+    /** The remaps applied now. */
+    const TArray<FPSInputRemap>& GetRemaps() const { return Remaps; }
+
     UFUNCTION(BlueprintPure, Category = "Input")
     UInputAction* FindAction(FName ActionId) const;
 
@@ -110,6 +128,13 @@ private:
     /** Tuning as loaded from Data/input_tuning.json, before the player's settings. */
     UPROPERTY(Transient)
     FInputTuningRow AuthoredTuning;
+
+    /** The catalog as loaded, before the player's remaps. */
+    UPROPERTY(Transient)
+    FPSInputCatalog AuthoredCatalog;
+
+    UPROPERTY(Transient)
+    TArray<FPSInputRemap> Remaps;
 
     UPROPERTY(Transient)
     UPSInputGlyphs* Glyphs;

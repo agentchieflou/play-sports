@@ -269,13 +269,25 @@ outcomes are published, and Hit (every landed tackle), Catch, Interception and F
 
 ### Epic 103: settings and remapping
 
-- **Remap** by editing the bindings in `UPSInputConfig::Catalog` and calling
-  `BuildRuntimeObjects()`. Then re-apply the active contexts: the rebuild makes new
-  `UInputMappingContext` objects, so the subsystem's copies go stale.
-  - Store the player's overrides with the save system. Never rewrite `Data/input_actions.json`.
-  - Run `UPSInputConfig::Validate()` before accepting a remap, so a player can't unbind an
-    action from a device or bind one key twice.
-  - Glyphs follow on their own.
+- **Remap** (as built, Epic 103.4).
+  - A remap (`FPSInputRemap`: action, gamepad or keyboard, key) replaces every key the action
+    has for that kind of device.
+  - `UPSInputConfig::ApplyRemaps` rebuilds `Catalog` as the authored catalog with the player's
+    remaps over it, keeping the same action objects. It refuses the whole set, changing
+    nothing, when a remap names a fixed action, a key of the wrong kind or one the glyph table
+    can't draw, or when `ValidateCatalog` finds a key bound twice in a context.
+  - Fixed actions: anything in a context marked `"bRemappable": false`, today `Menu` (Confirm,
+    Cancel, Favorite, which menus read through Slate), and every non-Boolean action.
+  - `UPSSettingsComponent::RequestRemap` tries the remap on the player's own config, then saves
+    it in the profile (`UPSProfileSaveGame::InputRemaps`, through `UPSSettingsSubsystem`).
+    `APSPlayerController::RefreshInputMappings` re-applies the contexts.
+  - On load, a saved remap the catalog no longer accepts is dropped and logged; the others stay.
+  - `Data/input_actions.json` is never rewritten.
+  - Glyphs follow on their own: `GetGlyphForAction` reads the remapped catalog.
+  - The menu surface is the `InputRemap` screen (Settings → Keys and buttons). It lists each
+    remappable action with its key on the active device. Choosing one waits for a key, which
+    `UPSMenuScreenWidget::NativeOnPreviewKeyDown` hands to `UPSMenuComponent::HandleRemapKey`
+    before any button can act on it. Back cancels, and Reset puts every key back.
 - **Vibration** (as built, Epic 103.1) is the `Vibration` setting, applied by
   `UPSSettingsComponent` to `UPSForceFeedbackComponent::bEnabled`. `VibrationStrength` sets the
   controller's `ForceFeedbackScale`; the authored patterns stay as they are.

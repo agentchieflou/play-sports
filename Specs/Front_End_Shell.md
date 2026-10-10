@@ -49,6 +49,10 @@ editor handoff: what exists in code, and what an editor session adds.
     and the master volume to the engine.
   - `UPSSettingsComponent` on each player controller applies vibration, its strength, the
     stick dead zone and input buffering to that player.
+  - Settings → Keys and buttons opens the `InputRemap` screen (Epic 103.4): each action a
+    player may remap with its key on the active device. Choose one, then press the new key or
+    button; Back cancels, and the screen says what happened ("Juke is now B", or why the key
+    was refused). See `Specs/Input_Architecture.md` section 6.
   - The other audio volumes and the accessibility settings (reduced motion, camera shake,
     flashes and pyro) are stored for the systems they concern, which don't exist yet: sound
     classes, camera shake and pyro. They read the values with `GetNumber`/`GetBool` and hear
