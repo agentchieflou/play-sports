@@ -35,12 +35,16 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
+| `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
+| `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
 | `camera_all22.json` | `FPSAll22CameraTuning` (single object: `All22Rigs`, framing tuning) | `UPSDataIngestion::LoadAll22CameraTuningFromJson`, via `UPSCameraAll22Component` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
+| `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -203,6 +207,9 @@ more; distances are cm, times seconds:
   `FieldHalfWidth` either side of the middle. When the call says stay in bounds the carrier turns
   back inside within `SidelineCushion` of a sideline; when it says get out of bounds he heads for
   the nearer one once past the line. The weight is how hard (1 = as much as upfield).
+- `ReadWindowSeconds`, `MaxAnticipationSeconds` (Epic 68): a receiver on a planned route is read
+  from his break (as much as `MaxAnticipationSeconds` before it at Awareness 100) until
+  `ReadWindowSeconds` after it.
 
 ## Defensive AI tuning schema (`FDefenderAITuningRow`)
 
@@ -245,6 +252,9 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
     profile (`Windows`, `IOS`, ...) or one declared in `Config/DefaultDeviceProfiles.ini`;
   - `AIDecisionInterval`: seconds between each AI player's decisions, 0 for every frame. The AI
     steers every frame in between.
+  - `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` (above 0): how often the telemetry
+    sampler (Epic 26) records every pawn, and what one recording may cost in ms before the
+    sampler halves its rate.
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -369,6 +379,100 @@ seconds left in the quarter; yard lines count from the offense's goal line (0) t
   `Delta` and the `Reason` the play-call screen shows.
 
 `tools/validate_data.py` checks it.
+
+## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
+
+Single object (Epic 26; how `UPSTelemetrySamplingSubsystem` records every pawn's position,
+velocity, acceleration and facing for overlays, trails and replay). The sampling rate and the
+per-frame budget are per platform tier (`TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` in
+`platform_tiers.json`), never in this file:
+- `HistorySeconds` (above 0): how much the ring of scheduled frames covers at full rate. The
+  fastest tier's rate x `HistorySeconds` is at most 10000 frames.
+- `KeyframeEvents`: `EPSTelemetryEventType` names (`Snap`, `Catch`, ...), each once. Each such
+  bus event captures every pawn the instant it is published; the keyframe lives as long as its
+  event stays in the bus's history.
+- `DegradeAfterSamples` frames in a row over the tier's budget halve the rate, at most
+  `MaxDegradeLevel` times (0 to 8); `RecoverAfterSamples` frames in a row under
+  `RecoverBelowFraction` (above 0, at most 1) of it double the rate back.
+
+`UPSTelemetrySamplingSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Session telemetry schema (`FPSSessionTelemetryTuning`)
+
+Single object (Epic 117). It sets what an opted-in player's sessions record and how much a crash
+report says (`Specs/Privacy_Telemetry.md`):
+- `FrameTimeBucketMs` (above 0), `FrameTimeBucketCount` (1 or more): the frame-time histogram's
+  bucket width and count. Percentiles are reported to the bucket width, rounded up. A frame slower
+  than width × count lands in the overflow bucket, which reports the slowest frame.
+- `Percentiles`: the frame-time percentiles each session records, each above 0 and at most 100.
+- `MinSessionSeconds` (0 or more): a session that ends cleanly with less play than this is not
+  kept. One that never ends cleanly is always kept, because it is a crash.
+- `MaxStoredSessions` (1 or more): how many sessions the local store keeps; the oldest go first.
+- `CheckpointEveryPlays` (0 or more): save the open session every this many plays (0: only at
+  the start and the end).
+- `CrashBreadcrumbCount` (0 or more): how many recent telemetry-bus events a crash report carries.
+
+`UPSSessionTelemetrySubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Run-fit schema (`FPSRunFitCatalog`)
+
+Single object (Epic 81; how the run defense accounts for every gap). Gaps are `EPSRunGap` names,
+left (-Y) and right (+Y) of the ball: `ALeft`/`ARight` beside the center, then `B`, `C` (outside
+the tackle, inside an inline tight end) and `D`.
+- `Fronts[]`, each with:
+  - `Front`: the play's `Front` (`4-3`, `3-4`, `Nickel`, ...), each listed once.
+  - `Fits[]`: a `Role` (an `EPlayerRole`, each once per front) and its `Gaps`, given to that
+    role's defenders left to right across the field. A gap appears at most once per front;
+    defenders beyond the list have none.
+- `DefaultFront`: the listed front a call with an unlisted front (or no call) plays.
+- `GapWidth` (above 0): a gap outside the last lineman is this wide (cm).
+- `InlineTightEndWidth`: a tight end this close outside the end lineman extends the line.
+- `FitDepth`, `SecondLevelDepth`: how far past the line of scrimmage a defensive lineman, and
+  everyone else, fits his gap.
+- `LeverageOffset`: a spill fitter plays this far inside his gap's center, the force player (the
+  outermost fitter on each side) this far outside it.
+- `FlowWeight` (0-1): a second-level fitter moves this fraction of the way from his gap toward
+  the carrier, across the field.
+- `AttackRadius`: a carrier this close to a fitter's gap, across the field, is coming through it,
+  and the fitter attacks.
+- `FillRadius`: a fitter this close to his gap's spot, across the field, fills it (gap
+  integrity).
+
+`PSDefenderGaps::ValidateCatalog` and `tools/validate_data.py` check it.
+
+## Route-running tuning schema (`FRouteRunningTuningRow`)
+
+Single object (Epic 68; how receivers run routes as contested skills, `UPSRouteRunnerComponent`
+and `PSRouteRunning`). Every field is a number, 0 or more; distances are cm, chances 0-1:
+- `PressRadius`: a defender this close in front of a receiver at the snap presses him.
+- `ReleaseBaseWinChance`, `ReleaseRatingWeight`, `ReleaseMinWinChance`, `ReleaseMaxWinChance`
+  (min not above max): the receiver's chance to win his release is the base plus the weight per
+  point his release rating ((Agility + Strength) / 2) beats the presser's, clamped.
+- `DelayShare` (at most 1), `DelaySeconds`, `RerouteOffset`, `RerouteDelaySeconds`: of the
+  releases he loses this share are a delay (held `DelaySeconds`); the rest a reroute (his route
+  moved `RerouteOffset` toward his sideline, held `RerouteDelaySeconds`).
+- `BreakMinAngleDegrees` (at most 180): a waypoint turning the route this much is a break.
+- `MaxBreakRounding`: at Agility 0 a receiver turns for the next leg this far before the corner;
+  at 100 he cuts on the spot.
+- `BreakSeparationBase`, `BreakSeparationPerAgility`: the separation a break makes, plus this per
+  point of Agility on the defender (never below zero). The QB counts on it throwing early.
+- `FakeSellSeconds`: a double move's receiver sells the fake this long.
+- `BiteRadius`, `BiteBaseChance`, `BiteAgilityWeight`, `BiteAwarenessWeight`, `BiteMinChance`,
+  `BiteMaxChance` (min not above max), `BiteFreezeSeconds`: the nearest defender within the
+  radius bites with the base chance plus the receiver's Agility / 100 times its weight minus his
+  own Awareness / 100 times its weight, clamped; one who bites freezes `BiteFreezeSeconds`.
+- `ManReadRadius`: an option route's receiver reads man when a defender is this close at the
+  read point.
+
+## Route schema extras (`FPSRoute`, Epic 68)
+
+On top of `RouteId` and `Waypoints` (`Offset`, `TimingSeconds`) in `sample_routes.json`:
+- `Waypoints[].bFake`: a double move's fake break (not the last waypoint).
+- `OptionReadWaypoint` (-1 for none): an option route reads the coverage at this waypoint and
+  runs `VsManBranch` or `VsZoneBranch` from there. A branch is a route whose offsets start at the
+  read point and whose timings count from the read; it is authored breaking outside, and turns
+  inside against a man defender with outside leverage. Branches must exist and not be options
+  themselves.
 
 ## All-22 camera schema (`FPSAll22CameraTuning`)
 

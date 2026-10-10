@@ -85,6 +85,16 @@ and reads it from `GetActiveTier()`. It never hardcodes a mobile special case.
 | Camera effects (Epic 40 and onwards) | Depth of field, motion blur | None | None |
 | Player detail (Track A) | Full skeletal LODs | LOD 1+ | LOD 2+ |
 
+Landed so far:
+
+| System (epic) | Tier fields | DesktopHigh | MobileBaseline | MobileLow |
+|---|---|---|---|---|
+| Telemetry sampling, which overlays, trails and replay read (Epic 26) | `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` | 30 Hz, 0.25 ms a frame | 15 Hz, 0.15 ms | 10 Hz, 0.1 ms |
+
+The sampler also halves its own rate when its frames run over the tier's budget
+(`PlaySports.TelemetrySampling.BudgetDegradesAndRecovers`); `stat PSTelemetrySampling` shows its
+cost on a device.
+
 ## 5. Verification
 
 | What | How it's verified today | Still needed |

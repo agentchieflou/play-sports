@@ -1,6 +1,7 @@
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "PSSaveSubsystem.h"
 #include "Engine/GameInstance.h"
 
@@ -109,6 +110,30 @@ bool FPSSaveSystemSlotNameTest::RunTest(const FString& Parameters)
         UPSSaveSubsystem::MakeSlotName(EPSSaveCategory::Franchise, TEXT("1")), FString(TEXT("Franchise_1")));
     TestEqual(TEXT("Profile slot name"),
         UPSSaveSubsystem::MakeSlotName(EPSSaveCategory::Profile, TEXT("Default")), FString(TEXT("Profile_Default")));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSSaveSystemDeleteSlotTest,
+    "PlaySports.SaveSystem.DeleteSlotRemovesBackup",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSSaveSystemDeleteSlotTest::RunTest(const FString& Parameters)
+{
+    UPSSaveSubsystem* Subsystem = NewObject<UPSSaveSubsystem>(NewObject<UGameInstance>());
+    UPSSaveGame* Save = NewObject<UPSSaveGame>();
+
+    const FString Slot = TEXT("Test_DeleteSlot");
+    // Save twice so a backup exists alongside the primary.
+    TestTrue(TEXT("First save succeeds"), Subsystem->SaveToSlot(Save, Slot));
+    TestTrue(TEXT("Second save succeeds"), Subsystem->SaveToSlot(Save, Slot));
+    const FString BackupPath = UPSSaveSubsystem::GetSlotPath(Slot) + TEXT(".bak");
+    TestTrue(TEXT("Backup written"), FPaths::FileExists(BackupPath));
+
+    TestTrue(TEXT("DeleteSlot succeeds"), Subsystem->DeleteSlot(Slot));
+    TestFalse(TEXT("Primary gone"), Subsystem->DoesSlotExist(Slot));
+    TestFalse(TEXT("Backup gone"), FPaths::FileExists(BackupPath));
+    TestNull(TEXT("Nothing loads from a deleted slot"), Subsystem->LoadFromSlot(Slot));
+    TestTrue(TEXT("Deleting a missing slot is fine"), Subsystem->DeleteSlot(Slot));
     return true;
 }
 

@@ -75,9 +75,9 @@ Epic 118's job format serves the growing `Specs/` editor backlog. Track P
 **Goal:** When the game breaks in the field, we learn about it — crash capture and anonymous session health.
 **Depends on:** —
 
-- [ ] Crash reporter configuration with symbolized stacks and repo issue routing
-- [ ] Session telemetry (opt-in): mode usage, play counts, perf percentiles
-- [ ] Privacy policy + data-minimization documentation
+- [x] Crash reporter configuration with symbolized stacks and repo issue routing *(as built: `Config/DefaultGame.ini` ships the crash client and .pdb files, `[CrashReportClient]` in `DefaultEngine.ini` uploads nothing; `FPSCrashContext` puts the session and bus breadcrumbs in the report's game data; `tools/crash_report.py` summarizes reports (CI prints them after the tests) and files one `crash` issue per signature, reopening regressions)*
+- [x] Session telemetry (opt-in): mode usage, play counts, perf percentiles *(as built: `UPSSessionTelemetrySubsystem` counts plays from the bus and frame-time percentiles per game world; an opted-in player's sessions go to `UPSSessionTelemetrySave`, saved open and closed at cleanup so a crash reads as an unclean session; `BuildReport` gives mode usage and session health; tuning in `Data/session_telemetry.json`. The consent prompt itself is front-end UI, not built)*
+- [x] Privacy policy + data-minimization documentation *(as built: `Specs/Privacy_Telemetry.md`)*
 
 ### Epic 118: Autonomix Editor Automation Depth
 

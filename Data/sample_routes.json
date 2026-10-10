@@ -39,6 +39,43 @@
                 { "Offset": { "X": 900, "Y": 0, "Z": 0 }, "TimingSeconds": 1.6 },
                 { "Offset": { "X": 1400, "Y": -600, "Z": 0 }, "TimingSeconds": 2.4 }
             ]
+        },
+        {
+            "RouteId": "SlantGo",
+            "Waypoints": [
+                { "Offset": { "X": 300, "Y": 0, "Z": 0 }, "TimingSeconds": 0.5 },
+                { "Offset": { "X": 400, "Y": -200, "Z": 0 }, "TimingSeconds": 0.8, "bFake": true },
+                { "Offset": { "X": 1600, "Y": -200, "Z": 0 }, "TimingSeconds": 2.6 }
+            ]
+        },
+        {
+            "RouteId": "OutAndUp",
+            "Waypoints": [
+                { "Offset": { "X": 500, "Y": 0, "Z": 0 }, "TimingSeconds": 0.9 },
+                { "Offset": { "X": 500, "Y": 250, "Z": 0 }, "TimingSeconds": 1.2, "bFake": true },
+                { "Offset": { "X": 1600, "Y": 250, "Z": 0 }, "TimingSeconds": 2.8 }
+            ]
+        },
+        {
+            "RouteId": "Option",
+            "Waypoints": [
+                { "Offset": { "X": 600, "Y": 0, "Z": 0 }, "TimingSeconds": 1.0 }
+            ],
+            "OptionReadWaypoint": 0,
+            "VsManBranch": "OptionBreak",
+            "VsZoneBranch": "OptionSit"
+        },
+        {
+            "RouteId": "OptionBreak",
+            "Waypoints": [
+                { "Offset": { "X": 100, "Y": 400, "Z": 0 }, "TimingSeconds": 0.5 }
+            ]
+        },
+        {
+            "RouteId": "OptionSit",
+            "Waypoints": [
+                { "Offset": { "X": -100, "Y": 0, "Z": 0 }, "TimingSeconds": 0.3 }
+            ]
         }
     ]
 }
