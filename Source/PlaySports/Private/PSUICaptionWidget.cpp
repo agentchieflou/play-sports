@@ -1,4 +1,5 @@
 #include "PSUICaptionWidget.h"
+#include "PSLocalization.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -56,11 +57,13 @@ void UPSUICaptionWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
         return;
     }
 
-    FString Text;
+    TArray<FText> Lines;
     for (const FPSCaptionLine& Line : Accessibility->GetActiveCaptions(World->GetTimeSeconds()))
     {
-        Text += (Text.IsEmpty() ? FString() : FString(TEXT("\n"))) + UPSUIAccessibilitySubsystem::FormatCaption(Line);
+        Lines.Add(UPSUIAccessibilitySubsystem::FormatCaptionText(Line));
     }
+    const FText Shown = UPSLocalization::JoinLines(Lines);
+    const FString Text = Shown.ToString();
     const int32 FontSize = Accessibility->GetCaptionFontSize();
     if (Text == ShownText && FontSize == ShownFontSize)
     {
@@ -68,7 +71,7 @@ void UPSUICaptionWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
     }
     ShownText = Text;
     ShownFontSize = FontSize;
-    CaptionText->SetText(FText::FromString(Text));
+    CaptionText->SetText(Shown);
     FSlateFontInfo Font = CaptionText->GetFont();
     Font.Size = FontSize;
     CaptionText->SetFont(Font);

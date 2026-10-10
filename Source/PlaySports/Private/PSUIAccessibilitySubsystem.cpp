@@ -1,5 +1,6 @@
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSDataIngestion.h"
+#include "PSLocalization.h"
 #include "PSSettingsSubsystem.h"
 #include "PSUICaptionWidget.h"
 #include "Blueprint/UserWidget.h"
@@ -188,9 +189,21 @@ TArray<FPSCaptionLine> UPSUIAccessibilitySubsystem::GetActiveCaptions(float Now)
     return Active;
 }
 
+FText UPSUIAccessibilitySubsystem::FormatCaptionText(const FPSCaptionLine& Line)
+{
+    if (Line.Speaker.IsEmpty())
+    {
+        return UPSLocalization::FromLocalized(Line.Text);
+    }
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Speaker"), UPSLocalization::FromLocalized(Line.Speaker));
+    Arguments.Add(TEXT("Text"), UPSLocalization::FromLocalized(Line.Text));
+    return UPSLocalization::Format(TEXT("Caption.Line"), Arguments);
+}
+
 FString UPSUIAccessibilitySubsystem::FormatCaption(const FPSCaptionLine& Line)
 {
-    return Line.Speaker.IsEmpty() ? Line.Text : FString::Printf(TEXT("%s: %s"), *Line.Speaker, *Line.Text);
+    return FormatCaptionText(Line).ToString();
 }
 
 void UPSUIAccessibilitySubsystem::Narrate(const FString& Text)

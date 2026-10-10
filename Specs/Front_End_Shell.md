@@ -74,6 +74,22 @@ editor handoff: what exists in code, and what an editor session adds.
     still sees, and `ResolveMatchupColors` falls back to a secondary color when home and away
     still look alike. Team select's accents go through it today; Epic 37's team colors and
     the Track A overlays are to call it as they arrive.
+- **Localization (Epic 106).** All UI text comes through `UPSLocalization`, from two UE string
+  tables: `Data/ui_text.csv` (the code's own text, written by hand) and
+  `Data/ui_text_data.csv` (generated from the menu, settings and tip files by
+  `tools/ui_text.py`). See `Data/README.md`, "UI text tables".
+  - `UPSMenuComponent::GetPresentedScreen` is the boundary. It localizes each screen as it
+    builds it, so widgets (`UPSMenuScreenWidget`, `UPSUICaptionWidget`, the loading screen)
+    receive localized strings. Names are shown as they are (`Verbatim`).
+  - The HUD's clock, phase and banners (`UPSScoreboardWidget`, `UPSPlayResultWidget`) take
+    their patterns from the table.
+  - Numbers, percentages and dates follow the culture. The `Units` setting (Gameplay) picks
+    feet and pounds or centimeters and kilograms. Team select shows each roster's average
+    height and weight in it.
+  - Pseudo-localization: `ps.Loc.Pseudo 1` in the console accents, pads and brackets every
+    string from the tables, and marks names with single angle quotes. Anything still plain
+    on screen bypassed the tables. `PlaySports.Localization.PseudoLocalizedUI` checks every
+    menu screen except play calling this way.
 
 ## 2. Not yet (other epics)
 
@@ -85,6 +101,11 @@ editor handoff: what exists in code, and what an editor session adds.
   text-to-speech hook subscribes.
 - Color vision covers team select only: the match's team colors (Epic 37) and the broadcast
   overlays (Track A) don't exist yet.
+- Localization gaps (Epic 106):
+  - The play-call screens' generated text is still built in English in
+    `UPSPlayCallSubsystem`, so those screens are left out of the pseudo-localization check.
+  - Key-refusal reasons from `UPSInputConfig` are developer English and shown verbatim.
+  - There is no language setting yet: the culture is the platform's.
 - Logos: `LogoPath` is empty for every team until an editor session imports logo textures; the
   abbreviation stands in.
 

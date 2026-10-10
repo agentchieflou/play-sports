@@ -44,6 +44,16 @@ evidence). A rejected review returns to the Supervisor, never directly to the Co
    hardcoded tuning numbers; no new Cast<APSGameMode> reach-through once the telemetry bus
    exists; no duplicated state copies.
 
+7. **User-facing text** (Epic 106): anything the player reads is localizable. It comes through
+   `UPSLocalization`: a `Data/ui_text.csv` key via `GetText`/`Format`, a UI data file string via
+   `GetDataText`, or `Verbatim` for names. Reject `FText::FromString`, `FText::AsCultureInvariant`,
+   `LOCTEXT`/`NSLOCTEXT`/`INVTEXT` and `FString::Printf` building display text in any
+   user-facing file, including new widgets, overlays and HUD code outside the prefixes
+   `validate_data.py` gates (`PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`, `PSSettings*`). Changes
+   to `ui_menus.json`, `ui_settings.json` or `loading_tips.json` must carry a regenerated
+   `Data/ui_text_data.csv` (`python tools/ui_text.py --write`). Log lines and validation
+   messages for developers are exempt.
+
 ## Output format
 
 Verdict first (approve / request changes), then numbered findings, each with file:line and a

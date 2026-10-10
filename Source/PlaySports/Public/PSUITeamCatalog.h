@@ -45,6 +45,14 @@ struct FPSTeamSummary
 
     UPROPERTY(BlueprintReadOnly, Category = "Team")
     int32 PlayerCount = 0;
+
+    /** The roster's mean FPlayerAttributes::WeightKg and HeightCm (0 without a roster); team
+     *  select shows them in the player's units (Epic 106). */
+    UPROPERTY(BlueprintReadOnly, Category = "Team")
+    float AverageWeightKg = 0.f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Team")
+    float AverageHeightCm = 0.f;
 };
 
 /**

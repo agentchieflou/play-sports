@@ -131,9 +131,9 @@ bool FPSSettingsCatalogTest::RunTest(const FString& Parameters)
 
     // A toggle flips.
     const FName VSync = Settings->VSyncSettingId;
-    TestEqual(TEXT("VSync starts on"), Settings->FormatValue(VSync), FString(TEXT("On")));
+    TestEqual(TEXT("VSync starts on"), Settings->FormatValue(VSync).ToString(), FString(TEXT("On")));
     TestTrue(TEXT("Stepping a toggle flips it"), Settings->StepSetting(VSync) && !Settings->GetBool(VSync));
-    TestEqual(TEXT("...shown Off"), Settings->FormatValue(VSync), FString(TEXT("Off")));
+    TestEqual(TEXT("...shown Off"), Settings->FormatValue(VSync).ToString(), FString(TEXT("Off")));
     TestTrue(TEXT("...and the change is told"), Changes.Num() == 1 && Changes[0] == VSync);
 
     // A choice moves to the next and wraps; its number is the choice's value.
@@ -144,7 +144,7 @@ bool FPSSettingsCatalogTest::RunTest(const FString& Parameters)
         const int32 Start = FMath::RoundToInt(Settings->GetValue(FrameCap));
         TestEqual(TEXT("Its number is the chosen value"), Settings->GetNumber(FrameCap), FrameCapDef->Values[Start]);
         Settings->StepSetting(FrameCap);
-        TestEqual(TEXT("Stepping moves to the next choice"), Settings->FormatValue(FrameCap), FrameCapDef->Choices[(Start + 1) % FrameCapDef->Choices.Num()]);
+        TestEqual(TEXT("Stepping moves to the next choice"), Settings->FormatValue(FrameCap).ToString(), FrameCapDef->Choices[(Start + 1) % FrameCapDef->Choices.Num()]);
         for (int32 Step = 1; Step < FrameCapDef->Choices.Num(); ++Step)
         {
             Settings->StepSetting(FrameCap);
@@ -161,7 +161,7 @@ bool FPSSettingsCatalogTest::RunTest(const FString& Parameters)
         TestEqual(TEXT("A value between steps snaps to the nearest"), Settings->GetValue(Volume), VolumeDef->Min + VolumeDef->Step);
         Settings->SetValue(Volume, VolumeDef->Max * 3.f);
         TestEqual(TEXT("...and never past the top"), Settings->GetValue(Volume), VolumeDef->Max);
-        TestEqual(TEXT("...shown with its unit"), Settings->FormatValue(Volume), FString::SanitizeFloat(VolumeDef->Max, 0) + VolumeDef->Unit);
+        TestEqual(TEXT("...shown as the culture writes a percentage"), Settings->FormatValue(Volume).ToString(), FText::AsPercent(VolumeDef->Max / 100.f).ToString());
         Settings->StepSetting(Volume);
         TestEqual(TEXT("Stepping past the top wraps to the bottom"), Settings->GetValue(Volume), VolumeDef->Min);
         Settings->ResetToDefaults(VolumeDef->Category);

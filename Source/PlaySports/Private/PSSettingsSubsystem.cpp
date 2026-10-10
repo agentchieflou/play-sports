@@ -1,5 +1,6 @@
 #include "PSSettingsSubsystem.h"
 #include "PSDataIngestion.h"
+#include "PSLocalization.h"
 #include "PSProfileSaveGame.h"
 #include "PSSaveSubsystem.h"
 #include "AudioDevice.h"
@@ -247,24 +248,42 @@ void UPSSettingsSubsystem::ResetToDefaults(FName Category)
     }
 }
 
-FString UPSSettingsSubsystem::FormatValue(FName SettingId)
+FText UPSSettingsSubsystem::FormatValue(FName SettingId)
 {
     const FPSSettingDef* Def = GetCatalog().FindSetting(SettingId);
     if (!Def)
     {
-        return FString();
+        return FText::GetEmpty();
     }
     const float Value = GetValue(SettingId);
     switch (Def->Kind)
     {
     case EPSSettingKind::Toggle:
-        return Value >= 0.5f ? TEXT("On") : TEXT("Off");
+        return Value >= 0.5f ? UPSLocalization::GetText(TEXT("Common.On")) : UPSLocalization::GetText(TEXT("Common.Off"));
     case EPSSettingKind::Choice:
-        return Def->Choices.IsValidIndex(FMath::RoundToInt(Value)) ? Def->Choices[FMath::RoundToInt(Value)] : FString();
+    {
+        const int32 Index = FMath::RoundToInt(Value);
+        return Def->Choices.IsValidIndex(Index)
+            ? UPSLocalization::GetDataText(UPSLocalization::SettingChoiceKey(SettingId, Index), Def->Choices[Index])
+            : FText::GetEmpty();
+    }
     case EPSSettingKind::Slider:
-        return FString::SanitizeFloat(Value, 0) + Def->Unit;
+    {
+        if (Def->Unit == TEXT("%"))
+        {
+            return UPSLocalization::FormatPercent(Value / 100.f);
+        }
+        if (Def->Unit.IsEmpty())
+        {
+            return UPSLocalization::FormatNumber(Value, 2);
+        }
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Value"), UPSLocalization::FormatNumber(Value, 2));
+        Arguments.Add(TEXT("Unit"), UPSLocalization::GetDataText(UPSLocalization::SettingKey(SettingId, TEXT("Unit")), Def->Unit));
+        return UPSLocalization::Format(TEXT("Settings.ValueWithUnit"), Arguments);
+    }
     default:
-        return FString();
+        return FText::GetEmpty();
     }
 }
 

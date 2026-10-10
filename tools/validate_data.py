@@ -34,9 +34,10 @@ FPSBroadcastOverlayTheme; "Settings" files against FPSSettingsCatalog (Epic 103.
 "CatenaryParameterCm" files against FPSSkycamTuning; "UncoveredSeparation" files against
 FBlownCoverageTuningRow; "Packages" + "DefaultOffensePackage" files against FPSPersonnelCatalog (11
 players per package, roles on the package's side, one package per formation and side);
-"CaptionWordsPerSecond" files against FPSUIAccessibilityTuning (Epic 103.2). Teams, the league
-config, the playbook, player rating ranges and every reference between files are
-tools/content_contracts.py's (Epic 125), run from here.
+"CaptionWordsPerSecond" files against FPSUIAccessibilityTuning (Epic 103.2). The UI string tables
+(Data/ui_text.csv, Data/ui_text_data.csv) and the UI code's text are checked by tools/ui_text.py
+(Epic 106). Teams, the league config, the playbook, player rating ranges and every reference between
+files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1895,6 +1896,15 @@ def validate_skycam(path, payload):
         err(path, f"MinHeightCm ({payload['MinHeightCm']}) must be below the cables' ceiling over midfield ({ceiling:.0f})")
 
 
+def validate_ui_text():
+    """Data/ui_text.csv, Data/ui_text_data.csv and the UI code's text (Epic 106); the checks
+    live in tools/ui_text.py, which also regenerates ui_text_data.csv."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ui_text
+    for path, message in ui_text.problems():
+        err(path, message)
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1995,6 +2005,7 @@ def main():
         if isinstance(payload, dict) and "Packages" in payload and "DefaultOffensePackage" in payload:
             validate_personnel_catalog(path, payload)
     content_contracts.check_references(REPO, parsed, err)
+    validate_ui_text()
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

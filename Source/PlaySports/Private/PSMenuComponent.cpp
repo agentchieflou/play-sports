@@ -12,6 +12,7 @@
 #include "PSSettingsComponent.h"
 #include "PSInputDeviceComponent.h"
 #include "PSInputGlyphs.h"
+#include "PSLocalization.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSUIColorAccessibility.h"
 #include "Engine/GameInstance.h"
@@ -24,6 +25,37 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/Paths.h"
+
+namespace PSMenuText
+{
+    /** An input action's name (Data/ui_text.csv Input.Action.<ActionId>), else its ID. */
+    static FText ActionName(FName ActionId)
+    {
+        const FString Key = FString::Printf(TEXT("Input.Action.%s"), *ActionId.ToString());
+        return UPSLocalization::HasText(Key) ? UPSLocalization::GetText(Key) : UPSLocalization::Verbatim(ActionId.ToString());
+    }
+
+    /** Where an action works: its contexts' names (Input.Context.<ContextId>), as a list. */
+    static FText ContextNames(const TArray<FName>& Contexts)
+    {
+        TArray<FText> Names;
+        for (const FName& ContextId : Contexts)
+        {
+            const FString Key = FString::Printf(TEXT("Input.Context.%s"), *ContextId.ToString());
+            Names.Add(UPSLocalization::HasText(Key) ? UPSLocalization::GetText(Key) : UPSLocalization::Verbatim(ContextId.ToString()));
+        }
+        return FText::Join(UPSLocalization::GetText(TEXT("Common.ListSeparator")), Names);
+    }
+
+    /** "Label: value", as an option shows a setting or an action's key. */
+    static FString OptionWithValue(const FText& Label, const FText& Value)
+    {
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Label"), Label);
+        Arguments.Add(TEXT("Value"), Value);
+        return UPSLocalization::Format(TEXT("Menu.Option"), Arguments).ToString();
+    }
+}
 
 UPSMenuComponent::UPSMenuComponent()
 {
@@ -385,7 +417,7 @@ bool UPSMenuComponent::HandleRemapKey(const FKey& Key)
     RemapActionId = NAME_None;
     if (IsBackKey(Key))
     {
-        RemapMessage = TEXT("Cancelled.");
+        RemapMessage = UPSLocalization::GetText(TEXT("Remap.Cancelled")).ToString();
     }
     else
     {
@@ -393,13 +425,22 @@ bool UPSMenuComponent::HandleRemapKey(const FKey& Key)
         UPSSettingsComponent* PlayerSettings = Player ? Player->GetSettingsComponent() : nullptr;
         const bool bGamepad = UPSInputGlyphs::GetDeviceForKey(Key) == EPSInputDevice::Gamepad;
         FString Problem;
+        FFormatNamedArguments Arguments;
         if (PlayerSettings && PlayerSettings->RequestRemap(ActionId, bGamepad, Key.GetFName(), Problem))
         {
-            RemapMessage = FString::Printf(TEXT("%s is now %s."), *ActionId.ToString(), *Key.GetDisplayName().ToString());
+            Arguments.Add(TEXT("Action"), PSMenuText::ActionName(ActionId));
+            Arguments.Add(TEXT("Key"), UPSLocalization::Verbatim(Key.GetDisplayName().ToString()));
+            RemapMessage = UPSLocalization::Format(TEXT("Remap.Done"), Arguments).ToString();
+        }
+        else if (Problem.IsEmpty())
+        {
+            RemapMessage = UPSLocalization::GetText(TEXT("Remap.Refused")).ToString();
         }
         else
         {
-            RemapMessage = Problem.IsEmpty() ? FString(TEXT("That key can't be used.")) : Problem + TEXT(".");
+            // The catalog's reason is written for developers and is not translated yet.
+            Arguments.Add(TEXT("Reason"), UPSLocalization::Verbatim(Problem));
+            RemapMessage = UPSLocalization::Format(TEXT("Remap.RefusedBecause"), Arguments).ToString();
         }
     }
     RedrawKeepingFocus(ActionId);
@@ -523,7 +564,7 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
             if (UPSSettingsComponent* PlayerSettings = Player->GetSettingsComponent())
             {
                 PlayerSettings->ResetRemaps();
-                RemapMessage = TEXT("Every action is back on its usual keys.");
+                RemapMessage = UPSLocalization::GetText(TEXT("Remap.AllReset")).ToString();
             }
         }
         RedrawKeepingFocus(TEXT("ResetRemaps"));
@@ -600,17 +641,43 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
         return FPSMenuScreenDef();
     }
 
+    // The screen in the player's language (Epic 106): its authored text through
+    // Data/ui_text_data.csv, and everything built below through Data/ui_text.csv.
     FPSMenuScreenDef Presented = *Authored;
+    Presented.Title = UPSLocalization::GetDataText(UPSLocalization::MenuKey(ScreenId, TEXT("Title")), Authored->Title).ToString();
+    Presented.Body = UPSLocalization::GetDataText(UPSLocalization::MenuKey(ScreenId, TEXT("Body")), Authored->Body).ToString();
+    for (FPSMenuOptionDef& AuthoredOption : Presented.Options)
+    {
+        AuthoredOption.Label = UPSLocalization::GetDataText(UPSLocalization::MenuOptionKey(ScreenId, AuthoredOption.OptionId, TEXT("Label")), AuthoredOption.Label).ToString();
+        AuthoredOption.Detail = UPSLocalization::GetDataText(UPSLocalization::MenuOptionKey(ScreenId, AuthoredOption.OptionId, TEXT("Detail")), AuthoredOption.Detail).ToString();
+    }
+
     if (Presented.Content == EPSMenuScreenContent::TeamSelect)
     {
-        // Team colors as the player's color vision needs them (Epic 103.2).
+        // Team colors as the player's color vision needs them (Epic 103.2), sizes in the
+        // player's units (Epic 106). Names are the teams' own, not translated.
         const EPSColorblindMode ColorMode = UPSUIAccessibilitySubsystem::GetColorblindMode(GetSettings());
+        const EPSUnitSystem Units = UPSLocalization::GetUnitSystem(GetSettings());
         for (const FPSTeamSummary& Team : GetTeamSummaries())
         {
+            FFormatNamedArguments Arguments;
+            Arguments.Add(TEXT("Team"), UPSLocalization::Verbatim(Team.DisplayName));
+            Arguments.Add(TEXT("Abbreviation"), UPSLocalization::Verbatim(Team.Abbreviation));
+            Arguments.Add(TEXT("Overall"), FText::AsNumber(Team.Overall));
+            Arguments.Add(TEXT("Offense"), FText::AsNumber(Team.Offense));
+            Arguments.Add(TEXT("Defense"), FText::AsNumber(Team.Defense));
+            Arguments.Add(TEXT("Division"), UPSLocalization::Verbatim(Team.Division));
             FPSMenuOptionDef Option;
             Option.OptionId = Team.TeamId;
-            Option.Label = FString::Printf(TEXT("%s  (%s)    OVR %d   OFF %d   DEF %d    %s"),
-                *Team.DisplayName, *Team.Abbreviation, Team.Overall, Team.Offense, Team.Defense, *Team.Division);
+            Option.Label = UPSLocalization::Format(TEXT("Menu.TeamOption"), Arguments).ToString();
+            if (Team.PlayerCount > 0)
+            {
+                FFormatNamedArguments Size;
+                Size.Add(TEXT("Players"), FText::AsNumber(Team.PlayerCount));
+                Size.Add(TEXT("Height"), UPSLocalization::FormatHeight(Team.AverageHeightCm, Units));
+                Size.Add(TEXT("Weight"), UPSLocalization::FormatWeight(Team.AverageWeightKg, Units));
+                Option.Detail = UPSLocalization::Format(TEXT("Menu.TeamDetail"), Size).ToString();
+            }
             Option.Command = EPSMenuCommand::StartPlayNow;
             Option.Payload = Team.TeamId;
             Option.AccentColor = UPSUIColorLibrary::ResolveColor(Team.PrimaryColor, ColorMode);
@@ -637,7 +704,7 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
             {
                 FPSMenuOptionDef Recent;
                 Recent.OptionId = TEXT("Recent");
-                Recent.Label = RecentScreen->Title;
+                Recent.Label = UPSLocalization::GetDataText(UPSLocalization::MenuKey(RecentScreen->ScreenId, TEXT("Title")), RecentScreen->Title).ToString();
                 Recent.TargetScreen = RecentScreen->ScreenId;
                 Presented.Options.Add(Recent);
             }
@@ -646,7 +713,7 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
             {
                 FPSMenuOptionDef Favorites;
                 Favorites.OptionId = TEXT("Favorites");
-                Favorites.Label = FavoritesScreen->Title;
+                Favorites.Label = UPSLocalization::GetDataText(UPSLocalization::MenuKey(FavoritesScreen->ScreenId, TEXT("Title")), FavoritesScreen->Title).ToString();
                 Favorites.TargetScreen = FavoritesScreen->ScreenId;
                 Presented.Options.Add(Favorites);
             }
@@ -656,7 +723,7 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
         else if (PlayCall && Presented.Content == EPSMenuScreenContent::PlayCallPlays)
         {
             const FString Formation = ScreenPayloads.FindRef(ScreenId).ToString();
-            Presented.Title = Formation;
+            Presented.Title = UPSLocalization::Verbatim(Formation).ToString();
             Presented.Options.Append(PlayCall->BuildPlayOptions(Formation, bOffense));
         }
         else if (PlayCall && Presented.Content == EPSMenuScreenContent::PlayCallRecent)
@@ -682,7 +749,9 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
         const EPSInputDevice Device = Devices ? Devices->GetActiveDevice() : EPSInputDevice::KeyboardMouse;
         if (IsListeningForRemap())
         {
-            Presented.Body = FString::Printf(TEXT("Press the new key for %s. Back cancels."), *RemapActionId.ToString());
+            FFormatNamedArguments Arguments;
+            Arguments.Add(TEXT("Action"), PSMenuText::ActionName(RemapActionId));
+            Presented.Body = UPSLocalization::Format(TEXT("Remap.Prompt"), Arguments).ToString();
         }
         else if (!RemapMessage.IsEmpty())
         {
@@ -698,10 +767,12 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
                 }
                 FPSInputGlyph Glyph;
                 const bool bHasGlyph = Config->GetGlyphForAction(Action.ActionId, Action.Contexts[0], Device, Glyph);
+                // Button labels are the platform's own names, not translated.
                 FPSMenuOptionDef Option;
                 Option.OptionId = Action.ActionId;
-                Option.Label = FString::Printf(TEXT("%s: %s"), *Action.ActionId.ToString(), bHasGlyph ? *Glyph.Label : TEXT("-"));
-                Option.Detail = Action.Description;
+                Option.Label = PSMenuText::OptionWithValue(PSMenuText::ActionName(Action.ActionId),
+                    bHasGlyph ? UPSLocalization::Verbatim(Glyph.Label) : UPSLocalization::GetText(TEXT("Common.NoKey")));
+                Option.Detail = PSMenuText::ContextNames(Action.Contexts).ToString();
                 Option.Command = EPSMenuCommand::BeginRemap;
                 Option.Payload = Action.ActionId;
                 Presented.Options.Add(Option);
@@ -709,7 +780,7 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
         }
         FPSMenuOptionDef Reset;
         Reset.OptionId = TEXT("ResetRemaps");
-        Reset.Label = TEXT("Reset all keys");
+        Reset.Label = UPSLocalization::GetText(TEXT("Menu.ResetAllKeys")).ToString();
         Reset.Command = EPSMenuCommand::ResetRemaps;
         Presented.Options.Add(Reset);
     }
@@ -725,7 +796,7 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
             {
                 FPSMenuOptionDef Option;
                 Option.OptionId = Category.CategoryId;
-                Option.Label = Category.Label;
+                Option.Label = UPSLocalization::GetDataText(UPSLocalization::SettingCategoryKey(Category.CategoryId), Category.Label).ToString();
                 Option.TargetScreen = CategoryScreen ? CategoryScreen->ScreenId : NAME_None;
                 Option.Payload = Category.CategoryId;
                 CategoryOptions.Add(Option);
@@ -737,7 +808,7 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
             const FName CategoryId = ScreenPayloads.FindRef(ScreenId);
             if (const FPSSettingCategoryDef* Category = SettingsCatalog.FindCategory(CategoryId))
             {
-                Presented.Title = Category->Label;
+                Presented.Title = UPSLocalization::GetDataText(UPSLocalization::SettingCategoryKey(CategoryId), Category->Label).ToString();
             }
             for (const FPSSettingDef& Def : SettingsCatalog.Settings)
             {
@@ -747,15 +818,16 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
                 }
                 FPSMenuOptionDef Option;
                 Option.OptionId = Def.SettingId;
-                Option.Label = FString::Printf(TEXT("%s: %s"), *Def.Label, *Settings->FormatValue(Def.SettingId));
+                Option.Label = PSMenuText::OptionWithValue(
+                    UPSLocalization::GetDataText(UPSLocalization::SettingKey(Def.SettingId, TEXT("Label")), Def.Label), Settings->FormatValue(Def.SettingId));
                 Option.Command = EPSMenuCommand::StepSetting;
                 Option.Payload = Def.SettingId;
-                Option.Detail = Def.Description;
+                Option.Detail = UPSLocalization::GetDataText(UPSLocalization::SettingKey(Def.SettingId, TEXT("Description")), Def.Description).ToString();
                 Presented.Options.Add(Option);
             }
             FPSMenuOptionDef Reset;
             Reset.OptionId = TEXT("Reset");
-            Reset.Label = TEXT("Reset to defaults");
+            Reset.Label = UPSLocalization::GetText(TEXT("Menu.ResetToDefaults")).ToString();
             Reset.Command = EPSMenuCommand::ResetSettings;
             Reset.Payload = CategoryId;
             Presented.Options.Add(Reset);
@@ -773,7 +845,10 @@ void UPSMenuComponent::HandleStackChanged(FName PreviousTop, FName NewTop, EPSMe
     if (Accessibility && IsMenuOpen())
     {
         const FPSMenuScreenDef Screen = GetPresentedScreen(GetTopScreenId());
-        Accessibility->Narrate(Screen.Body.IsEmpty() ? Screen.Title : FString::Printf(TEXT("%s. %s"), *Screen.Title, *Screen.Body));
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Title"), UPSLocalization::FromLocalized(Screen.Title));
+        Arguments.Add(TEXT("Body"), UPSLocalization::FromLocalized(Screen.Body));
+        Accessibility->Narrate(Screen.Body.IsEmpty() ? Screen.Title : UPSLocalization::Format(TEXT("Narration.Screen"), Arguments).ToString());
     }
 }
 
@@ -787,7 +862,10 @@ void UPSMenuComponent::NarrateOption(FName OptionId)
     const FPSMenuScreenDef Screen = GetPresentedScreen(GetTopScreenId());
     if (const FPSMenuOptionDef* Option = Screen.Options.FindByPredicate([OptionId](const FPSMenuOptionDef& Candidate) { return Candidate.OptionId == OptionId; }))
     {
-        Accessibility->Narrate(Option->Detail.IsEmpty() ? Option->Label : FString::Printf(TEXT("%s. %s"), *Option->Label, *Option->Detail));
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Label"), UPSLocalization::FromLocalized(Option->Label));
+        Arguments.Add(TEXT("Detail"), UPSLocalization::FromLocalized(Option->Detail));
+        Accessibility->Narrate(Option->Detail.IsEmpty() ? Option->Label : UPSLocalization::Format(TEXT("Narration.Option"), Arguments).ToString());
     }
 }
 
