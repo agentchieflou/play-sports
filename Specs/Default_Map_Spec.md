@@ -1,20 +1,39 @@
-# Specification: Default Map Asset Creation
+# Specification: Default Map
 
-This document outlines the required editor verification steps for the default map configuration implemented in `Config/DefaultEngine.ini`.
+`Config/DefaultEngine.ini` names `/Game/Maps/GameMap` as both `GameDefaultMap` and `EditorStartupMap`.
 
-## Editor Asset Verification
+## How the map is made (Epic 146.2)
 
-Because Unreal Engine level assets are binary `.umap` files, they are not stored directly in this source repository. A human editor session must create the asset:
+The map is not made by hand. The content pipeline's `game_map` step
+(`tools/content_pipeline/steps/game_map.py`) builds it headlessly in the editor on the CI runner.
+The Content workflow (`.github/workflows/content.yml`) runs that step, and the result is committed
+through Git LFS as `Content/Maps/GameMap.umap`. `Specs/ADR_Content_Pipeline.md` describes the loop.
 
-1. **Open Unreal Editor**: Open `play-sports.uproject` in Unreal Editor 5.8.
-2. **Create Map Folder**: In the Content Browser, create a folder named `Maps` under the root `Content` directory (resulting in `/Game/Maps`).
-3. **Create Map**:
-   - Select `File -> New Level...`
-   - Select a blank or basic level template.
-   - Save the level in the newly created folder as `GameMap` (resulting in `/Game/Maps/GameMap`).
-4. **Verify Settings**:
-   - Go to `Edit -> Project Settings...`
-   - Navigate to `Project -> Maps & Modes`.
-   - Under `Default Maps`, verify that both **Editor Startup Map** and **Game Default Map** are set to `GameMap`.
-5. **Level Setup**:
-   - Setup the field geometry, markings, and trigger volumes in this `GameMap` as outlined in `Field_Geometry_Spec.md`, `Field_Markings_Spec.md`, and `Trigger_Volumes_Spec.md`.
+The level holds only what the field can't make for itself:
+
+- **Daylight that needs no lighting build:** a movable directional light (the sun, used as the
+  atmosphere's sun), a movable sky light, a sky atmosphere and exponential height fog.
+- **A player start** on the near goal line, facing upfield (+X).
+- **The match as its GameMode Override** (`APSGameMode`). The game boots into the map with
+  `?game=Menu` (`LocalMapOptions`), which runs the front end instead. Play Now travels back to it
+  without a game option, so the override starts the match.
+
+The field itself (surface, markings, end zones) and its trigger volumes are built at runtime from
+data by `APSFieldGrid`, which the game mode spawns when the level has none. So changing the
+field's dimensions or look never means regenerating the map.
+
+## Changing it
+
+Change the step (or the data it reads), then let the Content workflow regenerate the map and
+commit its `generated-content` artifact. Never save `GameMap` from the editor. The drift check
+treats that as drift. The ADR's "Hand edits" section says how hand-made work joins a generated
+level.
+
+## Verification
+
+- `PlaySports.Content.GameMap` (headless, in CI) loads the map. It checks that the map is a real
+  level, not an LFS pointer; that the match is its game mode; and that it has the movable lights
+  and the player start.
+- The Content workflow's check mode re-runs the step on every push to `main` that touches the
+  pipeline or `Content/`, and fails if the map no longer matches its step.
+- Still a human check: how it looks in PIE or a packaged build.
