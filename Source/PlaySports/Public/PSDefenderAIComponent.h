@@ -15,6 +15,7 @@ class UPSAIDecisionLog;
 class UPSCoverageMatchupSubsystem;
 class UPSLooseBallSubsystem;
 class UPSDeceptionSubsystem;
+class UPSPlayRecognitionSubsystem;
 
 /** What a defensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -30,7 +31,8 @@ enum class EPSDefenderAction : uint8
     Cover,
     /** Zone coverage: holding a spot, shading to the receiver who enters it. */
     Zone,
-    /** Run fit: holding, reading run or pass. */
+    /** Run fit: reading run or pass from his keys (UPSPlayRecognitionSubsystem, Epic 80): holding,
+     *  or, reading run before the ball is out, filling his gap. */
     Read,
     /** Chasing the ball carrier on an intercept angle. */
     Pursue,
@@ -75,15 +77,13 @@ struct FDefenderAITuningRow : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float ContainWidth = 400.f;
 
-    /** A passer this far behind the line is a pass read for a run-fit defender. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
-    float PassReadDepth = 250.f;
-
-    /** On a pass read, a run-fit defender drops to this depth past the line. */
+    /** On a pass read (UPSPlayRecognitionSubsystem's keys, Epic 80), a run-fit defender drops to
+     *  this depth past the line. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float PassDropDepth = 600.f;
 
-    /** A defender with 0 Awareness takes this long to react to a read or a throw (none at 100). */
+    /** A defender with 0 Awareness takes this long to react (none at 100): to the ball coming out
+     *  as it is, and to his keys and a throw as the recognition model scales it (Epic 80). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float MaxReactionSeconds = 0.6f;
 
@@ -105,8 +105,14 @@ struct FDefenderAITuningRow : public FTableRowBase
  * out -- a hand-off, a catch, a QB past the line -- everyone pursues the carrier on
  * APSDefenseController's intercept angle. On a run still behind the line, a defender with a
  * gap (UPSDefenderGapSubsystem, Epic 81) fits it first -- working across a blocker's face to
- * stay in it -- and attacks when the carrier comes to it. Awareness sets how fast each read
- * happens, and how long a pump fake freezes coverage.
+ * stay in it -- and attacks when the carrier comes to it. Awareness sets how fast he reacts,
+ * and how long a pump fake freezes coverage.
+ *
+ * What a run-fit defender reads, and how fast, is the recognition model's
+ * (UPSPlayRecognitionSubsystem, Epic 80): his diagnosis from the line and the backfield. Reading
+ * pass he drops; reading run he fills his gap against the back his key showed while the
+ * quarterback still has the ball. A coverage defender breaks on a throw in his throw read, so an
+ * elite one (or a ball hawk) jumps it.
  *
  * How coverage is played -- leverage, press, zone carries and hand-offs, safety help -- is the
  * coverage matchup engine's (UPSCoverageMatchupSubsystem, Epic 69): once it has a matchup or a
@@ -179,8 +185,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "AI")
     FVector GetZoneSpot() const { return ZoneSpot; }
 
-    /** How long this defender takes to react to a read or a throw: MaxReactionSeconds at
-     *  Awareness 0, none at 100. */
+    /** How long this defender takes to react: MaxReactionSeconds at Awareness 0, none at 100. The
+     *  ball coming out is seen in this; his keys and a throw in this as the recognition model
+     *  scales it (UPSPlayRecognitionSubsystem::GetReadTimes). */
     float GetReactionSeconds();
 
     /** True while a pump fake has this defender frozen. */
@@ -216,6 +223,14 @@ private:
     FVector SteerToPursue(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier) const;
     FVector SteerToFit(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier) const;
 
+    /** Run fit, reading: having read run before the ball is out, toward his gap against the back
+     *  his key showed (Epic 80); otherwise he holds. */
+    FVector SteerOnRead(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier) const;
+
+    /** How long he takes to break on a throw: the recognition model's throw read, else his
+     *  reaction. */
+    float GetThrowReadSeconds(const APSPlayerPawn* Self);
+
     /** Where Self fits his gap against a run by Carrier; false when he should pursue instead. */
     bool GetFitTarget(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier, FVector& OutTarget) const;
 
@@ -240,6 +255,9 @@ private:
     /** Play-action bites and option jobs (Epic 72). */
     UPSDeceptionSubsystem* GetDeception() const;
 
+    /** His reads of the play (Epic 80). */
+    UPSPlayRecognitionSubsystem* GetRecognition() const;
+
     UPROPERTY(Transient)
     FDefenderAITuningRow Tuning;
 
@@ -249,6 +267,8 @@ private:
 
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
     TWeakObjectPtr<APSPlayerPawn> CoveredReceiver;
+    /** Run fit, having read run: the back his key showed (Epic 80). */
+    TWeakObjectPtr<APSPlayerPawn> RunKeyBack;
     EPSDefenderAction Action = EPSDefenderAction::Idle;
     FVector DesiredDirection = FVector::ZeroVector;
     FVector LineOfScrimmage = FVector::ZeroVector;
@@ -257,10 +277,9 @@ private:
     float TimeSinceSnap = 0.f;
     /** Time since the last decision; decisions come at the platform tier's interval. */
     float DecisionClock = 0.f;
-    /** When this defender may act on the ball being out, the pass read and the throw
-     *  (TimeSinceSnap plus his reaction); negative: not seen yet. */
+    /** When this defender may act on the ball being out (TimeSinceSnap plus his reaction) and on
+     *  the throw (plus his throw read); negative: not seen yet. */
     float PursueAt = -1.f;
-    float PassReadAt = -1.f;
     float BallHawkAt = -1.f;
     /** Until when a pump fake holds this defender (TimeSinceSnap). */
     float FrozenUntil = -1.f;

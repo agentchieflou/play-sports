@@ -626,3 +626,20 @@ void UPSTelemetryBus::PublishBoundaryCrossed(const FPSTelemetryBoundaryCrossedEv
     }
     OnBoundaryCrossedMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishRecognition(const FPSTelemetryRecognitionEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryRecognitionEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = Event.Kind == EPSRecognitionEventKind::Formation
+        ? FString::Printf(TEXT("Recognition: formation %s (%s personnel), run lean %.2f"), *Event.Formation.ToString(), *Event.Personnel, Event.RunLean)
+        : FString::Printf(TEXT("Recognition: %s reads %s (%s) at %.2fs"), *Event.PlayerName, *Event.Read.ToString(), *Event.Key.ToString(), Event.Seconds);
+    RecordHistory(EPSTelemetryEventType::Recognition, Description, JsonPayload);
+
+    if (OnRecognition.IsBound())
+    {
+        OnRecognition.Broadcast(Event);
+    }
+    OnRecognitionMC.Broadcast(Event);
+}

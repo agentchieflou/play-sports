@@ -42,7 +42,8 @@ enum class EPSTelemetryEventType : uint8
     Coverage,
     LooseBall,
     Deception,
-    BoundaryCrossed
+    BoundaryCrossed,
+    Recognition
 };
 
 /** What a statistic counts (Epic 92). Player categories first, then team ones. */
@@ -191,6 +192,16 @@ enum class EPSDeceptionEventKind : uint8
     /** The defense saw the mesh and gave a defender his option job: "Dive", "Quarterback" or
      *  "Pitch". */
     Assignment
+};
+
+/** What the defense recognized (Epic 80), as UPSPlayRecognitionSubsystem reads it. */
+UENUM(BlueprintType)
+enum class EPSRecognitionEventKind : uint8
+{
+    /** The offense's formation, read from its alignment at the snap. */
+    Formation,
+    /** A defender diagnosed the play: Read "Run" or "Pass", from Key. */
+    Diagnosis
 };
 
 /** A loose ball the players play (Epic 17.4: a blocked kick), as UPSLooseBallSubsystem runs it. */
@@ -1181,6 +1192,47 @@ struct FPSTelemetryDeceptionEvent
     float Seconds = 0.f;
 };
 
+/** What the defense recognized (Epic 80): the offense's formation at the snap, or a defender's
+ *  diagnosis of the play from his keys. UPSPlayRecognitionSubsystem decides these; the defense AI
+ *  plays them, and a debug overlay or the booth can show them. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryRecognitionEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSRecognitionEventKind Kind = EPSRecognitionEventKind::Formation;
+
+    /** A diagnosis: the defender; empty for the formation. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** The formation class the offense lined up in. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Formation;
+
+    /** The formation's personnel, e.g. "11". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Personnel;
+
+    /** A diagnosis: "Run" or "Pass" ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Read;
+
+    /** ... from this key: "Handoff", "Drop", "LineFire", "PassSet" or "Flow". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Key;
+
+    /** How likely a run the defense thinks it is, 0-1 (the formation's lean, then what it
+     *  expects this play). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float RunLean = 0.5f;
+
+    /** A diagnosis: seconds after the snap he read it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Seconds = 0.f;
+};
+
 /** A loose ball (Epic 17.4): a blocked kick's ball on the ground, a muff, a recovery and the dead
  *  ball. UPSPlaySimulation announces the block; UPSLooseBallSubsystem runs the rest, and the
  *  simulation takes the dead ball as the kick's outcome. */
@@ -1325,6 +1377,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageSignature, const
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallSignature, const FPSTelemetryLooseBallEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionSignature, const FPSTelemetryDeceptionEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBoundaryCrossedSignature, const FPSTelemetryBoundaryCrossedEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecognitionSignature, const FPSTelemetryRecognitionEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -1364,6 +1417,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageMC, const FPSTelemetryCo
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallMC, const FPSTelemetryLooseBallEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionMC, const FPSTelemetryDeceptionEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBoundaryCrossedMC, const FPSTelemetryBoundaryCrossedEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecognitionMC, const FPSTelemetryRecognitionEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1479,6 +1533,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishBoundaryCrossed(const FPSTelemetryBoundaryCrossedEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishRecognition(const FPSTelemetryRecognitionEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -1611,6 +1668,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryBoundaryCrossedSignature OnBoundaryCrossed;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryRecognitionSignature OnRecognition;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -1650,6 +1710,7 @@ public:
     FPSTelemetryLooseBallMC OnLooseBallMC;
     FPSTelemetryDeceptionMC OnDeceptionMC;
     FPSTelemetryBoundaryCrossedMC OnBoundaryCrossedMC;
+    FPSTelemetryRecognitionMC OnRecognitionMC;
 
 private:
     UPROPERTY(Transient)

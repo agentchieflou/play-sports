@@ -68,8 +68,8 @@ coverage shell the playbook calls has one) and a press spot inside the route-run
 "ScoopClearRadius" files against FPSLooseBallTuning (Epic 17.4); "DifficultyTiers" files against
 FPSDifficultyCatalog, each scale a numeric field of its AI tuning file, the tiers the Difficulty
 setting's choices in order and each assist a toggle in ui_settings.json (Epic 84);
-"MeshRecognizeRadius" files against FPSDeceptionTuning (Epic 72): bite chances 0-1 with the floor
-under the ceiling, a discipline rating 0-100; "HardFailMultiplier" files against
+"MeshRecognizeRadius" files against FPSDeceptionTuning (Epic 72): a discipline rating 0-100, a
+tendency window of 1 or more; "HardFailMultiplier" files against
 FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system, within its
 frame; "FocusAreas" files against FPSTrainingTuning (Epic 90): 0-1 fatigue, recovery and AI fields,
 the practice injury tuning, each focus area's roles, rating weights and play categories (each one
@@ -90,8 +90,11 @@ FPSGameIntelligenceTuning (Epic 82), each task one of tools/orchestrator/routing
 threshold and archived leader a player stat category, listed once, each role's age curve and the
 retirement chances; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one weight per
 EPSStorylineKind, award scoring by EPSStatCategory, a falling ballot, the digest's task one of
-routing.json's. Teams, the league config, the playbook, player rating ranges and every reference
-between files are tools/content_contracts.py's (Epic 125), run from here.
+routing.json's; "FormationClasses" files against FPSPlayRecognitionTuning (Epic 80): its
+distances, read scales and weights, the pistol no shallower than under center, 0-1 leans and
+weights, and each formation class's unique ID, alignment, backfield and counts. Teams, the league
+config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -596,7 +599,7 @@ def validate_skill_ai_tuning(path, payload):
 
 
 DEFENDER_AI_FIELDS = ("ArrivalRadius", "ManCushion", "ManAnticipationSeconds", "ZoneRadius", "ZoneShadeWeight",
-                      "ContainWidth", "PassReadDepth", "PassDropDepth", "MaxReactionSeconds", "BallHawkRadius",
+                      "ContainWidth", "PassDropDepth", "MaxReactionSeconds", "BallHawkRadius",
                       "PumpFakeFreezeSeconds")
 
 
@@ -2714,10 +2717,9 @@ def validate_loose_ball(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSLooseBallTuning exactly")
 
 
-DECEPTION_FIELDS = ("FakeSeconds", "BiteBaseChance", "BiteRunTendencyWeight", "BiteAwarenessWeight", "BiteMinChance",
-                    "BiteMaxChance", "BiteFreezeSeconds", "TendencyWindow", "MeshRideSeconds", "ReadMinSpeed",
-                    "KeyLineDepth", "PitchReadRadius",
-                    "PitchWindowDepth", "MeshRecognizeRadius", "DisciplineAwareness", "ScrapeRadius")
+DECEPTION_FIELDS = ("FakeSeconds", "TendencyWindow", "MeshRideSeconds", "ReadMinSpeed", "KeyLineDepth",
+                    "PitchReadRadius", "PitchWindowDepth", "MeshRecognizeRadius", "DisciplineAwareness",
+                    "ScrapeRadius")
 
 
 def validate_deception(path, payload):
@@ -2726,13 +2728,6 @@ def validate_deception(path, payload):
         value = payload.get(field)
         if not is_number(value) or value < 0:
             err(path, f"{field}: '{value}' must be a number, 0 or more")
-    for field in ("BiteBaseChance", "BiteMinChance", "BiteMaxChance"):
-        value = payload.get(field)
-        if is_number(value) and value > 1:
-            err(path, f"{field}: {value} is a chance, 0 to 1")
-    low, high = payload.get("BiteMinChance"), payload.get("BiteMaxChance")
-    if is_number(low) and is_number(high) and low > high:
-        err(path, "BiteMinChance must not exceed BiteMaxChance")
     discipline = payload.get("DisciplineAwareness")
     if is_number(discipline) and discipline > 100:
         err(path, f"DisciplineAwareness: {discipline} is a rating, 0-100")
@@ -2742,6 +2737,75 @@ def validate_deception(path, payload):
     extra = set(payload) - set(DECEPTION_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSDeceptionTuning exactly")
+
+
+PLAY_RECOGNITION_NUMBERS = ("UnderCenterMaxDepth", "PistolMaxDepth", "BackfieldMinDepth", "BoxHalfWidth", "StackWidth",
+                            "OffsetWidth", "InlineWidth", "DefaultRunLean", "DropKeyDepth", "DropKeyRetreat",
+                            "FlowMinSpeed", "LineKeyDistance", "PassReadScale", "RunReadScale", "ThrowReadScale",
+                            "FakeReadScale", "ExpectationWeight", "TendencyWeight", "LatencyJitter", "MaxBiteSeconds")
+FORMATION_CLASS_FIELDS = {"ClassId", "QBAlignment", "Backfield", "MinStrongSide", "MaxWeakSide", "MinTightEnds",
+                          "MinSplitReceivers", "RunLean"}
+QB_ALIGNMENTS = {"UnderCenter", "Pistol", "Shotgun"}
+BACKFIELD_SETS = {"Empty", "Single", "Offset", "I", "Split", "Full"}
+
+
+def is_count(value, floor=0):
+    return isinstance(value, int) and not isinstance(value, bool) and value >= floor
+
+
+def validate_play_recognition(path, payload):
+    """FPSPlayRecognitionTuning (Data/play_recognition.json, Epic 80); mirrors
+    PSPlayRecognition::ValidateTuning."""
+    for field in PLAY_RECOGNITION_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("FlowMinSpeed", "LineKeyDistance"):
+        value = payload.get(field)
+        if is_number(value) and value <= 0:
+            err(path, f"{field}: must be above 0")
+    for field in ("DefaultRunLean", "TendencyWeight"):
+        value = payload.get(field)
+        if is_number(value) and value > 1:
+            err(path, f"{field}: {value} runs from 0 to 1")
+    jitter = payload.get("LatencyJitter")
+    if is_number(jitter) and jitter >= 1:
+        err(path, f"LatencyJitter: {jitter} is a fraction, 0 to below 1")
+    under, pistol = payload.get("UnderCenterMaxDepth"), payload.get("PistolMaxDepth")
+    if is_number(under) and is_number(pistol) and under > pistol:
+        err(path, "PistolMaxDepth must not be inside UnderCenterMaxDepth")
+    classes = payload.get("FormationClasses")
+    if not isinstance(classes, list) or not classes:
+        err(path, "FormationClasses: must be a non-empty array (with none, every look is Unknown)")
+        classes = []
+    seen = set()
+    for idx, entry in enumerate(classes):
+        where = f"FormationClasses[{idx}]"
+        if not isinstance(entry, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        class_id = entry.get("ClassId")
+        if not isinstance(class_id, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*", class_id) or class_id == "Unknown" or class_id in seen:
+            err(path, f"{where}.ClassId: '{class_id}' must be an identifier used once (not Unknown)")
+        seen.add(class_id)
+        if "QBAlignment" in entry and entry["QBAlignment"] not in QB_ALIGNMENTS:
+            err(path, f"{where}.QBAlignment: '{entry['QBAlignment']}' must be one of {sorted(QB_ALIGNMENTS)} (leave it out for any)")
+        if "Backfield" in entry and entry["Backfield"] not in BACKFIELD_SETS:
+            err(path, f"{where}.Backfield: '{entry['Backfield']}' must be one of {sorted(BACKFIELD_SETS)} (leave it out for any)")
+        for field in ("MinStrongSide", "MinTightEnds", "MinSplitReceivers"):
+            if field in entry and not is_count(entry[field]):
+                err(path, f"{where}.{field}: '{entry[field]}' must be a whole number, 0 or more")
+        if "MaxWeakSide" in entry and not is_count(entry["MaxWeakSide"], -1):
+            err(path, f"{where}.MaxWeakSide: '{entry['MaxWeakSide']}' must be a whole number, -1 (any) or more")
+        lean = entry.get("RunLean")
+        if not is_number(lean) or not 0 <= lean <= 1:
+            err(path, f"{where}.RunLean: '{lean}' must be a number from 0 to 1")
+        extra = set(entry) - FORMATION_CLASS_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSFormationClassDef exactly")
+    extra = set(payload) - set(PLAY_RECOGNITION_NUMBERS) - {"FormationClasses"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPlayRecognitionTuning exactly")
 
 
 TOUCH_KINDS = {"Stick", "Button", "Swipe"}
@@ -3256,6 +3320,7 @@ DNA_BINDING_TARGETS = {
     "Pocket": "pocket_tuning.json",
     "DefenderAI": "defense_ai_tuning.json",
     "RouteRunning": "route_running.json",
+    "Recognition": "play_recognition.json",
 }
 DNA_AXIS_FIELDS = ("Axis", "Roles", "LowTrait", "LowLabel", "LowDescription", "HighTrait", "HighLabel",
                    "HighDescription", "Generator")
@@ -5075,6 +5140,8 @@ def main(root=None):
             validate_legacy(path, payload)
         if isinstance(payload, dict) and "StorylineKinds" in payload:
             validate_narrative(path, payload)
+        if isinstance(payload, dict) and "FormationClasses" in payload:
+            validate_play_recognition(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()

@@ -6,6 +6,7 @@
 #include "PSOffenseController.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSPlayRecognitionSubsystem.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
@@ -143,24 +144,11 @@ void UPSDeceptionSubsystem::SetTuning(const FPSDeceptionTuning& InTuning)
 TArray<FString> UPSDeceptionSubsystem::ValidateTuning(const FPSDeceptionTuning& InTuning)
 {
     TArray<FString> Problems;
-    if (InTuning.FakeSeconds < 0.f || InTuning.BiteFreezeSeconds < 0.f || InTuning.MeshRideSeconds < 0.f || InTuning.ReadMinSpeed < 0.f
+    if (InTuning.FakeSeconds < 0.f || InTuning.MeshRideSeconds < 0.f || InTuning.ReadMinSpeed < 0.f
         || InTuning.KeyLineDepth < 0.f || InTuning.PitchReadRadius < 0.f
-        || InTuning.PitchWindowDepth < 0.f || InTuning.MeshRecognizeRadius < 0.f || InTuning.ScrapeRadius < 0.f
-        || InTuning.BiteRunTendencyWeight < 0.f || InTuning.BiteAwarenessWeight < 0.f)
+        || InTuning.PitchWindowDepth < 0.f || InTuning.MeshRecognizeRadius < 0.f || InTuning.ScrapeRadius < 0.f)
     {
-        Problems.Add(TEXT("Times, distances and weights must be 0 or more"));
-    }
-    const float Chances[] = { InTuning.BiteBaseChance, InTuning.BiteMinChance, InTuning.BiteMaxChance };
-    for (const float Chance : Chances)
-    {
-        if (Chance < 0.f || Chance > 1.f)
-        {
-            Problems.Add(FString::Printf(TEXT("A bite chance is %.2f; chances run from 0 to 1"), Chance));
-        }
-    }
-    if (InTuning.BiteMinChance > InTuning.BiteMaxChance)
-    {
-        Problems.Add(TEXT("BiteMinChance must not exceed BiteMaxChance"));
+        Problems.Add(TEXT("Times and distances must be 0 or more"));
     }
     if (InTuning.DisciplineAwareness < 0.f || InTuning.DisciplineAwareness > 100.f)
     {
@@ -171,14 +159,6 @@ TArray<FString> UPSDeceptionSubsystem::ValidateTuning(const FPSDeceptionTuning& 
         Problems.Add(TEXT("TendencyWindow must be 1 or more"));
     }
     return Problems;
-}
-
-float UPSDeceptionSubsystem::BiteChance(float Awareness, float RunShare, const FPSDeceptionTuning& InTuning)
-{
-    const float Chance = InTuning.BiteBaseChance
-        + InTuning.BiteRunTendencyWeight * (FMath::Clamp(RunShare, 0.f, 1.f) - 0.5f) * 2.f
-        - InTuning.BiteAwarenessWeight * FMath::Clamp(Awareness, 0.f, 100.f) / 100.f;
-    return FMath::Clamp(Chance, InTuning.BiteMinChance, InTuning.BiteMaxChance);
 }
 
 float UPSDeceptionSubsystem::GetRunShare() const
@@ -292,9 +272,14 @@ void UPSDeceptionSubsystem::SellFake(APSPlayerPawn* Passer)
     const FPSDeceptionTuning& Settings = GetTuning();
     Publish(EPSDeceptionEventKind::Fake, Passer, nullptr, TEXT("Fake"));
 
-    // Every run-fit defender may bite: the less aware, and the more the offense has run, the
-    // likelier. One who bites holds on the fake (frozen) instead of dropping.
-    const float RunShare = GetRunShare();
+    // A run-fit defender who hasn't seen through the fake by now bites (the recognition model,
+    // Epic 80: his Awareness and style, against what he expected), and holds on it instead of
+    // dropping until he does.
+    UPSPlayRecognitionSubsystem* Recognition = UPSPlayRecognitionSubsystem::Get(GetWorld());
+    if (!Recognition)
+    {
+        return;
+    }
     for (APSPlayerPawn* Defender : UPSAIFieldSnapshot::GetFieldPawns(GetWorld()))
     {
         const APSDefenseController* Controller = Defender && Defender->TeamSide == EPSTeamSide::Defense ? Cast<APSDefenseController>(Defender->GetController()) : nullptr;
@@ -302,9 +287,10 @@ void UPSDeceptionSubsystem::SellFake(APSPlayerPawn* Passer)
         {
             continue;
         }
-        if (Rolls.FRand() < BiteChance(Defender->GetAttributes().Awareness, RunShare, Settings))
+        const float Hold = Recognition->GetBiteSeconds(Defender, Settings.FakeSeconds);
+        if (Hold > 0.f)
         {
-            Publish(EPSDeceptionEventKind::Bite, Defender, Passer, TEXT("Bit"), Settings.BiteFreezeSeconds);
+            Publish(EPSDeceptionEventKind::Bite, Defender, Passer, TEXT("Bit"), Hold);
         }
     }
 }
@@ -593,8 +579,6 @@ void UPSDeceptionSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
     PitchKey.Reset();
     LineOfScrimmage = Event.LineOfScrimmage;
     SinceUpdate = 0.f;
-    // Seeded from the snap's situation, so a replayed snap bites the same way.
-    Rolls.Initialize(static_cast<int32>(HashCombine(HashCombine(GetTypeHash(Event.YardLine), GetTypeHash(Event.Down)), GetTypeHash(Event.GameClockSeconds))));
 }
 
 void UPSDeceptionSubsystem::HandlePlayCall(const FPSTelemetryPlayCallEvent& Event)

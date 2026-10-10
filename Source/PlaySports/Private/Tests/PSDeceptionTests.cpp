@@ -2,7 +2,8 @@
 //
 // Tests covered:
 //   1. Play-action: the QB carries out a fake hand-off toward his back, then drops; when it is
-//      sold, run-fit defenders bite (and hold) against an offense that has been running and not
+//      sold, a run-fit defender who hasn't seen through it bites and holds for the rest of his
+//      read (the recognition model, Epic 80): against an offense that has been running, not
 //      against one that has been throwing; a defender in man doesn't. The tendency is the
 //      offense's recent calls, an audible replacing the call it changes. A drop-back has no fake;
 //      a plain run gives at once.
@@ -32,6 +33,7 @@
 #include "PSPlayCallSubsystem.h"
 #include "PSPlaybookData.h"
 #include "PSPlaybookIngestion.h"
+#include "PSPlayRecognitionSubsystem.h"
 #include "PSPlayerPawn.h"
 #include "PSSkillPlayerAIComponent.h"
 #include "PSTelemetryBus.h"
@@ -404,21 +406,13 @@ bool FPSDeceptionPlayActionTest::RunTest(const FString& Parameters)
 {
     using namespace PSDeceptionTests;
 
-    // The bite, on the header's tuning: the less aware and the more run-heavy the offense, the
-    // likelier, held between the floor and the ceiling.
-    const FPSDeceptionTuning Formula;
-    TestTrue(TEXT("An unaware defender bites more than an aware one"),
-        UPSDeceptionSubsystem::BiteChance(0.f, 0.5f, Formula) > UPSDeceptionSubsystem::BiteChance(100.f, 0.5f, Formula));
-    TestTrue(TEXT("...and more against an offense that has been running"),
-        UPSDeceptionSubsystem::BiteChance(50.f, 1.f, Formula) > UPSDeceptionSubsystem::BiteChance(50.f, 0.f, Formula));
-    TestEqual(TEXT("...never above the ceiling"), UPSDeceptionSubsystem::BiteChance(0.f, 1.f, Formula), Formula.BiteMaxChance);
-    TestEqual(TEXT("...nor below the floor"), UPSDeceptionSubsystem::BiteChance(100.f, 0.f, Formula), Formula.BiteMinChance);
-
     UWorld* World = CreateTestWorld();
     UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
     UPSDeceptionSubsystem* Deception = World ? World->GetSubsystem<UPSDeceptionSubsystem>() : nullptr;
     UPSAIFieldSnapshot* Field = World ? World->GetSubsystem<UPSAIFieldSnapshot>() : nullptr;
-    if (!TestNotNull(TEXT("Bus"), Bus) || !TestNotNull(TEXT("Deception"), Deception) || !TestNotNull(TEXT("Field snapshot"), Field))
+    UPSPlayRecognitionSubsystem* Recognition = UPSPlayRecognitionSubsystem::Get(World);
+    if (!TestNotNull(TEXT("Bus"), Bus) || !TestNotNull(TEXT("Deception"), Deception) || !TestNotNull(TEXT("Field snapshot"), Field)
+        || !TestNotNull(TEXT("Recognition"), Recognition))
     {
         if (World)
         {
@@ -443,15 +437,17 @@ bool FPSDeceptionPlayActionTest::RunTest(const FString& Parameters)
     TArray<FPSTelemetryDeceptionEvent> Events;
     Bus->OnDeceptionMC.AddLambda([&Events](const FPSTelemetryDeceptionEvent& Event) { Events.Add(Event); });
 
-    // Here the offense's tendency alone decides a bite: always against all runs, never against
-    // all passes.
-    FPSDeceptionTuning Tuning = Deception->GetTuning();
-    Tuning.BiteBaseChance = 0.5f;
-    Tuning.BiteRunTendencyWeight = 1.f;
-    Tuning.BiteAwarenessWeight = 0.f;
-    Tuning.BiteMinChance = 0.f;
-    Tuning.BiteMaxChance = 1.f;
-    Deception->SetTuning(Tuning);
+    // Here the offense's tendency alone decides whether the unaware linebacker sees through the
+    // fake in time (the recognition model, Epic 80): expecting the run he doesn't, expecting the
+    // pass he does.
+    FPSPlayRecognitionTuning Reads = Recognition->GetTuning();
+    Reads.FakeReadScale = 1.f;
+    Reads.ExpectationWeight = 1.f;
+    Reads.TendencyWeight = 1.f;
+    Reads.LatencyJitter = 0.f;
+    Reads.MaxBiteSeconds = 5.f;
+    Recognition->SetTuning(Reads);
+    const FPSDeceptionTuning Tuning = Deception->GetTuning();
     const int32 Window = FMath::Max(1, Tuning.TendencyWindow);
 
     for (int32 Index = 0; Index < Window; ++Index)
@@ -484,7 +480,9 @@ bool FPSDeceptionPlayActionTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("The run-fit linebacker bites"), CountEvents(Events, EPSDeceptionEventKind::Bite, TEXT("LB")), 1);
     TestEqual(TEXT("...the corner in man doesn't"), CountEvents(Events, EPSDeceptionEventKind::Bite, TEXT("CB")), 0);
     const FPSTelemetryDeceptionEvent* Bite = FindEvent(Events, EPSDeceptionEventKind::Bite);
-    TestTrue(TEXT("...and is held for the freeze"), Bite && FMath::IsNearlyEqual(Bite->Seconds, Tuning.BiteFreezeSeconds));
+    const float Hold = Recognition->GetBiteSeconds(LB, Tuning.FakeSeconds);
+    TestTrue(TEXT("...he hadn't seen through it when it was sold"), Recognition->GetReadTimes(LB).FakeSeconds > Tuning.FakeSeconds && Hold > 0.f);
+    TestTrue(TEXT("...and holds for the rest of his read"), Bite && FMath::IsNearlyEqual(Bite->Seconds, Hold, 0.0001f));
     TestTrue(TEXT("The linebacker holds instead of dropping"), DefenseOf(LB)->IsFrozen());
     TestFalse(TEXT("...the corner doesn't"), DefenseOf(CB)->IsFrozen());
 
@@ -780,12 +778,10 @@ bool FPSDeceptionDataTest::RunTest(const FString& Parameters)
 
     FPSDeceptionTuning Broken = Shipped;
     Broken.FakeSeconds = -1.f;
-    Broken.BiteMinChance = 0.8f;
-    Broken.BiteMaxChance = 0.5f;
     Broken.DisciplineAwareness = 150.f;
     Broken.TendencyWindow = 0;
-    TestEqual(TEXT("Broken tuning: a negative time, the floor over the ceiling, a rating over 100, no window"),
-        UPSDeceptionSubsystem::ValidateTuning(Broken).Num(), 4);
+    TestEqual(TEXT("Broken tuning: a negative time, a rating over 100, no window"),
+        UPSDeceptionSubsystem::ValidateTuning(Broken).Num(), 3);
     return true;
 }
 
