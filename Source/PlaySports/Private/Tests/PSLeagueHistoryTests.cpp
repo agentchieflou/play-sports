@@ -12,6 +12,8 @@
 //      hall of famers become their franchise's legends.
 //   4. The franchise: two seasons through UPSFranchiseFlow archive themselves with their
 //      leaders; the history round-trips through the franchise save.
+//   5. Awards (Epic 93): each award a player won adds its score to his hall score; an award
+//      alone can carry a career into the hall.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -22,7 +24,9 @@
 #include "PSFranchiseSeason.h"
 #include "PSLeagueData.h"
 #include "PSLeagueHistory.h"
+#include "PSLeagueNarrative.h"
 #include "PSLegacyData.h"
+#include "PSNarrativeTypes.h"
 #include "PSRoster.h"
 #include "PSSaveSubsystem.h"
 #include "PSScheduleEngine.h"
@@ -395,6 +399,80 @@ bool FPSLegacyFranchiseTest::RunTest(const FString& Parameters)
     IFileManager::Get().Delete(*UPSSaveSubsystem::GetSlotPath(Slot), false, true, true);
     IFileManager::Get().Delete(*(UPSSaveSubsystem::GetSlotPath(Slot) + TEXT(".bak")), false, true, true);
     TestFalse(TEXT("A save from before the league's history keeps the current one"), Restored->LoadFrom(NewObject<UPSFranchiseSaveGame>()));
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 5 -- Awards in the hall score (Epic 93)
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSLegacyAwardsTest,
+    "PlaySports.Legacy.AwardsInHallScore",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSLegacyAwardsTest::RunTest(const FString& Parameters)
+{
+    using namespace PSLeagueHistoryTests;
+
+    UPSLeagueHistory* History = MakeHistory();
+    FPSLegacyTuning Tuning = History->GetTuning();
+    Tuning.HallOfFame.WaitSeasons = 0;
+    Tuning.HallOfFame.MinSeasons = 0;
+    Tuning.HallOfFame.InductionScore = 0.5f;
+    Tuning.HallOfFame.MaxInducteesPerSeason = 3;
+    History->SetTuning(Tuning);
+    auto ScoreOf = [&Tuning](EPSAwardKind Award)
+    {
+        const FPSHallOfFameAward* Entry = Tuning.HallOfFame.AwardScores.FindByPredicate([Award](const FPSHallOfFameAward& Candidate) { return Candidate.Award == Award; });
+        return Entry ? Entry->Score : 0.f;
+    };
+    const float MvpScore = ScoreOf(EPSAwardKind::MostValuablePlayer);
+    const float WeekScore = ScoreOf(EPSAwardKind::OffensivePlayerOfWeek);
+    TestTrue(TEXT("The shipped tuning scores an MVP enough for the hall here"), MvpScore >= Tuning.HallOfFame.InductionScore);
+    TestTrue(TEXT("...and two weekly honors not"), WeekScore * 2.f < Tuning.HallOfFame.InductionScore);
+
+    // The award record (Epic 93): an MVP for one quarterback, two weekly honors for another.
+    UPSFranchiseSaveGame* Save = NewObject<UPSFranchiseSaveGame>();
+    auto Give = [Save](EPSAwardKind Award, const TCHAR* PlayerId, int32 Week)
+    {
+        FPSAwardRecord& Given = Save->Narrative.Awards.AddDefaulted_GetRef();
+        Given.Award = Award;
+        Given.Season = 1;
+        Given.Week = Week;
+        Given.PlayerId = FName(PlayerId);
+        Given.TeamId = FName(TEXT("Hawks"));
+    };
+    Give(EPSAwardKind::MostValuablePlayer, TEXT("MVP_QB"), 0);
+    Give(EPSAwardKind::OffensivePlayerOfWeek, TEXT("WEEK_QB"), 1);
+    Give(EPSAwardKind::OffensivePlayerOfWeek, TEXT("WEEK_QB"), 2);
+    UPSLeagueNarrative* Narrative = NewObject<UPSLeagueNarrative>();
+    TestTrue(TEXT("The award record loads"), Narrative->LoadFrom(Save));
+
+    TestEqual(TEXT("Without the record awards add nothing"), History->GetAwardScore(FName(TEXT("MVP_QB"))), 0.f);
+    History->SetAwards(Narrative);
+    TestEqual(TEXT("An MVP adds its score"), History->GetAwardScore(FName(TEXT("MVP_QB"))), MvpScore, 1e-4f);
+    TestEqual(TEXT("Two weekly honors add theirs twice"), History->GetAwardScore(FName(TEXT("WEEK_QB"))), 2.f * WeekScore, 1e-4f);
+    TestEqual(TEXT("No awards, nothing"), History->GetAwardScore(FName(TEXT("PLAIN_QB"))), 0.f);
+
+    // Three retire with no statistics: their awards are their hall scores.
+    for (const TCHAR* PlayerId : { TEXT("MVP_QB"), TEXT("WEEK_QB"), TEXT("PLAIN_QB") })
+    {
+        TestTrue(*FString::Printf(TEXT("%s retires"), PlayerId), History->RecordRetirement(MakeRetiree(PlayerId, EPlayerRole::Quarterback), FName(TEXT("Hawks")), 1, TEXT("Age 36"), nullptr));
+    }
+    FPSRetiredPlayer Mvp;
+    if (TestTrue(TEXT("The MVP is retired"), History->FindRetiredPlayer(FName(TEXT("MVP_QB")), Mvp)))
+    {
+        TestEqual(TEXT("...his awards' score"), Mvp.AwardScore, MvpScore, 1e-4f);
+        TestEqual(TEXT("...is his hall score"), Mvp.HallScore, MvpScore, 1e-4f);
+    }
+    const TArray<FPSRetiredPlayer> Inducted = History->RunHallOfFameVote(1);
+    TestTrue(TEXT("The MVP alone is voted in"), Inducted.Num() == 1 && Inducted[0].Player.PlayerId == FName(TEXT("MVP_QB")));
+
+    FPSLegacyTuning Broken = Tuning;
+    // Copied first: adding an element of the array to itself asserts when the array grows.
+    const FPSHallOfFameAward Twice = Broken.HallOfFame.AwardScores[0];
+    Broken.HallOfFame.AwardScores.Add(Twice);
+    TestTrue(TEXT("An award listed twice is reported"), UPSLeagueHistory::ValidateTuning(Broken).ContainsByPredicate([](const FString& Line) { return Line.Contains(TEXT("listed twice")); }));
     return true;
 }
 

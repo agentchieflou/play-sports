@@ -95,6 +95,7 @@ every CI build.
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
 | `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
 | `draft.json` | `FPSDraftTuning` (single object: prospect uncertainty, `CombineDrills`, scouting, the CPU's board, the rookie scale) | `UPSDataIngestion::LoadDraftTuningFromJson`, via `UPSDraft` |
+| `trades.json` | `FPSTradeTuning` (single object: the value model, `Stances`, the `PickRoundValues` chart, answers, guardrails, the deadline) | `UPSDataIngestion::LoadTradeTuningFromJson`, via `UPSTradeMarket` |
 | `training.json` | `FPSTrainingTuning` (single object: allocation, development, funding, gameplan `FocusAreas`, fatigue, `PracticeInjury`, recommendation fields) | `UPSDataIngestion::LoadTrainingTuningFromJson`, via `UPSWeeklyPreparation` |
 | `legacy.json` | `FPSLegacyTuning` (single object: `HallOfFame`, `LeaderCategories`) | `UPSDataIngestion::LoadLegacyTuningFromJson`, via `UPSLeagueHistory` |
 | `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
@@ -122,10 +123,13 @@ every CI build.
 | `play_art.json` | `FPSPlayArtStyle` (single object) | `UPSDataIngestion::LoadPlayArtStyleFromJson`, via `UPSOverlayPlayArtSubsystem` |
 | `game_intelligence.json` | `FPSGameIntelligenceTuning` (single object) | `UPSDataIngestion::LoadGameIntelligenceTuningFromJson`, via `UPSGameIntelligenceSubsystem`; its tasks are checked against `tools/orchestrator/routing.json` |
 | `league_narrative.json` | `FPSNarrativeTuning` (single object: storyline rules and `StorylineKinds`, award scoring, the vote, the digest's model task) | `UPSDataIngestion::LoadNarrativeTuningFromJson`, via `UPSLeagueNarrative` |
-| `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
+| `penalties.json` | `FPSPenaltyTuning` (single object) | `UPSDataIngestion::LoadPenaltyTuningFromJson`, via `UPSPenaltyModel` (`UPSPlaySimulation::GetPenalties`) |
 | `audio_cues.json` | `FPSAudioTuning` (single object: `Cues`, `EventCues`, `LayerSettings`, `StartupLoops` and the moments' thresholds) | `UPSDataIngestion::LoadAudioTuningFromJson`, via `UPSAudioSubsystem`; its layers' settings are checked against `ui_settings.json` |
 | `crowd.json` | `FPSCrowdTuning` (single object: the excitement model, `Levels`, `CrowdReactions`) | `UPSDataIngestion::LoadCrowdTuningFromJson`, via `UPSCrowdExcitementSubsystem` |
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
+| `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
+| `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
+| `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -229,6 +233,20 @@ Single object (Epic 85; the AI's decision log, overlay and post-mortems, `UPSAID
 - `MaxRecordsPerPlay` (above 0): a play keeps at most this many decisions.
 - `OverlayHeightCm`, `OverlayFontScale` (above 0): where the overlay's text sits above a player,
   and its size.
+- The overlay's cards (Epic 85.2, `UPSAIDebugOverlayWidget`, laid out by `PSAIDebugOverlay` with
+  Epic 28's badge rules; sizes are Slate units at a distance scale of 1, the badges'
+  `ReferenceDistance`):
+  - `OverlayFontSize` (above 0; times `OverlayFontScale`): the type size.
+  - `OverlayCharWidth`, `OverlayLineHeight` (above 0, shares of the type size): how a card is
+    sized from its text. `OverlayPadding` (0 or more) goes round the text.
+    `OverlayMaxLineChars` (8 or more): longer lines wrap at a space.
+  - `OverlayOffenseColor`, `OverlayDefenseColor`, `OverlayTextColor` (`#RRGGBB`): the cards by
+    side, and their text.
+  - `OverlayOpacity` and `OverlayCrowdedOpacity` (0 to 1): a card, and one with no room clear of
+    the others (it is drawn dimmed where it was, not hidden).
+  - `OverlayNudgeStep` and `OverlayMaxNudges` (0 or more): how a card moves up clear of the
+    others.
+  - `OverlayTargetLineWidth` (above 0): the line from a player to his target.
 
 ## AI scenario schema (`FPSAIScenarioCatalog`)
 
@@ -385,8 +403,9 @@ from. The same seed and tuning always make the same league. Every field is requi
   curve for every float field of `FPlayerAttributes` at a player's prime: `Attribute`, `Mean`,
   `StdDev`, `Min`, `Max` (0-100 for a rating, above 0 for `WeightKg`/`HeightCm`) and
   `TalentWeight` (0-1: how much of the spread is his talent, shared by his ratings; 0 for his
-  body). The age curve (`player_progression.json`) then takes a younger player below his prime and
-  an older one past his decline, so ratings and ages agree.
+  body). His role's age curve (`legacy.json`'s `RoleCurves`, else `player_progression.json`, read
+  through `UPSPlayerAging::GetCurve`) then takes a younger player below his prime and an older one
+  past his decline, so ratings and ages agree, and agree with how he will go on to age.
 - Names: `NameCultures[]` (`Culture`, `Weight`, `FirstNames`, `LastNames`: a player's first and
   last names come from one culture), `NameBlocklist` (real people no player is named after) and
   `MaxNameAttempts` (draws for a new, unblocked name before a middle initial separates the last).
@@ -1071,6 +1090,47 @@ money is in thousands of dollars.
 `tools/validate_data.py` checks it: positive uncertainties and costs, 0-1 shares and guarantees,
 each drill reading a rating, `RookieYears` within `contracts.json`'s `MaxContractYears`.
 
+## Trade schema (`FPSTradeTuning`)
+
+Single object (Epic 88), read by `UPSTradeMarket`. Values are trade points (the first overall pick
+is worth `PickRoundValues[0]`). The market owns no player, contract or pick: a trade moves players
+between rosters, their contracts in the contract manager and picks in the draft (which saves who
+holds each one, `UPSFranchiseSaveGame::Draft`); the trades made, the CPU's offers and the telemetry
+live in the franchise save (`UPSFranchiseSaveGame::TradeMarket`).
+- A player's value: over `ValueHorizonYears` seasons, this one first, a season at his projected
+  rating (Epic 94's role curve in `legacy.json`) is worth `MaxPlayerValue` x his place between
+  `contracts.json`'s `ReplacementRating` and `EliteRating` to the `TalentCurveExponent`, x his
+  position's `TopCapFraction` over the highest to the `RoleWeightExponent`; a season past his
+  contract counts `UncontrolledYearWeight`. Each season he is signed adds `SurplusValuePerCap` x
+  (what the contract market would pay him - his base salary) / the cap. A team short at his
+  position (`RosterTarget`) values him up to `NeedValueWeight` more; his own team values one who
+  asked to be traded (Epic 91) at `TradeRequestDiscount`.
+- `Stances[]`: `Stance` (`Contender`, `Balanced`, `Rebuilder`; a team with `MinGamesForStance`
+  games is a contender at `ContenderWinPercentage` or better, a rebuilder at
+  `RebuilderWinPercentage` or worse), its `FutureYearWeight` (each later season weighs this much of
+  the one before) and `PickMultiplier`.
+- Picks: `PickRoundValues[]`, each round's first pick, falling in ratio to the next round's (the
+  last round to `LastPickValue`); the pick's place in its round comes from its team's standing (or
+  the draft's order once set); `TradablePickYears` drafts trade, each one further off worth
+  `FuturePickDiscount` less.
+- Answers: a team accepts at `AcceptRatio` (what it gets over what it gives), counters from
+  `CounterRatio`, rejects below.
+- Guardrails: neutral values may differ by at most `MaxValueImbalance` of the larger side (gaps
+  under `LopsidedMinGap` points never count); `MaxAssetsPerSide`, `MaxTradesPerTeamPerSeason`,
+  `RetradeCooldownWeeks`, `MinPlayersAtRole`.
+- The deadline: `DeadlineFraction` of the regular season's weeks; over `DeadlineRampWeeks` its
+  urgency raises a contender's or rebuilder's weekly chance from `BaseTradeChance` to
+  `DeadlineTradeChance`, takes `DeadlineBuyerPremium` off a contender's accept ratio and
+  `DeadlineSellerDiscount` off the weight a rebuilder gives this season.
+- The CPU: goes after another team's player only when he is worth `MinTargetGain` points more to
+  it than to his team; prices a package for the `TargetsPerAttempt` biggest gains, from that many
+  of its cheapest and its biggest assets; at most `MaxOffersToUserPerWeek` offers to the player's
+  team a week; `RandomSeed`.
+
+`tools/validate_data.py` checks it: positive values, 0-1 weights, chances and win percentages (the
+rebuilder's under the contender's), `CounterRatio` no more than `AcceptRatio`, one entry per stance,
+a falling pick chart above `LastPickValue`.
+
 ## Legacy schema (`FPSLegacyTuning`)
 
 Single object (Epic 94), read by `UPSLeagueHistory`. The archive itself (every finished season, every
@@ -1080,7 +1140,8 @@ here.
   if he played `MinSeasons` seasons and his hall score reaches `InductionScore`; at most
   `MaxInducteesPerSeason` a season, the best first. His hall score is his best category: the highest
   of his career totals over their `Thresholds[]` (`Category`, a player `EPSStatCategory`;
-  `CareerValue`).
+  `CareerValue`), plus each award he won (Epic 93) times its `AwardScores[]` entry (`Award`, an
+  `EPSAwardKind`, at most once; `Score`).
 - `LeaderCategories`: the player categories whose season leader each season's archive keeps.
 - `RoleCurves[]` (read by `UPSPlayerAging`): `Role` and its `Curve`, Core 19's `FPSProgressionTuning`
   (`PeakAgeStart`, `PeakAgeEnd`, `GrowthPerYear`, `DeclinePerYear`, `LowSnapShareThreshold`); a role
@@ -1435,6 +1496,10 @@ Single object (Epic 30; `UPSControlHandoffComponent`):
   next player in the same nearest-to-the-ball order instead of ranking again.
 - `PickLeftAction`, `PickRightAction`: the pre-snap direct-pick actions, each a Boolean action in
   the input catalog's `PreSnap` context.
+- `OffenseControlRole` (an offensive role), `DefenseControlRole` (a defensive one): the player a
+  single human takes when their team has the ball, and when the other team has it.
+  `UPSHumanTeamComponent` moves the human there when possession changes, so they keep playing
+  for their own team. A head-to-head game's seats use `versus_rules.json`'s roles instead.
 
 ## Broadcast package schema (`FPSBroadcastOverlayTheme`)
 
@@ -1915,24 +1980,6 @@ Single object (Epic 93; `UPSLeagueNarrative`, driven by `UPSFranchiseFlow`):
 The news text itself is the string table's `Narrative.*` rows (`Data/ui_text.csv`).
 `UPSLeagueNarrative::ValidateTuning` and `tools/validate_data.py` check it.
 
-## Field schema (`FPSFieldDimensions`)
-
-Single object: the field's one frame (`PSField`). Yard line N, counted from the offense's own goal
-line, is at world X = N * `CentimetresPerYard`; the offense always attacks +X, and Y = 0 is the
-middle of the field. The game mode lines up and snaps on it, `APSFieldGrid` lays the end zones and
-boundary volumes out on it, and every yard read from a world location (a tackle's spot, a boundary
-crossing, an interception, a loose ball, the broadcast camera's scrimmage shot) goes through it.
-Every value is a number above 0.
-
-- `CentimetresPerYard`: world units in a yard. The game's yard is a metre (100): every distance
-  tuned in cm elsewhere (lineups, routes, coverage depths) is read against it.
-- `FieldLengthYards` (goal line to goal line), `EndZoneDepthYards`, `FieldWidthYards` (sideline to
-  sideline).
-- `OutOfBoundsDepthYards`: how far past the sidelines and end lines the out-of-bounds volumes
-  reach. `BoundaryHeightCm`: the boundary volumes' height.
-
-`PSField::Validate` and `tools/validate_data.py` check it.
-
 ## Audio cue schema (`FPSAudioTuning`)
 
 Single object (Epic 23.1; `UPSAudioSubsystem`, which turns gameplay events on the telemetry bus
@@ -1951,10 +1998,11 @@ into sound):
     `bScaleByIntensity` (its volume scales with the moment's force).
 - `EventCues[]`: `Trigger` (an `EPSAudioTrigger` other than `Manual`: `Snap`, `Cadence`,
   `Whistle`, `Tackle`, `Hit`, `Contact`, `Throw`, `Catch`, `Fumble`, `Kick`, `Score`,
-  `PlayResult`, `Flag`, `Timeout`, `GoalLine`, `CrowdLevel`, `CrowdReaction`, `QuarterEnd`),
+  `PlayResult`, `Flag`, `Timeout`, `GoalLine`, `CrowdLevel`, `CrowdReaction`, `QuarterEnd`, `Speech`),
   `Detail` (`None` for any, or what narrows the trigger: `Sack`, `Big`, `Deep`, `Interception`,
-  `Turnover`, a score's kind, a crowd level or reaction) and `CueId` (in `Cues`). Every rule that
-  matches plays.
+  `Turnover`, a score's kind, a crowd level or reaction, a spoken commentary line's `LineId`) and
+  `CueId` (in `Cues`). Every rule that matches plays. A recorded commentary line is a `Speech` rule
+  with its `LineId` (Epic 96); none is recorded yet.
 - `LayerSettings[]`: a `Layer` (once each) and the `SettingId` of a 0-100 slider in
   `ui_settings.json` that sets its volume. A layer without one plays at full volume.
 - `StartupLoops[]`: loops (in `Cues`) started when the match's world begins play: the stadium's
@@ -1998,6 +2046,13 @@ structured Commentary events):
 - `BigHitDamage`, `DeepPassCm`, `TwoMinuteWarningSeconds` (above 0): a big hit, a deep pass, and
   the two-minute warning's clock.
 - `MaxMomentsKept` (1 or more): moments (and model lines) kept.
+- Stakes (Epic 96.1), each 0-1, added and capped at 1: `LateQuarterStakes` from `LateGameQuarter`
+  (1 or more) on, `CloseGameStakes` within `CloseGameMargin` (0 or more) points,
+  `CriticalDownStakes` on third or fourth down, `RedZoneStakes` at or past `RedZoneYardLine`
+  (1-99), `ScoreStakes` for points, `TurnoverStakes` for a turnover.
+- Novelty (Epic 96.1): the first moment of its kind this game is 1, falling to 0 by its
+  `NoveltyHorizon`-th (1 or more); a play of `BigPlayYards` (1 or more) adds `BigPlayNovelty` (0-1);
+  a record is 1.
 - `bOfferToModels`, `ModelMoments[]` (each an `EPSCommentaryMoment` once): while Epic 82's bridge
   is online, these moments are offered to outside models as Commentary requests.
 - `ModelTask` (a task in `tools/orchestrator/routing.json`), `ModelInstructions` (not empty),
@@ -2005,3 +2060,90 @@ structured Commentary events):
   facts it gets.
 
 `UPSCommentaryEventModel::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Field schema (`FPSFieldDimensions`)
+
+Single object: the field's one frame (`PSField`). Yard line N, counted from the offense's own goal
+line, is at world X = N * `CentimetresPerYard`; the offense always attacks +X, and Y = 0 is the
+middle of the field. The game mode lines up and snaps on it, `APSFieldGrid` lays the end zones and
+boundary volumes out on it, and every yard read from a world location (a tackle's spot, a boundary
+crossing, an interception, a loose ball, the broadcast camera's scrimmage shot) goes through it.
+Every value is a number above 0.
+
+- `CentimetresPerYard`: world units in a yard. The game's yard is a metre (100): every distance
+  tuned in cm elsewhere (lineups, routes, coverage depths) is read against it.
+- `FieldLengthYards` (goal line to goal line), `EndZoneDepthYards`, `FieldWidthYards` (sideline to
+  sideline).
+- `OutOfBoundsDepthYards`: how far past the sidelines and end lines the out-of-bounds volumes
+  reach. `BoundaryHeightCm`: the boundary volumes' height.
+
+`PSField::Validate` and `tools/validate_data.py` check it.
+
+## Penalty rates schema (`FPSPenaltyTuning`)
+
+Single object: how often the play simulation's own flags fly (`UPSPenaltyModel`). Each is rolled
+once, at the snap, so quick sim's long steps and a live game's frames draw them at the same rate.
+The players' own flags (an offside jump, pass interference) come from their systems.
+
+- `HoldingChancePerPlay` (0 to 1): offensive holding on a scrimmage play (not a kick, a kneel or a
+  spike), however long the play runs.
+- `OffsidesChancePerSnap` (0 to 1): a defensive offside on any snap; when it flies, holding isn't
+  rolled.
+
+`UPSPenaltyModel::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Online matchmaking schema (`FPSSessionMatchmakingTuning`)
+
+Single object (Epic 108.5; the session and matchmaking service, `UPSSessionService`, and its
+in-process stand-in, `UPSLocalSessionRegistry`). The rules every online backend matches by:
+- `ProtocolVersion` (1 or more): this build's network protocol. Only requests with the same version
+  are matched; bump it whenever two builds can't play each other.
+- `InitialSkillWindow`, `SkillWindowGrowthPerSecond`, `MaxSkillWindow` (0 or more; the cap no
+  narrower than the start): ratings this far apart are matched at once, the window widening with
+  the longer wait of the two players up to the cap.
+- `RegionRelaxSeconds` (0 or more): after this long, players who asked for different regions are
+  matched. `MaxWaitSeconds` (above 0): matchmaking then gives up (`Timeout`).
+- `HostScoreDesktop`, `HostScoreOnPower`, `HostScoreUnmetered` (0 or more): who hosts the match
+  (the authoritative machine, `Specs/ADR_Online_Architecture.md`). Each player scores these for a PC
+  or Mac, mains power and an unmetered network; the highest score hosts, the first seat on a tie.
+- `DefaultCrossPlay`, `TouchDefaultCrossPlay` (`Anyone`, `SameInput`, `SamePlatform`): a new
+  request's cross-play policy for gamepad and keyboard players, and for touch players. Both
+  players' policies must accept the other.
+
+`UPSSessionService::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Commentary booth schema (`FPSCommentaryLibrary`)
+
+Single object (Epic 96; `UPSCommentaryEngine`, the booth that speaks the commentary hooks' moments
+through the bus's caption event):
+- Pacing: a line takes its words over `WordsPerSecond` (above 0), within `MinLineSeconds` (above 0)
+  and `MaxLineSeconds` (at least that). A play-by-play line still waiting after `MaxDelaySeconds`,
+  or an analyst's after `ColorMaxDelaySeconds` (above 0), is dropped. A line cuts off the one being
+  said when its priority is at least `InterruptMargin` (0-100) higher; otherwise it waits in its
+  voice's queue of `QueueLength` (1 or more).
+- `ColorWindowDelaySeconds` (0 or more): the analyst speaks from this long after the play is over
+  until the snap, never over the play-by-play.
+- Selection: a line's score is its `Priority`, plus `StakesWeight` x the moment's stakes and
+  `NoveltyWeight` x its novelty, less `RepeatPenalty` x its uses this game (all 0 or more); lines
+  within `VarietyBand` (0 or more) of the best are picked among by a stream seeded with `Seed`.
+- Storylines (Epic 93): at most `MaxTalkingPointsPerGame` (0 or more) a game, at
+  `TalkingPointPriority` (0-100), `TalkingPointGapSeconds` (0 or more) apart, through the string
+  table's `Commentary.Storyline` (`{Headline}`, `{Body}`).
+- `bUseModelLines`, `ModelLinePriority` (0-100): an outside model's line for the play (Epic 82's
+  bridge) replaces the analyst's template line.
+- `MaxSpokenKept` (1 or more): spoken lines kept for the log.
+- `Lines[]`, each with a unique `LineId`, a `Voice` (`PlayByPlay` or `Color`), a `Moment` (an
+  `EPSCommentaryMoment`), a `Priority` (0-100) and, optionally:
+  - `CooldownSeconds`, `MaxPerGame`, `MaxPerSeason` (0 or more; 0 is no cap);
+  - conditions: `Detail` (the moment's; `None` or missing for any), `MinDown`/`MaxDown` (0-4),
+    `MinYards`/`MaxYards`, `MinStakes` (0-1), `bRequireFirstDown`, `bRequireTurnover`;
+  - `bNeedsPrimary`, `bNeedsSecondary`, `bNeedsTotal`: required when its text names `{Player}`,
+    `{Other}`, or `{Total}`/`{Stat}`, so a line is never said without them.
+
+Every moment has at least one `PlayByPlay` line. A line's text is `Data/ui_text.csv`'s
+`Commentary.Line.<LineId>`, naming only a moment's facts: `{Player}`, `{Other}`, `{Yards}`,
+`{Points}`, `{Down}`, `{Distance}`, `{Quarter}`, `{Clock}`, `{HomeScore}`, `{AwayScore}`, `{Total}`,
+`{Stat}` (a `Narrative.Stat.*` name) and `{Penalty}` (a `Commentary.Penalty.*` name). The voices'
+names are `Commentary.Voice.PlayByPlay` and `Commentary.Voice.Color`. The update rate is the
+platform tier's `AudioUpdateHz`. `UPSCommentaryEngine::ValidateLibrary` and `tools/validate_data.py`
+check it.

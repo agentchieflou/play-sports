@@ -421,8 +421,9 @@ bool FPSNoFlagAfterWhistleTest::RunTest(const FString& Parameters)
     Sim->TriggerSnap();
     Sim->ActivePenalty = EPSPenaltyType::None;
 
-    // Down at the 24, then a long wait in the whistle's phase: at holding's 3% a second, a flag
-    // during it would be certain, and an accepted one would take the 4 yards back and 10 more.
+    // Down at the 24, then a long wait in the whistle's phase. Holding is the snap's, once per play
+    // (UPSPenaltyModel); were it rolled through the whistle's wait, a flag would be likely, and an
+    // accepted one would take the 4 yards back and 10 more.
     Sim->RecordTackle(4);
     Sim->AdvancePlay(100.f);
     const FPlayState State = Sim->GetPlayState();

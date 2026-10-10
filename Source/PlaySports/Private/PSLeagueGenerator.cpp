@@ -2,6 +2,7 @@
 #include "PSContractNegotiation.h"
 #include "PSDataIngestion.h"
 #include "PSJsonWriting.h"
+#include "PSPlayerAging.h"
 #include "PSRoster.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
@@ -477,6 +478,23 @@ void UPSLeagueGenerator::SetProgressionTuning(const FPSProgressionTuning& InTuni
 {
     Progression = InTuning;
     bProgressionSet = true;
+    if (Aging && bOwnAging)
+    {
+        Aging->SetBaseCurve(InTuning);
+    }
+}
+
+void UPSLeagueGenerator::SetPlayerAging(UPSPlayerAging* InAging)
+{
+    Aging = InAging;
+    bAgingSet = true;
+    bOwnAging = false;
+}
+
+FPSProgressionTuning UPSLeagueGenerator::GetCareerCurve(EPlayerRole Role)
+{
+    EnsureLoaded();
+    return Aging ? Aging->GetCurve(Role) : Progression;
 }
 
 void UPSLeagueGenerator::EnsureLoaded()
@@ -506,6 +524,16 @@ void UPSLeagueGenerator::EnsureLoaded()
             UE_LOG(LogTemp, Warning, TEXT("UPSLeagueGenerator: Could not load %s; using the default age curve."), *UPSPlayerProgression::GetDefaultTuningPath());
             Progression = FPSProgressionTuning();
         }
+    }
+    if (!bAgingSet)
+    {
+        // Epic 94's role curves, the ones a franchise's players go on to age along; a role they
+        // don't list follows the progression tuning in use.
+        bAgingSet = true;
+        bOwnAging = true;
+        Aging = NewObject<UPSPlayerAging>(this);
+        Aging->LoadDefaults();
+        Aging->SetBaseCurve(Progression);
     }
 }
 
@@ -698,7 +726,8 @@ FPlayerAttributes UPSLeagueGenerator::MakePlayer(const FPSRoleProfile& Profile, 
     }
 
     const int32 PlayerAge = FMath::Min(EntryAge + Experience, FMath::Max(Profile.MaxAge, EntryAge));
-    FPlayerAttributes Player = PSLeagueGenerator::ApplyCareerArc(Prime, PlayerAge, Progression);
+    // His role's age curve (Epic 94): the one he will go on to age along in a franchise.
+    FPlayerAttributes Player = PSLeagueGenerator::ApplyCareerArc(Prime, PlayerAge, Aging ? Aging->GetCurve(Profile.Role) : Progression);
     for (const FPSAttributeCurve& Curve : Profile.Attributes)
     {
         if (FFloatProperty* Property = PSLeagueGeneratorPrivate::FindAttribute(Curve.Attribute))

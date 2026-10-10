@@ -168,8 +168,10 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
     Bus->OnPlayResultMC.AddLambda([&Plays](const FPSTelemetryPlayResultEvent& Event) { Plays.Add(Event); });
 
     // A run: the back lined up 5 yards deep, at the 15, and is brought down at the 28. He slides
-    // into the contact, so the tackle holds with no hit and no fumble: the test needs no luck.
+    // into the contact, so the tackle holds with no hit and no fumble, and the snap's random
+    // flags are cleared: the test needs no luck.
     Sim->TriggerSnap();
+    Sim->ActivePenalty = EPSPenaltyType::None;
     APSPlayerPawn* Runner = SpawnPlayer(World, Offense[1], FVector(2800.f, 0.f, 100.f), FVector(1500.f, 0.f, 100.f));
     APSPlayerPawn* Linebacker = SpawnPlayer(World, Defense[1], FVector(2900.f, 0.f, 100.f), FVector(2450.f, 0.f, 100.f));
     if (!TestTrue(TEXT("The runner and the linebacker"), Runner && Linebacker))

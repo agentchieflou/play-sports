@@ -36,7 +36,9 @@ class UPSRoster;
  *    contract with the contract manager (Epic 87). When the draft ends, the undrafted go to free
  *    agency if it is open.
  *
- * Trading picks up or down is Epic 88's. The draft persists in the franchise save.
+ * Picks change hands through Epic 88's trades (UPSTradeMarket): the draft is the authority on who
+ * holds each one (TransferPick, GetPickOwner), this year's and later years', and a traded pick
+ * takes its place in the order with it. The draft persists in the franchise save.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSDraft : public UObject
@@ -163,6 +165,36 @@ public:
     UFUNCTION(BlueprintPure, Category = "Draft")
     const TArray<FPSDraftPick>& GetPicks() const { return State.Picks; }
 
+    // --- Who holds which pick (Epic 88: trades) --------------------------------------------
+
+    /** The team holding OriginalTeamId's pick in Round of DraftYear's draft: the team it was
+     *  traded to, else OriginalTeamId. */
+    UFUNCTION(BlueprintPure, Category = "Draft")
+    FName GetPickOwner(int32 DraftYear, int32 Round, FName OriginalTeamId) const;
+
+    /** Whether that pick is still to be made: a round of NumRounds, in this class's draft or a
+     *  later one, not yet made (nor cut off by a class too small for every pick). */
+    UFUNCTION(BlueprintPure, Category = "Draft")
+    bool IsPickAvailable(int32 DraftYear, int32 Round, FName OriginalTeamId) const;
+
+    /** Gives that pick to NewOwnerTeamId; in the open draft its place in the order goes with it.
+     *  False, with nothing changed, for a pick not available or no new owner. */
+    UFUNCTION(BlueprintCallable, Category = "Draft")
+    bool TransferPick(int32 DraftYear, int32 Round, FName OriginalTeamId, FName NewOwnerTeamId);
+
+    /** The picks TeamId holds in DraftYear's draft and can still make: its own not traded away,
+     *  then those traded to it. */
+    UFUNCTION(BlueprintPure, Category = "Draft")
+    TArray<FPSDraftPickRight> GetTeamPicks(FName TeamId, int32 DraftYear) const;
+
+    /** That pick's overall number (1 = the first) once its draft's order is set; 0 before then. */
+    UFUNCTION(BlueprintPure, Category = "Draft")
+    int32 GetPickSlot(int32 DraftYear, int32 Round, FName OriginalTeamId) const;
+
+    /** Picks in a round of the set order (the teams in it); 0 before the order is set. */
+    UFUNCTION(BlueprintPure, Category = "Draft")
+    int32 GetRoundSize() const;
+
     /** The draft so far, a line a pick. */
     UFUNCTION(BlueprintPure, Category = "Draft")
     TArray<FString> DescribeDraft() const;
@@ -186,6 +218,10 @@ private:
     /** TeamId's estimate of Prospect and its uncertainty: the projection and its reports, weighed by
      *  how sure each is. */
     void EstimateGrade(FName TeamId, const FPSProspect& Prospect, float& OutEstimate, float& OutUncertainty) const;
+
+    /** The place in the set order of OriginalTeamId's pick in Round of DraftYear's draft;
+     *  INDEX_NONE before the order is set or for a pick not in it. */
+    int32 FindPickIndex(int32 DraftYear, int32 Round, FName OriginalTeamId) const;
 
     /** The prospect TeamId's board values most; None when nobody is left. */
     FName ChooseProspect(FName TeamId) const;

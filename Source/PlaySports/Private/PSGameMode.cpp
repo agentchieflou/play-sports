@@ -9,6 +9,7 @@
 #include "Misc/Paths.h"
 #include "PSHUD.h"
 #include "PSPlayerController.h"
+#include "PSHumanTeamComponent.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
 #include "JsonObjectConverter.h"
@@ -28,6 +29,7 @@
 #include "PSStatsEngine.h"
 #include "PSGameIntelligenceSubsystem.h"
 #include "PSCrowdExcitementSubsystem.h"
+#include "PSCommentaryEventModel.h"
 #include "PSUITeamCatalog.h"
 #include "PSVersusSubsystem.h"
 #include "Kismet/GameplayStatics.h"
@@ -101,6 +103,15 @@ void APSGameMode::StartPlay()
     if (UPSVersusSubsystem* Versus = GetWorld()->GetSubsystem<UPSVersusSubsystem>())
     {
         Versus->SetMatchSetup(MatchSetup);
+    }
+    // A single human plays for the player's team, on offense and defense (UPSHumanTeamComponent).
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        const APSPlayerController* Human = Cast<APSPlayerController>(It->Get());
+        if (UPSHumanTeamComponent* HumanTeam = Human ? Human->GetHumanTeamComponent() : nullptr)
+        {
+            HumanTeam->SetMatchSetup(MatchSetup);
+        }
     }
 
     // Load movement tuning from DataTable or JSON
@@ -247,6 +258,12 @@ void APSGameMode::StartPlay()
                 if (UPSNetRandomStreams* Streams = UPSNetRandomStreams::Get(this))
                 {
                     PlaySimulation->SeedRolls(Streams->MakeMatchSeed(TEXT("PlaySimulation")));
+                }
+
+                // The booth's moments carry the players' game totals (Epic 96.1).
+                if (UPSCommentaryEventModel* Commentary = GetWorld()->GetSubsystem<UPSCommentaryEventModel>())
+                {
+                    Commentary->SetStats(MatchStats);
                 }
 
                 // The crowd is the home team's (Epic 23.2): the match's setup says whose stadium.

@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "PSAIDecisionTypes.h"
+#include "PSOverlayBadgeTypes.h"
 #include "PSTelemetryBus.h"
 #include "PSAIDecisionLog.generated.h"
 
@@ -15,9 +16,11 @@
  *    he weighed. UPSSkillPlayerAIComponent, UPSDefenderAIComponent and UPSRushMoveComponent record
  *    each decision tick, UPSPlayCallSubsystem each CPU play call. The records of the current play
  *    are kept, and the latest per player.
- *  - On-field overlay: with the console variable ps.AI.DebugOverlay at 1, each player's latest
- *    decision is drawn above him every frame (DescribeForOverlay), with a line to his target. Until
- *    Track A's badges exist (Epic 28) it is debug text, which shipping builds leave out.
+ *  - On-field overlay: with the console variable ps.AI.DebugOverlay at 1 (or SetOverlayEnabled),
+ *    each player's latest decision is shown above him every frame (DescribeForOverlay), with a
+ *    line to his target. UPSAIDebugOverlayWidget draws it as cards laid out by Epic 28's badge
+ *    rules (LayoutOverlay); where no such layer is up, it is debug text in the world, which
+ *    shipping builds leave out.
  *  - Play post-mortem: when a play ends (the Scoring phase), or the next one is snapped, one JSON
  *    file under Saved/<PostMortemDirectory> holds the play's situation, both calls, its bus events
  *    and every player's decision stream. The bus sequence numbers of its first and last event link
@@ -89,6 +92,35 @@ public:
     UFUNCTION(BlueprintPure, Category = "AIDebug")
     static FString DescribeForOverlay(const FPSAIDecisionRecord& InRecord);
 
+    // --- The on-field overlay (Epic 85.2) --------------------------------------------------
+
+    /** True while the overlay is on: ps.AI.DebugOverlay, unless SetOverlayEnabled decided. It
+     *  turns logging on, so there are decisions to show. */
+    UFUNCTION(BlueprintPure, Category = "AIDebug")
+    bool IsOverlayOn() const;
+
+    /** Turns the overlay on or off over the console variable. */
+    UFUNCTION(BlueprintCallable, Category = "AIDebug")
+    void SetOverlayEnabled(bool bOn);
+
+    /**
+     * The overlay's cards for View (PSAIDebugOverlay::LayoutCards): one for each player on the field
+     * with a decision this play, his latest, over his head, with the screen points of the line to
+     * his target. BadgeStyle is Epic 28's (its distance scaling and overlap rule); PixelsPerUnit
+     * is the viewport's DPI scale. Empty while the overlay is off.
+     */
+    TArray<FPSAIDebugCard> LayoutOverlay(const FPSBadgeView& View, const FPSOverlayBadgeStyle& BadgeStyle, float PixelsPerUnit);
+
+    /** A drawing layer (UPSAIDebugOverlayWidget) shows the overlay from now on, or stops. While
+     *  one does, the debug text drawn in the world stands down. */
+    void RegisterOverlayLayer() { ++OverlayLayers; }
+    void UnregisterOverlayLayer() { OverlayLayers = FMath::Max(0, OverlayLayers - 1); }
+
+    /** True when the overlay is on and no drawing layer shows it: the world's debug text then
+     *  draws it (development builds), as before the layer existed. */
+    UFUNCTION(BlueprintPure, Category = "AIDebug")
+    bool ShouldDrawWorldText() const { return IsOverlayOn() && OverlayLayers == 0; }
+
     /** The current play's post-mortem as JSON. */
     FString BuildPostMortemJson() const;
 
@@ -143,6 +175,10 @@ private:
     /** -1: the tuning decides; 0 or 1: SetLogging / SetWritePostMortems did. */
     int32 LoggingOverride = -1;
     int32 PostMortemOverride = -1;
+    /** -1: the console variable decides; 0 or 1: SetOverlayEnabled did. */
+    int32 OverlayOverride = -1;
+    /** Drawing layers showing the overlay now. */
+    int32 OverlayLayers = 0;
     bool bPlayOpen = false;
     bool bTuningLoaded = false;
 };

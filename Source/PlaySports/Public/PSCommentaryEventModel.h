@@ -9,6 +9,7 @@
 #include "PSCommentaryEventModel.generated.h"
 
 class UPSGameIntelligenceSubsystem;
+class UPSStatsEngine;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FPSCommentaryModelLineMC, const FPSTelemetryCommentaryEvent& /* Moment */, const FString& /* Text */);
 
@@ -19,6 +20,11 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FPSCommentaryModelLineMC, const FPSTelemetr
  * quarter, clock, down, distance, spot and score). It never polls the game or asks the game mode;
  * the play's result is the simulation's PlayResult (the outcome authority), the names come from the
  * play's own live events (the throw, the catch, the tackle).
+ *
+ * Epic 96's event model adds what the booth weighs: Stakes (late, close, a big down, the red zone,
+ * points, a turnover) and Novelty (the first of its kind this game, from the moments told so far;
+ * a big play; a record) by the tuning's weights, and for a play's result the primary player's
+ * statistic and his total in it this game, from Epic 92's box score (SetStats).
  *
  *  - Moments: the game's start; the snap; a pass (Deep at DeepPassCm); a catch; an interception; a
  *    sack; a hit of BigHitDamage or more; a fumble; a receiver running free; a carrier crossing
@@ -73,6 +79,21 @@ public:
      *  takes the world's. */
     void SetIntelligence(UPSGameIntelligenceSubsystem* InIntelligence);
 
+    /** The match's statistics (Epic 92), which the game mode owns: a play's primary player's game
+     *  total comes from its box score. */
+    void SetStats(UPSStatsEngine* InStats);
+
+    // --- What the booth weighs (Epic 96.1) -----------------------------------------------------
+
+    /** How much Moment matters, 0-1, by InTuning's stakes. */
+    static float ComputeStakes(const FPSTelemetryCommentaryEvent& Moment, const FPSCommentaryHookTuning& InTuning);
+
+    /** How unusual Moment is, 0-1, when PriorOfKind moments of its kind came before it this game. */
+    static float ComputeNovelty(const FPSTelemetryCommentaryEvent& Moment, int32 PriorOfKind, const FPSCommentaryHookTuning& InTuning);
+
+    /** Moments of Kind told this game. */
+    int32 CountThisGame(EPSCommentaryMoment Kind) const;
+
     // --- Moments -----------------------------------------------------------------------------
 
     /** The moments published, oldest first (the latest MaxMomentsKept). */
@@ -114,8 +135,16 @@ private:
     /** A moment of Kind in the latest situation, from the bus's latest event of SourceType. */
     FPSTelemetryCommentaryEvent MakeMoment(EPSCommentaryMoment Kind, EPSTelemetryEventType SourceType) const;
 
-    /** Keeps and publishes Moment, and offers it to outside models. */
-    void Publish(const FPSTelemetryCommentaryEvent& Moment);
+    /** Weighs Moment's stakes and novelty, keeps and publishes it, and offers it to outside
+     *  models. */
+    void Publish(FPSTelemetryCommentaryEvent Moment);
+
+    /** PlayerId's total in Category this game (the box score, with ThisPlay added when the play
+     *  isn't in it yet); -1 without statistics. */
+    int32 GameTotalFor(FName PlayerId, EPSStatCategory Category, int32 InPlayNumber, int32 ThisPlay) const;
+
+    /** Forgets the game: its plays and its moments' counts. */
+    void ResetGame();
 
     /** Forgets the play's players. */
     void ResetPlay();
@@ -152,4 +181,9 @@ private:
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
     TWeakObjectPtr<UPSGameIntelligenceSubsystem> Intelligence;
     FDelegateHandle AnsweredHandle;
+
+    TWeakObjectPtr<UPSStatsEngine> Stats;
+
+    /** Moments told this game, by kind. */
+    TMap<EPSCommentaryMoment, int32> KindCounts;
 };

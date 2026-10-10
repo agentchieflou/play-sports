@@ -17,6 +17,9 @@
 //   6. Written content: a generated league laid out as Data/ imports cleanly through the game's
 //      own loaders and round-trips; its rosters start a franchise. CI then validates the same
 //      files (Saved/GeneratedLeague) with tools/content.py check --strict.
+//   7. Career arcs follow each role's curve (Epic 94's, through UPSPlayerAging::GetCurve): running
+//      backs past their own prime have declined where the base curve keeps them, quarterbacks are
+//      still in theirs where it has them declining.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -26,6 +29,8 @@
 #include "PSDataIngestion.h"
 #include "PSFranchiseFlow.h"
 #include "PSLeagueGenerator.h"
+#include "PSLegacyData.h"
+#include "PSPlayerAging.h"
 #include "PSPlayerDNA.h"
 #include "PSPlayerProgression.h"
 #include "PSRoster.h"
@@ -707,6 +712,68 @@ bool FPSLeagueGeneratorWriteTest::RunTest(const FString& Parameters)
     Contracts->LoadTuningFromJson(UPSContractManager::GetDefaultTuningPath());
     Contracts->StartLeague();
     TestEqual(TEXT("A generated team signs its whole roster under the cap"), Contracts->SignRosterAtDemand(Team.Team.TeamId, Team.Players), Team.Players.Num());
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 7 -- Career arcs on each role's curve (Epic 94)
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSLeagueGeneratorRoleCurveTest,
+    "PlaySports.Content.LeagueGenerator.RoleCareerCurves",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSLeagueGeneratorRoleCurveTest::RunTest(const FString& Parameters)
+{
+    using namespace PSLeagueGeneratorTests;
+
+    // The shipped generator walks each player to his age on his role's curve (legacy.json); the
+    // other is given an aging system with no role curves, so every role follows the base curve.
+    UPSLeagueGenerator* ByRole = NewObject<UPSLeagueGenerator>();
+    UPSPlayerAging* BaseOnly = NewObject<UPSPlayerAging>();
+    BaseOnly->LoadDefaults();
+    FPSLegacyTuning Flat = BaseOnly->GetTuning();
+    Flat.RoleCurves.Reset();
+    BaseOnly->SetTuning(Flat);
+    UPSLeagueGenerator* ByBase = NewObject<UPSLeagueGenerator>();
+    ByBase->SetPlayerAging(BaseOnly);
+
+    const FPSProgressionTuning Base = LoadShippedProgression();
+    const FPSProgressionTuning Back = ByRole->GetCareerCurve(EPlayerRole::RunningBack);
+    const FPSProgressionTuning Passer = ByRole->GetCareerCurve(EPlayerRole::Quarterback);
+    TestTrue(TEXT("A running back's prime ends before the base curve's"), Back.PeakAgeEnd < Base.PeakAgeEnd);
+    TestTrue(TEXT("...a quarterback's after it"), Passer.PeakAgeEnd > Base.PeakAgeEnd);
+    TestEqual(TEXT("Without role curves a role follows the base curve"), ByBase->GetCareerCurve(EPlayerRole::RunningBack).PeakAgeEnd, Base.PeakAgeEnd);
+
+    // The same seed draws the same players, primes and ages; only their arcs differ.
+    const TArray<FPlayerAttributes> RolePlayers = AllPlayers(ByRole->GenerateLeague(LeagueSeed, LoadShippedTeams()));
+    const TArray<FPlayerAttributes> BasePlayers = AllPlayers(ByBase->GenerateLeague(LeagueSeed, LoadShippedTeams()));
+    auto Sum = [](const TArray<FPlayerAttributes>& Players, EPlayerRole Role, int32 OlderThan, int32 UpTo, int32& OutCount)
+    {
+        float Total = 0.f;
+        OutCount = 0;
+        for (const FPlayerAttributes& Player : Players)
+        {
+            if (Player.Role == Role && Player.Age > OlderThan && Player.Age <= UpTo)
+            {
+                Total += UPSContractNegotiation::RatePlayer(Player);
+                ++OutCount;
+            }
+        }
+        return Total;
+    };
+    int32 RoleBacks = 0;
+    int32 BaseBacks = 0;
+    const float RoleBackTotal = Sum(RolePlayers, EPlayerRole::RunningBack, Back.PeakAgeEnd, Base.PeakAgeEnd, RoleBacks);
+    const float BaseBackTotal = Sum(BasePlayers, EPlayerRole::RunningBack, Back.PeakAgeEnd, Base.PeakAgeEnd, BaseBacks);
+    TestEqual(TEXT("Both leagues have the same running backs past their prime"), RoleBacks, BaseBacks);
+    TestTrue(*FString::Printf(TEXT("...%d of them, declined on their own curve (%.0f against %.0f)"), RoleBacks, RoleBackTotal, BaseBackTotal), RoleBacks > 0 && RoleBackTotal < BaseBackTotal);
+    int32 RolePassers = 0;
+    int32 BasePassers = 0;
+    const float RolePasserTotal = Sum(RolePlayers, EPlayerRole::Quarterback, Base.PeakAgeEnd, Passer.PeakAgeEnd, RolePassers);
+    const float BasePasserTotal = Sum(BasePlayers, EPlayerRole::Quarterback, Base.PeakAgeEnd, Passer.PeakAgeEnd, BasePassers);
+    TestEqual(TEXT("...and the same quarterbacks past the base curve's prime"), RolePassers, BasePassers);
+    TestTrue(*FString::Printf(TEXT("...%d of them, still in their own prime (%.0f against %.0f)"), RolePassers, RolePasserTotal, BasePasserTotal), RolePassers > 0 && RolePasserTotal > BasePasserTotal);
     return true;
 }
 

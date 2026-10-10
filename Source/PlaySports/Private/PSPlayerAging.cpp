@@ -162,7 +162,8 @@ TArray<FPSRetirementDecision> UPSPlayerAging::RunOffseason(FName TeamId, UPSRost
         Removed.Age = Candidate.Age;
         if (Contracts && Contracts->FindContract(Candidate.PlayerId))
         {
-            Contracts->CutPlayer(Candidate.PlayerId, false);
+            // His deal ends with his career: only the bonus already paid stays on the cap.
+            Contracts->RetirePlayer(Candidate.PlayerId);
         }
         if (History)
         {

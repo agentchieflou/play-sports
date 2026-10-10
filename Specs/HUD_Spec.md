@@ -92,3 +92,31 @@ goes.
 3. Look: line weight (`MarkWidth`, `MinStrokeWidth`), colors, the ring and cursor sizes.
    Restyle the toolbar in a Widget Blueprint if the code-built one reads poorly. Check that a
    saved still (RB / Enter, `Saved/Telestrator`) shows the drawing in its screenshot.
+
+---
+
+## AI Debug Overlay (`UPSAIDebugOverlayWidget`, Epic 85.2)
+
+`APSHUD` makes it in development builds. It is idle until `ps.AI.DebugOverlay 1`, or
+`UPSAIDecisionLog::SetOverlayEnabled`, turns the overlay on. Then:
+
+### 1. What runs in code
+- Every player on the field with an AI decision this play has a card over his head:
+  `DescribeForOverlay` (player, assignment, action, target, then the reason), wrapped at
+  `OverlayMaxLineChars`, on his side's color.
+- It is laid out the way Epic 28 lays out badges (`PSOverlayBadgeLayout`): the same projection,
+  the same scale by distance (the badge style's `ReferenceDistance`, `MinScale`, `MaxScale`), and
+  the same nudging clear of each other. A card with no room is dimmed where it was, not hidden.
+  Unlike the badges, it doesn't hide players during the play.
+- Each player who goes at a place has a line to it. While the layer is up, the decision log's
+  debug text in the world stands down.
+- The look is the `Overlay*` fields of `Data/ai_debug.json`. Cards are sized in Slate units
+  times the display's DPI scale, so a phone shows them at the same size to the eye.
+
+### 2. Editor / PIE check (not done yet)
+1. In PIE run `ps.AI.DebugOverlay 1` and play a down. Check that each player's card follows him
+   and that the text is readable at the broadcast camera's distances. Check that cards nudge
+   apart in the line of scrimmage's crowd, and that the dimmed ones are still useful.
+2. Tune `OverlayFontSize`, `OverlayMaxLineChars`, the colors and `OverlayNudgeStep` until 22
+   cards read at once, or decide to show fewer (a filter by side or player is not built).
+3. On an iPhone, check the cards' size to the eye matches a monitor's.
