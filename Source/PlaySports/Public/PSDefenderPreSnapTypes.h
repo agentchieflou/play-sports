@@ -125,23 +125,24 @@ struct FPSDefensivePreSnapTuning
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PreSnap")
     bool bCpuShadowsTopReceiver = true;
 
-    /** The human defense's pre-snap buttons: catalog actions of the PreSnap context, shared
-     *  with the offense's (Specs/Input_Architecture.md). */
+    /** The human defense's pre-snap buttons: Boolean catalog actions of the DefensePreSnap
+     *  context, the one on while he controls a defender before the snap
+     *  (Specs/Input_Architecture.md). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PreSnap")
-    FName AudibleAction = FName(TEXT("Audible"));
+    FName AudibleAction = FName(TEXT("DefenseAudible"));
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PreSnap")
-    FName SelectAction = FName(TEXT("PreSnapSelect"));
+    FName SelectAction = FName(TEXT("ShadowSelect"));
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PreSnap")
-    FName ShadowAction = FName(TEXT("HotRoute"));
+    FName ShadowAction = FName(TEXT("Shadow"));
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PreSnap")
-    FName ShowBlitzAction = FName(TEXT("Motion"));
+    FName ShowBlitzAction = FName(TEXT("ShowBlitz"));
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PreSnap")
-    FName DisguiseAction = FName(TEXT("SlideProtection"));
+    FName DisguiseAction = FName(TEXT("DisguiseShell"));
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PreSnap")
-    FName CreepAction = FName(TEXT("BlockRelease"));
+    FName CreepAction = FName(TEXT("Creep"));
 };

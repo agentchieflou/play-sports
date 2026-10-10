@@ -43,8 +43,10 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 - [x] Defensive audibles and per-player matchup assignment (shadow a receiver)
   *As built: `Audible`/`AudibleToNext` switch to another play of the call's front.
   `SetShadow` keeps a defender in man on a receiver until cleared; `UPSPlayOrchestrator` applies
-  it at the snap. The human's PreSnap buttons do these on defense
-  (`UPSDefenderPreSnapInputComponent`). Every change goes on the bus (`DefensivePreSnap`).*
+  it at the snap. The human makes these calls with the defense's own buttons in the
+  `DefensePreSnap` context: `DefenseAudible`, `ShadowSelect`, `Shadow`, `ShowBlitz`,
+  `DisguiseShell` and `Creep` (`UPSDefenderPreSnapInputComponent`). Every change goes on the bus
+  (`DefensivePreSnap`).*
 - [x] AI usage of disguise driven by `Awareness` and coaching profile (Epic 18)
   *As built: a CPU call disguises its shell, shows a blitz or creeps one. Each is as likely as
   the coach's `AggressionScore` allows, times the involved defenders' Awareness; the rolls are

@@ -178,6 +178,19 @@ TArray<FString> UPSDefenderPreSnapSubsystem::ValidateTuning(const FPSDefensivePr
     {
         Problems.Add(TEXT("ShowBlitzDepth must be within BlitzLookDepth, or a shown blitz can't be seen"));
     }
+    const FName Buttons[] = { InTuning.AudibleAction, InTuning.SelectAction, InTuning.ShadowAction, InTuning.ShowBlitzAction,
+        InTuning.DisguiseAction, InTuning.CreepAction };
+    TSet<FName> DistinctButtons;
+    for (const FName Button : Buttons)
+    {
+        bool bAlreadyUsed = false;
+        DistinctButtons.Add(Button, &bAlreadyUsed);
+        if (Button.IsNone() || bAlreadyUsed)
+        {
+            Problems.Add(TEXT("each defensive pre-snap button must be a different, named action"));
+            break;
+        }
+    }
     return Problems;
 }
 

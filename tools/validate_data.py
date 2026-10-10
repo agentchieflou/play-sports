@@ -1832,8 +1832,8 @@ def validate_defensive_presnap(path, payload, catalog):
         action = actions.get(action_id)
         if action is None:
             err(path, f"{field}: '{action_id}' is not an action in input_actions.json")
-        elif action.get("ValueType") != "Boolean" or "PreSnap" not in (action.get("Contexts") or []):
-            err(path, f"{field}: '{action_id}' must be a Boolean action in the PreSnap context")
+        elif action.get("ValueType") != "Boolean" or "DefensePreSnap" not in (action.get("Contexts") or []):
+            err(path, f"{field}: '{action_id}' must be a Boolean action in the DefensePreSnap context")
 
 
 def load_input_catalog():

@@ -10,7 +10,9 @@
 //      plays man on him at the snap whatever the call, until cleared.
 //   4. The CPU: disguises as often as its coach's aggression and its defenders' Awareness say;
 //      its best back shadows the best receiver on a man call.
-//   5. The human's buttons on defense.
+//   5. The human's buttons on defense: their own actions in the DefensePreSnap context, with
+//      glyphs and keys of their own, live only while he controls a defender before the snap,
+//      pressed through the catalog.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -19,8 +21,10 @@
 #include "PSDefenderPreSnapSubsystem.h"
 #include "PSDefenseController.h"
 #include "PSFieldGrid.h"
+#include "PSInputConfig.h"
 #include "PSOffenseController.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSPlayContextComponent.h"
 #include "PSPlayerController.h"
 #include "PSPlayerPawn.h"
 #include "PSPreSnapSubsystem.h"
@@ -180,6 +184,25 @@ namespace PSDefenderPreSnapTests
     static APSDefenseController* ControllerOf(APSPlayerPawn* Pawn)
     {
         return Pawn ? Cast<APSDefenseController>(Pawn->GetController()) : nullptr;
+    }
+
+    static const FPSInputActionDef* FindAction(const UPSInputConfig* InputConfig, FName ActionId)
+    {
+        return InputConfig ? InputConfig->Catalog.Actions.FindByPredicate(
+            [ActionId](const FPSInputActionDef& Candidate) { return Candidate.ActionId == ActionId; }) : nullptr;
+    }
+
+    /** Presses ActionId as a button would: the controller raises it only while a context the
+     *  catalog binds it in is on its stack. False when none is, so the press never arrives. */
+    static bool PressButton(APSPlayerController* Controller, const UPSInputConfig* InputConfig, FName ActionId)
+    {
+        const FPSInputActionDef* Action = FindAction(InputConfig, ActionId);
+        if (!Action || !Action->Contexts.ContainsByPredicate([Controller](const FName& ContextId) { return Controller->IsInputContextActive(ContextId); }))
+        {
+            return false;
+        }
+        Controller->OnCatalogActionStarted.Broadcast(ActionId);
+        return true;
     }
 
     static int32 CountDefensiveEvents(const UPSTelemetryBus* Bus, FName Action)
@@ -547,17 +570,73 @@ bool FPSDefenderPreSnapButtonsTest::RunTest(const FString& Parameters)
     }
     FPreSnapField Field = SpawnField(World, 100.f);
     UPSDefenderPreSnapInputComponent* Input = Controller->GetDefenderPreSnapInputComponent();
-    if (!TestTrue(TEXT("Both elevens are on the field"), Field.IsComplete()) || !TestNotNull(TEXT("The controller has defensive pre-snap buttons"), Input))
+    UPSPlayContextComponent* Context = Controller->GetPlayContextComponent();
+    const UPSInputConfig* InputConfig = Controller->GetInputConfig();
+    if (!TestTrue(TEXT("Both elevens are on the field"), Field.IsComplete()) || !TestNotNull(TEXT("The controller has defensive pre-snap buttons"), Input)
+        || !TestNotNull(TEXT("...a play context"), Context) || !TestNotNull(TEXT("...and an input catalog"), InputConfig))
     {
         DestroyTestWorld(World);
         return false;
     }
     Input->BindToController();
+    Context->BindToBus();
     const FPSDefensivePreSnapTuning& Tuning = DefensePreSnap->GetTuning();
+    const FName DefensePreSnapContext(TEXT("DefensePreSnap"));
+    const FName OffensePreSnapContext(TEXT("PreSnap"));
+    for (const FString& Problem : UPSDefenderPreSnapSubsystem::ValidateTuning(Tuning))
+    {
+        AddError(FString::Printf(TEXT("defensive_presnap.json: %s"), *Problem));
+    }
+    FPSDefensivePreSnapTuning SharedButton = Tuning;
+    SharedButton.CreepAction = SharedButton.ShowBlitzAction;
+    TestEqual(TEXT("Validation catches two calls on one button"), UPSDefenderPreSnapSubsystem::ValidateTuning(SharedButton).Num(), 1);
 
+    // Each call is its own button in the DefensePreSnap context, with a gamepad glyph, on keys
+    // nothing else uses there or in the gameplay context under it.
+    const FName Buttons[] = { Tuning.AudibleAction, Tuning.SelectAction, Tuning.ShadowAction, Tuning.ShowBlitzAction, Tuning.DisguiseAction, Tuning.CreepAction };
+    for (const FName ButtonId : Buttons)
+    {
+        const FPSInputActionDef* Action = FindAction(InputConfig, ButtonId);
+        if (!TestTrue(*FString::Printf(TEXT("%s is a Boolean action in DefensePreSnap, not the offense's PreSnap"), *ButtonId.ToString()),
+            Action && Action->ValueType == EInputActionValueType::Boolean && Action->Contexts.Contains(DefensePreSnapContext)
+            && !Action->Contexts.Contains(OffensePreSnapContext)))
+        {
+            continue;
+        }
+        FPSInputGlyph Glyph;
+        TestTrue(*FString::Printf(TEXT("%s has a gamepad glyph"), *ButtonId.ToString()),
+            InputConfig->GetGlyphForAction(ButtonId, DefensePreSnapContext, EPSInputDevice::Gamepad, Glyph));
+        FString Clash;
+        for (const FPSInputActionDef& Other : InputConfig->Catalog.Actions)
+        {
+            if (Other.ActionId == ButtonId || !(Other.Contexts.Contains(DefensePreSnapContext) || Other.Contexts.Contains(FName(TEXT("OnField")))))
+            {
+                continue;
+            }
+            for (const FPSInputKeyBinding& Binding : Action->Bindings)
+            {
+                if (Other.Bindings.ContainsByPredicate([&Binding](const FPSInputKeyBinding& Candidate) { return Candidate.Key == Binding.Key; }))
+                {
+                    Clash = FString::Printf(TEXT("%s (%s)"), *Binding.Key.ToString(), *Other.ActionId.ToString());
+                }
+            }
+        }
+        TestTrue(*FString::Printf(TEXT("%s's keys are its own%s%s"), *ButtonId.ToString(), Clash.IsEmpty() ? TEXT("") : TEXT(", but it shares "), *Clash),
+            Clash.IsEmpty());
+    }
+
+    // On offense the defense's buttons aren't on the stack, and have nothing to act on.
     TestTrue(TEXT("The human takes the quarterback"), Controller->TakeControlOf(Field.Quarterback));
-    TestEqual(TEXT("On offense the defense's buttons have nothing to act on"), Input->GetSelectableReceivers().Num(), 0);
+    Context->Refresh();
+    TestTrue(TEXT("Before the snap on offense: PreSnap"), Controller->IsInputContextActive(OffensePreSnapContext));
+    TestFalse(TEXT("...not DefensePreSnap"), Controller->IsInputContextActive(DefensePreSnapContext));
+    TestFalse(TEXT("The disguise button isn't live"), PressButton(Controller, InputConfig, Tuning.DisguiseAction));
+    TestEqual(TEXT("...and would have nothing to act on"), Input->GetSelectableReceivers().Num(), 0);
+
     TestTrue(TEXT("The human takes the middle linebacker"), Controller->TakeControlOf(Field.Linebackers[1]));
+    Context->Refresh();
+    TestTrue(TEXT("Before the snap on defense: DefensePreSnap"), Controller->IsInputContextActive(DefensePreSnapContext));
+    TestFalse(TEXT("...not the offense's PreSnap"), Controller->IsInputContextActive(OffensePreSnapContext));
 
     PlayCall->OpenPlayCall(FirstAndTen());
     PlayCall->CallPlay(TEXT("Offense_SlantFlat"), EPSPlayCaller::CPU);
@@ -567,27 +646,34 @@ bool FPSDefenderPreSnapButtonsTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Five receivers to pick from"), Receivers.Num(), 5);
     TestTrue(TEXT("...left to right"), Receivers.Num() == 5 && Receivers[0]->GetActorLocation().Y < Receivers[4]->GetActorLocation().Y);
 
-    TestTrue(TEXT("The disguise button disguises the shell"), Input->PressAction(Tuning.DisguiseAction));
-    TestTrue(TEXT("...on"), DefensePreSnap->GetDisguise().bDisguiseShell);
-    TestTrue(TEXT("The show-blitz button shows a blitz"), Input->PressAction(Tuning.ShowBlitzAction));
-    TestTrue(TEXT("...on"), DefensePreSnap->GetDisguise().bShowBlitz);
+    // Every press below arrives as a button does: through the catalog, its context on the stack.
+    TestTrue(TEXT("The disguise button is live"), PressButton(Controller, InputConfig, Tuning.DisguiseAction));
+    TestTrue(TEXT("...and disguises the shell"), DefensePreSnap->GetDisguise().bDisguiseShell);
+    TestTrue(TEXT("The show-blitz button is live"), PressButton(Controller, InputConfig, Tuning.ShowBlitzAction));
+    TestTrue(TEXT("...and shows a blitz"), DefensePreSnap->GetDisguise().bShowBlitz);
+    PressButton(Controller, InputConfig, Tuning.CreepAction);
+    TestTrue(TEXT("The creep button sends the blitzers in late"), DefensePreSnap->GetDisguise().bCreep);
+    PressButton(Controller, InputConfig, Tuning.CreepAction);
+    TestFalse(TEXT("...and pressed again, lines them up honestly"), DefensePreSnap->GetDisguise().bCreep);
 
     // Select the rightmost receiver and shadow him with the nearest back.
     for (int32 Press = 0; Press < 4; ++Press)
     {
-        Input->PressAction(Tuning.SelectAction);
+        PressButton(Controller, InputConfig, Tuning.SelectAction);
     }
     APSPlayerPawn* Selected = Input->GetSelectedReceiver();
     TestTrue(TEXT("Select walks across to the rightmost receiver"), Selected == Receivers.Last());
-    TestTrue(TEXT("The shadow button puts a back on him"), Input->PressAction(Tuning.ShadowAction));
+    PressButton(Controller, InputConfig, Tuning.ShadowAction);
     const APSPlayerPawn* Shadow = DefensePreSnap->GetShadowingDefender(Selected);
-    TestTrue(TEXT("...an AI defensive back"), Shadow && Shadow->GetAttributes().Role == EPlayerRole::DefensiveBack && !Shadow->IsUserControlled());
-    TestTrue(TEXT("Pressed again, it lets him go"), Input->PressAction(Tuning.ShadowAction) && !DefensePreSnap->GetShadowingDefender(Selected));
+    TestTrue(TEXT("The shadow button puts an AI defensive back on him"), Shadow && Shadow->GetAttributes().Role == EPlayerRole::DefensiveBack && !Shadow->IsUserControlled());
+    PressButton(Controller, InputConfig, Tuning.ShadowAction);
+    TestNull(TEXT("Pressed again, it lets him go"), DefensePreSnap->GetShadowingDefender(Selected));
 
-    // Through the controller's catalog-action event, as a pressed button arrives.
-    Controller->OnCatalogActionStarted.Broadcast(Tuning.AudibleAction);
+    PressButton(Controller, InputConfig, Tuning.AudibleAction);
     TestEqual(TEXT("The audible button checks to the front's next play"), PlayCall->GetCall(false).PlayId, FName(TEXT("Defense_Cover4Quarters")));
-    TestFalse(TEXT("A button that isn't a pre-snap action does nothing"), Input->PressAction(TEXT("Juke")));
+    TestFalse(TEXT("The offense's audible isn't live on defense"), PressButton(Controller, InputConfig, TEXT("Audible")));
+    TestFalse(TEXT("...nor does the defense's component take it"), Input->PressAction(TEXT("Audible")));
+    TestEqual(TEXT("...so the call stands"), PlayCall->GetCall(false).PlayId, FName(TEXT("Defense_Cover4Quarters")));
 
     DestroyTestWorld(World);
     return true;

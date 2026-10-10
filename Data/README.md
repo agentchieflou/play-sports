@@ -724,6 +724,7 @@ across the field from its centre:
   receiver.
 - `AudibleAction`, `SelectAction`, `ShadowAction`, `ShowBlitzAction`, `DisguiseAction`,
   `CreepAction`: the human defense's buttons, each a different Boolean action in the input
-  catalog's `PreSnap` context (the offense's pre-snap buttons, with defensive meanings).
+  catalog's `DefensePreSnap` context (`DefenseAudible`, `ShadowSelect`, `Shadow`, `ShowBlitz`,
+  `DisguiseShell`, `Creep`), on while he controls a defender before the snap.
 
 `UPSDefenderPreSnapSubsystem::ValidateTuning` and `tools/validate_data.py` check it.

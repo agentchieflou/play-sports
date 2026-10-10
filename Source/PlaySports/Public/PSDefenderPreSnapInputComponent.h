@@ -10,20 +10,22 @@ class APSPlayerPawn;
 class UPSDefenderPreSnapSubsystem;
 
 /**
- * UPSDefenderPreSnapInputComponent turns the PreSnap context's buttons into the defense's
- * pre-snap calls on UPSDefenderPreSnapSubsystem (Epic 67), while the player controls a
- * defender. The buttons are the offense's (UPSPreSnapInputComponent), with defensive meanings:
+ * UPSDefenderPreSnapInputComponent turns the DefensePreSnap context's buttons into the
+ * defense's pre-snap calls on UPSDefenderPreSnapSubsystem (Epic 67). UPSPlayContextComponent
+ * puts that context on the stack while the player controls a defender before the snap; the
+ * offense's PreSnap buttons (UPSPreSnapInputComponent) are off then. The calls:
  *
- *   Audible      the next play of the front
- *   Select       the next offensive receiver, left to right across the field
- *   Shadow       the AI defensive back nearest the selected receiver shadows him (again: lets
- *                him go)
- *   ShowBlitz    linebackers walk up to show a blitz that isn't coming (toggles)
- *   Disguise     the safeties show the other shell (toggles)
- *   Creep        the blitzers line up in coverage and creep up late (toggles)
+ *   DefenseAudible  the next play of the front
+ *   ShadowSelect    the next offensive receiver, left to right across the field
+ *   Shadow          the AI defensive back nearest the selected receiver shadows him (again:
+ *                   lets him go)
+ *   ShowBlitz       linebackers walk up to show a blitz that isn't coming (toggles)
+ *   DisguiseShell   the safeties show the other shell (toggles)
+ *   Creep           the blitzers line up in coverage and creep up late (toggles)
  *
- * Which buttons these are is data (FPSDefensivePreSnapTuning's actions, in the input catalog's
- * PreSnap context). The calls, their rules and their announcement are the subsystem's.
+ * Which actions these are is data (FPSDefensivePreSnapTuning, Data/defensive_presnap.json);
+ * their keys are the input catalog's. The calls, their rules and their announcement are the
+ * subsystem's.
  */
 UCLASS(ClassGroup = "PlaySports", BlueprintType, meta = (BlueprintSpawnableComponent))
 class PLAYSPORTS_API UPSDefenderPreSnapInputComponent : public UActorComponent

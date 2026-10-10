@@ -27,10 +27,10 @@
     "CreepChanceConservative": 0.1,
     "CreepChanceAggressive": 0.5,
     "bCpuShadowsTopReceiver": true,
-    "AudibleAction": "Audible",
-    "SelectAction": "PreSnapSelect",
-    "ShadowAction": "HotRoute",
-    "ShowBlitzAction": "Motion",
-    "DisguiseAction": "SlideProtection",
-    "CreepAction": "BlockRelease"
+    "AudibleAction": "DefenseAudible",
+    "SelectAction": "ShadowSelect",
+    "ShadowAction": "Shadow",
+    "ShowBlitzAction": "ShowBlitz",
+    "DisguiseAction": "DisguiseShell",
+    "CreepAction": "Creep"
 }
