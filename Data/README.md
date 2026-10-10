@@ -92,6 +92,7 @@ every CI build.
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
 | `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
+| `training.json` | `FPSTrainingTuning` (single object: allocation, development, funding, gameplan `FocusAreas`, fatigue, `PracticeInjury`, recommendation fields) | `UPSDataIngestion::LoadTrainingTuningFromJson`, via `UPSWeeklyPreparation` |
 | `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
 | `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -866,6 +867,40 @@ default packages in `personnel_packages.json`, not from here.
 
 `tools/validate_data.py` checks it: fractions at most 1, inertia and swing below 1, each unit's role,
 games and bonus.
+
+## Training schema (`FPSTrainingTuning`)
+
+Single object (Epic 90), read by `UPSWeeklyPreparation`. Each player's freshness and injury and each
+team's practice and gameplan live in the franchise save (`UPSFranchiseSaveGame::Training`), not here.
+- Allocation: `DefaultAllocation` (`Develop`, `Gameplan`, `Rest` shares; only the proportions
+  matter); a week's intensity is `Develop` x `DevelopIntensity` + `Gameplan` x `GameplanIntensity`.
+- Development: `DevelopPointsPerWeek` rating points a full week adds at weight 1, split by
+  `DevelopRatings` (`Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`), in proportion
+  for a rating within `DevelopHeadroom` of 100; times the coordinator's Development
+  (`MinCoachDevelopment` at 0 to `MaxCoachDevelopment` at 100, `coaching_staffs.json`).
+- Funding (the training budget, `owner_economics.json`): x `FundingFloor` + (1 - `FundingFloor`) x
+  the team's funding index, at most `MaxFundingMultiplier`.
+- Gameplan: `GameplanBonusPerShare` x the gameplan share x funding, split between up to
+  `MaxFocusAreas` focus areas, each times its relevance (the opponent's share of its categories
+  against an even mix, at most `MaxRelevance`; `UnscoutedRelevance` with no read), at most
+  `MaxGameplanBonus`.
+- `FocusAreas[]`: `FocusId`, `Label`, `bVersusOffense` (prepares for the opponent's offense or
+  defense), `Categories` (the opponent model's play categories on that side: `Run`, `ShortPass`,
+  `DeepPass`, `PlayAction`, `Screen`; `Base`, `Blitz`, `Prevent`), `Roles` it lifts, `Ratings`
+  (how much of the bonus each rating takes).
+- Fatigue (freshness 0-1, Core 19's stamina ratio): `GameFatigue` a game, `PracticeFatigue` a
+  full-intensity week, each less `StaminaFatigueRelief` x Stamina / 100 of it; `WeeklyRecovery`
+  every week plus `RestRecovery` x the rest share; `FatiguePerformanceSwing` below his ratings at 0.
+- `PracticeInjury` (`FPSInjuryTuning`, Core 19's injury model): `BaseInjuryChance` a player's chance
+  in a full-intensity week (times the week's intensity), `MaxFatigueMultiplier` at freshness 0,
+  `MinRecoveryWeeks`..`MaxRecoveryWeeks` out; `RandomSeed` seeds each team's week.
+- The recommendation (every team without its own choice, CPU or not): `AIRestShift` from development
+  to rest under `AIRestFreshness` average freshness, `AILateGameplanShift` to the gameplan from
+  `AILateSeasonProgress` of the season, the `AIFocusAreas` most relevant focus areas.
+
+`tools/validate_data.py` checks it: fractions at most 1, the bonus and swing below 1, the injury
+tuning's ranges, each focus area's roles, rating weights and categories (each one
+`opponent_model.json` tracks on its side).
 
 ## Owner economics schema (`FPSEconomyTuning`)
 

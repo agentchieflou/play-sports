@@ -71,8 +71,11 @@ setting's choices in order and each assist a toggle in ui_settings.json (Epic 84
 "MeshRecognizeRadius" files against FPSDeceptionTuning (Epic 72): bite chances 0-1 with the floor
 under the ceiling, a discipline rating 0-100; "HardFailMultiplier" files against
 FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system, within its
-frame. Teams, the league config, the playbook, player rating ranges and every reference between
-files are tools/content_contracts.py's (Epic 125), run from here.
+frame; "FocusAreas" files against FPSTrainingTuning (Epic 90): 0-1 fatigue, recovery and AI
+fields, the practice injury tuning, each focus area's roles, rating weights and play categories
+(each one opponent_model.json tracks on its side). Teams, the league config, the playbook, player
+rating ranges and every reference between files are tools/content_contracts.py's (Epic 125), run
+from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -3758,6 +3761,160 @@ def validate_perf_harness(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPerfHarnessTuning exactly")
 
 
+TRAINING_NUMBER_FIELDS = {
+    "DevelopIntensity", "GameplanIntensity", "DevelopPointsPerWeek", "DevelopHeadroom", "MinCoachDevelopment",
+    "MaxCoachDevelopment", "FundingFloor", "MaxFundingMultiplier", "GameplanBonusPerShare", "MaxGameplanBonus",
+    "MaxRelevance", "UnscoutedRelevance", "GameFatigue", "PracticeFatigue", "WeeklyRecovery", "RestRecovery",
+    "StaminaFatigueRelief", "FatiguePerformanceSwing", "AIRestFreshness", "AIRestShift", "AILateSeasonProgress",
+    "AILateGameplanShift",
+}
+TRAINING_INT_FIELDS = {"MaxFocusAreas", "RandomSeed", "AIFocusAreas"}
+TRAINING_FRACTIONS = {
+    "FundingFloor", "GameFatigue", "PracticeFatigue", "WeeklyRecovery", "RestRecovery", "StaminaFatigueRelief",
+    "AIRestFreshness", "AIRestShift", "AILateSeasonProgress", "AILateGameplanShift",
+}
+TRAINING_OBJECT_FIELDS = {"DefaultAllocation", "DevelopRatings", "FocusAreas", "PracticeInjury"}
+TRAINING_ALLOCATION_FIELDS = ("Develop", "Gameplan", "Rest")
+RATING_WEIGHT_FIELDS = ("Speed", "Agility", "Strength", "Acceleration", "Awareness")
+TRAINING_FOCUS_FIELDS = {"FocusId", "Label", "bVersusOffense", "Categories", "Roles", "Ratings"}
+INJURY_TUNING_FIELDS = {"BaseInjuryChance", "MaxFatigueMultiplier", "MinRecoveryWeeks", "MaxRecoveryWeeks"}
+
+
+def load_opponent_model_tracked():
+    """The play categories Data/opponent_model.json tracks, by the human's side (True = offense),
+    or None when it is missing or broken (its own checks report that)."""
+    try:
+        tuning = json.loads((DATA_DIR / "opponent_model.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(tuning, dict) or not isinstance(tuning.get("Counters"), list):
+        return None
+    tracked = {True: set(), False: set()}
+    for counter in tuning["Counters"]:
+        if isinstance(counter, dict) and isinstance(counter.get("bOffense"), bool):
+            tracked[counter["bOffense"]].add(counter.get("Observed"))
+    return tracked
+
+
+def validate_rating_weights(path, where, weights, need_some):
+    """An FPSRatingWeights object: each skill rating's weight, 0 or more."""
+    if not isinstance(weights, dict):
+        err(path, f"{where}: must be an object of {', '.join(RATING_WEIGHT_FIELDS)}")
+        return
+    for field in RATING_WEIGHT_FIELDS:
+        if field in weights and (not is_number(weights[field]) or weights[field] < 0):
+            err(path, f"{where}.{field}: '{weights[field]}' must be a number, 0 or more")
+    extra = set(weights) - set(RATING_WEIGHT_FIELDS)
+    if extra:
+        err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSRatingWeights exactly")
+    if need_some and not any(is_number(weights.get(field)) and weights[field] > 0 for field in RATING_WEIGHT_FIELDS):
+        err(path, f"{where}: needs a rating weighted above 0")
+
+
+def validate_training(path, payload, tracked):
+    """FPSTrainingTuning (Data/training.json, Epic 90); mirrors UPSWeeklyPreparation::ValidateTuning,
+    each focus area's categories ones Data/opponent_model.json tracks on its side."""
+    for field in sorted(TRAINING_NUMBER_FIELDS):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+        elif field in TRAINING_FRACTIONS and value > 1:
+            err(path, f"{field}: a fraction, at most 1")
+    for field in sorted(TRAINING_INT_FIELDS):
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int):
+            err(path, f"{field}: '{value}' must be a whole number")
+        elif field != "RandomSeed" and value < 0:
+            err(path, f"{field}: '{value}' must be 0 or more")
+    extra = set(payload) - TRAINING_NUMBER_FIELDS - TRAINING_INT_FIELDS - TRAINING_OBJECT_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTrainingTuning exactly")
+
+    def num(field):
+        value = payload.get(field)
+        return value if is_number(value) else None
+
+    if num("DevelopHeadroom") is not None and not 0 < num("DevelopHeadroom") <= 100:
+        err(path, "DevelopHeadroom: must be above 0 and at most 100")
+    if None not in (num("MinCoachDevelopment"), num("MaxCoachDevelopment")) and num("MaxCoachDevelopment") < num("MinCoachDevelopment"):
+        err(path, "MaxCoachDevelopment must not be below MinCoachDevelopment")
+    if num("MaxFundingMultiplier") is not None and num("MaxFundingMultiplier") < 1:
+        err(path, "MaxFundingMultiplier: must be at least 1")
+    for field in ("MaxGameplanBonus", "FatiguePerformanceSwing"):
+        if num(field) is not None and num(field) >= 1:
+            err(path, f"{field}: must be below 1")
+    if None not in (num("UnscoutedRelevance"), num("MaxRelevance")) and num("UnscoutedRelevance") > num("MaxRelevance"):
+        err(path, "UnscoutedRelevance must not exceed MaxRelevance")
+    focus_max, ai_focus = payload.get("MaxFocusAreas"), payload.get("AIFocusAreas")
+    if isinstance(focus_max, int) and focus_max < 1:
+        err(path, "MaxFocusAreas: must be at least 1")
+    if isinstance(focus_max, int) and isinstance(ai_focus, int) and ai_focus > focus_max:
+        err(path, "AIFocusAreas must not exceed MaxFocusAreas")
+
+    allocation = payload.get("DefaultAllocation")
+    if not isinstance(allocation, dict):
+        err(path, "'DefaultAllocation' must be an object of Develop, Gameplan, Rest")
+    else:
+        shares = [allocation.get(field) for field in TRAINING_ALLOCATION_FIELDS]
+        if any(not is_number(share) or share < 0 for share in shares) or sum(s for s in shares if is_number(s)) <= 0:
+            err(path, "DefaultAllocation: Develop, Gameplan and Rest must be numbers, 0 or more, and not all 0")
+        if set(allocation) - set(TRAINING_ALLOCATION_FIELDS):
+            err(path, f"DefaultAllocation: unknown field(s) {sorted(set(allocation) - set(TRAINING_ALLOCATION_FIELDS))}")
+    validate_rating_weights(path, "DevelopRatings", payload.get("DevelopRatings"), False)
+
+    injury = payload.get("PracticeInjury")
+    if not isinstance(injury, dict):
+        err(path, "'PracticeInjury' must be an FPSInjuryTuning object")
+    else:
+        chance, multiplier = injury.get("BaseInjuryChance"), injury.get("MaxFatigueMultiplier")
+        low, high = injury.get("MinRecoveryWeeks"), injury.get("MaxRecoveryWeeks")
+        if not is_number(chance) or not 0 <= chance <= 1:
+            err(path, f"PracticeInjury.BaseInjuryChance: '{chance}' must be a number from 0 to 1")
+        if not is_number(multiplier) or multiplier < 1:
+            err(path, f"PracticeInjury.MaxFatigueMultiplier: '{multiplier}' must be a number, 1 or more")
+        if (isinstance(low, bool) or not isinstance(low, int) or low < 1 or isinstance(high, bool)
+                or not isinstance(high, int) or high < low):
+            err(path, "PracticeInjury: MinRecoveryWeeks a whole number, 1 or more, and MaxRecoveryWeeks not below it")
+        if set(injury) - INJURY_TUNING_FIELDS:
+            err(path, f"PracticeInjury: unknown field(s) {sorted(set(injury) - INJURY_TUNING_FIELDS)}")
+
+    areas = payload.get("FocusAreas")
+    if not isinstance(areas, list):
+        err(path, "'FocusAreas' must be an array")
+        return
+    seen = set()
+    for idx, focus in enumerate(areas):
+        where = f"FocusAreas[{idx}]"
+        if not isinstance(focus, dict):
+            err(path, f"{where}: not an object")
+            continue
+        focus_id = focus.get("FocusId")
+        if not isinstance(focus_id, str) or not focus_id or focus_id in seen:
+            err(path, f"{where}.FocusId: empty or duplicate '{focus_id}'")
+        seen.add(focus_id)
+        if not isinstance(focus.get("Label", ""), str):
+            err(path, f"{where}.Label: must be a string")
+        versus_offense = focus.get("bVersusOffense")
+        if not isinstance(versus_offense, bool):
+            err(path, f"{where}.bVersusOffense: must be true or false")
+        categories = focus.get("Categories")
+        if not isinstance(categories, list) or not categories or len(set(map(str, categories))) != len(categories):
+            err(path, f"{where}.Categories: a non-empty array of distinct play categories")
+        elif isinstance(versus_offense, bool):
+            side = WEIGHTED_OFFENSE_CATEGORIES if versus_offense else WEIGHTED_DEFENSE_CATEGORIES
+            for category in categories:
+                if category not in side:
+                    err(path, f"{where}.Categories: '{category}' must be one of {sorted(side)}")
+                elif tracked is not None and category not in tracked[versus_offense]:
+                    err(path, f"{where}.Categories: opponent_model.json doesn't track '{category}' on that side")
+        roles = focus.get("Roles")
+        if not isinstance(roles, list) or not roles or any(role not in PLAYER_ROLES for role in roles):
+            err(path, f"{where}.Roles: a non-empty array of EPlayerRole values")
+        validate_rating_weights(path, f"{where}.Ratings", focus.get("Ratings"), True)
+        if set(focus) - TRAINING_FOCUS_FIELDS:
+            err(path, f"{where}: unknown field(s) {sorted(set(focus) - TRAINING_FOCUS_FIELDS)} - names must match FPSGameplanFocusDef exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -3999,6 +4156,8 @@ def main():
             validate_difficulty(path, payload)
         if isinstance(payload, dict) and "HardFailMultiplier" in payload:
             validate_perf_harness(path, payload)
+        if isinstance(payload, dict) and "FocusAreas" in payload:
+            validate_training(path, payload, load_opponent_model_tracked())
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

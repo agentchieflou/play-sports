@@ -12,6 +12,7 @@
 #include "PSRoster.h"
 #include "PSStaffManager.h"
 #include "PSStatsEngine.h"
+#include "PSWeeklyPreparation.h"
 #include "Engine/DataTable.h"
 #include "Misc/Paths.h"
 
@@ -23,6 +24,7 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     CarouselEvents.Reset();
     EconomyReports.Reset();
     LockerRoomEvents.Reset();
+    TrainingEvents.Reset();
     FreeAgency = nullptr;
     LastRollover = FPSLeagueYearRollover();
     bSeasonEnded = false;
@@ -139,6 +141,9 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
         return 0;
     }
 
+    // The week's practice comes before its games (Epic 90).
+    PrepareWeek();
+
     int32 Played = 0;
     const int32 Week = Season->GetCurrentWeek();
     UPSQuickSimRunner* Runner = NewObject<UPSQuickSimRunner>(this);
@@ -183,6 +188,20 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
                 }
             }
         }
+        if (Preparation)
+        {
+            // Epic 90: the injured sit; everyone plays at his freshness, with his gameplan for this opponent.
+            HomePlayers.RemoveAll([this](const FPlayerAttributes& Player) { return Preparation->IsInjured(Player.PlayerId); });
+            AwayPlayers.RemoveAll([this](const FPlayerAttributes& Player) { return Preparation->IsInjured(Player.PlayerId); });
+            for (FPlayerAttributes& Player : HomePlayers)
+            {
+                Player = Preparation->ApplyPreparation(Matchup.HomeTeamId, Matchup.AwayTeamId, Player);
+            }
+            for (FPlayerAttributes& Player : AwayPlayers)
+            {
+                Player = Preparation->ApplyPreparation(Matchup.AwayTeamId, Matchup.HomeTeamId, Player);
+            }
+        }
 
         if (Stats)
         {
@@ -192,6 +211,11 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
         if (Stats)
         {
             Stats->FinishGame();
+        }
+        if (Preparation)
+        {
+            Preparation->RecordGame(Matchup.HomeTeamId, HomePlayers);
+            Preparation->RecordGame(Matchup.AwayTeamId, AwayPlayers);
         }
         // The home crowd comes for the record the team brought into the game (Epic 95).
         const TArray<FPSTeamStanding> Standings = Season->GetStandings();
@@ -257,6 +281,38 @@ TArray<FPSLockerRoomEvent> UPSFranchiseFlow::EvaluateLockerRooms(bool bNewLeague
     return Events;
 }
 
+TArray<FPSTrainingEvent> UPSFranchiseFlow::PrepareWeek()
+{
+    TArray<FPSTrainingEvent> Events;
+    if (!Preparation || !Season || bSeasonEnded)
+    {
+        return Events;
+    }
+    const int32 Week = Season->GetCurrentWeek();
+    const int32 FinalWeek = GetFinalWeek();
+    if (Week < 1 || Week > FinalWeek)
+    {
+        return Events;
+    }
+    const TArray<FPSWeekMatchup> Matchups = Season->GetMatchupsForWeek(Week);
+    const float SeasonProgress = FMath::Clamp(static_cast<float>(Week - 1) / FinalWeek, 0.f, 1.f);
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        // Its opponent this week; None on a bye.
+        FName OpponentId;
+        for (const FPSWeekMatchup& Matchup : Matchups)
+        {
+            if (Matchup.HomeTeamId == Team.Key || Matchup.AwayTeamId == Team.Key)
+            {
+                OpponentId = Matchup.HomeTeamId == Team.Key ? Matchup.AwayTeamId : Matchup.HomeTeamId;
+            }
+        }
+        Events.Append(Preparation->PrepareTeam(Team.Key, Team.Value, Week, OpponentId, SeasonProgress, Economy, Staffs));
+    }
+    TrainingEvents.Append(Events);
+    return Events;
+}
+
 bool UPSFranchiseFlow::AdvanceWeek()
 {
     if (!Season || bSeasonEnded)
@@ -288,6 +344,11 @@ bool UPSFranchiseFlow::EndSeason()
     if (Stats)
     {
         Stats->EndSeason();
+    }
+    if (Preparation)
+    {
+        // The off-season heals everyone (Epic 90).
+        Preparation->EndSeason();
     }
     if (Economy)
     {

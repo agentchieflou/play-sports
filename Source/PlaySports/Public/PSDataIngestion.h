@@ -50,6 +50,7 @@
 #include "PSContractData.h"
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
+#include "PSTrainingData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSDefenderPreSnapTypes.h"
@@ -325,6 +326,12 @@ public:
      *  rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadMoraleTuningFromJson(const FString& JsonFilePath, FPSMoraleTuning& OutTuning);
+
+    /** Loads the practice week: allocation, development, gameplan focus areas, fatigue and practice
+     *  injuries (Data/training.json, Epic 90). False on a missing file, malformed JSON or an
+     *  unknown Role; UPSWeeklyPreparation::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTrainingTuningFromJson(const FString& JsonFilePath, FPSTrainingTuning& OutTuning);
 
     /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
      *  missing file or malformed JSON. */
