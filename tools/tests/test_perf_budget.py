@@ -1,8 +1,10 @@
 """Epic 114: the performance budget check and its trend history (no engine, no network)."""
 
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from tools import perf_budget
@@ -28,6 +30,13 @@ def make_report(p95_by_system, scenario="StandardPlay", tier="DesktopHigh", budg
     return {"scenario": scenario, "tierId": tier, "platform": "Windows", "date": "2026-10-10T00:00:00.000Z",
             "targetFrameRate": 60, "frameBudgetMs": 16.67, "frames": 330, "systems": systems,
             "busEvents": 20, "aIDecisions": 7000, "fieldScans": 300}
+
+
+def quiet_check(*args, **kwargs):
+    """perf_budget.check without its output: its ::warning:: and ::error:: lines would become
+    GitHub annotations on the CI run that runs these tests."""
+    with redirect_stdout(io.StringIO()):
+        return perf_budget.check(*args, **kwargs)
 
 
 class PerfBudgetTests(unittest.TestCase):
@@ -81,22 +90,22 @@ class PerfBudgetTests(unittest.TestCase):
             (reports / "StandardPlay_DesktopHigh.json").write_text(json.dumps(make_report({"AI": 0.4})), encoding="utf-8")
             history = Path(tmp) / "ci" / "perf_history.jsonl"
             summary = Path(tmp) / "summary.md"
-            self.assertEqual(perf_budget.check(reports, history, record=True, summary_path=summary, tuning=TUNING), 0)
-            self.assertEqual(perf_budget.check(reports, history, record=True, summary_path=summary, tuning=TUNING), 0)
+            self.assertEqual(quiet_check(reports, history, record=True, summary_path=summary, tuning=TUNING), 0)
+            self.assertEqual(quiet_check(reports, history, record=True, summary_path=summary, tuning=TUNING), 0)
             runs = perf_budget.load_history(history)
             self.assertEqual(len(runs), 2)
             self.assertEqual(runs[0]["p95"], {"AI": 0.4})
             self.assertIn("| AI | 1.00 |", summary.read_text(encoding="utf-8"))
             # Without --record the history is left alone.
-            self.assertEqual(perf_budget.check(reports, history, record=False, tuning=TUNING), 0)
+            self.assertEqual(quiet_check(reports, history, record=False, tuning=TUNING), 0)
             self.assertEqual(len(perf_budget.load_history(history)), 2)
 
     def test_check_fails_far_over_budget_and_tolerates_no_report(self):
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "Live_MobileLow.json"
             report.write_text(json.dumps(make_report({"Simulation": 5.0}, scenario="Live", tier="MobileLow")), encoding="utf-8")
-            self.assertEqual(perf_budget.check(report, tuning=TUNING), 1)
-            self.assertEqual(perf_budget.check(Path(tmp) / "missing", tuning=TUNING), 0)
+            self.assertEqual(quiet_check(report, tuning=TUNING), 1)
+            self.assertEqual(quiet_check(Path(tmp) / "missing", tuning=TUNING), 0)
 
     def test_harness_tuning_comes_from_the_data_file(self):
         tuning = perf_budget.load_tuning()

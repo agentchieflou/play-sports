@@ -1,0 +1,42 @@
+{
+    "description": "Epic 119's capability/cost routing table. Each task picks from the models below: those with at least its min_capability, cheapest first ('cheapest') or most capable first ('best'). The models are config.py's env-driven specs; a model whose key or host is not set is skipped at call time.",
+    "models": {
+        "local": { "capability": 1, "cost": 0, "rpm": 0, "notes": "Ollama on OLLAMA_HOST: free, offline, small" },
+        "fallback": { "capability": 2, "cost": 1, "rpm": 10, "notes": "Gemini Flash, low reasoning, on GEMINI_API_KEY's free tier" },
+        "bridge": { "capability": 2, "cost": 1, "rpm": 20, "notes": "OpenRouter's free community model" },
+        "worker": { "capability": 3, "cost": 2, "rpm": 20, "notes": "OpenRouter GPT-OSS-120B" },
+        "supervisor": { "capability": 4, "cost": 2, "rpm": 10, "notes": "Gemini Flash, high reasoning" }
+    },
+    "tasks": {
+        "narration": {
+            "description": "Short lines that describe what just happened: commentary filler, captions, recaps.",
+            "consumers": ["Epic 96 commentary engine", "Epic 82 narration"],
+            "min_capability": 1, "prefer": "cheapest", "max_tokens": 400, "temperature": 0.8
+        },
+        "summary": {
+            "description": "Condense a drive or a game into a few sentences from structured data.",
+            "consumers": ["Epic 82 post-game analysis"],
+            "min_capability": 2, "prefer": "cheapest", "max_tokens": 800, "temperature": 0.4
+        },
+        "analysis": {
+            "description": "Read game state and explain it: key plays, tendencies, matchups.",
+            "consumers": ["Epic 82 post-game analysis"],
+            "min_capability": 3, "prefer": "best", "max_tokens": 2048, "temperature": 0.3
+        },
+        "strategy": {
+            "description": "Decide: a play-call consultation from the situation and tendencies.",
+            "consumers": ["Epic 82 play-call consultation (Epic 18's hook)"],
+            "min_capability": 3, "prefer": "best", "max_tokens": 1024, "temperature": 0.2
+        },
+        "delegate": {
+            "description": "A bridge task handed off to a free-tier model (Core 25).",
+            "consumers": ["python -m tools.orchestrator delegate"],
+            "min_capability": 1, "prefer": "cheapest", "max_tokens": 2048, "temperature": 0.2
+        }
+    },
+    "rate_limit_cooldown_seconds": 60,
+    "failure_cooldown_seconds": 30,
+    "failures_before_cooldown": 2,
+    "health_ttl_seconds": 300,
+    "max_wait_seconds": 20
+}
