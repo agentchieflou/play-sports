@@ -51,6 +51,13 @@ struct FPSCarrierMoveDef
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moves")
     float WindowSeconds = 0.4f;
 
+    /** How long the carrier is committed to the move once it starts: the animation's
+     *  commitment window (Track D's animations will own it; until then it is data). No other
+     *  move starts until it ends; a press that arrives meanwhile waits in
+     *  UPSInputBufferComponent. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moves")
+    float CommitSeconds = 0.3f;
+
     /** How long before the same move can be done again. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Moves")
     float CooldownSeconds = 1.f;
@@ -98,7 +105,8 @@ struct FPSCarrierMoveCatalog
  * A move is attribute-gated (a rating below MinAttribute can't do it) and costs stamina. It is
  * physics-coupled: it changes the carrier's velocity the moment it starts, so the movement
  * rules (FMovementTuningRow) carry it on from there. For WindowSeconds it scales the tackle
- * chance by TackleChanceScale, in proportion to the carrier's rating.
+ * chance by TackleChanceScale, in proportion to the carrier's rating. For CommitSeconds the
+ * carrier is committed to it and no other move starts (Epic 104.4).
  * UPSBallActionComponent::ResolveTackle reads GetTackleChanceMultiplier and HasGivenUp.
  *
  * Every APSPlayerPawn has one; a human's moves come through UPSCarrierInputComponent on the
@@ -127,10 +135,21 @@ public:
     /** The move a catalog action does, or None. */
     EPSCarrierMove FindMoveForAction(FName ActionId);
 
-    /** Does Move if the owner carries the ball, is rated for it, has the stamina, and it is
-     *  off cooldown. Stick is the Move stick (X right, Y forward): a juke goes to its side. */
+    /** Does Move if the owner carries the ball, is rated for it, has the stamina, is not
+     *  committed to another move, and it is off cooldown. Stick is the Move stick (X right,
+     *  Y forward): a juke goes to its side. */
     UFUNCTION(BlueprintCallable, Category = "Moves")
     bool TryMove(EPSCarrierMove Move, FVector2D Stick);
+
+    /** True while the carrier is committed to the move he started (its CommitSeconds). */
+    UFUNCTION(BlueprintPure, Category = "Moves")
+    bool IsCommitted() const { return Clock < CommittedUntil; }
+
+    /** True while Move can't start only because of timing: the carrier is committed to a move
+     *  or Move is cooling down. False when it could start now, or never could (no ball, a
+     *  slide), so a buffered press waits only when waiting can help. */
+    UFUNCTION(BlueprintPure, Category = "Moves")
+    bool IsMoveBusy(EPSCarrierMove Move) const;
 
     /** True while a move protects the carrier. */
     UFUNCTION(BlueprintPure, Category = "Moves")
@@ -171,6 +190,7 @@ private:
     float ActiveRating = 0.f;
     float Clock = 0.f;
     float ActiveUntil = -1.f;
+    float CommittedUntil = -1.f;
     TMap<EPSCarrierMove, float> ReadyAt;
     bool bGaveUp = false;
     bool bCatalogLoaded = false;

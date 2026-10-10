@@ -1,0 +1,123 @@
+name: iOS Package
+
+# Epic 131 stub: packages the game for iOS on a Mac runner (Specs/ADR_iOS_Build.md, Option B).
+#
+# This workflow can never run on the Windows runner or block a pull request:
+#   - it only runs when someone starts it by hand (workflow_dispatch), never on push or PR;
+#   - its job needs the runner labels self-hosted + macOS + mac, which the Windows runner
+#     (self-hosted, windows, unreal) does not have;
+#   - the job is skipped unless the repository variable IOS_MAC_RUNNER is 'true', so a manual
+#     run doesn't sit queued while no Mac runner exists;
+#   - its first step fails fast if the machine isn't a Mac with UE_ROOT set.
+# The CI workflow (ci.yml) is separate and unaffected.
+#
+# Mac runner prerequisites (Specs/iOS_Signing_Runbook.md, section 5):
+#   - Unreal Engine 5.8 with iOS target support, and the Xcode version its release notes require;
+#   - the runner runs as the logged-in user, whose keychain holds the signing certificates and
+#     whose Xcode has the Apple account;
+#   - the runner's environment sets UE_ROOT to the engine folder,
+#     e.g. /Users/Shared/Epic Games/UE_5.8;
+#   - the project's bundle ID and signing team are set (runbook, steps 2-4).
+#
+# The exact invocation, for running it by hand on a Mac from the repo root:
+#   "$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun \
+#     -project="$PWD/play-sports.uproject" -target=PlaySports \
+#     -platform=IOS -clientconfig=Development \
+#     -build -cook -stage -package -pak -compressed \
+#     -archive -archivedirectory="$PWD/Saved/Archive/IOS" \
+#     -unattended -utf8output -nop4
+# For TestFlight, use -clientconfig=Shipping and add -distribution (signs with the distribution
+# certificate and the App Store profile).
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: "Client configuration (Shipping adds -distribution, for TestFlight)"
+        type: choice
+        options:
+          - Development
+          - Shipping
+        default: Development
+
+concurrency:
+  group: ios-package-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  package-ios:
+    name: Package iOS (BuildCookRun)
+    if: ${{ vars.IOS_MAC_RUNNER == 'true' }}
+    runs-on: [self-hosted, macOS, mac]
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Mac runner prerequisites
+        shell: bash
+        run: |
+          if [ "$(uname -s)" != "Darwin" ]; then
+            echo "::error::iOS packaging needs a Mac runner; this machine is $(uname -s)."
+            exit 1
+          fi
+          if [ -z "${UE_ROOT:-}" ]; then
+            echo "::error::UE_ROOT is not set on this runner."
+            exit 1
+          fi
+          if [ ! -x "$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" ]; then
+            echo "::error::RunUAT.sh not found under UE_ROOT ($UE_ROOT)."
+            exit 1
+          fi
+          xcodebuild -version
+
+      - name: BuildCookRun (IOS)
+        shell: bash
+        env:
+          CLIENT_CONFIG: ${{ inputs.config }}
+        run: |
+          DIST_ARGS=()
+          if [ "$CLIENT_CONFIG" = "Shipping" ]; then
+            DIST_ARGS+=(-distribution)
+          fi
+          "$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun \
+            -project="$GITHUB_WORKSPACE/play-sports.uproject" \
+            -target=PlaySports \
+            -platform=IOS \
+            -clientconfig="$CLIENT_CONFIG" \
+            -build -cook -stage -package -pak -compressed \
+            -archive -archivedirectory="$GITHUB_WORKSPACE/Saved/Archive/IOS" \
+            -unattended -utf8output -nop4 \
+            "${DIST_ARGS[@]}"
+
+      - name: Upload iOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-package-${{ inputs.config }}
+          path: Saved/Archive/IOS/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Collect UAT logs
+        if: always()
+        shell: bash
+        run: |
+          # UAT writes its logs under the user's Library on a Mac; copy them next to the
+          # project's own logs so one artifact holds both.
+          mkdir -p Saved/Logs/UAT
+          UAT_LOGS="$HOME/Library/Logs/Unreal Engine/LocalBuildLogs"
+          if [ -d "$UAT_LOGS" ]; then
+            cp -R "$UAT_LOGS/." Saved/Logs/UAT/
+          fi
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-package-logs-${{ inputs.config }}
+          path: Saved/Logs/
+          if-no-files-found: ignore
+          retention-days: 7

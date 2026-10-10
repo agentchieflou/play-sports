@@ -65,10 +65,21 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** Rushers win with technique, not just stats — swim, rip, bull, spin, and counters against blocker responses.
 **Depends on:** C3, C4, Core 9
 
-- [ ] Move library with attribute-gated success curves (swim/rip/bull/spin/club)
-- [ ] Counter-move chains (blocker anchors bull → rusher spins off)
-- [ ] Rush-plan AI: pick moves by matchup history within the game
-- [ ] Double-team recognition and split responsibilities
+- [x] Move library with attribute-gated success curves (swim/rip/bull/spin/club)
+  *As built: `UPSRushMoveComponent` on `APSDefenseController`, the library in
+  `Data/pass_rush_moves.json`; each move pits one rusher rating against one blocker rating, gated
+  by `MinAttribute` and clamped. A win ends `PairLinemen`'s engagement and bursts the rusher at
+  the passer; each resolved move goes on the bus (`PassRushMove`).*
+- [x] Counter-move chains (blocker anchors bull → rusher spins off)
+  *As built: a stopped move records the blocker's `Response` (Anchor, Punch, Mirror); the moves
+  that `Counter` it get `CounterBonus` on the next try.*
+- [x] Rush-plan AI: pick moves by matchup history within the game
+  *As built: the plan scores each move by its chance pulled toward its record against this
+  blocker this game (kept per blocker `PlayerId` across plays).*
+- [x] Double-team recognition and split responsibilities
+  *As built: a lineman engaged on the rusher, or a free one beside him, makes a double team:
+  every move's chance scales down and the `Split` move (double teams only) comes out. No
+  protection scheme calls double teams yet; that is offense-side work.*
 
 ### Epic 71: QB Pocket Play & Scramble System
 
