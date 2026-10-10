@@ -1,4 +1,20 @@
 #include "PSCoachingAI.h"
+#include "PSSituationAI.h"
+
+UPSCoachingAI::UPSCoachingAI()
+{
+    SituationAI = CreateDefaultSubobject<UPSSituationAI>(TEXT("SituationAI"));
+}
+
+UPSSituationAI* UPSCoachingAI::GetSituationAI() const
+{
+    if (SituationAI && !bSituationTuningLoaded)
+    {
+        bSituationTuningLoaded = true;
+        SituationAI->LoadTuningFromJson(UPSSituationAI::GetDefaultTuningPath());
+    }
+    return SituationAI;
+}
 
 void UPSCoachingAI::SeedDeterminism(int32 Seed)
 {
@@ -10,8 +26,9 @@ void UPSCoachingAI::SetSuggestionProvider(TScriptInterface<IPSCoachingSuggestion
     SuggestionProvider = InProvider;
 }
 
-float UPSCoachingAI::GetSituationalCategoryWeight(const FString& Category, const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, bool bOffense, TArray<FString>* OutReasons) const
+float UPSCoachingAI::GetPlayWeight(const FPSPlayDefinition& Play, const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, bool bOffense, TArray<FString>* OutReasons) const
 {
+    const FString& Category = Play.PlayCategory;
     float Weight = 1.f;
 
     // Each rule that moves this category's weight also says why, for the play-call screen's
@@ -59,14 +76,6 @@ float UPSCoachingAI::GetSituationalCategoryWeight(const FString& Category, const
             Apply(Category == TEXT("DeepPass"), -1.f, TEXT("Backed up: avoid the deep throw"));
             Apply(Category == TEXT("Run") || Category == TEXT("ShortPass"), 0.5f, TEXT("Backed up: play it safe"));
         }
-
-        // Trailing late: need explosive plays, de-prioritize the clock-killing run.
-        const bool bTrailingLate = Situation.Quarter == 4 && Situation.GameClockSeconds < 120.f && Situation.ScoreDifferential < 0;
-        if (bTrailingLate)
-        {
-            Apply(Category == TEXT("DeepPass") || Category == TEXT("Screen"), 1.f, TEXT("Trailing late: need a big play"));
-            Apply(Category == TEXT("Run"), -1.f, TEXT("Trailing late: a run burns clock"));
-        }
     }
     else
     {
@@ -81,12 +90,17 @@ float UPSCoachingAI::GetSituationalCategoryWeight(const FString& Category, const
         {
             Apply(Category == TEXT("Base"), 0.5f, TEXT("Running down: stay in base"));
         }
+    }
 
-        const bool bProtectingLead = Situation.Quarter == 4 && Situation.GameClockSeconds < 120.f && Situation.ScoreDifferential > 0;
-        if (bProtectingLead)
+    // The end of the half (Epic 76): two-minute and four-minute play weights, and the clock's
+    // own plays, which are never called unless the clock calls for them.
+    if (const UPSSituationAI* Read = GetSituationAI())
+    {
+        bool bExcluded = false;
+        Weight += Read->GetPlayAdjustment(Play, Situation, bOffense, OutReasons, bExcluded);
+        if (bExcluded)
         {
-            Apply(Category == TEXT("Prevent"), 1.5f, TEXT("Protecting a late lead: keep it in front"));
-            Apply(Category == TEXT("Blitz"), -1.f, TEXT("Protecting a late lead: don't gamble"));
+            return 0.f;
         }
     }
 
@@ -111,7 +125,7 @@ TArray<FPSPlaySuggestion> UPSCoachingAI::RankPlays(const FPSSituationContext& Si
         Suggestion.PlayId = Candidate.PlayId;
         Suggestion.DisplayName = Candidate.DisplayName;
         Suggestion.Category = Candidate.PlayCategory;
-        Suggestion.Weight = GetSituationalCategoryWeight(Candidate.PlayCategory, Situation, Tendency, bOffense, &Suggestion.Reasons);
+        Suggestion.Weight = GetPlayWeight(Candidate, Situation, Tendency, bOffense, &Suggestion.Reasons);
         Ranked.Add(MoveTemp(Suggestion));
     }
 
@@ -125,6 +139,18 @@ FName UPSCoachingAI::SelectWeightedPlay(const FPSSituationContext& Situation, co
     if (Candidates.Num() == 0)
     {
         return NAME_None;
+    }
+
+    // The clock's call comes first: kneel out a won game, spike a running clock (Epic 76).
+    if (bOffense)
+    {
+        const EPSClockPlay ClockPlay = GetSituationAI() ? GetSituationAI()->DecideClockPlay(Situation) : EPSClockPlay::None;
+        const FPSPlayDefinition* ClockCall = ClockPlay == EPSClockPlay::None ? nullptr
+            : Candidates.FindByPredicate([ClockPlay](const FPSPlayDefinition& Candidate) { return PSSituation::ClockPlayFromCategory(Candidate.PlayCategory) == ClockPlay; });
+        if (ClockCall)
+        {
+            return ClockCall->PlayId;
+        }
     }
 
     if (SuggestionProvider)
@@ -146,16 +172,30 @@ FName UPSCoachingAI::SelectWeightedPlay(const FPSSituationContext& Situation, co
     TArray<float> Weights;
     Weights.Reserve(Candidates.Num());
 
-    for (const FPSPlayDefinition& Candidate : Candidates)
+    int32 LastEligible = INDEX_NONE;
+    for (int32 Index = 0; Index < Candidates.Num(); ++Index)
     {
-        const float Weight = GetSituationalCategoryWeight(Candidate.PlayCategory, Situation, Tendency, bOffense);
+        const float Weight = GetPlayWeight(Candidates[Index], Situation, Tendency, bOffense);
         Weights.Add(Weight);
         TotalWeight += Weight;
+        if (Weight > 0.f)
+        {
+            LastEligible = Index;
+        }
+    }
+    if (LastEligible == INDEX_NONE)
+    {
+        return NAME_None;
     }
 
+    // A weight of 0 (a clock play the clock doesn't call for) is never picked.
     float Roll = DeterminismStream.FRandRange(0.f, TotalWeight);
     for (int32 i = 0; i < Candidates.Num(); ++i)
     {
+        if (Weights[i] <= 0.f)
+        {
+            continue;
+        }
         Roll -= Weights[i];
         if (Roll <= 0.f)
         {
@@ -163,7 +203,7 @@ FName UPSCoachingAI::SelectWeightedPlay(const FPSSituationContext& Situation, co
         }
     }
 
-    return Candidates.Last().PlayId;
+    return Candidates[LastEligible].PlayId;
 }
 
 FName UPSCoachingAI::SelectOffensivePlay(const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, const TArray<FPSPlayDefinition>& Candidates)
@@ -220,8 +260,14 @@ bool UPSCoachingAI::ShouldAttemptTwoPointConversion(int32 ScoreDifferentialAfter
     return false;
 }
 
-bool UPSCoachingAI::ShouldCallTimeoutForClockManagement(const FPSSituationContext& Situation, bool bIsTrailing) const
+bool UPSCoachingAI::ShouldCallTimeout(const FPSSituationContext& Situation, bool bForOffense) const
 {
-    const bool bTwoMinuteWarningWindow = (Situation.Quarter == 2 || Situation.Quarter == 4) && Situation.GameClockSeconds < 120.f;
-    return bTwoMinuteWarningWindow && bIsTrailing && Situation.TimeoutsRemaining > 0;
+    const UPSSituationAI* Read = GetSituationAI();
+    return Read && Read->ShouldCallTimeout(Situation, bForOffense);
+}
+
+EPSTempo UPSCoachingAI::ChooseTempo(const FPSSituationContext& Situation) const
+{
+    const UPSSituationAI* Read = GetSituationAI();
+    return Read ? Read->ChooseTempo(Situation) : EPSTempo::Huddle;
 }

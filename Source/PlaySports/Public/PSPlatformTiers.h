@@ -28,6 +28,15 @@ struct FPSPlatformTier
      *  each read the whole field per decision, so this is the main CPU knob on a phone. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     float AIDecisionInterval = 0.f;
+
+    /** Telemetry snapshots per second (UPSTelemetrySamplingSubsystem, Epic 26): every pawn's
+     *  position and motion, for overlays, trails and replay. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float TelemetrySampleRateHz = 30.f;
+
+    /** What one telemetry snapshot may cost, in ms; over it the sampler halves its rate. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float TelemetrySampleBudgetMs = 0.25f;
 };
 
 /** Which tier a platform runs by default (platform names as UGameplayStatics::GetPlatformName

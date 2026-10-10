@@ -8,6 +8,7 @@
 class UBehaviorTree;
 class UBlackboardComponent;
 class UPSSkillPlayerAIComponent;
+class UPSRouteRunnerComponent;
 
 /**
  * APSOffenseController drives offensive skill players (QB, RB, WR, TE). Its
@@ -49,9 +50,16 @@ public:
     UFUNCTION(BlueprintPure, Category = "AI|Offense")
     int32 GetRouteWaypointCount() const { return RouteWaypoints.Num(); }
 
+    /** The whole route, world-space. */
+    const TArray<FVector>& GetRouteWaypoints() const { return RouteWaypoints; }
+
     /** Plays the called play for the possessed pawn (Epic 14): routes, reads, hand-offs. */
     UFUNCTION(BlueprintPure, Category = "AI|Offense")
     UPSSkillPlayerAIComponent* GetSkillAI() const { return SkillAI; }
+
+    /** Runs the route as a contested skill: release, breaks, double moves, option reads (Epic 68). */
+    UFUNCTION(BlueprintPure, Category = "AI|Offense")
+    UPSRouteRunnerComponent* GetRouteRunner() const { return RouteRunner; }
 
 protected:
     virtual void OnPossess(APawn* InPawn) override;
@@ -65,6 +73,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
     UPSSkillPlayerAIComponent* SkillAI;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+    UPSRouteRunnerComponent* RouteRunner;
 
 private:
     UFUNCTION()
