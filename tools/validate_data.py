@@ -49,7 +49,7 @@ FPSEmphasisStyle (Epic 36); "Axes" + "Bindings" files against FPSPlayerDNACatalo
 FPSPlayerDNA field, each binding a numeric field of its target's tuning file and each rush move in
 pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
 "PlaybackRates" files against FPSReplayTuning (Epic 41), each camera a named one or a rig in
-camera_all22.json. Teams, the league config, the playbook, player rating ranges and every reference
+camera_all22.json; "ReelSize" files against FPSHighlightTuning (Epic 42). Teams, the league config, the playbook, player rating ranges and every reference
 between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -1004,6 +1004,63 @@ def validate_replay_tuning(path, payload, rig_ids):
     extra = set(payload) - set(REPLAY_FIELDS) - {"ReplayPoseRateHz"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSReplayTuning exactly")
+
+
+HIGHLIGHT_WEIGHTS = ("YardWeight", "PointsWeight", "TurnoverWeight", "BrokenTackleWeight", "WinProbabilityWeight",
+                     "MinImportance")
+HIGHLIGHT_TIMES = ("BeatLeadSeconds", "BeatSeconds", "ClipGapSeconds", "GameEndReelDelaySeconds")
+HIGHLIGHT_KINDS = ("Score", "Turnover", "BigPlay")
+WIN_PROBABILITY_FIELDS = ("MarginScale", "PossessionPoints", "TimeFloor", "GameSeconds", "QuarterSeconds")
+
+
+def validate_highlights(path, payload):
+    """FPSHighlightTuning (Data/highlights.json, Epic 42); mirrors UPSHighlightSubsystem::ValidateTuning."""
+    for field in HIGHLIGHT_WEIGHTS + HIGHLIGHT_TIMES:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("ReelSize", "SeasonHighlightsKept"):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            err(path, f"{field}: '{value}' must be a whole number, 1 or more")
+    rate = payload.get("BeatPlaybackRate")
+    if not is_number(rate) or not 0 < rate <= 1:
+        err(path, f"BeatPlaybackRate: '{rate}' must be above 0 and at most 1")
+    settle = payload.get("SettleAfterWhistleSeconds")
+    if not is_number(settle) or settle <= 0:
+        err(path, f"SettleAfterWhistleSeconds: '{settle}' must be above 0")
+    if not isinstance(payload.get("bPlayReelAtGameEnd"), bool):
+        err(path, "bPlayReelAtGameEnd must be true or false")
+    shots = payload.get("KindShots")
+    if not isinstance(shots, list):
+        err(path, "'KindShots' must be an array")
+        shots = []
+    kinds = [s.get("Kind") for s in shots if isinstance(s, dict)]
+    for kind in HIGHLIGHT_KINDS:
+        if kinds.count(kind) != 1:
+            err(path, f"KindShots: '{kind}' must have exactly one shot")
+    for idx, shot in enumerate(shots):
+        if not isinstance(shot, dict) or shot.get("Kind") not in HIGHLIGHT_KINDS:
+            err(path, f"KindShots[{idx}]: needs a Kind of {list(HIGHLIGHT_KINDS)}")
+        elif shot.get("Shot") not in DIRECTOR_SHOTS:
+            err(path, f"KindShots[{idx}].Shot: '{shot.get('Shot')}' is not an EPSDirectorShot ({list(DIRECTOR_SHOTS)})")
+    win = payload.get("WinProbability")
+    if not isinstance(win, dict):
+        err(path, "'WinProbability' must be an object")
+    else:
+        for field in WIN_PROBABILITY_FIELDS:
+            value = win.get(field)
+            low_ok = value >= 0 if field == "PossessionPoints" and is_number(value) else (is_number(value) and value > 0)
+            if not is_number(value) or not low_ok:
+                err(path, f"WinProbability.{field}: '{value}' must be a number above 0" + (" (or 0)" if field == "PossessionPoints" else ""))
+        extra = set(win) - set(WIN_PROBABILITY_FIELDS)
+        if extra:
+            err(path, f"WinProbability: unknown field(s) {sorted(extra)}")
+    extra = set(payload) - set(HIGHLIGHT_WEIGHTS) - set(HIGHLIGHT_TIMES) - {
+        "ReelSize", "SeasonHighlightsKept", "BeatPlaybackRate", "SettleAfterWhistleSeconds", "bPlayReelAtGameEnd",
+        "KindShots", "WinProbability"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSHighlightTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -2951,6 +3008,8 @@ def main():
             validate_player_dna_catalog(path, payload)
         if isinstance(payload, dict) and "PlaybackRates" in payload:
             validate_replay_tuning(path, payload, load_all22_rig_ids())
+        if isinstance(payload, dict) and "ReelSize" in payload:
+            validate_highlights(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

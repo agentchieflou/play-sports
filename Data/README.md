@@ -80,6 +80,7 @@ every CI build.
 | `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
 | `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
 | `replay.json` | `FPSReplayTuning` (single object) | `UPSDataIngestion::LoadReplayTuningFromJson`, via `UPSReplaySubsystem` |
+| `highlights.json` | `FPSHighlightTuning` (single object) | `UPSDataIngestion::LoadHighlightTuningFromJson`, via `UPSHighlightSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
@@ -974,6 +975,30 @@ replay re-poses the field is per platform tier (`ReplayPoseRateHz` in `platform_
   on it, the automatic ones included.
 
 `UPSReplaySubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Highlights schema (`FPSHighlightTuning`)
+
+Single object (Epic 42; how `UPSHighlightSubsystem` scores plays and plays the reel):
+- `YardWeight`, `PointsWeight`, `TurnoverWeight`, `BrokenTackleWeight`, `WinProbabilityWeight` (0 or
+  more): a play's importance is its yards (either way), points, turnover, broken tackles and swing
+  in the home team's chance of winning (0 to 1), each by its weight. `MinImportance`: less is never
+  a highlight.
+- `ReelSize` (1 or more): the game's reel keeps its most important plays. `SeasonHighlightsKept`
+  (1 or more): a franchise season keeps its most important.
+- `KindShots[]`: exactly one `Shot` (an `EPSDirectorShot`) for each `Kind` (`Score`, `Turnover`,
+  `BigPlay`): the angle a highlight of that kind opens on.
+- `BeatLeadSeconds`, `BeatSeconds` (0 or more), `BeatPlaybackRate` (above 0, at most 1): the slow-
+  motion beat, starting before the play's key moment; the rest plays in real time.
+- `ClipGapSeconds`: each clip holds its end this long. `SettleAfterWhistleSeconds` (above 0): a play
+  counts as over this long after its whistle when no game state has said so.
+- `bPlayReelAtGameEnd`, `GameEndReelDelaySeconds`: the reel plays by itself after the final whistle.
+- `WinProbability`: `MarginScale`, `TimeFloor`, `GameSeconds`, `QuarterSeconds` (above 0),
+  `PossessionPoints` (0 or more): the home team's chance of winning is a logistic of the margin
+  plus what the ball is worth where it is (`PossessionPoints` on the opponent's goal line, scaled
+  by the yard line), divided by the square root of the share of the game left (at least
+  `TimeFloor`).
+
+`UPSHighlightSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 
 ## Ball-flight overlay schema (`FPSBallFlightStyle`)
 

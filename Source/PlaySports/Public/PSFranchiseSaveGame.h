@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "PSSaveGame.h"
 #include "PSLeagueData.h"
+#include "PSSeasonHighlights.h"
 #include "PSStaffData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
@@ -38,4 +39,9 @@ public:
 
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     TArray<FPSTeamStaffDef> Staffs;
+
+    /** The season's highlights so far, its most important (Epic 42; UPSHighlightSubsystem::
+     *  ArchiveForSeason). Track G shows them. Empty in a save from before highlights. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    TArray<FPSSeasonHighlight> SeasonHighlights;
 };

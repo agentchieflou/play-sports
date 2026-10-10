@@ -41,6 +41,7 @@
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
 #include "PSReplayTypes.h"
+#include "PSHighlightTypes.h"
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
 #include "PSPocketComponent.h"
@@ -263,6 +264,12 @@ public:
      *  missing file or malformed JSON; UPSReplaySubsystem::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadReplayTuningFromJson(const FString& JsonFilePath, FPSReplayTuning& OutTuning);
+
+    /** Loads what makes a highlight and how the reel plays (Data/highlights.json, Epic 42).
+     *  False on a missing file or malformed JSON; UPSHighlightSubsystem::ValidateTuning checks
+     *  the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadHighlightTuningFromJson(const FString& JsonFilePath, FPSHighlightTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
