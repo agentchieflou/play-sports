@@ -9,7 +9,9 @@ enum class EPSSaveCategory : uint8
 {
     Profile,
     Franchise,
-    Replay
+    Replay,
+    // Anonymous session telemetry, only after the player opts in (Epic 117).
+    Telemetry
 };
 
 UCLASS(Blueprintable)

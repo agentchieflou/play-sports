@@ -1,8 +1,8 @@
 {
     "HotRouteSets": [
-        { "Alignment": "Wide", "Routes": ["Go", "Slant", "Out", "Curl", "Post"], "ReleaseRoute": "Go" },
-        { "Alignment": "Slot", "Routes": ["Slant", "Out", "Curl", "Post", "Go"], "ReleaseRoute": "Curl" },
-        { "Alignment": "Tight", "Routes": ["Curl", "Out", "Post", "Go"], "ReleaseRoute": "Out" },
+        { "Alignment": "Wide", "Routes": ["Go", "Slant", "Out", "Curl", "Post", "OutAndUp", "SlantGo"], "ReleaseRoute": "Go" },
+        { "Alignment": "Slot", "Routes": ["Slant", "Out", "Curl", "Post", "Go", "Option", "SlantGo"], "ReleaseRoute": "Curl" },
+        { "Alignment": "Tight", "Routes": ["Curl", "Out", "Post", "Go", "OutAndUp"], "ReleaseRoute": "Out" },
         { "Alignment": "Backfield", "Routes": ["Flat", "Curl"], "ReleaseRoute": "Flat" }
     ],
     "SlotMaxSplit": 700.0,
