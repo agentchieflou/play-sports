@@ -121,6 +121,7 @@ every CI build.
 | `play_art.json` | `FPSPlayArtStyle` (single object) | `UPSDataIngestion::LoadPlayArtStyleFromJson`, via `UPSOverlayPlayArtSubsystem` |
 | `game_intelligence.json` | `FPSGameIntelligenceTuning` (single object) | `UPSDataIngestion::LoadGameIntelligenceTuningFromJson`, via `UPSGameIntelligenceSubsystem`; its tasks are checked against `tools/orchestrator/routing.json` |
 | `league_narrative.json` | `FPSNarrativeTuning` (single object: storyline rules and `StorylineKinds`, award scoring, the vote, the digest's model task) | `UPSDataIngestion::LoadNarrativeTuningFromJson`, via `UPSLeagueNarrative` |
+| `penalties.json` | `FPSPenaltyTuning` (single object) | `UPSDataIngestion::LoadPenaltyTuningFromJson`, via `UPSPenaltyModel` (`UPSPlaySimulation::GetPenalties`) |
 | `audio_cues.json` | `FPSAudioTuning` (single object: `Cues`, `EventCues`, `LayerSettings`, `StartupLoops` and the moments' thresholds) | `UPSDataIngestion::LoadAudioTuningFromJson`, via `UPSAudioSubsystem`; its layers' settings are checked against `ui_settings.json` |
 | `crowd.json` | `FPSCrowdTuning` (single object: the excitement model, `Levels`, `CrowdReactions`) | `UPSDataIngestion::LoadCrowdTuningFromJson`, via `UPSCrowdExcitementSubsystem` |
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
@@ -1910,3 +1911,16 @@ structured Commentary events):
   facts it gets.
 
 `UPSCommentaryEventModel::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Penalty rates schema (`FPSPenaltyTuning`)
+
+Single object: how often the play simulation's own flags fly (`UPSPenaltyModel`). Each is rolled
+once, at the snap, so quick sim's long steps and a live game's frames draw them at the same rate.
+The players' own flags (an offside jump, pass interference) come from their systems.
+
+- `HoldingChancePerPlay` (0 to 1): offensive holding on a scrimmage play (not a kick, a kneel or a
+  spike), however long the play runs.
+- `OffsidesChancePerSnap` (0 to 1): a defensive offside on any snap; when it flies, holding isn't
+  rolled.
+
+`UPSPenaltyModel::ValidateTuning` and `tools/validate_data.py` check it.

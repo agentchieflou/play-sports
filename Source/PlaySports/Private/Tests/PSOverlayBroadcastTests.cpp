@@ -203,7 +203,9 @@ bool FPSScoreBugTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("...five seconds later 14:55"), Bug.GameClockText, FString(TEXT("14:55")));
     TestTrue(TEXT("No play clock during the play"), Bug.PlayClockText.IsEmpty());
 
-    // A 65-yard gain: first down inside the opponent's 20.
+    // A 65-yard gain: first down inside the opponent's 20 (no flag on the play: the snap's
+    // random flags are cleared so the test needs no luck).
+    Sim->ActivePenalty = EPSPenaltyType::None;
     Sim->RecordTackle(65);
     Sim->EndPlayAndPrepareNext();
     Bug = Broadcast->GetScoreBug();
@@ -213,6 +215,7 @@ bool FPSScoreBugTest::RunTest(const FString& Parameters)
 
     // A touchdown: points, possession changes, a score alert and a drive summary.
     Sim->TriggerSnap();
+    Sim->ActivePenalty = EPSPenaltyType::None;
     Sim->RecordTouchdown();
     Sim->EndPlayAndPrepareNext();
     const FPlayState After = Sim->GetPlayState();

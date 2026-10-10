@@ -95,7 +95,8 @@ routing.json's; "EventCues" files against FPSAudioTuning (Epic 23.1): unique cue
 the catalog, each layer's volume a 0-100 slider in ui_settings.json; "CrowdReactions" files against
 FPSCrowdTuning (Epic 23.2): every EPSCrowdLevel once with rising thresholds from Hush's 0, every
 EPSCrowdStimulus once with -1..1 deltas; "ModelMoments" files against FPSCommentaryHookTuning (Epic
-23.5), each moment an EPSCommentaryMoment and the task one of routing.json's. Teams, the league
+23.5), each moment an EPSCommentaryMoment and the task one of routing.json's; "HoldingChancePerPlay"
+files against FPSPenaltyTuning (Data/penalties.json): each flag's chance from 0 to 1. Teams, the league
 config, the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
@@ -1863,6 +1864,21 @@ def validate_overlay_reticle(path, payload):
     for state in RETICLE_STATES:
         if state not in seen:
             err(path, f"ReticleStates: no '{state}' entry")
+
+
+PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
+
+
+def validate_penalties(path, payload):
+    """FPSPenaltyTuning (Data/penalties.json): how often the simulation's own flags fly; mirrors
+    UPSPenaltyModel::ValidateTuning."""
+    for field in PENALTY_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0 or value > 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    extra = set(payload) - set(PENALTY_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPenaltyTuning exactly")
 
 
 def validate_control_handoff(path, payload, catalog):
@@ -5313,6 +5329,8 @@ def main(root=None):
             validate_legacy(path, payload)
         if isinstance(payload, dict) and "StorylineKinds" in payload:
             validate_narrative(path, payload)
+        if isinstance(payload, dict) and "HoldingChancePerPlay" in payload:
+            validate_penalties(path, payload)
         if isinstance(payload, dict) and "EventCues" in payload:
             validate_audio_cues(path, payload)
         if isinstance(payload, dict) and "CrowdReactions" in payload:

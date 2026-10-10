@@ -136,6 +136,7 @@ struct FPlayResult
 };
 
 class UPSSpecialTeamsModel;
+class UPSPenaltyModel;
 
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSPlaySimulation : public UObject
@@ -237,6 +238,12 @@ public:
      *  also published on the bus (PlayResult). */
     FPSTelemetryPlayResultMC OnPlayResolved;
 
+    /** Every flag's ruling as this simulation, the authority on penalties, makes it as the play is
+     *  scored: accepted (with the yards the play now gains) or declined. The bus hears the same
+     *  ruling in a live game (a Penalty event, Epic 23); this fires with or without a world, so a
+     *  quick-sim game's flags are counted too (Epic 92's statistics). */
+    FPSTelemetryPenaltyMC OnPenaltyRuled;
+
     /** A human kicker lined up or kicked (Epic 104.5, UPSKickMeterComponent). While one is lined
      *  up, the kick phase waits for him up to the event's HoldSeconds; his Roll then stands in
      *  for the CPU kicker's random number. Ignored outside a kick phase. */
@@ -288,6 +295,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation|SpecialTeams")
     UPSSpecialTeamsModel* GetSpecialTeams();
 
+    /** The snap's flags: offside and holding, at per-play rates from Data/penalties.json; created
+     *  on first use. */
+    UFUNCTION(BlueprintCallable, Category = "Simulation|Penalties")
+    UPSPenaltyModel* GetPenalties();
+
     /** The last kick's outcome, as the special-teams model resolved it. */
     const FPSSpecialTeamsOutcome& GetLastSpecialTeamsOutcome() const { return LastSpecialTeamsOutcome; }
 
@@ -316,6 +328,9 @@ private:
     UPROPERTY(Transient)
     UPSSpecialTeamsModel* SpecialTeams = nullptr;
 
+    UPROPERTY(Transient)
+    UPSPenaltyModel* Penalties = nullptr;
+
     /** Resolves the kickoff, punt or field goal the play is in through the special-teams model.
      *  KickRoll (0 = perfect .. 1) is the kick's quality; negative lets the model draw it. */
     void ResolveKick(float KickRoll = -1.f);
@@ -323,10 +338,6 @@ private:
     /** The whistle has blown, or the special-teams model decides the play: physical tackles and
      *  catches no longer change the result. */
     bool IsBallDead() const;
-
-    /** A scrimmage play is under way: from the snap until the whistle (not before the snap, not
-     *  on a kick). Offensive holding is called only then. */
-    bool IsBallLive() const;
 
     /** Throws a flag: Penalty is settled as the play is scored, and the flag goes out on the bus
      *  (a Penalty event, Epic 23) for the referee's whistle, the crowd and the commentary. */

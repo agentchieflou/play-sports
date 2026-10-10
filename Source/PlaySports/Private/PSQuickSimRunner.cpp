@@ -98,6 +98,10 @@ UPSPlaySimulation* UPSQuickSimRunner::MakeGameSimulation(const TArray<FPlayerAtt
     {
         OnPlayResolved.Broadcast(Event);
     });
+    Sim->OnPenaltyRuled.AddLambda([this](const FPSTelemetryPenaltyEvent& Event)
+    {
+        OnPenaltyRuled.Broadcast(Event);
+    });
     return Sim;
 }
 

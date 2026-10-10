@@ -2,6 +2,7 @@
 #include "PSPerfBudget.h"
 #include "PSGameStateEvents.h"
 #include "PSRulesConfig.h"
+#include "PSPenaltyModel.h"
 #include "PSSpecialTeamsModel.h"
 #include "PSGameMode.h"
 #include "PSPlayerPawn.h"
@@ -83,17 +84,23 @@ void UPSPlaySimulation::TriggerSnap()
         }
         PendingSnapPlayClock = -1.f;
 
-        if (FMath::FRand() < 0.05f)
-        {
-            ThrowFlag(EPSPenaltyType::Offsides, FString());
-            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offsides penalty called at the snap!"));
-        }
-
         // A kickoff, or a punt or field-goal call, snaps into its kick (Epic 75).
-        CurrentState.Phase = CurrentState.bKickoff ? EPlayPhase::Kickoff
+        const EPlayPhase SnapPhase = CurrentState.bKickoff ? EPlayPhase::Kickoff
             : PendingSpecialTeams.Kicking == EPSSpecialTeamsPlay::Punt ? EPlayPhase::Punt
             : PendingSpecialTeams.Kicking == EPSSpecialTeamsPlay::FieldGoal ? EPlayPhase::FieldGoal
             : EPlayPhase::Snap;
+
+        // The snap's own flags, once per play (UPSPenaltyModel): an offside on any snap, holding
+        // on a scrimmage play -- not a kick, a kneel or a spike.
+        const bool bScrimmagePlay = SnapPhase == EPlayPhase::Snap && PendingClockPlay == EPSClockPlay::None;
+        const EPSPenaltyType SnapFlag = GetPenalties()->RollSnapFlag(bScrimmagePlay);
+        if (SnapFlag != EPSPenaltyType::None)
+        {
+            ThrowFlag(SnapFlag, FString());
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! %s called on the play."), *UEnum::GetValueAsString(SnapFlag));
+        }
+
+        CurrentState.Phase = SnapPhase;
         CurrentState.bIsClockRunning = true;
         PhaseTimer = 0.f;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
@@ -191,15 +198,6 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
             CurrentState.YardLine = FMath::Max(1, CurrentState.YardLine - 5);
             CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
             UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: DELAY OF GAME penalty! 5 yards loss."));
-        }
-    }
-    else if (IsBallLive())
-    {
-        // Holding is called while the ball is live, never after the whistle or on a kick.
-        if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
-        {
-            ThrowFlag(EPSPenaltyType::Holding, FString());
-            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offensive Holding penalty called during play!"));
         }
     }
 
@@ -1007,6 +1005,16 @@ bool UPSPlaySimulation::CallTimeout(bool bHomeTeam)
     return true;
 }
 
+UPSPenaltyModel* UPSPlaySimulation::GetPenalties()
+{
+    if (!Penalties)
+    {
+        Penalties = NewObject<UPSPenaltyModel>(this);
+        Penalties->LoadTuningFromJson(UPSPenaltyModel::GetDefaultTuningPath());
+    }
+    return Penalties;
+}
+
 UPSSpecialTeamsModel* UPSPlaySimulation::GetSpecialTeams()
 {
     if (!SpecialTeams)
@@ -1015,12 +1023,6 @@ UPSSpecialTeamsModel* UPSPlaySimulation::GetSpecialTeams()
         SpecialTeams->LoadTuningFromJson(UPSSpecialTeamsModel::GetDefaultTuningPath());
     }
     return SpecialTeams;
-}
-
-bool UPSPlaySimulation::IsBallLive() const
-{
-    const EPlayPhase Phase = CurrentState.Phase;
-    return Phase == EPlayPhase::Snap || Phase == EPlayPhase::PassRush || Phase == EPlayPhase::BallCarrierMovement;
 }
 
 bool UPSPlaySimulation::IsBallDead() const
@@ -1158,6 +1160,7 @@ void UPSPlaySimulation::AnnouncePenaltyRuling(EPSPenaltyType Penalty, bool bAcce
     Ruling.bOnDefense = Penalty != EPSPenaltyType::Holding;
     Ruling.bHomeTeam = Ruling.bOnDefense != CurrentState.bHomeHasPossession;
     Ruling.Yards = bAccepted ? Yards : 0;
+    OnPenaltyRuled.Broadcast(Ruling);
     if (UPSTelemetryBus* Bus = CachedWorld && !bQuickSimMode ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr)
     {
         Bus->PublishPenalty(Ruling);
