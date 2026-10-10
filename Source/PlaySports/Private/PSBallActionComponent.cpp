@@ -9,6 +9,7 @@
 #include "PSCarrierMoveComponent.h"
 #include "PSDefenderTechniqueComponent.h"
 #include "PSDifficultySubsystem.h"
+#include "PSNetRandomStreams.h"
 #include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -53,7 +54,23 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
         {
             AccuracyError *= Difficulty->GetThrowScatterScale(OwnerPawn);
         }
-        FVector ErrorOffset = FMath::VRand() * FMath::FRandRange(0.f, AccuracyError);
+        // The miss is the passer's own roll on the play's seeded stream (Epic 108): the same match
+        // seed and snap throw the same ball. Direction, then distance, as two statements: one
+        // stream drawn twice in one expression is drawn in whichever order the compiler picks.
+        FVector ErrorDirection;
+        float ErrorDistance = 0.f;
+        if (UPSNetRandomStreams* Streams = UPSNetRandomStreams::Get(this))
+        {
+            const FName PasserId = OwnerPawn->GetAttributes().PlayerId;
+            ErrorDirection = Streams->RollUnitVector(TEXT("ThrowScatter"), PasserId);
+            ErrorDistance = Streams->RollRange(TEXT("ThrowScatter"), 0.f, AccuracyError, PasserId);
+        }
+        else
+        {
+            ErrorDirection = FMath::VRand();
+            ErrorDistance = FMath::FRandRange(0.f, AccuracyError);
+        }
+        FVector ErrorOffset = ErrorDirection * ErrorDistance;
         ErrorOffset.Z = 0.f; // Keep error on 2D plane
         ScatterTarget += ErrorOffset;
     }

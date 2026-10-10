@@ -6,13 +6,19 @@
 //      each snap begins new streams; another match seed rolls otherwise. The seed mixing is
 //      integer arithmetic pinned to values worked out independently, so a run on another
 //      platform checks it is the same there.
+//   2. A pass's scatter rolls on the play's seeded stream: the same match seed and snap throw
+//      the same ball to the same spot, whatever the global stream holds; another seed misses
+//      elsewhere; every miss is within the passer's inaccuracy.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "HAL/PlatformTime.h"
+#include "PSBall.h"
+#include "PSDifficultySubsystem.h"
 #include "PSNetRandomStreams.h"
+#include "PSPlayerPawn.h"
 #include "PSTelemetryBus.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -45,6 +51,82 @@ namespace PSNetRandomStreamsTests
         Snap.GameClockSeconds = GameClockSeconds;
         Snap.LineOfScrimmage = FVector(YardLine * 100.f, 0.f, 0.f);
         return Snap;
+    }
+
+    APSPlayerPawn* SpawnPlayer(UWorld* World, const TCHAR* PlayerId, EPlayerRole Role, float Awareness, const FVector& Location)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        APSPlayerPawn* Pawn = World->SpawnActor<APSPlayerPawn>(APSPlayerPawn::StaticClass(), Location, FRotator::ZeroRotator, SpawnParams);
+        if (Pawn)
+        {
+            FPlayerAttributes Player;
+            Player.PlayerId = FName(PlayerId);
+            Player.DisplayName = PlayerId;
+            Player.Role = Role;
+            Player.Speed = 70.f;
+            Player.Agility = 70.f;
+            Player.Strength = 70.f;
+            Player.Acceleration = 70.f;
+            Player.Awareness = Awareness;
+            Pawn->InitializePlayer(Player);
+        }
+        return Pawn;
+    }
+
+    /** Where one pass came down, against where it was aimed. */
+    struct FThrowOutcome
+    {
+        bool bThrown = false;
+        FVector Target = FVector::ZeroVector;
+        FVector Landing = FVector::ZeroVector;
+        float MaxMiss = 0.f;
+    };
+
+    /** A fresh world, MatchSeed set, 1st and 10 snapped, then a 40-Awareness quarterback throws
+     *  to his receiver with the global stream seeded with GlobalSeed. */
+    FThrowOutcome ThrowOnce(int32 MatchSeed, int32 GlobalSeed)
+    {
+        FThrowOutcome Outcome;
+        UWorld* World = CreateTestWorld();
+        UPSNetRandomStreams* Streams = World ? World->GetSubsystem<UPSNetRandomStreams>() : nullptr;
+        UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+        if (Streams && Bus)
+        {
+            Streams->SetMatchSeed(MatchSeed);
+            // Snapped before anyone is on the field: nobody's AI is bound to hear it.
+            Bus->PublishSnap(MakeSnap(1, 10, 20, 900.f));
+
+            APSPlayerPawn* Passer = SpawnPlayer(World, TEXT("QB_01"), EPlayerRole::Quarterback, 40.f, FVector(2000.f, 0.f, 100.f));
+            APSPlayerPawn* Receiver = SpawnPlayer(World, TEXT("WR_01"), EPlayerRole::WideReceiver, 70.f, FVector(3500.f, 600.f, 100.f));
+            FActorSpawnParameters SpawnParams;
+            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            APSBall* Ball = World->SpawnActor<APSBall>(APSBall::StaticClass(), FVector(2000.f, 0.f, 100.f), FRotator::ZeroRotator, SpawnParams);
+            if (Passer && Receiver && Ball)
+            {
+                Ball->AttachToCarrier(Passer, TEXT("HandSocket"));
+                Passer->GainPossession();
+                const FDelegateHandle Handle = Bus->OnThrowMC.AddLambda([&Outcome](const FPSTelemetryThrowEvent& Event)
+                {
+                    Outcome.Target = Event.TargetLocation;
+                    Outcome.Landing = Event.LandingLocation;
+                });
+                FMath::RandInit(GlobalSeed);
+                Outcome.bThrown = Passer->ThrowPass(Ball, Receiver->GetActorLocation(), false, Receiver);
+                Bus->OnThrowMC.Remove(Handle);
+
+                // ThrowPass's inaccuracy: up to 2 cm per point of Awareness short of 100, scaled
+                // for a CPU passer by the difficulty.
+                UPSDifficultySubsystem* Difficulty = World->GetSubsystem<UPSDifficultySubsystem>();
+                Outcome.MaxMiss = (100.f - 40.f) * 2.f * (Difficulty ? Difficulty->GetThrowScatterScale(Passer) : 1.f);
+            }
+        }
+        FMath::RandInit(static_cast<int32>(FPlatformTime::Cycles()));
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return Outcome;
     }
 
     /** Count draws from one domain's stream for Key. */
@@ -171,6 +253,40 @@ bool FPSNetRandomStreamsSameSeedTest::RunTest(const FString& Parameters)
 
     DestroyTestWorld(FirstWorld);
     DestroyTestWorld(SecondWorld);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 2. The pass's scatter is the play's seeded roll
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSNetRandomStreamsThrowScatterTest,
+    "PlaySports.Net.RandomStreams.ThrowScatterIsSeeded",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSNetRandomStreamsThrowScatterTest::RunTest(const FString& Parameters)
+{
+    using namespace PSNetRandomStreamsTests;
+
+    const FThrowOutcome First = ThrowOnce(77, 1);
+    const FThrowOutcome Again = ThrowOnce(77, 424242);
+    const FThrowOutcome Other = ThrowOnce(78, 1);
+    if (!TestTrue(TEXT("All three passes were thrown and announced"), First.bThrown && Again.bThrown && Other.bThrown))
+    {
+        return false;
+    }
+    AddInfo(FString::Printf(TEXT("Seed 77 lands at %s, seed 78 at %s, aimed at %s (misses up to %.1f cm)."),
+        *First.Landing.ToString(), *Other.Landing.ToString(), *First.Target.ToString(), First.MaxMiss));
+
+    TestTrue(TEXT("The same match seed and snap throw the same ball, whatever the global stream held"), First.Landing == Again.Landing);
+    TestTrue(TEXT("...aimed at the same target"), First.Target == Again.Target);
+    TestTrue(TEXT("Another match seed misses elsewhere"), !(Other.Landing == First.Landing));
+    TestTrue(TEXT("A 40-Awareness passer misses at all"), FVector::Dist2D(First.Landing, First.Target) > 0.0);
+    for (const FThrowOutcome* Outcome : { &First, &Again, &Other })
+    {
+        TestTrue(TEXT("The miss is on the ground plane"), FMath::Abs(Outcome->Landing.Z - Outcome->Target.Z) < 1e-3);
+        TestTrue(TEXT("...and within the passer's inaccuracy"), FVector::Dist2D(Outcome->Landing, Outcome->Target) <= Outcome->MaxMiss + 0.01);
+    }
     return true;
 }
 
