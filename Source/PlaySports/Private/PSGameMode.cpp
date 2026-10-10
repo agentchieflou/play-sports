@@ -152,6 +152,15 @@ void APSGameMode::StartPlay()
                     RosterRows.Add(*Player);
                 }
             }
+            // The match's teams take the field (UPSMatchSetup): the home offense against the away
+            // defense, each from its own team's roster; RosterJsonPath's players only without
+            // them. Kickoff (Epic 89): both staffs' plans go to the play-call authority and every
+            // player plays at his team's scheme fit, in the rows the pawns point at -- the
+            // simulation's copies below are the same players at the same ratings.
+            MatchSetup->LoadFieldPlayers(UPSUITeamCatalog::GetDefaultTeamsPath(), RosterRows);
+            StaffManager = NewObject<UPSStaffManager>(this);
+            StaffManager->LoadFromJson(UPSStaffManager::GetDefaultDataPath());
+            MatchSetup->ApplyStaffsToField(StaffManager, GetWorld()->GetSubsystem<UPSPlayCallSubsystem>(), RosterRows);
             ActiveRoster = NewObject<UPSRoster>(this);
             ActiveRoster->InitializeRoster(RosterRows);
             ActiveRoster->BuildDefaultDepthChart();
@@ -167,13 +176,6 @@ void APSGameMode::StartPlay()
                 TArray<FPlayerAttributes>& SideRoster = APSFieldGrid::GetSideForRole(Player->Role) == EPSTeamSide::Offense ? OffenseRoster : DefenseRoster;
                 SideRoster.Add(*Player);
             }
-
-            // Kickoff (Epic 89): both teams' staffs take over. Their plans go to the play-call
-            // authority and the simulation's players play at their scheme fit; the home team has
-            // the ball first. The pawns keep the roster's own ratings.
-            StaffManager = NewObject<UPSStaffManager>(this);
-            StaffManager->LoadFromJson(UPSStaffManager::GetDefaultDataPath());
-            MatchSetup->ApplyStaffs(StaffManager, GetWorld()->GetSubsystem<UPSPlayCallSubsystem>(), OffenseRoster, DefenseRoster);
 
             PlaySimulation = NewObject<UPSPlaySimulation>(this);
             if (PlaySimulation)
