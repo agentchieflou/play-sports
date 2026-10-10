@@ -332,6 +332,16 @@ bool FPSSpecialTeamsFieldGoalTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Longer kicks miss more"), Model->GetFieldGoalChance(48.f) < Model->GetFieldGoalChance(35.f));
     TestEqual(TEXT("Out of range: no chance"), Model->GetFieldGoalChance(90.f), 0.f);
 
+    // A kick's quality can be passed in (a human kicker's meter): it decides the kick.
+    TestEqual(TEXT("A good kick from 37 yards is good"), Model->ResolveFieldGoal(MakeCall(EPSSpecialTeamsPlay::FieldGoal, EPSSpecialTeamsPlay::KickReturn), 80, Even, Even, 0.5f).Result, EPSSpecialTeamsResult::FieldGoalGood);
+    TestEqual(TEXT("...a shanked one misses"), Model->ResolveFieldGoal(MakeCall(EPSSpecialTeamsPlay::FieldGoal, EPSSpecialTeamsPlay::KickReturn), 80, Even, Even, 0.95f).Result, EPSSpecialTeamsResult::FieldGoalMissed);
+    FPSSpecialTeamsTuning Ranged = Tuning;
+    Ranged.PuntGrossYardsMin = 40;
+    Ranged.PuntGrossYardsMax = 50;
+    UPSSpecialTeamsModel* Punter = MakeModel(Ranged);
+    TestEqual(TEXT("A perfect punt goes the longest"), Punter->ResolvePunt(MakeCall(EPSSpecialTeamsPlay::Punt, EPSSpecialTeamsPlay::KickReturn), 20, Even, Even, 0.f).Yards, 50);
+    TestEqual(TEXT("...a poor one the shortest"), Punter->ResolvePunt(MakeCall(EPSSpecialTeamsPlay::Punt, EPSSpecialTeamsPlay::KickReturn), 20, Even, Even, 0.999f).Yards, 40);
+
     Tuning.FieldGoalRanges = { Tuning.FieldGoalRanges.Last() };
     Tuning.FieldGoalRanges[0].MaxYards = 99.f;
     Tuning.FieldGoalRanges[0].MakeChance = 1.f;

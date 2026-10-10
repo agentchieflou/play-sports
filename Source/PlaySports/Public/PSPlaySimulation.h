@@ -258,8 +258,9 @@ private:
     UPROPERTY(Transient)
     UPSSpecialTeamsModel* SpecialTeams = nullptr;
 
-    /** Resolves the kickoff, punt or field goal the play is in through the special-teams model. */
-    void ResolveKick();
+    /** Resolves the kickoff, punt or field goal the play is in through the special-teams model.
+     *  KickRoll (0 = perfect .. 1) is the kick's quality; negative lets the model draw it. */
+    void ResolveKick(float KickRoll = -1.f);
 
     /** The whistle has blown, or the special-teams model decides the play: physical tackles and
      *  catches no longer change the result. */

@@ -79,7 +79,6 @@ namespace PSSpecialTeams
 
 UPSSpecialTeamsModel::UPSSpecialTeamsModel()
 {
-    Stream.GenerateNewSeed();
 }
 
 FString UPSSpecialTeamsModel::GetDefaultTuningPath()
@@ -105,6 +104,17 @@ bool UPSSpecialTeamsModel::LoadTuningFromJson(const FString& JsonFilePath)
 void UPSSpecialTeamsModel::Seed(int32 InSeed)
 {
     Stream.Initialize(InSeed);
+    bSeeded = true;
+}
+
+float UPSSpecialTeamsModel::NextRoll()
+{
+    return bSeeded ? Stream.FRand() : FMath::FRand();
+}
+
+int32 UPSSpecialTeamsModel::NextInRange(int32 Min, int32 Max)
+{
+    return bSeeded ? Stream.RandRange(Min, Max) : FMath::RandRange(Min, Max);
 }
 
 FPSSpecialTeamsUnitRatings UPSSpecialTeamsModel::RateUnit(const TArray<FPlayerAttributes>& Players)
@@ -196,7 +206,7 @@ float UPSSpecialTeamsModel::GetFakeSuccessChance(EPSSpecialTeamsPlay Fake, EPSSp
 
 int32 UPSSpecialTeamsModel::RollReturn(const FPSSpecialTeamsCall& Call, int32 MinYards, int32 MaxYards, const FPSSpecialTeamsUnitRatings& Coverage)
 {
-    float Yards = static_cast<float>(Stream.RandRange(MinYards, FMath::Max(MinYards, MaxYards)));
+    float Yards = static_cast<float>(NextInRange(MinYards, FMath::Max(MinYards, MaxYards)));
     const FPSReturnSchemeDef* Scheme = FindReturnScheme(Call.ReturnFormation);
     float BigChance = Scheme ? Scheme->BigReturnChance : Tuning.DefaultBigReturnChance;
     if (Scheme)
@@ -215,14 +225,14 @@ int32 UPSSpecialTeamsModel::RollReturn(const FPSSpecialTeamsCall& Call, int32 Mi
     const float Discipline = GetCoverageDiscipline(Coverage);
     Yards -= Discipline * Tuning.LaneDisciplineYards;
     BigChance = FMath::Max(0.f, BigChance * (1.f - Discipline * Tuning.LaneDisciplineBigReturnScale));
-    if (Stream.FRand() < BigChance)
+    if (NextRoll() < BigChance)
     {
         Yards += Tuning.BigReturnYards;
     }
     return FMath::RoundToInt(Yards);
 }
 
-FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveKickoff(const FPSSpecialTeamsCall& Call, int32 KickYardLine, const FPSSpecialTeamsUnitRatings& Kicking, const FPSSpecialTeamsUnitRatings& Receiving)
+FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveKickoff(const FPSSpecialTeamsCall& Call, int32 KickYardLine, const FPSSpecialTeamsUnitRatings& Kicking, const FPSSpecialTeamsUnitRatings& Receiving, float KickRoll)
 {
     FPSSpecialTeamsOutcome Outcome;
     Outcome.bPossessionChanges = true;
@@ -232,7 +242,7 @@ FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveKickoff(const FPSSpecialTeam
         const float Recovery = Call.Receiving == EPSSpecialTeamsPlay::HandsTeam ? Tuning.OnsideRecoveryVsHandsTeamChance : Tuning.OnsideRecoveryChance;
         const int32 Spot = FMath::Clamp(KickYardLine + Tuning.OnsideKickYards, 1, 99);
         Outcome.Yards = Tuning.OnsideKickYards;
-        if (Stream.FRand() < Recovery)
+        if (NextRoll() < Recovery)
         {
             Outcome.Result = EPSSpecialTeamsResult::OnsideRecovered;
             Outcome.bPossessionChanges = false;
@@ -247,7 +257,8 @@ FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveKickoff(const FPSSpecialTeam
     }
 
     // A team lateraling for its life runs everything back.
-    if (Call.Receiving != EPSSpecialTeamsPlay::ReturnLaterals && Stream.FRand() < Tuning.KickoffTouchbackChance)
+    const float Kick = KickRoll >= 0.f ? KickRoll : NextRoll();
+    if (Call.Receiving != EPSSpecialTeamsPlay::ReturnLaterals && Kick < Tuning.KickoffTouchbackChance)
     {
         Outcome.Result = EPSSpecialTeamsResult::Touchback;
         Outcome.NextYardLine = Tuning.TouchbackYardLine;
@@ -260,7 +271,7 @@ FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveKickoff(const FPSSpecialTeam
     Outcome.NextYardLine = FMath::Clamp(ReturnLine, 1, 99);
     if (Call.Receiving == EPSSpecialTeamsPlay::ReturnLaterals)
     {
-        const float Roll = Stream.FRand();
+        const float Roll = NextRoll();
         if (Roll < Tuning.LateralTouchdownChance)
         {
             Outcome.Result = EPSSpecialTeamsResult::LateralTouchdown;
@@ -283,16 +294,16 @@ FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveKickoff(const FPSSpecialTeam
     return Outcome;
 }
 
-FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolvePunt(const FPSSpecialTeamsCall& Call, int32 YardLine, const FPSSpecialTeamsUnitRatings& Kicking, const FPSSpecialTeamsUnitRatings& Receiving)
+FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolvePunt(const FPSSpecialTeamsCall& Call, int32 YardLine, const FPSSpecialTeamsUnitRatings& Kicking, const FPSSpecialTeamsUnitRatings& Receiving, float KickRoll)
 {
     FPSSpecialTeamsOutcome Outcome;
     Outcome.bPossessionChanges = true;
 
-    if (Stream.FRand() < GetBlockChance(EPSSpecialTeamsPlay::Punt, Call.Receiving, Kicking, Receiving))
+    if (NextRoll() < GetBlockChance(EPSSpecialTeamsPlay::Punt, Call.Receiving, Kicking, Receiving))
     {
         // The ball goes backwards; the defense falls on it, or picks it up and scores.
         const int32 Spot = YardLine - Tuning.BlockedPuntRecoilYards;
-        const bool bTouchdown = Spot <= 0 || Stream.FRand() < Tuning.BlockedKickTouchdownChance;
+        const bool bTouchdown = Spot <= 0 || NextRoll() < Tuning.BlockedKickTouchdownChance;
         Outcome.Result = bTouchdown ? EPSSpecialTeamsResult::BlockedTouchdown : EPSSpecialTeamsResult::Blocked;
         Outcome.bTouchdown = bTouchdown;
         Outcome.NextYardLine = FMath::Clamp(100 - Spot, 1, 99);
@@ -300,7 +311,11 @@ FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolvePunt(const FPSSpecialTeamsCa
         return Outcome;
     }
 
-    const int32 Gross = Stream.RandRange(Tuning.PuntGrossYardsMin, FMath::Max(Tuning.PuntGrossYardsMin, Tuning.PuntGrossYardsMax));
+    // The better the kick (the lower the roll), the farther it goes.
+    const int32 Span = FMath::Max(0, Tuning.PuntGrossYardsMax - Tuning.PuntGrossYardsMin);
+    const int32 Gross = KickRoll >= 0.f
+        ? Tuning.PuntGrossYardsMin + FMath::Min(Span, FMath::FloorToInt((1.f - FMath::Clamp(KickRoll, 0.f, 1.f)) * (Span + 1)))
+        : NextInRange(Tuning.PuntGrossYardsMin, Tuning.PuntGrossYardsMin + Span);
     const int32 Landing = YardLine + Gross;
     Outcome.Yards = Gross;
     Outcome.Result = EPSSpecialTeamsResult::Punted;
@@ -321,15 +336,15 @@ FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolvePunt(const FPSSpecialTeamsCa
     return Outcome;
 }
 
-FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveFieldGoal(const FPSSpecialTeamsCall& Call, int32 YardLine, const FPSSpecialTeamsUnitRatings& Kicking, const FPSSpecialTeamsUnitRatings& Defending)
+FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveFieldGoal(const FPSSpecialTeamsCall& Call, int32 YardLine, const FPSSpecialTeamsUnitRatings& Kicking, const FPSSpecialTeamsUnitRatings& Defending, float KickRoll)
 {
     FPSSpecialTeamsOutcome Outcome;
     const float Distance = GetFieldGoalDistance(YardLine);
     Outcome.Yards = FMath::RoundToInt(Distance);
 
-    if (Stream.FRand() < GetBlockChance(EPSSpecialTeamsPlay::FieldGoal, Call.Receiving, Kicking, Defending))
+    if (NextRoll() < GetBlockChance(EPSSpecialTeamsPlay::FieldGoal, Call.Receiving, Kicking, Defending))
     {
-        const bool bTouchdown = Stream.FRand() < Tuning.BlockedKickTouchdownChance;
+        const bool bTouchdown = NextRoll() < Tuning.BlockedKickTouchdownChance;
         Outcome.Result = bTouchdown ? EPSSpecialTeamsResult::BlockedTouchdown : EPSSpecialTeamsResult::Blocked;
         Outcome.bTouchdown = bTouchdown;
         Outcome.bPossessionChanges = true;
@@ -337,7 +352,7 @@ FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveFieldGoal(const FPSSpecialTe
         return Outcome;
     }
 
-    if (Stream.FRand() < GetFieldGoalChance(Distance))
+    if ((KickRoll >= 0.f ? KickRoll : NextRoll()) < GetFieldGoalChance(Distance))
     {
         Outcome.Result = EPSSpecialTeamsResult::FieldGoalGood;
         return Outcome;
@@ -351,11 +366,11 @@ FPSSpecialTeamsOutcome UPSSpecialTeamsModel::ResolveFieldGoal(const FPSSpecialTe
 int32 UPSSpecialTeamsModel::ResolveFake(const FPSSpecialTeamsCall& Call, int32 Distance)
 {
     const int32 Needed = FMath::Max(1, Distance);
-    if (Stream.FRand() < GetFakeSuccessChance(Call.Kicking, Call.Receiving))
+    if (NextRoll() < GetFakeSuccessChance(Call.Kicking, Call.Receiving))
     {
-        return Needed + Stream.RandRange(0, FMath::Max(0, Tuning.FakeExtraYardsMax));
+        return Needed + NextInRange(0, FMath::Max(0, Tuning.FakeExtraYardsMax));
     }
-    return Stream.RandRange(0, Needed - 1);
+    return NextInRange(0, Needed - 1);
 }
 
 bool UPSSpecialTeamsModel::ApplyOutcome(FPlayState& State, const FPSSpecialTeamsOutcome& Outcome, int32 TouchdownPoints, int32 FieldGoalPoints, float ExtraPointChance)
@@ -371,7 +386,7 @@ bool UPSSpecialTeamsModel::ApplyOutcome(FPlayState& State, const FPSSpecialTeams
         if (Outcome.bTouchdown)
         {
             int32& ScorerScore = Outcome.bPossessionChanges ? ReceivingScore : KickingScore;
-            ScorerScore += TouchdownPoints + (Stream.FRand() < ExtraPointChance ? 1 : 0);
+            ScorerScore += TouchdownPoints + (NextRoll() < ExtraPointChance ? 1 : 0);
         }
         else
         {

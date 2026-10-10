@@ -769,7 +769,7 @@ bool UPSPlaySimulation::IsBallDead() const
     return Phase == EPlayPhase::Scoring || Phase == EPlayPhase::Kickoff || Phase == EPlayPhase::Punt || Phase == EPlayPhase::FieldGoal;
 }
 
-void UPSPlaySimulation::ResolveKick()
+void UPSPlaySimulation::ResolveKick(float KickRoll)
 {
     // The kicking team has the ball for the kick; the other side receives (or rushes it).
     UPSSpecialTeamsModel* Model = GetSpecialTeams();
@@ -778,15 +778,15 @@ void UPSPlaySimulation::ResolveKick()
     switch (CurrentState.Phase)
     {
     case EPlayPhase::Kickoff:
-        LastSpecialTeamsOutcome = Model->ResolveKickoff(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving);
+        LastSpecialTeamsOutcome = Model->ResolveKickoff(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving, KickRoll);
         CurrentPlayResult.ResultType = EPlayResultType::KickoffResult;
         break;
     case EPlayPhase::Punt:
-        LastSpecialTeamsOutcome = Model->ResolvePunt(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving);
+        LastSpecialTeamsOutcome = Model->ResolvePunt(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving, KickRoll);
         CurrentPlayResult.ResultType = EPlayResultType::PuntResult;
         break;
     default:
-        LastSpecialTeamsOutcome = Model->ResolveFieldGoal(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving);
+        LastSpecialTeamsOutcome = Model->ResolveFieldGoal(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving, KickRoll);
         CurrentPlayResult.ResultType = LastSpecialTeamsOutcome.Result == EPSSpecialTeamsResult::FieldGoalGood ? EPlayResultType::FieldGoalGood : EPlayResultType::FieldGoalMissed;
         break;
     }
