@@ -4,24 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "PSPlayerAttributes.h"
 #include "PSPlayerPawn.h"
+#include "PSFormations.h"
 #include "PSFieldGrid.generated.h"
-
-USTRUCT(BlueprintType)
-struct FPSFormationSpawnPoint
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
-    EPlayerRole Role = EPlayerRole::Quarterback;
-
-    // Offset in yards relative to the line of scrimmage (positive values mean in the play direction, negative behind)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
-    float ScrimmageYardOffset = 0.0f;
-
-    // Offset in yards laterally relative to the center of the field width
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
-    float LateralYardOffset = 0.0f;
-};
 
 /**
  * The field in the level: its end zones and boundary volumes, and yard-line coordinates. Every
@@ -111,8 +95,17 @@ public:
      */
     static TArray<FVector> ComputeLineup(const TArray<EPlayerRole>& Roles, float ScrimmageX);
 
-    /** Default lineup geometry (cm) until formations come from play data. Epic 19.5's
-     *  personnel packages decide who lines up; where each role stands is still this. */
+    /**
+     * The lineup for a call: the offense in Call's formation, the defense in its front and shell
+     * against Offense (or, without it, against the offensive players of Roles lined up here),
+     * from Data/formations.json (PSFormations::LineUp, the one authority on alignment). A side
+     * whose formation, front or shell the data doesn't know, or with an empty one, lines up by
+     * role as above. The ball is at ScrimmageX in the middle of the field.
+     */
+    static TArray<FVector> ComputeLineup(const TArray<EPlayerRole>& Roles, float ScrimmageX, const FPSLineupCall& Call, const TArray<FPSAlignedPlayer>* Offense = nullptr);
+
+    /** The role lineup's geometry (cm): where a side stands before its call, and the fallback
+     *  for a formation, front or shell Data/formations.json doesn't know. */
     static constexpr float LineSetback = 50.f;
     static constexpr float QBDepth = 100.f;
     static constexpr float RunningBackDepth = 500.f;

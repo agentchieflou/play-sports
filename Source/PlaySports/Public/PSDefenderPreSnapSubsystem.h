@@ -23,7 +23,8 @@ class UPSPlayCallSubsystem;
  *    shell's structure (two-high, or one deep and one rolled down), the blitzers walked up --
  *    and for any disguise. It does so on its next tick, or at the first read of its look,
  *    moving defenders from the formation spots the side stands on. Those stay the lineup's
- *    (a personnel change lines the side up afresh, UPSPersonnelManager). At the snap
+ *    (each call lines the side up afresh in its front and shell, UPSPersonnelManager, and the
+ *    Lineup event starts the look again from them). At the snap
  *    UPSDefenderAIComponent plays the real assignment from wherever each man stands: the
  *    disguise rotates.
  *  - Disguise: show the other shell; show a blitz with linebackers who drop at the snap; or
@@ -148,6 +149,7 @@ private:
     void HandleSnap(const FPSTelemetrySnapEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
     void HandlePersonnel(const FPSTelemetryPersonnelEvent& Event);
+    void HandleLineup(const FPSTelemetryLineupEvent& Event);
     void ResetDown();
 
     UPSPlayCallSubsystem* GetPlayCall() const;

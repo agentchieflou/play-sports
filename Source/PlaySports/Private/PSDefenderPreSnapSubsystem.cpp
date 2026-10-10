@@ -71,6 +71,7 @@ void UPSDefenderPreSnapSubsystem::Initialize(FSubsystemCollectionBase& Collectio
         Bus->OnSnapMC.AddUObject(this, &UPSDefenderPreSnapSubsystem::HandleSnap);
         Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderPreSnapSubsystem::HandlePhaseChange);
         Bus->OnPersonnelMC.AddUObject(this, &UPSDefenderPreSnapSubsystem::HandlePersonnel);
+        Bus->OnLineupMC.AddUObject(this, &UPSDefenderPreSnapSubsystem::HandleLineup);
         BoundBus = Bus;
     }
 }
@@ -83,6 +84,7 @@ void UPSDefenderPreSnapSubsystem::Deinitialize()
         Bus->OnSnapMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
         Bus->OnPersonnelMC.RemoveAll(this);
+        Bus->OnLineupMC.RemoveAll(this);
     }
     BoundBus.Reset();
     Super::Deinitialize();
@@ -292,6 +294,18 @@ void UPSDefenderPreSnapSubsystem::HandlePersonnel(const FPSTelemetryPersonnelEve
     // New players came on and the side lined up afresh in its formation: that is where each
     // defender now starts from.
     if (!Event.bOffense && Event.PlayersIn.Num() > 0)
+    {
+        BaseSpots.Reset();
+        Creepers.Reset();
+        bAlignDirty = true;
+    }
+}
+
+void UPSDefenderPreSnapSubsystem::HandleLineup(const FPSTelemetryLineupEvent& Event)
+{
+    // The defense lined up afresh in its front and shell (against a new offensive formation,
+    // say): those are its formation spots now, and its look is built on them again.
+    if (!Event.bOffense)
     {
         BaseSpots.Reset();
         Creepers.Reset();

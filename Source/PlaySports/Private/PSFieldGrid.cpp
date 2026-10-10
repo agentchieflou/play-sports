@@ -213,6 +213,14 @@ TArray<FVector> APSFieldGrid::ComputeLineup(const TArray<EPlayerRole>& Roles, fl
     return Lineup;
 }
 
+TArray<FVector> APSFieldGrid::ComputeLineup(const TArray<EPlayerRole>& Roles, float ScrimmageX, const FPSLineupCall& Call, const TArray<FPSAlignedPlayer>* Offense)
+{
+    // The defense reads the strength with the recognition tuning's defaults, which equal
+    // Data/play_recognition.json; a caller with a world passes the subsystem's to PSFormations.
+    const FPSPlayRecognitionTuning Recognition;
+    return PSFormations::LineUp(PSFormations::GetCatalog(), Roles, FVector(ScrimmageX, 0.f, 0.f), Call, Offense, Recognition).Spots;
+}
+
 TArray<APSPlayerPawn*> APSFieldGrid::SpawnPlayersFromRoster(
     const TArray<const FPlayerAttributes*>& Roster,
     float ScrimmageX,

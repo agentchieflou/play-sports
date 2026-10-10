@@ -47,7 +47,8 @@ enum class EPSTelemetryEventType : uint8
     Penalty,
     Crowd,
     Commentary,
-    Trade
+    Trade,
+    Lineup
 };
 
 /** What a statistic counts (Epic 92). Player categories first, then team ones. */
@@ -438,6 +439,39 @@ struct FPSTelemetryBoundaryCrossedEvent
     bool bEndZone = false;
 };
 
+/** A side lined up afresh for its call (UPSPersonnelManager, from Data/formations.json): the
+ *  offense in its formation, the defense in its front and shell against the offense as it
+ *  stands. Whatever moves players from their formation spots before the snap (Epic 67's safety
+ *  structure and blitz looks) starts again from these. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryLineupEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bOffense = true;
+
+    /** The offense's formation; empty for the defense. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Formation;
+
+    /** The defense's front and shell; empty for the offense. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Front;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString CoverageShell;
+
+    /** +1 when the offense's strength is right of the ball (+Y), -1 left: the formation's, or
+     *  the one the defense read and aligned to. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 StrongSide = 1;
+
+    /** False when the data didn't know the call and the side lined up by role. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bFromData = false;
+};
+
 /** A trade was made (Epic 88): UPSTradeMarket announces each one, for the news, the screens and
  *  the league-wide tuning of the market. */
 USTRUCT(BlueprintType)
@@ -658,6 +692,13 @@ struct FPSTelemetryPlayCallEvent
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     FString PlayCategory;
+
+    /** A defensive call's front and coverage shell (the play's); empty for the offense. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Front;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString CoverageShell;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bOffense = true;
@@ -1712,6 +1753,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPenaltySignature, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCrowdSignature, const FPSTelemetryCrowdEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentarySignature, const FPSTelemetryCommentaryEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeSignature, const FPSTelemetryTradeEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLineupSignature, const FPSTelemetryLineupEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -1756,6 +1798,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPenaltyMC, const FPSTelemetryPen
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCrowdMC, const FPSTelemetryCrowdEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentaryMC, const FPSTelemetryCommentaryEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeMC, const FPSTelemetryTradeEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLineupMC, const FPSTelemetryLineupEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1875,6 +1918,10 @@ public:
     /** A trade, from UPSTradeMarket (Epic 88). */
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishTrade(const FPSTelemetryTradeEvent& Event);
+
+    /** A side lined up for its call, from UPSPersonnelManager. */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishLineup(const FPSTelemetryLineupEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishRecognition(const FPSTelemetryRecognitionEvent& Event);
@@ -2034,6 +2081,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryTradeSignature OnTrade;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryLineupSignature OnLineup;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -2078,6 +2128,7 @@ public:
     FPSTelemetryCrowdMC OnCrowdMC;
     FPSTelemetryCommentaryMC OnCommentaryMC;
     FPSTelemetryTradeMC OnTradeMC;
+    FPSTelemetryLineupMC OnLineupMC;
 
 private:
     UPROPERTY(Transient)

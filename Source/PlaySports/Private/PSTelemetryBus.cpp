@@ -704,3 +704,19 @@ void UPSTelemetryBus::PublishTrade(const FPSTelemetryTradeEvent& Event)
     }
     OnTradeMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishLineup(const FPSTelemetryLineupEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryLineupEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Call = Event.bOffense ? Event.Formation : FString::Printf(TEXT("%s %s"), *Event.Front, *Event.CoverageShell);
+    RecordHistory(EPSTelemetryEventType::Lineup, FString::Printf(TEXT("Lineup: %s in %s%s"),
+        Event.bOffense ? TEXT("Offense") : TEXT("Defense"), *Call, Event.bFromData ? TEXT("") : TEXT(" (by role)")), JsonPayload);
+
+    if (OnLineup.IsBound())
+    {
+        OnLineup.Broadcast(Event);
+    }
+    OnLineupMC.Broadcast(Event);
+}

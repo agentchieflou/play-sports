@@ -1,0 +1,339 @@
+{
+    "LinemanSpacingYards": 1.5,
+    "LineSetbackYards": 0.5,
+    "ShadeYards": 0.5,
+    "BoundaryMarginYards": 1.0,
+    "Techniques": [
+        { "Technique": "0", "Lineman": 0, "Shade": 0 },
+        { "Technique": "1", "Lineman": 0, "Shade": 1 },
+        { "Technique": "2i", "Lineman": 1, "Shade": -1 },
+        { "Technique": "2", "Lineman": 1, "Shade": 0 },
+        { "Technique": "3", "Lineman": 1, "Shade": 1 },
+        { "Technique": "4i", "Lineman": 2, "Shade": -1 },
+        { "Technique": "4", "Lineman": 2, "Shade": 0 },
+        { "Technique": "5", "Lineman": 2, "Shade": 1 },
+        { "Technique": "7", "Lineman": 3, "Shade": -1 },
+        { "Technique": "6", "Lineman": 3, "Shade": 0 },
+        { "Technique": "9", "Lineman": 3, "Shade": 1 }
+    ],
+    "OffenseFormations": [
+        {
+            "Formation": "Trips Right", "Strength": "Right", "QBAlignment": "UnderCenter", "Backfield": "Single",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -6.5, "LateralYardOffset": 0.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 9.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 6.0 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5, "Side": "Weak" }
+            ]
+        },
+        {
+            "Formation": "Trips Left", "Strength": "Left", "QBAlignment": "UnderCenter", "Backfield": "Single",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -6.5, "LateralYardOffset": 0.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 9.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 6.0 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5, "Side": "Weak" }
+            ]
+        },
+        {
+            "Formation": "Twins", "Strength": "Right", "QBAlignment": "UnderCenter", "Backfield": "Single",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -6.5, "LateralYardOffset": 0.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 7.0, "Side": "Weak" },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5 }
+            ]
+        },
+        {
+            "Formation": "Shotgun", "Strength": "Right", "QBAlignment": "Shotgun", "Backfield": "Offset",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -5.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -5.0, "LateralYardOffset": 1.5, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 6.5, "Side": "Weak" },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5 }
+            ]
+        },
+        {
+            "Formation": "Clock", "Strength": "Right", "QBAlignment": "UnderCenter", "Backfield": "Single",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -6.5, "LateralYardOffset": 0.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 10.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 10.0, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 6.0, "Side": "Weak" },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5 }
+            ]
+        },
+        {
+            "Formation": "Ace", "Strength": "Right", "QBAlignment": "UnderCenter", "Backfield": "Single",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -6.5, "LateralYardOffset": 0.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0, "Side": "Weak" },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5, "Side": "Weak" }
+            ]
+        },
+        {
+            "Formation": "I-Form", "Strength": "Right", "QBAlignment": "UnderCenter", "Backfield": "I",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -7.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -4.0, "LateralYardOffset": 0.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0, "Side": "Weak" },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5 }
+            ]
+        },
+        {
+            "Formation": "Strong-I", "Strength": "Right", "QBAlignment": "UnderCenter", "Backfield": "I",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -7.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -4.0, "LateralYardOffset": 0.75 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0, "Side": "Weak" },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5 }
+            ]
+        },
+        {
+            "Formation": "Spread", "Strength": "Right", "QBAlignment": "Shotgun", "Backfield": "Offset",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -5.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -5.0, "LateralYardOffset": 1.5, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 12.0, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 6.5 },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 6.5, "Side": "Weak" }
+            ]
+        },
+        {
+            "Formation": "Punt", "Strength": "Right", "QBAlignment": "Shotgun", "Backfield": "Single",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -14.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -5.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 14.0, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 14.0 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 4.5 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 4.5, "Side": "Weak" }
+            ]
+        },
+        {
+            "Formation": "Field Goal", "Strength": "Right", "QBAlignment": "Shotgun", "Backfield": "Offset",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -7.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -9.5, "LateralYardOffset": 1.5, "Side": "Weak" },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -1.5, "LateralYardOffset": 5.5, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.5, "LateralYardOffset": 5.5 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -0.5, "LateralYardOffset": 4.5, "Side": "Weak" }
+            ]
+        },
+        {
+            "Formation": "Kickoff", "Strength": "Right", "QBAlignment": "Shotgun", "Backfield": "Empty",
+            "Slots": [
+                { "Role": "Quarterback", "ScrimmageYardOffset": -7.0, "LateralYardOffset": 0.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 6.0 },
+                { "Role": "RunningBack", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 6.0, "Side": "Weak" },
+                { "Role": "WideReceiver", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 20.0 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 13.0 },
+                { "Role": "TightEnd", "ScrimmageYardOffset": -1.0, "LateralYardOffset": 13.0, "Side": "Weak" }
+            ]
+        }
+    ],
+    "FrontAlignments": [
+        {
+            "Front": "4-3",
+            "Slots": [
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "5", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "1", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "3" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "5" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 4.5, "Technique": "4", "Side": "Weak" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 5.0, "Technique": "0" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 4.0, "Technique": "9" }
+            ]
+        },
+        {
+            "Front": "3-4",
+            "Slots": [
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "4i", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "0" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "4i" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 1.0, "Technique": "9", "Side": "Weak" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 4.5, "Technique": "2", "Side": "Weak" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 4.5, "Technique": "2" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 1.0, "Technique": "9" }
+            ]
+        },
+        {
+            "Front": "Nickel",
+            "Slots": [
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "5", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "3", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "1" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "5" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 4.5, "Technique": "1", "Side": "Weak" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 4.5, "Technique": "3" }
+            ]
+        },
+        {
+            "Front": "6-2",
+            "Slots": [
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "9", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "5", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "1", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "1" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "5" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "9" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 3.0, "Technique": "3", "Side": "Weak" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 3.0, "Technique": "3" }
+            ]
+        },
+        {
+            "Front": "Return",
+            "Slots": [
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "3", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "3" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 1.0, "OverReceiver": 1 },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 1.0, "OverReceiver": 1, "Side": "Weak" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 8.0, "LateralYardOffset": 5.0 },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 8.0, "LateralYardOffset": 5.0, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 35.0, "LateralYardOffset": 0.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 25.0, "LateralYardOffset": 8.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 25.0, "LateralYardOffset": 8.0, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 15.0, "LateralYardOffset": 4.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 15.0, "LateralYardOffset": 4.0, "Side": "Weak" }
+            ]
+        },
+        {
+            "Front": "Block",
+            "Slots": [
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "7", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "4i", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "1", "Side": "Weak" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "1" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "4i" },
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 1.0, "Technique": "7" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 1.0, "Technique": "9", "LateralYardOffset": 1.0, "Side": "Weak" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 1.0, "Technique": "9", "LateralYardOffset": 1.0 },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 3.0, "Technique": "0" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 35.0, "LateralYardOffset": 0.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 1.0, "OverReceiver": 1 }
+            ]
+        },
+        {
+            "Front": "Hands",
+            "Slots": [
+                { "Role": "DefensiveLineman", "ScrimmageYardOffset": 10.0, "LateralYardOffset": 0.0 },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 10.0, "LateralYardOffset": 3.0 },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 10.0, "LateralYardOffset": 3.0, "Side": "Weak" },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 10.0, "LateralYardOffset": 9.0 },
+                { "Role": "Linebacker", "ScrimmageYardOffset": 10.0, "LateralYardOffset": 9.0, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 11.0, "LateralYardOffset": 15.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 11.0, "LateralYardOffset": 15.0, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 14.0, "LateralYardOffset": 6.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 14.0, "LateralYardOffset": 6.0, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 20.0, "LateralYardOffset": 0.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 25.0, "LateralYardOffset": 10.0 }
+            ]
+        }
+    ],
+    "ShellAlignments": [
+        {
+            "Shell": "Cover0",
+            "Slots": [
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 1 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 1, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 3 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 8.0, "LateralYardOffset": 0.0 }
+            ]
+        },
+        {
+            "Shell": "Cover1",
+            "Slots": [
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 14.0, "LateralYardOffset": 0.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 1 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 1, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 3 }
+            ]
+        },
+        {
+            "Shell": "ManFree",
+            "Slots": [
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 14.0, "LateralYardOffset": 0.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 1 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 1, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 3 }
+            ]
+        },
+        {
+            "Shell": "Cover2",
+            "Slots": [
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 13.0, "LateralYardOffset": 5.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 13.0, "LateralYardOffset": 5.0, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 5.0, "OverReceiver": 1 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 5.0, "OverReceiver": 1, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2, "Side": "Weak" }
+            ]
+        },
+        {
+            "Shell": "Cover3",
+            "Slots": [
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 14.0, "LateralYardOffset": 0.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 7.0, "OverReceiver": 1 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 7.0, "OverReceiver": 1, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 7.0, "OverReceiver": 2 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 8.0, "LateralYardOffset": 3.0, "Side": "Weak" }
+            ]
+        },
+        {
+            "Shell": "Cover4",
+            "Slots": [
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 13.0, "LateralYardOffset": 5.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 13.0, "LateralYardOffset": 5.0, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 7.0, "OverReceiver": 1 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 7.0, "OverReceiver": 1, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 6.0, "OverReceiver": 2, "Side": "Weak" }
+            ]
+        },
+        {
+            "Shell": "Wall",
+            "Slots": [
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 35.0, "LateralYardOffset": 0.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 20.0, "LateralYardOffset": 4.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 20.0, "LateralYardOffset": 8.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 20.0, "LateralYardOffset": 12.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 20.0, "LateralYardOffset": 16.0 }
+            ]
+        },
+        {
+            "Shell": "Wedge",
+            "Slots": [
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 35.0, "LateralYardOffset": 0.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 28.0, "LateralYardOffset": 2.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 28.0, "LateralYardOffset": 2.0, "Side": "Weak" },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 26.0, "LateralYardOffset": 5.0 },
+                { "Role": "DefensiveBack", "ScrimmageYardOffset": 26.0, "LateralYardOffset": 5.0, "Side": "Weak" }
+            ]
+        }
+    ]
+}

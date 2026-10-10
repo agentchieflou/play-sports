@@ -1092,12 +1092,14 @@ TArray<FString> UPSPlaybookGenerator::ValidatePlayArt(UWorld* World, const TArra
     const FPSPersonnelPackage* BaseOffense = PersonnelLookup->FindPackage(Personnel.DefaultOffensePackage);
     const FString OpposingFormation = BaseOffense && BaseOffense->Formations.Num() > 0 ? BaseOffense->Formations[0] : FString();
 
-    // Each formation's players, lined up once (in role order, as the game mode lines them up).
+    // Each call's players, lined up once in role order, where the game lines them up for it
+    // (APSFieldGrid::ComputeLineup): the offense in its formation, the defense in its front and
+    // shell against Against's offense.
     TArray<APSPlayerPawn*> Spawned;
     TMap<FString, TArray<APSPlayerPawn*>> Lineups;
-    auto LineUp = [this, World, &Spawned, &Lineups, &Line](const FString& Formation, bool bOffense)
+    auto LineUp = [this, World, &Spawned, &Lineups, &Line](const FString& Formation, bool bOffense, const FPSLineupCall& Call, const TArray<APSPlayerPawn*>& Against)
     {
-        const FString Key = FString::Printf(TEXT("%s/%s"), bOffense ? TEXT("O") : TEXT("D"), *Formation);
+        const FString Key = FString::Printf(TEXT("%s/%s/%s/%s"), bOffense ? TEXT("O") : TEXT("D"), *Formation, *Call.DefenseFront, *Call.DefenseShell);
         if (const TArray<APSPlayerPawn*>* Known = Lineups.Find(Key))
         {
             return *Known;
@@ -1113,7 +1115,14 @@ TArray<FString> UPSPlaybookGenerator::ValidatePlayArt(UWorld* World, const TArra
                 Roles.Add(Role);
             }
         }
-        const TArray<FVector> Spots = APSFieldGrid::ComputeLineup(Roles, static_cast<float>(Line.X));
+        TArray<FPSAlignedPlayer> Offense;
+        for (const APSPlayerPawn* Opponent : Against)
+        {
+            FPSAlignedPlayer& Aligned = Offense.AddDefaulted_GetRef();
+            Aligned.Role = Opponent->GetAttributes().Role;
+            Aligned.Location = Opponent->GetActorLocation();
+        }
+        const TArray<FVector> Spots = APSFieldGrid::ComputeLineup(Roles, static_cast<float>(Line.X), Call, bOffense ? nullptr : &Offense);
         FActorSpawnParameters SpawnParams;
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
         TArray<APSPlayerPawn*> Players;
@@ -1139,7 +1148,21 @@ TArray<FString> UPSPlaybookGenerator::ValidatePlayArt(UWorld* World, const TArra
     for (const FPSPlayDefinition& Play : Plays)
     {
         const FString Name = Play.PlayId.ToString();
-        TArray<APSPlayerPawn*> Field = LineUp(Play.Formation, Play.bIsOffensivePlay);
+        FPSLineupCall Call;
+        TArray<APSPlayerPawn*> Opponents;
+        if (Play.bIsOffensivePlay)
+        {
+            Call.OffenseFormation = Play.Formation;
+        }
+        else
+        {
+            FPSLineupCall OpposingCall;
+            OpposingCall.OffenseFormation = OpposingFormation;
+            Opponents = LineUp(OpposingFormation, true, OpposingCall, TArray<APSPlayerPawn*>());
+            Call.DefenseFront = Play.Front;
+            Call.DefenseShell = Play.CoverageShell;
+        }
+        TArray<APSPlayerPawn*> Field = LineUp(Play.Formation, Play.bIsOffensivePlay, Call, Opponents);
         if (Field.Num() == 0)
         {
             Problems.Add(FString::Printf(TEXT("%s: formation '%s' lines nobody up"), *Name, *Play.Formation));
@@ -1147,7 +1170,7 @@ TArray<FString> UPSPlaybookGenerator::ValidatePlayArt(UWorld* World, const TArra
         }
         if (!Play.bIsOffensivePlay)
         {
-            Field.Append(LineUp(OpposingFormation, true));
+            Field.Append(Opponents);
         }
         TArray<EPlayerRole> Roles;
         for (const APSPlayerPawn* Pawn : Field)

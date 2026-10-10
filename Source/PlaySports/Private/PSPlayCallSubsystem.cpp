@@ -987,6 +987,8 @@ void UPSPlayCallSubsystem::SetCall(const FPSPlayDefinition& Play, EPSPlayCaller 
         Event.DisplayName = Play.DisplayName;
         Event.Formation = Play.Formation;
         Event.PlayCategory = Play.PlayCategory;
+        Event.Front = Play.Front;
+        Event.CoverageShell = Play.CoverageShell;
         Event.bOffense = Play.bIsOffensivePlay;
         Event.bHumanCall = Caller == EPSPlayCaller::Human;
         Event.Tempo = Call.Tempo;

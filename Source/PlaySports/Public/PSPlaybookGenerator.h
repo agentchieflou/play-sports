@@ -134,9 +134,10 @@ public:
 
     /**
      * Epic 35's art/AI consistency check (PSPlayArt::ValidatePlayArt) for each of Plays: the play
-     * lined up in World in its formation's personnel as the game mode lines players up
-     * (APSFieldGrid::ComputeLineup) -- a defense against the default offensive package, so its man
-     * defenders have receivers -- resolved into each player's job as the snap resolves it
+     * lined up in World in its formation's personnel where the game lines it up for the call
+     * (APSFieldGrid::ComputeLineup: the offense in its formation, a defense in its front and shell
+     * against the default offensive package's first formation, so its man defenders have
+     * receivers) -- resolved into each player's job as the snap resolves it
      * (PSPlayResolution), its man matchups as the defense AI takes them, and compiled into art as
      * the overlay compiles it (PSPlayArt::CompilePlayArt, with World's UPSOverlayPlayArtSubsystem's
      * style and break angle). A play whose category draws art must draw some. Problems are
