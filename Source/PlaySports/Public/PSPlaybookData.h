@@ -91,6 +91,45 @@ struct FPSPlayAssignment
     FVector FormationOffset = FVector::ZeroVector;
 };
 
+/** What a play's quarterback fakes or reads after the snap (Epic 72). */
+UENUM(BlueprintType)
+enum class EPSDeception : uint8
+{
+    None,
+    /** A fake hand-off, then the drop and the pass. */
+    PlayAction,
+    /** Run-pass option: hand it off, or throw to the pass option, on the conflict defender. */
+    RPO,
+    /** Hand it off, or keep it, on the end man on the line. */
+    ZoneRead,
+    /** Dive, keep or pitch: the dive key at the mesh, then the pitch key. */
+    TripleOption
+};
+
+/** A deception play's mechanics (Epic 72). The run options (RPO, ZoneRead, TripleOption) are
+ *  Run plays: the quarterback meets the back at the mesh and reads there. */
+USTRUCT(BlueprintType)
+struct FPSDeceptionDef
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EPSDeception Type = EPSDeception::None;
+
+    /** The side the option goes to: 1 right of the ball, -1 left. Its keys are the defenders on
+     *  that side. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 PlaySide = 1;
+
+    /** RPO: the pass option is the first player of this role on a route. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EPlayerRole PassRole = EPlayerRole::WideReceiver;
+
+    /** Triple option: the pitch man is the first player of this role. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EPlayerRole PitchRole = EPlayerRole::TightEnd;
+};
+
 /** A full play call: formation + one assignment per position, offense or defense. */
 USTRUCT(BlueprintType)
 struct FPSPlayDefinition : public FTableRowBase
@@ -125,4 +164,8 @@ struct FPSPlayDefinition : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FPSPlayAssignment> Assignments;
+
+    /** An offensive play's fake or read (Epic 72); Type None for an ordinary play. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FPSDeceptionDef Deception;
 };

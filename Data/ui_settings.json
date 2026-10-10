@@ -65,6 +65,23 @@
             "Description": "A tip on the play-call screen the first time a situation comes up: a fourth down, the two-minute drill, a kickoff."
         },
         {
+            "SettingId": "Difficulty", "Category": "Gameplay", "Label": "Difficulty", "Kind": "Choice",
+            "Choices": ["Rookie", "Pro", "All-Pro", "Legend"], "Default": 1,
+            "Description": "How sharp the CPU plays: how fast it reads a play, how much it adapts to your calls, how true it throws. Ratings never change."
+        },
+        {
+            "SettingId": "PassLeadAssist", "Category": "Gameplay", "Label": "Pass lead assist", "Kind": "Toggle", "Default": 1,
+            "Description": "Your passes lead the receiver. Off, they go where he is and the stick leads him."
+        },
+        {
+            "SettingId": "AutoSlide", "Category": "Gameplay", "Label": "Auto-slide", "Kind": "Toggle", "Default": 0,
+            "Description": "Your quarterback slides when a tackler closes on him past the line."
+        },
+        {
+            "SettingId": "SuggestedPlayHighlight", "Category": "Gameplay", "Label": "Highlight suggested play", "Kind": "Toggle", "Default": 1,
+            "Description": "The play your coach suggests stands out on the play-call screens."
+        },
+        {
             "SettingId": "Vibration", "Category": "Controls", "Label": "Vibration", "Kind": "Toggle", "Default": 1,
             "Description": "The controller rumbles on hits, catches and scores."
         },

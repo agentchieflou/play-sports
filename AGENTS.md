@@ -218,6 +218,24 @@ Antigravity does not read a repo-local MCP config — its config is global, at
 AgenticLink the entry is `"agenticlink": { "serverUrl": "http://127.0.0.1:8790/mcp" }`, with no
 headers.
 
+The model router service (Epic 119, `tools/orchestrator/mcp_server.py`) is a stdio server, run
+from the repo root so it reads the repo's `.env`. Like AgenticLink, it isn't registered yet; that is
+the owner's call. Its tools are:
+- `route_task`: a task's request goes to the model its capability and cost call for, with fallback
+  across providers;
+- `list_routes`;
+- `router_health`.
+
+The entries are:
+
+```json
+{ "mcpServers": { "model-router": { "type": "stdio", "command": "python", "args": ["-m", "tools.orchestrator", "mcp"] } } }
+```
+
+for `.mcp.json`, and the same object under `"servers"` for `.vscode/mcp.json`. In Antigravity's
+global config the entry is
+`"model-router": { "command": "python", "args": ["-m", "tools.orchestrator", "mcp"], "cwd": "<repo path>" }`.
+
 ### Free-tier / local model slots
 
 The env-var contract every connector reads from `.env` (copy `.env.example`). The orchestrator's
@@ -235,6 +253,17 @@ To hand a task to a free-tier model, use `python -m tools.orchestrator delegate 
 pipe the task on stdin. It walks the `bridge` chain: Ollama first, then Gemini's free tier, then
 an OpenRouter `:free` model. It skips any link whose host or key isn't set and prints the answer,
 with the model that gave it on stderr. `python -m tools.orchestrator models` shows the chain.
+
+To route by what a task needs rather than by provider, use the model router service (Epic 119).
+`python -m tools.orchestrator route <task> "<prompt>"` sends a task to the model that fits it, and
+`python -m tools.orchestrator routes` shows each task's chain with no network call.
+`tools/orchestrator/routing.json` holds the tasks: `narration`, `summary`, `analysis`, `strategy`
+and `delegate`. `narration` goes to the cheapest model first (local Ollama). `strategy` goes to the
+best first (Gemini Flash high).
+
+The service keeps each model within its requests-per-minute budget. After a rate limit or repeated
+failures it rests that model and falls through to the next provider. When every model is resting,
+it waits briefly for one to come free.
 Each tool's own bring-your-own-key model picker (VS Code Copilot Chat → Manage Models;
 Antigravity Settings → Customizations) still works alongside it.
 

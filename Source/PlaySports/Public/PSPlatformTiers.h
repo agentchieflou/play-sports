@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PSPerfTypes.h"
 #include "PSPlatformTiers.generated.h"
 
 /** How much broadcast overlay a tier draws (Specs/Platform_Audit.md section 4). */
@@ -59,6 +60,16 @@ struct FPSPlatformTier
     /** How much broadcast overlay this tier draws (Track A). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     EPSOverlayDetail OverlayDetail = EPSOverlayDetail::Full;
+
+    /** The frame rate this tier is budgeted for (Epic 114): a frame is 1000 / this ms. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float TargetFrameRate = 60.f;
+
+    /** Game-thread ms per frame each of the game's systems may use (Epic 114): one per
+     *  EPSPerfSystem, together within the frame. The profiling harness and CI hold the
+     *  measured times to them (Specs/Platform_Audit.md section 7). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    TArray<FPSSystemBudget> SystemBudgets;
 };
 
 /** Which tier a platform runs by default (platform names as UGameplayStatics::GetPlatformName
@@ -104,7 +115,16 @@ namespace PSPlatformTiers
     /** Problems with Catalog (empty when sound). */
     PLAYSPORTS_API TArray<FString> ValidateCatalog(const FPSPlatformTierCatalog& Catalog);
 
+    /** Problems with one tier's system budgets (Epic 114); Index names it in the messages. */
+    PLAYSPORTS_API TArray<FString> ValidateSystemBudgets(const FPSPlatformTier& Tier, int32 Index);
+
     PLAYSPORTS_API const FPSPlatformTier* FindTier(const FPSPlatformTierCatalog& Catalog, FName TierId);
+
+    /** System's frame-time budget on Tier, ms; negative when the tier has none for it. */
+    PLAYSPORTS_API float FindSystemBudget(const FPSPlatformTier& Tier, EPSPerfSystem System);
+
+    /** 1000 / the tier's target frame rate: the whole frame, ms. */
+    PLAYSPORTS_API float GetFrameBudgetMs(const FPSPlatformTier& Tier);
 
     /** The tier for PlatformName, unless Override names a tier. */
     PLAYSPORTS_API FName ResolveTierId(const FPSPlatformTierCatalog& Catalog, const FString& PlatformName, const FString& Override);

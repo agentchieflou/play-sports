@@ -1,5 +1,6 @@
 #include "PSRushMoveComponent.h"
 #include "PSAIDecisionLog.h"
+#include "PSPerfBudget.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
@@ -184,6 +185,7 @@ void UPSRushMoveComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 
 void UPSRushMoveComponent::TickRush(float DeltaSeconds)
 {
+    PS_PERF_SCOPE_NESTED(AI);
     Clock += DeltaSeconds;
     APSPlayerPawn* Blocker = GetBlocker();
     if (!Blocker || !IsRushing())

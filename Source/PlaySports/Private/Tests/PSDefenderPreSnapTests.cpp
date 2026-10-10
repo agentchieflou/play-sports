@@ -490,29 +490,48 @@ bool FPSDefenderCpuDisguiseTest::RunTest(const FString& Parameters)
     Tuning.CreepChanceAggressive = 1.f;
     Tuning.bCpuShadowsTopReceiver = false;
     DefensePreSnap->SetTuning(Tuning);
-    FPSTendencyProfile Aggressive;
-    Aggressive.AggressionScore = 1.f;
-    FPSTendencyProfile Conservative;
-    Conservative.AggressionScore = 0.f;
-    auto CpuCalls = [&](FName PlayId)
+    // The coach is the defending team's own: its plan at the play-call authority (Epic 89). A
+    // new down here is the home team's ball, so the away team defends.
+    auto CoachedPlan = [](float Aggression)
+    {
+        FPSTeamPlan Plan;
+        Plan.OffenseTendency.AggressionScore = Aggression;
+        Plan.DefenseTendency.AggressionScore = Aggression;
+        return Plan;
+    };
+    auto CpuCalls = [&](FName PlayId, bool bHomeBall = true)
     {
         NewDown(Bus, PlayCall);
+        if (!bHomeBall)
+        {
+            FPSSituationContext AwayBall = PlayCall->GetSituation();
+            AwayBall.bHomeHasPossession = false;
+            PlayCall->OpenPlayCall(AwayBall);
+        }
         PlayCall->CallPlay(TEXT("Offense_SlantFlat"), EPSPlayCaller::Human);
         PlayCall->CallPlay(PlayId, EPSPlayCaller::CPU);
         // The CPU plans its look as the defense lines up, on its next tick.
         DefensePreSnap->TickPreSnap(0.f);
     };
 
-    DefensePreSnap->SetTendency(Aggressive);
+    PlayCall->SetTeamPlan(false, CoachedPlan(1.f));
     CpuCalls(TEXT("Defense_34Cover3"));
     TestTrue(TEXT("An aggressive coach with a sharp secondary disguises"), DefensePreSnap->GetDisguise().bDisguiseShell);
     TestEqual(TEXT("...showing two-high on a single-high call"), DefensePreSnap->GetShownDeepSafeties(), 2);
 
-    DefensePreSnap->SetTendency(Conservative);
+    PlayCall->SetTeamPlan(false, CoachedPlan(0.f));
     CpuCalls(TEXT("Defense_34Cover3"));
     TestFalse(TEXT("A conservative coach doesn't"), DefensePreSnap->GetDisguise().bDisguiseShell);
 
-    DefensePreSnap->SetTendency(Aggressive);
+    // Each team's defense plays its own coach: with the away team on the ball, the home team
+    // (aggressive) defends and disguises; the away team (conservative) didn't.
+    PlayCall->SetTeamPlan(true, CoachedPlan(1.f));
+    CpuCalls(TEXT("Defense_34Cover3"), false);
+    TestTrue(TEXT("The home team's aggressive coach disguises its defense"), DefensePreSnap->GetDisguise().bDisguiseShell);
+    CpuCalls(TEXT("Defense_34Cover3"));
+    TestFalse(TEXT("...the away team's conservative one, on the next series, doesn't"), DefensePreSnap->GetDisguise().bDisguiseShell);
+
+    PlayCall->SetTeamPlan(false, CoachedPlan(1.f));
     for (APSPlayerPawn* Back : Field.Backs)
     {
         SetAwareness(Back, 0.f);

@@ -74,11 +74,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** DB-vs-WR is a continuous contest — press, leverage, cushion, zone handoffs, help rules.
 **Depends on:** C3, C4, Core 15, 68
 
-- [ ] Leverage model (inside/outside positioning as persistent state both AIs play against)
-- [ ] Press/jam contest at snap paired with 68's release system
-- [ ] Zone handoff rules (carry vertical, pass off underneath, communicate — visible via Track A stars)
-- [ ] Safety help behavior (over-the-top rules, robber, rotation integrity)
-- [ ] Pass-interference emergence: contest physics can draw Epic 11 penalty flags organically
+- [x] Leverage model (inside/outside positioning as persistent state both AIs play against) *(`UPSCoverageMatchupSubsystem`, the coverage matchup engine: every man matchup has its shell's side (`Shells` in `Data/coverage_matchups.json`), which the defender plays `LeverageShade` over and holds until the receiver crosses his face (`Coverage` Leverage Lost/Regained on the bus). The receiver plays against it: a break (now announced, `RouteRunning` Break) away from it puts the defender out of phase for the separation it makes (Epic 68's `BreakSeparationGain` plus `AwayFromLeverageBonus`, over `SeparationRecoverySpeed`), one into it gains nothing; a double move's fake toward it bites `LeverageBiteBonus` more often; an option route breaks away from it)*
+- [x] Press/jam contest at snap paired with 68's release system *(before the snap a man-coverage back over a receiver walks up to press when the shell allows it and his jam chance (one minus Epic 68's release chance) reaches `PressMinJamChance`; the receiver's route runner contests his release against that presser. A won jam trails tight (`PressCushion`); a beaten presser is out of phase `PressBeatenSeconds` and freezes)*
+- [x] Zone handoff rules (carry vertical, pass off underneath, communicate — visible via Track A stars) *(a zone defender picks up the receiver in his zone and plays on him; leaving it, he is handed to the zone he runs into, carried on vertically when no deeper zone is free, or passed off underneath. Each is announced (`Coverage` Carry, HandOff, PassOff) for the defensive iconography (Epic 31) to draw; drawing the stars is Epic 31's)*
+- [x] Safety help behavior (over-the-top rules, robber, rotation integrity) *(a deep defender stays `OverTopCushion` over the deepest receiver in his area; when one leaves the deep zones (a blown-coverage rotation, Epic 17.4) the rest split the field between them; man defenders left over in a man-free or Cover 1 call take the deep middle, then the robber, who jumps the crosser in his window)*
+- [x] Pass-interference emergence: contest physics can draw Epic 11 penalty flags organically *(a defender in contact with the targeted receiver while the ball is in the air, further from where it comes down than the receiver, draws a `PassInterference` flag (`FlagChance`, seeded per snap); `UPSPlaySimulation` enforces it as a spot foul with a first down, declined when the play gained more. Tests: `Tests/PSCoverageMatchupTests.cpp`)*
 
 ### Epic 70: Pass-Rush Move System
 
@@ -119,11 +119,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** Deception plays exist as first-class mechanics with defenders who can genuinely be fooled.
 **Depends on:** 66, 68, Core 14, Core 15
 
-- [ ] Play-action: fake handoff mechanics with linebacker-bite model (`Awareness` + tendency history)
-- [ ] RPO: post-snap read of a conflict defender gating give/pull/throw
-- [ ] Zone-read and triple-option assignments (dive/keep/pitch with defender keys)
-- [ ] Defensive integrity rules so option football is stoppable by disciplined AI
-- [ ] Playbook schema extensions (Epic 16) for all deception play types
+- [x] Play-action: fake handoff mechanics with linebacker-bite model (`Awareness` + tendency history) *(`UPSDeceptionSubsystem`: on a play-action call the QB carries out a fake hand-off toward his back for `FakeSeconds` (`EPSSkillPlayerAction::Fake`), then drops. Selling it, every run-fit defender bites with a chance from his `Awareness` and the share of runs in the offense's last `TendencyWindow` calls (an audible replaces the call it changes); one who bites holds `BiteFreezeSeconds` instead of dropping. `Deception` Fake/Bite on the bus; tuning `Data/deception.json`)*
+- [x] RPO: post-snap read of a conflict defender gating give/pull/throw *(the QB rides the mesh with the back for `MeshRideSeconds`, then reads the conflict defender (the linebacker nearest the pass option, else a back): heading for the back (or standing nearer him), he is playing the run and the QB pulls it and throws to the pass option; otherwise he gives)*
+- [x] Zone-read and triple-option assignments (dive/keep/pitch with defender keys) *(the read key is the end man on the line on the play side: playing the back, the QB keeps it, else gives. On the triple option, keeping it, he reads the pitch key and pitches once that key takes him (within `PitchReadRadius`), until he is `PitchWindowDepth` past the line)*
+- [x] Defensive integrity rules so option football is stoppable by disciplined AI *(at the mesh the defense hands out option jobs (`Deception` Assignment), which `UPSDefenderAIComponent` plays while the QB holds the ball near the line. A disciplined (`DisciplineAwareness`) read key takes the QB, so the read gives to a back the nearest lineman has; an undisciplined one crashes on the dive, and an aware linebacker scrapes over to the QB. The pitch key takes the pitch man, or the QB if he is undisciplined)*
+- [x] Playbook schema extensions (Epic 16) for all deception play types *(`FPSPlayDefinition::Deception` (`FPSDeceptionDef`: `Type`, `PlaySide`, `PassRole`, `PitchRole`), checked by `tools/content_contracts.py`; `Data/sample_playbook.json` gains play-action on the PA post, an RPO slant, a zone read and a triple option. Tests: `Tests/PSDeceptionTests.cpp`)*
 
 ### Epic 73: Full Penalty & Rules Depth
 

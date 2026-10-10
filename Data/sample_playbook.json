@@ -82,7 +82,8 @@
                 { "Role": "TightEnd", "Kind": "Route", "RouteId": "Out" },
                 { "Role": "RunningBack", "Kind": "PassBlock" },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" }
-            ]
+            ],
+            "Deception": { "Type": "PlayAction" }
         },
         {
             "PlayId": "Offense_ScreenLeft",
@@ -153,6 +154,51 @@
                 { "Role": "TightEnd", "Kind": "RunBlock" },
                 { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Curl" }
             ]
+        },
+        {
+            "PlayId": "Offense_ShotgunRPOSlant",
+            "DisplayName": "RPO Slant",
+            "Formation": "Shotgun",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Run",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -500, "Y": 0, "Z": 0 } },
+                { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -450, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "RunBlock" },
+                { "Role": "TightEnd", "Kind": "RunBlock" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Slant" }
+            ],
+            "Deception": { "Type": "RPO", "PlaySide": 1, "PassRole": "WideReceiver" }
+        },
+        {
+            "PlayId": "Offense_ShotgunZoneRead",
+            "DisplayName": "Zone Read",
+            "Formation": "Shotgun",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Run",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -500, "Y": 0, "Z": 0 } },
+                { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -450, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "RunBlock" },
+                { "Role": "TightEnd", "Kind": "RunBlock" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" }
+            ],
+            "Deception": { "Type": "ZoneRead", "PlaySide": 1 }
+        },
+        {
+            "PlayId": "Offense_IFormTripleOption",
+            "DisplayName": "Triple Option",
+            "Formation": "I-Form",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Run",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -100, "Y": 0, "Z": 0 } },
+                { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -400, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "RunBlock" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" }
+            ],
+            "Deception": { "Type": "TripleOption", "PlaySide": 1, "PitchRole": "TightEnd" }
         },
         {
             "PlayId": "Offense_Spike",
