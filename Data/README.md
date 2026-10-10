@@ -90,12 +90,20 @@ every CI build.
 | `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
 | `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
 | `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
+| `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
+| `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
 Field names must match exactly (case-sensitive): `PlayerId`, `DisplayName`, `Role`, `WeightKg`,
 `HeightCm`, `Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`, `Stamina`. Ratings run
 0-100; `WeightKg` and `HeightCm` are above 0.
+
+`DNA` is optional: the player's style (`FPSPlayerDNA`, Epic 79), an object of the style axes
+`player_dna.json` lists for his role, each from -1 to 1, e.g. `"DNA": { "Mobility": 0.6,
+"Gunslinger": -0.2 }`. A missing axis is 0, and a player with no `DNA` plays neutral. Don't write it
+by hand at roster scale: `python tools/player_dna.py --write` gives every player without one a
+profile generated from his ratings (see the player DNA schema below).
 
 `Role` must be one of the `EPlayerRole` enum names: `Quarterback`, `RunningBack`,
 `WideReceiver`, `TightEnd`, `OffensiveLineman`, `DefensiveLineman`, `Linebacker`,
@@ -115,6 +123,33 @@ if (!Ingestion->ValidatePlayersJson(JsonPath, Errors))
 `sample_players.json` is the in-game roster (`APSGameMode::RosterJsonPath`): 22 starters followed
 by 9 backups (`QB_002`, `RB_002`, `WR_004`, `TE_002`, `DL_005`, `DL_006`, `LB_004`, `DB_005`,
 `DB_006`). The depth chart is roster order, so a backup goes after the starters at his role.
+
+## Player DNA schema (`FPSPlayerDNACatalog`)
+
+Single object (Epic 79; per-athlete style, so two players rated alike play differently):
+- `Axes[]`, one per style axis. Each has:
+  - `Axis`: an `FPSPlayerDNA` field (`Mobility`, `Gunslinger`, `RunPower`, `RouteStyle`,
+    `RushPower`, `BallHawk`), each once.
+  - `Roles`: the `EPlayerRole`s it applies to; on anyone else it is ignored.
+  - `LowTrait`/`HighTrait` (identifiers, unique), `LowLabel`/`HighLabel` and
+    `LowDescription`/`HighDescription`: the scouting trait at each end. Its text goes into
+    `ui_text_data.csv` as `Trait.<TraitId>.Label` and `.Description` (`tools/ui_text.py --write`).
+  - `Generator`: how `tools/player_dna.py` generates the axis. `HighAttribute` and
+    `LowAttribute` (ratings) lean it: `RatingLean` axis points per point of their difference,
+    measured from the league's average for the role, plus seeded variation of standard
+    deviation `Spread` (0 or more).
+- `Bindings[]`: what the axes change in the AI. Each scales one numeric field (`Field`) of a
+  tuning (`Target`: `SkillAI` = `skill_ai_tuning.json`, `Pocket` = `pocket_tuning.json`,
+  `DefenderAI` = `defense_ai_tuning.json`, `RouteRunning` = `route_running.json`) by 1 at a
+  neutral axis, `AtHigh` at +1 and `AtLow` at -1 (both above 0), linearly between. Each AI
+  component applies its player's bindings as a play starts.
+- `RushMoveLeans[]`: `Move` (a move in `pass_rush_moves.json`, once) and `Lean` (-1 finesse to +1
+  power). The rush plan multiplies a move's score by `1 + RushStyleWeight * RushPower * Lean`.
+- `RushStyleWeight` (0 to below 1), `TraitThreshold` (above 0, at most 1): a scout sees an axis's
+  trait once the player is at least the threshold from neutral.
+
+`PSPlayerDNA::ValidateCatalog` and `tools/validate_data.py` check it; `validate_data.py` also checks
+every player's `DNA` against it.
 
 ## Personnel package schema (`FPSPersonnelCatalog`)
 
@@ -874,6 +909,22 @@ his role's label.
   player too; he already has the reticle).
 
 `UPSOverlayBadgeComponent::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Player emphasis schema (`FPSEmphasisStyle`)
+
+Single object (Epic 36; `UPSOverlayEmphasisSubsystem`, which commentary, replay and coaching tips
+ask to emphasize a player). It marks each emphasized player's meshes for the custom-depth pass with
+a stencil value; the emphasis post-process material draws the outline, glow or dimming for that
+value (`Specs/Player_Emphasis_Spec.md`).
+- `Kinds[]`: exactly one each for `Highlight` (a key-player callout), `Mismatch` (a mismatch alert)
+  and `Focus` (a replay's focus), with its `Stencil` (1-255) and `Priority` (of several requests on
+  one player the highest wins; under the budget the highest players are drawn first).
+- `DimStencil` (1-255): players dimmed by another's spotlight. All four stencils must differ.
+- `MaxEmphasized` (1 or more): players emphasized at once, since each costs custom-depth draws.
+  Dimmed players don't count.
+- `bSpotlightDimsEmphasized`: in a spotlight, dim the other emphasized players too.
+
+`UPSOverlayEmphasisSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Skycam schema (`FPSSkycamTuning`)
 

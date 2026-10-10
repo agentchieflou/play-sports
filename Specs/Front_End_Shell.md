@@ -101,8 +101,12 @@ editor handoff: what exists in code, and what an editor session adds.
 
 ## 2. Not yet (other epics)
 
-- `?mode=` and `?team=` are passed but nothing reads them yet: the match still loads
-  `RosterJsonPath`, Franchise needs its hub (Track G) and Practice the gym map (Core 24).
+- `?mode=` and `?team=` are read by the match (`UPSMatchSetup`, owned by `APSGameMode`): the
+  picked team is at home against the next team in league order, and both teams' coaching staffs
+  take over at kickoff (Epic 89). A franchise game travels with explicit `?home=`, `?away=` and
+  `?week=` from the schedule (`UPSFranchiseFlow::BuildUserMatch`, `UPSMatchSetup::ToOptions`).
+  The field still spawns `RosterJsonPath`'s players for both sides, whatever the teams; the
+  Franchise menu option still needs its hub (Track G) and Practice the gym map (Core 24).
 - Settings a slider would suit are stepped by choosing them until a designer widget gives
   them a slider (left/right on a focused option).
 - Narration has no voice: `OnNarration` fires, but nothing speaks it until a platform
