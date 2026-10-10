@@ -53,8 +53,8 @@ public:
     bool AddFreeAgent(const FPlayerAttributes& Player, int32 Age, float Morale, FName PreviousTeamId);
 
     /** Moves every player on a registered roster who has no contract (his deal expired at the
-     *  league-year rollover, or he never had one) into the pool, at his age in AgeByPlayerId (the
-     *  tuning's DefaultPlayerAge when missing). Returns how many moved. */
+     *  league-year rollover, or he never had one) into the pool, at his age in AgeByPlayerId (his own
+     *  UPSContractManager::GetPlayerAge when missing). Returns how many moved. */
     UFUNCTION(BlueprintCallable, Category = "Contracts|FreeAgency")
     int32 ReleaseUnsignedToPool(const TMap<FName, int32>& AgeByPlayerId);
 

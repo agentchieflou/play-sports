@@ -110,6 +110,11 @@ struct FPlayerAttributes : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float Stamina = 0.0f;
 
+    /** His age in years (Epic 122); optional in a roster file. 0 means unknown: the contract
+     *  manager then uses its tuning's DefaultPlayerAge. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 Age = 0;
+
     /** His style (Epic 79): optional in a roster file ("DNA": { "Mobility": 0.6 }); missing
      *  axes are 0. tools/player_dna.py generates it from the ratings. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)

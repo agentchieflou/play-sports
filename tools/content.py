@@ -15,6 +15,11 @@ league config, the playbook and the route library. Venues have no content type y
                     UPSPlaybookIngestion, the path the game uses.
   check             validate, then report (the default).
 
+validate, report and check take --root DIR to work on DIR/Data instead of the repo's: content
+laid out like the repo, such as what the generators' automation tests write. CI runs
+"check --root ... --strict" on Saved/GeneratedLeague (Epic 122) and Saved/GeneratedPlaybooks
+(Epic 121).
+
 Run from the repo root:  python tools/content.py [command]
 """
 
@@ -225,13 +230,13 @@ def print_report(report):
         print("No warnings.")
 
 
-def cmd_validate():
+def cmd_validate(root=None):
     validate_data.errors.clear()  # main() collects into a module list; start each run empty
-    return validate_data.main()
+    return validate_data.main(root)
 
 
-def cmd_report(as_json, strict):
-    report = build_report(REPO)
+def cmd_report(as_json, strict, root=None):
+    report = build_report(Path(root).resolve() if root else REPO)
     if as_json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
@@ -267,24 +272,29 @@ def cmd_import(runner=subprocess.call):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command")
-    sub.add_parser("validate", help="every data contract and cross-file reference")
+    root_help = "work on this directory's Data/ instead of the repo's"
+    validate = sub.add_parser("validate", help="every data contract and cross-file reference")
+    validate.add_argument("--root", help=root_help)
     report = sub.add_parser("report", help="statistical sanity of the league")
     report.add_argument("--json", action="store_true", help="machine-readable output")
     report.add_argument("--strict", action="store_true", help="exit 1 when there are warnings")
+    report.add_argument("--root", help=root_help)
     sub.add_parser("import", help="validate, then the PSContentReimport commandlet (needs UE_ROOT)")
     check = sub.add_parser("check", help="validate, then report (the default)")
     check.add_argument("--strict", action="store_true", help="exit 1 when the report warns")
+    check.add_argument("--root", help=root_help)
     args = parser.parse_args(argv)
+    root = getattr(args, "root", None)
 
     if args.command == "validate":
-        return cmd_validate()
+        return cmd_validate(root)
     if args.command == "report":
-        return cmd_report(args.json, args.strict)
+        return cmd_report(args.json, args.strict, root)
     if args.command == "import":
         return cmd_import()
-    status = cmd_validate()
+    status = cmd_validate(root)
     print("")
-    return max(status, cmd_report(False, getattr(args, "strict", False)))
+    return max(status, cmd_report(False, getattr(args, "strict", False), root))
 
 
 if __name__ == "__main__":

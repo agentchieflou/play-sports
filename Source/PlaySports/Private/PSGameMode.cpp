@@ -2,6 +2,7 @@
 #include "PSPlayCallSubsystem.h"
 #include "PSPreSnapSubsystem.h"
 #include "PSFieldReads.h"
+#include "PSGameStateEvents.h"
 #include "PSDataIngestion.h"
 #include "PSPlaySimulation.h"
 #include "Misc/Paths.h"
@@ -215,7 +216,7 @@ void APSGameMode::StartPlay()
             if (ExistingPawns.Num() == 0)
             {
                 // The pawns point at the roster's own rows (one authority, Epic C3/19.5).
-                const float ScrimmageX = PlaySimulation ? PlaySimulation->GetPlayState().YardLine * 100.f : 2000.f;
+                const float ScrimmageX = PSGameStateEvents::LineOfScrimmageFor(PlaySimulation ? PlaySimulation->GetPlayState().YardLine : 20).X;
                 CachedPawns = APSFieldGrid::SpawnPlayersFromRoster(Starters, ScrimmageX, GetWorld());
                 PersonnelManager->BindPawns(CachedPawns);
                 PersonnelManager->BindToBus(GetWorld()->GetSubsystem<UPSTelemetryBus>());
@@ -362,8 +363,9 @@ void APSGameMode::ExecuteSnap()
         SnapEvt.Down              = PlaySimulation->GetPlayState().Down;
         SnapEvt.Distance          = PlaySimulation->GetPlayState().Distance;
         SnapEvt.GameClockSeconds  = PlaySimulation->GetPlayState().GameClockSeconds;
-        // The same yard-line-to-world mapping ResetPawnPositions places the pawns with.
-        SnapEvt.LineOfScrimmage   = FVector(PlaySimulation->GetPlayState().YardLine * 100.f, 0.f, 0.f);
+        // The same yard-line-to-world mapping ResetPawnPositions places the pawns with, and the
+        // GameState event announces before the snap.
+        SnapEvt.LineOfScrimmage   = PSGameStateEvents::LineOfScrimmageFor(PlaySimulation->GetPlayState().YardLine);
         Bus->PublishSnap(SnapEvt);
     }
 
@@ -442,7 +444,7 @@ void APSGameMode::ResetPawnPositions()
     CurrentPlayIndex++;
 
     int32 YardLine = PlaySimulation->GetPlayState().YardLine;
-    float ScrimmageX = YardLine * 100.f;
+    float ScrimmageX = PSGameStateEvents::LineOfScrimmageFor(YardLine).X;
 
     // Epic 140: no punting means no safety valve to discourage 4th-down attempts, so
     // the defense fields extra defenders on 4th down instead.

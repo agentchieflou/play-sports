@@ -223,6 +223,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Replay")
     void Restart();
 
+    /** Something else has the screen (photo mode, Epic 45). While held the replay stands still:
+     *  no playhead, free camera, scrub or end hold moves, the automatic replay countdown waits,
+     *  and its buttons do nothing. A held scrub stops. */
+    UFUNCTION(BlueprintCallable, Category = "Replay")
+    void SetHeld(bool bInHeld);
+
+    UFUNCTION(BlueprintPure, Category = "Replay")
+    bool IsHeld() const { return bHeld; }
+
     // --- Cameras -------------------------------------------------------------------------
 
     /** Shows the replay through CameraName, one of the tuning's Cameras (see there). False for
@@ -468,4 +477,7 @@ private:
 
     /** The replay paused the game, and unpauses it at the end. */
     bool bPausedGame = false;
+
+    /** SetHeld: something else has the screen. */
+    bool bHeld = false;
 };

@@ -66,6 +66,32 @@ struct FPSRoute : public FTableRowBase
     FName VsZoneBranch;
 };
 
+/** How a play draws one of its assignments (Epic 35): an annotation layered on the play data.
+ *  The play art (PSPlayArt) and the position badges read it; the AI doesn't. */
+USTRUCT(BlueprintType)
+struct FPSPlayArtAnnotation
+{
+    GENERATED_BODY()
+
+    /** The assignment's art in this color ("#RRGGBB") instead of its read's or its icon's;
+     *  empty keeps the style's. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString Color;
+
+    /** The assignment's art drawn larger (the style's EmphasisScale): the play's key route, its
+     *  blitzer. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bEmphasis = false;
+
+    /** The letter the player wears on his position badge this play (Epic 28) -- "Y", "F", "M" --
+     *  one or two capitals or digits, where he wears no pass button; empty keeps his role's
+     *  label. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString BadgeLetter;
+
+    bool IsEmpty() const { return Color.IsEmpty() && !bEmphasis && BadgeLetter.IsEmpty(); }
+};
+
 /** One position slot's assignment within a play. */
 USTRUCT(BlueprintType)
 struct FPSPlayAssignment
@@ -89,6 +115,17 @@ struct FPSPlayAssignment
     /** Pre-snap formation offset from the ball's spot. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector FormationOffset = FVector::ZeroVector;
+
+    /** Where the route sits in the quarterback's progression, as the play art colors it
+     *  (Epic 27): 1 for the primary read, 2, 3, ... for the reads after it, down to the
+     *  check-down; 0 for a route the play doesn't rank. Only a Route with a RouteId has one.
+     *  The AI doesn't read it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 ReadOrder = 0;
+
+    /** How the play art draws this assignment (Epic 35): its color, emphasis and badge letter. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FPSPlayArtAnnotation Art;
 };
 
 /** What a play's quarterback fakes or reads after the snap (Epic 72). */

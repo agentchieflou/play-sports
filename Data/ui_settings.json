@@ -82,6 +82,18 @@
             "Description": "The play your coach suggests stands out on the play-call screens."
         },
         {
+            "SettingId": "RouteArt", "Category": "Gameplay", "Label": "Route art", "Kind": "Toggle", "Default": 1,
+            "Description": "Before the snap, your receivers' routes are drawn on the field, the primary read in its own color."
+        },
+        {
+            "SettingId": "DefenseIcons", "Category": "Gameplay", "Label": "Defensive assignments", "Kind": "Toggle", "Default": 1,
+            "Description": "Before the snap, your defense's call is drawn on the field: a star for each zone, a line from each defender to his man, an arrow for each rusher."
+        },
+        {
+            "SettingId": "StudyMode", "Category": "Gameplay", "Label": "Study mode", "Kind": "Toggle", "Default": 0,
+            "Description": "Shows the defense's assignments while you have the ball too, to learn to read coverages. Head-to-head games use their own rules."
+        },
+        {
             "SettingId": "Vibration", "Category": "Controls", "Label": "Vibration", "Kind": "Toggle", "Default": 1,
             "Description": "The controller rumbles on hits, catches and scores."
         },

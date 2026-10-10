@@ -397,11 +397,13 @@ bool FPSCameraAll22ToggleTest::RunTest(const FString& Parameters)
 
     // Its keys mean nothing in the contexts stacked over the field, so it works in each of them
     // and a pass or move press around the snap can never cut the camera (nor stop the input
-    // buffer carrying that press into the throw or move, Epic 104.4).
+    // buffer carrying that press into the throw or move, Epic 104.4). Photo mode (Epic 45) is the
+    // exception: it holds the game and takes every pad button but Start, so nothing can cut the
+    // camera it is flying.
     for (const FPSInputContextDef& ContextDef : Input->Catalog.Contexts)
     {
         if (ContextDef.ContextId == OnField || Input->GetContextPriority(ContextDef.ContextId) <= Input->GetContextPriority(OnField)
-            || ContextDef.ContextId == FName(TEXT("Menu")))
+            || ContextDef.ContextId == FName(TEXT("Menu")) || ContextDef.ContextId == FName(TEXT("PhotoMode")))
         {
             continue;
         }

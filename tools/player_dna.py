@@ -10,7 +10,9 @@ role has is
 
 clamped to -1..1 and rounded to two places. The variation is seeded by his PlayerId and the
 axis, so the same league always gets the same DNA, and two players rated alike still differ.
-Track L's league generator (Epic 122) calls generate_profile for each player it makes.
+This tool fills the hand-written rosters. Generated leagues (Epic 122, UPSLeagueGenerator) get
+their DNA from PSPlayerDNA::GenerateProfile, the same rule in C++ with the generator's seed as
+the variation, so the game can make a league at runtime.
 
   python tools/player_dna.py            report which players have no DNA
   python tools/player_dna.py --write    give DNA to every player who has none

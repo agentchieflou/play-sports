@@ -7,17 +7,21 @@
 #include "PSContractData.h"
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
+#include "PSTrainingData.h"
 #include "PSFranchiseFlow.generated.h"
 
 class UPSContractManager;
+class UPSDraft;
 class UPSFranchiseSeason;
 class UPSFreeAgency;
+class UPSLeagueGenerator;
 class UPSLockerRoom;
 class UPSOwnerEconomy;
 class UPSMatchSetup;
 class UPSRoster;
 class UPSStaffManager;
 class UPSStatsEngine;
+class UPSWeeklyPreparation;
 
 /**
  * UPSFranchiseFlow runs a franchise from week to week. It owns no league facts itself: the
@@ -26,6 +30,8 @@ class UPSStatsEngine;
  * flow puts them together:
  *
  *  - BuildUserMatch: the player's game this week, from the schedule, as a UPSMatchSetup.
+ *  - PrepareWeek: with weekly preparation (Epic 90), every team's practice week before its game:
+ *    development, fatigue, practice injuries and a gameplan for its opponent.
  *  - SimulateWeek: the week's unplayed games through the quick sim (UPSQuickSimRunner), each
  *    team playing with its coaching staff's scheme fit (UPSMatchSetup::ApplyStaffs), results
  *    recorded in the season and, with a statistics engine (Epic 92), every play in its box
@@ -92,6 +98,48 @@ public:
     /** Everything that has happened in the locker rooms, in order. */
     UFUNCTION(BlueprintPure, Category = "Franchise")
     const TArray<FPSLockerRoomEvent>& GetLockerRoomEvents() const { return LockerRoomEvents; }
+
+    /** The league's practice weeks (Epic 90): each week's practice runs before its games
+     *  (PrepareWeek); in every simulated game the injured sit and everyone plays at his freshness,
+     *  with his team's gameplan against that opponent; each game tires the players who played; the
+     *  season's end heals everyone. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetPreparation(UPSWeeklyPreparation* InPreparation) { Preparation = InPreparation; }
+
+    /** The league's draft (Epic 86): PrepareDraft makes the coming class to scout through the
+     *  season; BeginDraft opens it once the season is over. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetDraft(UPSDraft* InDraft) { Draft = InDraft; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSDraft* GetDraft() const { return Draft; }
+
+    /** The coming draft's class from Generator's draft-class mode (Epic 122) with Seed: the next
+     *  league year's (this one's once the season is over), its names new to the league's rostered
+     *  players. Every team with a roster joins with its scouting funding (the owner economy's
+     *  index, Epic 95), the player's team as the player's. False without a draft, a generator or
+     *  rosters. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    bool PrepareDraft(UPSLeagueGenerator* Generator, int32 Seed);
+
+    /** Once the season is over, the draft opens: the final standings' worst team picks first, the
+     *  contract manager signs the rookies, free agency takes the undrafted. False before the
+     *  season's end or without a prepared class. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    bool BeginDraft();
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSWeeklyPreparation* GetPreparation() const { return Preparation; }
+
+    /** This week's practice for every team with a roster (UPSWeeklyPreparation::PrepareTeam),
+     *  against its opponent this week, once a week; SimulateWeek runs it when it hasn't run. Set
+     *  the player's allocation and focus before. Returns (and keeps) what happened. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    TArray<FPSTrainingEvent> PrepareWeek();
+
+    /** Everything that has happened in practice, in order. */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    const TArray<FPSTrainingEvent>& GetTrainingEvents() const { return TrainingEvents; }
 
     /** Every team's books for the season that just ended (empty before then). */
     UFUNCTION(BlueprintPure, Category = "Franchise")
@@ -196,6 +244,15 @@ private:
 
     UPROPERTY(Transient)
     TArray<FPSLockerRoomEvent> LockerRoomEvents;
+
+    UPROPERTY(Transient)
+    UPSWeeklyPreparation* Preparation = nullptr;
+
+    UPROPERTY(Transient)
+    TArray<FPSTrainingEvent> TrainingEvents;
+
+    UPROPERTY(Transient)
+    UPSDraft* Draft = nullptr;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;

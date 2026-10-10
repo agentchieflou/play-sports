@@ -20,7 +20,8 @@
 //   5. Persistence: a clip saved, listed and loaded is the same play, with its frames thinned
 //      to the save rate (keyframes kept), and plays back by PlayerId.
 //   6. The controls' catalog: a Replay context over every depth context, each button with a key,
-//      a pad button and their glyphs, and a touch twin that does what its pad button does.
+//      a pad button and their glyphs, and a touch twin that does what its pad button does. The
+//      buttons, Pause and the Move stick trigger while the game is paused under the replay.
 //   7. The buttons drive the replay through the player controller, and leave with it.
 //   8. Every camera in replay: the director, both all-22 rigs, the skycam and the free camera
 //      on the Move stick, and the broadcast camera given back as it was.
@@ -34,6 +35,7 @@
 #include "Engine/World.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "HAL/FileManager.h"
+#include "InputAction.h"
 #include "Misc/Paths.h"
 #include "Engine/GameInstance.h"
 #include "PSBall.h"
@@ -985,7 +987,18 @@ bool FPSReplayControlsCatalogTest::RunTest(const FString& Parameters)
             }
         }
         TestTrue(*FString::Printf(TEXT("%s has a touch button"), *Name), bHasTwin);
+
+        // The replay pauses the game, and Enhanced Input drops an action that can't trigger then.
+        const UInputAction* Action = Input->FindAction(ActionId);
+        TestTrue(*FString::Printf(TEXT("%s triggers while the game is paused"), *Name), Action && Action->bTriggerWhenPaused);
     }
+    for (const TCHAR* FieldActionId : { TEXT("Move"), TEXT("Pause") })
+    {
+        const UInputAction* Action = Input->FindAction(FName(FieldActionId));
+        TestTrue(*FString::Printf(TEXT("%s triggers over a replay too (the free camera's stick, the pause menu)"), FieldActionId), Action && Action->bTriggerWhenPaused);
+    }
+    const UInputAction* Juke = Input->FindAction(TEXT("Juke"));
+    TestTrue(TEXT("A move on the field doesn't trigger while paused"), Juke && !Juke->bTriggerWhenPaused);
     for (const FString& Problem : PSTouchControls::ValidateLayout(Layout, &Input->Catalog, nullptr))
     {
         AddError(FString::Printf(TEXT("touch_controls.json: %s"), *Problem));

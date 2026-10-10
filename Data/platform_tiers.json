@@ -16,6 +16,7 @@
             "TelemetrySampleBudgetMs": 0.25,
             "ReplayPoseRateHz": 0,
             "OverlayDetail": "Full",
+            "PlayArtRefreshHz": 30,
             "TargetFrameRate": 60,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 1.0 },
@@ -37,6 +38,7 @@
             "TelemetrySampleBudgetMs": 0.15,
             "ReplayPoseRateHz": 30,
             "OverlayDetail": "Simplified",
+            "PlayArtRefreshHz": 15,
             "TargetFrameRate": 60,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 0.75 },
@@ -58,6 +60,7 @@
             "TelemetrySampleBudgetMs": 0.1,
             "ReplayPoseRateHz": 15,
             "OverlayDetail": "Minimal",
+            "PlayArtRefreshHz": 0,
             "TargetFrameRate": 30,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 1.0 },
