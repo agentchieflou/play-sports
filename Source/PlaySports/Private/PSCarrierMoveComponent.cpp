@@ -71,7 +71,7 @@ TArray<FString> UPSCarrierMoveComponent::ValidateCatalog(const FPSCarrierMoveCat
         {
             Problems.Add(Where + TEXT(": Attribute must be Agility, Strength or Speed"));
         }
-        if (Def.MinAttribute < 0.f || Def.MinAttribute > 100.f || Def.WindowSeconds < 0.f || Def.CooldownSeconds < 0.f || Def.StaminaCost < 0.f
+        if (Def.MinAttribute < 0.f || Def.MinAttribute > 100.f || Def.WindowSeconds < 0.f || Def.CommitSeconds < 0.f || Def.CooldownSeconds < 0.f || Def.StaminaCost < 0.f
             || Def.TackleChanceScale < 0.f || Def.SpeedRetained < 0.f || Def.SpeedRetained > 1.f || Def.LateralSpeed < 0.f || Def.ForwardSpeed < 0.f)
         {
             Problems.Add(Where + TEXT(": a number is out of range"));
@@ -121,7 +121,7 @@ bool UPSCarrierMoveComponent::TryMove(EPSCarrierMove Move, FVector2D Stick)
     }
     const float Rating = FMath::Clamp(GetRating(Carrier, Def->Attribute), 0.f, 100.f);
     const float* Ready = ReadyAt.Find(Move);
-    if (Rating < Def->MinAttribute || (Ready && Clock < *Ready) || Carrier->CurrentStamina < Def->StaminaCost)
+    if (Rating < Def->MinAttribute || (Ready && Clock < *Ready) || IsCommitted() || Carrier->CurrentStamina < Def->StaminaCost)
     {
         return false;
     }
@@ -131,6 +131,7 @@ bool UPSCarrierMoveComponent::TryMove(EPSCarrierMove Move, FVector2D Stick)
     ActiveMove = Move;
     ActiveRating = Rating;
     ActiveUntil = Clock + Def->WindowSeconds;
+    CommittedUntil = Clock + Def->CommitSeconds;
     ReadyAt.Add(Move, Clock + Def->CooldownSeconds);
     bGaveUp = Def->bGivesUp;
 
@@ -151,6 +152,17 @@ bool UPSCarrierMoveComponent::TryMove(EPSCarrierMove Move, FVector2D Stick)
     return true;
 }
 
+bool UPSCarrierMoveComponent::IsMoveBusy(EPSCarrierMove Move) const
+{
+    const APSPlayerPawn* Carrier = GetCarrier();
+    if (Move == EPSCarrierMove::None || !Carrier || !Carrier->HasPossession() || bGaveUp)
+    {
+        return false;
+    }
+    const float* Ready = ReadyAt.Find(Move);
+    return IsCommitted() || (Ready && Clock < *Ready);
+}
+
 bool UPSCarrierMoveComponent::IsMoveActive() const
 {
     return ActiveMove != EPSCarrierMove::None && Clock < ActiveUntil;
@@ -169,6 +181,7 @@ void UPSCarrierMoveComponent::ResetMoves()
 {
     ActiveMove = EPSCarrierMove::None;
     ActiveUntil = -1.f;
+    CommittedUntil = -1.f;
     ReadyAt.Reset();
     bGaveUp = false;
 }

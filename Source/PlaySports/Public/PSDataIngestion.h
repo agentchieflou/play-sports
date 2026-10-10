@@ -16,6 +16,7 @@
 #include "PSPassingComponent.h"
 #include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSInputBufferComponent.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -97,6 +98,10 @@ public:
      *  missing file, malformed JSON, or an unrecognized Move. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
+
+    /** Loads the input buffer windows (Data/input_buffer.json, Epic 104.4). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadInputBufferTuningFromJson(const FString& JsonFilePath, FInputBufferTuningRow& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

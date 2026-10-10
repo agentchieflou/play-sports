@@ -79,6 +79,10 @@ public:
      *  there). Slate-driven screens such as menus read their keys from here (Epic 101). */
     TArray<FKey> GetKeysFor(FName ActionId, FName ContextId) const;
 
+    /** The action Key is bound to in ContextId, or NAME_None when it means nothing there. The
+     *  input buffer uses it to tell a press that did something from one that did nothing. */
+    FName FindActionForKey(const FKey& Key, FName ContextId) const;
+
     /** The button glyph for ActionId in ContextId on Device (UPSInputGlyphs over this
      *  catalog's bindings). False when there is none, e.g. the action isn't bound there. */
     UFUNCTION(BlueprintCallable, Category = "Input")

@@ -312,3 +312,22 @@ TArray<FKey> UPSInputConfig::GetKeysFor(FName ActionId, FName ContextId) const
     }
     return Keys;
 }
+
+FName UPSInputConfig::FindActionForKey(const FKey& Key, FName ContextId) const
+{
+    for (const FPSInputActionDef& ActionDef : Catalog.Actions)
+    {
+        if (!ActionDef.Contexts.Contains(ContextId))
+        {
+            continue;
+        }
+        for (const FPSInputKeyBinding& Binding : ActionDef.Bindings)
+        {
+            if (FKey(Binding.Key) == Key)
+            {
+                return ActionDef.ActionId;
+            }
+        }
+    }
+    return NAME_None;
+}
