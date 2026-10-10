@@ -31,9 +31,9 @@ FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json; "ReticleSt
 FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuningRow, each pick
 action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files against
 FPSBroadcastOverlayTheme; "Settings" files against FPSSettingsCatalog (Epic 103.1);
-"CatenaryParameterCm" files against FPSSkycamTuning. Teams, the league config, the playbook, player
-rating ranges and every reference between files are tools/content_contracts.py's (Epic 125), run
-from here; "UncoveredSeparation" files against FBlownCoverageTuningRow.
+"CatenaryParameterCm" files against FPSSkycamTuning; "UncoveredSeparation" files against
+FBlownCoverageTuningRow. Teams, the league config, the playbook, player rating ranges and every
+reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py

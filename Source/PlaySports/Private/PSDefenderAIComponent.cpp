@@ -267,7 +267,12 @@ void UPSDefenderAIComponent::HandleBlownCoverage(const FPSTelemetryBlownCoverage
     {
         return;
     }
-    for (APSPlayerPawn* Candidate : GetFieldPawns())
+    UPSAIFieldSnapshot* Field = GetFieldSnapshot();
+    if (!Field)
+    {
+        return;
+    }
+    for (APSPlayerPawn* Candidate : Field->GetPawns())
     {
         if (Candidate && Candidate->TeamSide != Self->TeamSide && Candidate->GetAttributes().DisplayName == Event.ReceiverName)
         {
