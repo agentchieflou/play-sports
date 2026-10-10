@@ -18,6 +18,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Content/ is in Git LFS (Specs/ADR_Content_Pipeline.md): without it the editor would
+          # find pointer files where the levels are. The runner's persistent workspace keeps
+          # .git/lfs between runs, so normally only new objects are downloaded.
+          lfs: true
 
       - name: Lint conventions
         shell: powershell

@@ -7,6 +7,8 @@
 #include "PSFormations.h"
 #include "PSFieldGrid.generated.h"
 
+class APSFieldSurface;
+
 /**
  * The field in the level: its end zones and boundary volumes, and yard-line coordinates. Every
  * position is in the field's one frame (PSField, Data/field_dimensions.json) -- yard line N at
@@ -30,6 +32,10 @@ public:
 
     /** The volumes SpawnBoundaryVolumes made. */
     const TArray<AActor*>& GetBoundaryVolumes() const { return BoundaryVolumes; }
+
+    /** The field you see (APSFieldSurface, Epic 146.3): the level's own if it has one, else one
+     *  spawned now. Either way it is built from data. BeginPlay calls it; headless tests call it. */
+    APSFieldSurface* SpawnFieldSurface();
 
     // Converts a field coordinate (YardLine, LateralYard from the left sideline) to a world space position (FVector)
     UFUNCTION(BlueprintCallable, Category = "Field")

@@ -1,0 +1,19 @@
+{
+    "GroundMeshPath": "/Engine/BasicShapes/Cube.Cube",
+    "PlaneMeshPath": "/Engine/BasicShapes/Plane.Plane",
+    "MeshSizeCm": 100.0,
+    "MaterialPath": "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
+    "ColorParameter": "Color",
+    "FieldColor": "#2E7D32",
+    "SurroundColor": "#1E5B24",
+    "NearEndZoneColor": "#1F4E9C",
+    "FarEndZoneColor": "#9C1F1F",
+    "LineColor": "#FFFFFF",
+    "GroundThicknessCm": 20.0,
+    "LayerLiftCm": 0.5,
+    "LineWidthYards": 0.1111,
+    "YardLineSpacingYards": 5.0,
+    "HashSpacingYards": 1.0,
+    "HashLengthYards": 0.6667,
+    "HashOffsetYards": 3.0833
+}

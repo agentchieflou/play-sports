@@ -1,0 +1,31 @@
+# Git LFS for binary content (owner decision 2026-10-10; Specs/ADR_Content_Pipeline.md).
+#
+# Every Unreal asset goes through LFS, whether the content pipeline generated it
+# (tools/content_pipeline) or someone made it in the editor. LFS objects are never merged:
+# a conflict on a generated asset is resolved by regenerating it, on a hand-made one by
+# picking a side (the ADR's "Hand edits" section).
+*.uasset filter=lfs diff=lfs merge=lfs -text
+*.umap filter=lfs diff=lfs merge=lfs -text
+
+# Source binaries that are imported into Content/ or staged beside it: textures, models, audio,
+# video and fonts. None of these types is committed outside LFS today.
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.tga filter=lfs diff=lfs merge=lfs -text
+*.exr filter=lfs diff=lfs merge=lfs -text
+*.psd filter=lfs diff=lfs merge=lfs -text
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.bk2 filter=lfs diff=lfs merge=lfs -text
+*.ttf filter=lfs diff=lfs merge=lfs -text
+*.otf filter=lfs diff=lfs merge=lfs -text
+
+# Not here on purpose: RawAssets/world's .glb, .webp and .hdr files (11 MB in all, browser-sized
+# CC0 sources with per-file provenance) are already committed as plain Git objects. Listing their
+# types would leave every clone with files that "should have been pointers". The first change that
+# adds a large source binary of those types (the 2k Poly Haven originals, say) adds the type here
+# and runs `git add --renormalize RawAssets` in the same commit.

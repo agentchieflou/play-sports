@@ -1,0 +1,144 @@
+name: Content
+
+# Epic 146: content as code (Specs/ADR_Content_Pipeline.md). Runs the content pipeline's Python
+# steps (tools/content_pipeline/) in the editor, headlessly, on the self-hosted runner:
+#   UnrealEditor-Cmd.exe play-sports.uproject -run=pythonscript -script=tools/content_pipeline/run_in_editor.py
+#
+# Two modes:
+#   build  Pull requests, and manual runs by default. Runs every step and uploads whatever it
+#          changed under Content/, with the lock, as the generated-content artifact. A push made
+#          with GITHUB_TOKEN would not trigger CI, so this workflow never commits: the branch's
+#          author commits the artifact (python tools/content_pipeline/pipeline.py apply <dir>;
+#          .gitattributes routes the assets through Git LFS) and pushes, and that push gets normal
+#          CI. The run fails while the branch's content is behind its sources, so a pull request
+#          can't look green without the content it generates. The push that commits the artifact
+#          runs this workflow again, which must then find nothing to change.
+#   check  Pushes to main, and manual runs that ask for it: the drift check. Fails when the
+#          committed content no longer matches its sources: first the source fingerprints (fast,
+#          no editor), then every step re-run in the editor without saving, which must find
+#          nothing to change.
+#
+# It runs only when the pipeline or Content/ changes (the paths below), so a code-only pull
+# request never pays for an extra editor run on the shared runner. ci.yml is separate.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "build: run the steps and upload what changed; check: the drift check"
+        type: choice
+        options:
+          - build
+          - check
+        default: build
+      steps:
+        description: "Comma-separated step ids from tools/content_pipeline/pipeline.json (empty: every step)"
+        type: string
+        default: ""
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/content.yml
+      - tools/content_pipeline/**
+      - Content/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/content.yml
+      - tools/content_pipeline/**
+      - Content/**
+
+concurrency:
+  group: content-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  content:
+    name: Content pipeline (headless editor)
+    runs-on: [self-hosted, windows, unreal]
+    timeout-minutes: 90
+    env:
+      PS_CONTENT_MODE: ${{ github.event_name == 'push' && 'check' || inputs.mode || 'build' }}
+      PS_CONTENT_STEPS: ${{ inputs.steps }}
+    steps:
+      - name: Checkout (with Git LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Source fingerprints (fast drift check)
+        # No editor: every step's sources unchanged since its content was generated, and every
+        # output the bytes the pipeline wrote. In build mode it only reports: the build fixes it.
+        shell: powershell
+        run: |
+          if ($env:PS_CONTENT_MODE -eq "check") {
+            python tools/content_pipeline/pipeline.py check
+            if ($LASTEXITCODE -ne 0) { throw "Content drift: the committed content no longer matches its sources" }
+          } else {
+            python tools/content_pipeline/pipeline.py check --report-only
+          }
+
+      - name: Build PlaySportsEditor
+        # The steps load the project's classes (the level's game mode is APSGameMode).
+        shell: powershell
+        run: |
+          if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$env:GITHUB_WORKSPACE\play-sports.uproject" -WaitMutex
+          if ($LASTEXITCODE -ne 0) { throw "UnrealBuildTool failed with exit code $LASTEXITCODE" }
+
+      - name: Run the pipeline in the editor
+        shell: powershell
+        run: |
+          if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
+          $Report = Join-Path $env:GITHUB_WORKSPACE "Saved\ContentPipeline\report.json"
+          if (Test-Path $Report) { Remove-Item -Force $Report }
+          $env:PS_CONTENT_REPORT = $Report
+          $Script = (Join-Path $env:GITHUB_WORKSPACE "tools\content_pipeline\run_in_editor.py") -replace '\\', '/'
+          & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$env:GITHUB_WORKSPACE\play-sports.uproject" -run=pythonscript "-script=$Script" -unattended -nullrhi -nosplash -nop4 -log
+          $EditorCode = $LASTEXITCODE
+          python tools/content_pipeline/pipeline.py summarize "$Report"
+          $ReportCode = $LASTEXITCODE
+          if ($EditorCode -ne 0) { throw "The editor exited with code $($EditorCode); the report above and the content-logs artifact say why" }
+          if ($ReportCode -ne 0) { throw "The content pipeline failed or found drift (report above)" }
+
+      - name: Stage the generated content
+        if: ${{ env.PS_CONTENT_MODE == 'build' }}
+        shell: powershell
+        run: |
+          python tools/content_pipeline/pipeline.py stage Saved/ContentPipeline/out
+          if ($LASTEXITCODE -ne 0) { throw "Staging the generated content failed" }
+
+      - name: Upload the generated content
+        if: ${{ env.PS_CONTENT_MODE == 'build' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-content
+          path: Saved/ContentPipeline/out/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload the editor log and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-logs
+          path: |
+            Saved/Logs/
+            Saved/ContentPipeline/report.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Content committed?
+        # A build that changed anything means the branch doesn't carry the content its sources
+        # generate yet.
+        if: ${{ env.PS_CONTENT_MODE == 'build' }}
+        shell: powershell
+        run: |
+          if (Test-Path "Saved/ContentPipeline/out/changed.txt") {
+            Get-Content "Saved/ContentPipeline/out/changed.txt", "Saved/ContentPipeline/out/deleted.txt"
+            throw "This branch's content is behind its sources: download the generated-content artifact, run python tools/content_pipeline/pipeline.py apply <dir>, commit (Git LFS) and push."
+          }
+          Write-Output "The branch's content matches what its sources generate."

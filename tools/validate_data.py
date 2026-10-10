@@ -116,10 +116,12 @@ against FPSFormationCatalog (Data/formations.json): known techniques, sides and 
 formation the plays, generator, staffs and packages name with a slot for each of its package's
 players and the QBAlignment, Backfield and Strength play_recognition.json reads from them, every
 front and shell the plays, run_fits.json and coverage_matchups.json name, each defensive call's
-package placed, and each shell's deep safeties defensive_presnap.json's. "PressedOpacity" files
-against FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1,
-#RRGGBB colors, positive sizes. Teams, the league config, the playbook, player rating ranges and
-every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+package placed, and each shell's deep safeties defensive_presnap.json's. "HashOffsetYards" files
+against FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): the field's meshes and
+material named, #RRGGBB colors, positive line sizes and spacings. "PressedOpacity" files against
+FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1, #RRGGBB
+colors, positive sizes. Teams, the league config, the playbook, player rating ranges and every
+reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -2157,6 +2159,40 @@ def validate_touch_hud(path, payload):
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTouchHudStyle exactly")
+
+
+FIELD_MARKING_PATHS = ("GroundMeshPath", "PlaneMeshPath", "MaterialPath")
+FIELD_MARKING_COLORS = ("FieldColor", "SurroundColor", "NearEndZoneColor", "FarEndZoneColor", "LineColor")
+FIELD_MARKING_POSITIVE = ("MeshSizeCm", "GroundThicknessCm", "LineWidthYards", "YardLineSpacingYards",
+                          "HashSpacingYards", "HashLengthYards")
+FIELD_MARKING_NON_NEGATIVE = ("LayerLiftCm", "HashOffsetYards")
+
+
+def validate_field_markings(path, payload):
+    """FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): how APSFieldSurface draws the
+    field; mirrors APSFieldSurface::ValidateStyle."""
+    for field in FIELD_MARKING_PATHS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.startswith("/"):
+            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Plane.Plane")
+    if not isinstance(payload.get("ColorParameter"), str) or not payload["ColorParameter"]:
+        err(path, "ColorParameter must name the material's color parameter")
+    for field in FIELD_MARKING_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in FIELD_MARKING_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in FIELD_MARKING_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    known = set(FIELD_MARKING_PATHS) | set(FIELD_MARKING_COLORS) | set(FIELD_MARKING_POSITIVE) \
+        | set(FIELD_MARKING_NON_NEGATIVE) | {"ColorParameter"}
+    extra = set(payload) - known
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldMarkingsStyle exactly")
 
 
 PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
@@ -6044,6 +6080,8 @@ def main(root=None):
             validate_field_dimensions(path, payload)
         if isinstance(payload, dict) and "PressedOpacity" in payload:
             validate_touch_hud(path, payload)
+        if isinstance(payload, dict) and "HashOffsetYards" in payload:
+            validate_field_markings(path, payload)
         if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:
