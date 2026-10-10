@@ -2,6 +2,7 @@
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
 #include "PSLocalization.h"
+#include "PSPlayRecognitionTypes.h"
 #include "PSPocketComponent.h"
 #include "PSRouteRunning.h"
 #include "PSSkillPlayerAIComponent.h"
@@ -54,6 +55,10 @@ const UScriptStruct* PSPlayerDNA::FindTargetStruct(FName Target)
     if (Target == TEXT("RouteRunning"))
     {
         return FRouteRunningTuningRow::StaticStruct();
+    }
+    if (Target == TEXT("Recognition"))
+    {
+        return FPSPlayRecognitionTuning::StaticStruct();
     }
     return nullptr;
 }
@@ -236,7 +241,7 @@ TArray<FString> PSPlayerDNA::ValidateCatalog(const FPSPlayerDNACatalog& Catalog)
         const UScriptStruct* Struct = FindTargetStruct(Binding.Target);
         if (!Struct)
         {
-            Problems.Add(FString::Printf(TEXT("%s: unknown target (SkillAI, Pocket, DefenderAI or RouteRunning)"), *Where));
+            Problems.Add(FString::Printf(TEXT("%s: unknown target (SkillAI, Pocket, DefenderAI, RouteRunning or Recognition)"), *Where));
         }
         else if (!FindFProperty<FFloatProperty>(Struct, Binding.Field))
         {

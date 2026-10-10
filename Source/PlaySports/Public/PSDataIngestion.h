@@ -68,6 +68,7 @@
 #include "PSLooseBallSubsystem.h"
 #include "PSDifficultyTypes.h"
 #include "PSDeceptionSubsystem.h"
+#include "PSPlayRecognitionTypes.h"
 #include "PSPerfTypes.h"
 #include "PSPlayArtTypes.h"
 #include "PSGameIntelligenceTypes.h"
@@ -167,6 +168,11 @@ public:
     /** Loads deception football's tuning (Data/deception.json, Epic 72). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadDeceptionTuningFromJson(const FString& JsonFilePath, FPSDeceptionTuning& OutTuning);
+
+    /** Loads formation and play recognition's tuning and formation classes
+     *  (Data/play_recognition.json, Epic 80). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlayRecognitionTuningFromJson(const FString& JsonFilePath, FPSPlayRecognitionTuning& OutTuning);
 
     /** Loads how the players play a blocked kick's loose ball (Data/loose_ball.json, Epic 17.4). */
     UFUNCTION(BlueprintCallable, Category = "Data")

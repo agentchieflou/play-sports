@@ -85,7 +85,8 @@ struct FPSDNABinding
     FName Axis;
 
     /** The tuning it scales: SkillAI (FSkillPlayerAITuningRow), Pocket (FPocketTuningRow),
-     *  DefenderAI (FDefenderAITuningRow) or RouteRunning (FRouteRunningTuningRow). */
+     *  DefenderAI (FDefenderAITuningRow), RouteRunning (FRouteRunningTuningRow) or Recognition
+     *  (FPSPlayRecognitionTuning, Epic 80). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DNA")
     FName Target;
 

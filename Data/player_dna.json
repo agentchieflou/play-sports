@@ -83,7 +83,9 @@
         { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "BallHawkRadius", "AtLow": 0.6, "AtHigh": 1.5 },
         { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "ManCushion", "AtLow": 0.5, "AtHigh": 1.6 },
         { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "ZoneShadeWeight", "AtLow": 0.7, "AtHigh": 1.3 },
-        { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "PumpFakeFreezeSeconds", "AtLow": 0.5, "AtHigh": 1.8 }
+        { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "PumpFakeFreezeSeconds", "AtLow": 0.5, "AtHigh": 1.8 },
+        { "Axis": "BallHawk", "Target": "Recognition", "Field": "ThrowReadScale", "AtLow": 1.3, "AtHigh": 0.6 },
+        { "Axis": "BallHawk", "Target": "Recognition", "Field": "FakeReadScale", "AtLow": 0.7, "AtHigh": 1.4 }
     ],
     "RushMoveLeans": [
         { "Move": "Bull", "Lean": 1.0 },

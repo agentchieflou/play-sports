@@ -5,7 +5,6 @@
     "ZoneRadius": 700,
     "ZoneShadeWeight": 0.5,
     "ContainWidth": 400,
-    "PassReadDepth": 250,
     "PassDropDepth": 600,
     "MaxReactionSeconds": 0.6,
     "BallHawkRadius": 1200,

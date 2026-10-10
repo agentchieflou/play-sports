@@ -67,6 +67,7 @@ every CI build.
 | `blown_coverage.json` | `FBlownCoverageTuningRow` (single object) | `UPSDataIngestion::LoadBlownCoverageTuningFromJson`, via `UPSBlownCoverageSubsystem` |
 | `loose_ball.json` | `FPSLooseBallTuning` (single object) | `UPSDataIngestion::LoadLooseBallTuningFromJson`, via `UPSLooseBallSubsystem` |
 | `deception.json` | `FPSDeceptionTuning` (single object) | `UPSDataIngestion::LoadDeceptionTuningFromJson`, via `UPSDeceptionSubsystem` |
+| `play_recognition.json` | `FPSPlayRecognitionTuning` (single object: classifier geometry, `FormationClasses`, key and read tuning) | `UPSDataIngestion::LoadPlayRecognitionTuningFromJson`, via `UPSPlayRecognitionSubsystem` |
 | `coverage_matchups.json` | `FPSCoverageMatchupTuning` (single object: tuning, `Shells`, `DefaultShell`) | `UPSDataIngestion::LoadCoverageMatchupTuningFromJson`, via `UPSCoverageMatchupSubsystem` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
@@ -178,7 +179,8 @@ Single object (Epic 79; per-athlete style, so two players rated alike play diffe
     deviation `Spread` (0 or more).
 - `Bindings[]`: what the axes change in the AI. Each scales one numeric field (`Field`) of a
   tuning (`Target`: `SkillAI` = `skill_ai_tuning.json`, `Pocket` = `pocket_tuning.json`,
-  `DefenderAI` = `defense_ai_tuning.json`, `RouteRunning` = `route_running.json`) by 1 at a
+  `DefenderAI` = `defense_ai_tuning.json`, `RouteRunning` = `route_running.json`, `Recognition` =
+  `play_recognition.json`) by 1 at a
   neutral axis, `AtHigh` at +1 and `AtLow` at -1 (both above 0), linearly between. Each AI
   component applies its player's bindings as a play starts.
 - `RushMoveLeans[]`: `Move` (a move in `pass_rush_moves.json`, once) and `Lean` (-1 finesse to +1
@@ -255,7 +257,7 @@ Single object (Epic 84; how hard the CPU plays and how much the game helps, `UPS
   - `ThrowScatterScale` (above 0): execution variance, how many times as far a CPU passer's throws
     scatter as his Awareness alone makes them.
   - `Scales[]`: recognition and execution dials. `Dial` names the capability, `Target` the AI
-    tuning (`SkillAI`, `Pocket`, `DefenderAI` or `RouteRunning`, as in `player_dna.json`), `Field`
+    tuning (`SkillAI`, `Pocket`, `DefenderAI`, `RouteRunning` or `Recognition`, as in `player_dna.json`), `Field`
     one of its numbers and `Scale` (above 0) what it is multiplied by for the CPU's players, after
     their style. Each field once per tier.
 - `DifficultySetting`, `PassLeadSetting`, `AutoSlideSetting`, `SuggestedPlaySetting`: the settings
@@ -597,10 +599,11 @@ distances are cm, times seconds:
 - `ZoneRadius`, `ZoneShadeWeight` (at most 1): a zone defender plays receivers this close to his
   spot, moving this fraction of the way toward the nearest (0 holds the spot).
 - `ContainWidth`: a contain rusher aims this far outside the passer.
-- `PassReadDepth`, `PassDropDepth`: a passer this far behind the line is a pass read; a run-fit
-  defender then drops to `PassDropDepth` past the line.
-- `MaxReactionSeconds`: how long a defender with 0 Awareness takes to react to a read or a
-  throw (no delay at 100).
+- `PassDropDepth`: a run-fit defender who reads pass (`play_recognition.json`'s keys, Epic 80)
+  drops to this depth past the line.
+- `MaxReactionSeconds`: how long a defender with 0 Awareness takes to react (no delay at 100): to
+  the ball coming out as it is, to his keys and a throw as `play_recognition.json`'s read scales
+  stretch it.
 - `BallHawkRadius`: coverage defenders this close to where a pass comes down break on it.
 - `PumpFakeFreezeSeconds`: how long a coverage defender with 0 Awareness freezes on a pump fake
   (no freeze at 100).
@@ -1264,13 +1267,11 @@ Every number is 0 or more; distances are cm:
 
 Single object (Epic 72; play-action, RPO and option football, `UPSDeceptionSubsystem`). Every
 number is 0 or more; distances are cm, chances 0-1, ratings 0-100:
-- `FakeSeconds`: the QB carries out a play-action fake hand-off this long before his drop.
-- `BiteBaseChance`, `BiteRunTendencyWeight`, `BiteAwarenessWeight`, `BiteMinChance`,
-  `BiteMaxChance` (min at most max): a run-fit defender bites on the fake with chance
-  `Base + RunTendencyWeight * (RunShare - 0.5) * 2 - AwarenessWeight * Awareness / 100`, held
-  between min and max. `RunShare` is the share of runs in the offense's last `TendencyWindow`
-  (whole, 1 or more) scrimmage calls.
-- `BiteFreezeSeconds`: a defender who bites holds this long instead of dropping.
+- `FakeSeconds`: the QB carries out a play-action fake hand-off this long before his drop. A
+  run-fit defender who hasn't seen through it by then bites: `play_recognition.json` (Epic 80)
+  says who and for how long.
+- `TendencyWindow` (whole, 1 or more): the offense's run share is the share of runs in its last
+  this-many scrimmage calls; the recognition model expects the run from it.
 - `MeshRideSeconds`: on a run option the QB rides the mesh with the back this long after the snap
   before he reads his key.
 - `ReadMinSpeed` (cm/s): a key moving at least this fast is read by whom he is heading for (the
@@ -1288,6 +1289,50 @@ number is 0 or more; distances are cm, chances 0-1, ratings 0-100:
   scrapes over to the QB.
 
 `tools/validate_data.py` checks it.
+
+## Play recognition schema (`FPSPlayRecognitionTuning`)
+
+Single object (Epic 80; how defenders read the offense, `UPSPlayRecognitionSubsystem`). Distances
+are cm, speeds cm/s; every number is 0 or more:
+- The formation, read from the alignment at the snap (the offense attacks +X):
+  - `UnderCenterMaxDepth`, `PistolMaxDepth` (not shallower): a QB this close behind the line is
+    under center, then in the pistol; deeper, in the shotgun.
+  - `BackfieldMinDepth`, `BoxHalfWidth`: anyone but the QB and the line this deep and this close to
+    the ball across the field is a back; everyone else is a receiver on his side of the ball.
+  - `StackWidth`: two backs this close across are an I, further apart split. `OffsetWidth`: a lone
+    back further across than this is offset. Three backs are a full house.
+  - `InlineWidth`: a receiver this close to the ball is in tight (a tight end here is inline);
+    further out he is split. The strong side has more receivers, then more inline tight ends, then
+    is the right.
+  - `FormationClasses[]`, most specific first: the read is named after the first whose every
+    condition holds. `ClassId` (an identifier, once, not `Unknown`); optional `QBAlignment`
+    (`UnderCenter`, `Pistol`, `Shotgun`), `Backfield` (`Empty`, `Single`, `Offset`, `I`, `Split`,
+    `Full`), `MinStrongSide`, `MaxWeakSide` (-1 for any), `MinTightEnds`, `MinSplitReceivers`
+    (whole numbers); `RunLean` (0-1), how likely the defense thinks a run is from the look.
+  - `DefaultRunLean` (0-1): the lean of a look no class matches (`Unknown`).
+- The keys, read after the snap:
+  - `DropKeyDepth`, `DropKeyRetreat`: the QB with the ball this far behind the line and this much
+    deeper than he lined up is a drop (pass).
+  - `FlowMinSpeed` (above 0): a back in the box behind the line heading downhill (more than across)
+    this fast is backfield flow (run, but a fake can show it).
+  - `LineKeyDistance` (above 0): the linemen on average this far forward of their stance is a run,
+    this far back a pass set. A hand-off is a run.
+- The reads: a defender reads a pass key in his reaction (`defense_ai_tuning.json`'s
+  `MaxReactionSeconds` at his Awareness) times `PassReadScale`, a run key times `RunReadScale`,
+  breaks on a throw times `ThrowReadScale` and sees through a play-action fake times
+  `FakeReadScale`; `player_dna.json` binds these by style (`Target` `Recognition`). A true key beats
+  backfield flow; between keys alike, the latest shown wins.
+  - `TendencyWeight` (0-1): what he expects is the formation's lean pulled this far toward the
+    offense's recent run share (`deception.json`'s `TendencyWindow`).
+  - `ExpectationWeight`: expecting the run outright, a pass read takes `1 + ExpectationWeight`
+    times as long (a run read likewise expecting the pass); the fake read between
+    `1 - ExpectationWeight` and `1 + ExpectationWeight` times.
+  - `LatencyJitter` (0 to below 1): each defender's fake read varies by up to this fraction,
+    seeded per snap.
+  - `MaxBiteSeconds`: one who hasn't seen through the fake by `deception.json`'s `FakeSeconds`
+    bites, holding for the rest of his fake read, at most this long.
+
+`PSPlayRecognition::ValidateTuning` and `tools/validate_data.py` check it.
 
 ## Route schema extras (`FPSRoute`, Epic 68)
 
