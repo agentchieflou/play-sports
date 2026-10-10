@@ -47,7 +47,8 @@ have to be measured on the phone.
     review-rejection.
 - **Build and signing.** Building and signing for iOS needs a Mac with Xcode, and an Apple
   account to install on the phone: a free Apple ID for 7-day test builds, or the Developer
-  Program for TestFlight. The how is Epic 131's decision record.
+  Program for TestFlight. The how is Epic 131's decision record (`Specs/ADR_iOS_Build.md`)
+  and the human signing steps (`Specs/iOS_Signing_Runbook.md`).
 
 ## 3. Tiers
 

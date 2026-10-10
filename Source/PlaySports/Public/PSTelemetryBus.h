@@ -21,6 +21,7 @@ enum class EPSTelemetryEventType : uint8
     ControlChange,
     PlayCall,
     PumpFake,
+    PassRushMove,
     Personnel
 };
 
@@ -308,6 +309,38 @@ struct FPSTelemetryPumpFakeEvent
     FVector PasserLocation = FVector::ZeroVector;
 };
 
+/** A pass rusher's move against his blocker was resolved (Epic 70): won, or stopped by the
+ *  blocker's response. UPSRushMoveComponent publishes it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPassRushEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString RusherName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString BlockerName;
+
+    /** The EPSRushMove, by name (Bull, Swim, ...). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Move;
+
+    /** The EPSBlockResponse that stopped it, by name; empty when the move won. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Response;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float WinChance = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bWon = false;
+
+    /** Two blockers were on the rusher. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bDoubleTeamed = false;
+};
+
 /** A side's personnel changed (Epic 19.5): a new package came on, or players were
  *  substituted within one (a sit-out, a tired player). UPSPersonnelManager publishes it; a
  *  personnel panel (Track A, Epic 29) reads it. */
@@ -366,6 +399,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryInputDeviceSignature, co
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeSignature, const FPSTelemetryControlChangeEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallSignature, const FPSTelemetryPlayCallEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeSignature, const FPSTelemetryPumpFakeEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushSignature, const FPSTelemetryPassRushEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelSignature, const FPSTelemetryPersonnelEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
@@ -382,6 +416,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryInputDeviceMC, const FPSTelemetr
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeMC, const FPSTelemetryControlChangeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallMC, const FPSTelemetryPlayCallEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeMC, const FPSTelemetryPumpFakeEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushMC, const FPSTelemetryPassRushEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelMC, const FPSTelemetryPersonnelEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
@@ -435,6 +470,9 @@ public:
     void PublishPumpFake(const FPSTelemetryPumpFakeEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPassRushMove(const FPSTelemetryPassRushEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishPersonnel(const FPSTelemetryPersonnelEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -486,6 +524,9 @@ public:
     FPSTelemetryPumpFakeSignature OnPumpFake;
 
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPassRushSignature OnPassRushMove;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPersonnelSignature OnPersonnel;
 
     FPSTelemetrySnapMC OnSnapMC;
@@ -502,6 +543,7 @@ public:
     FPSTelemetryControlChangeMC OnControlChangeMC;
     FPSTelemetryPlayCallMC OnPlayCallMC;
     FPSTelemetryPumpFakeMC OnPumpFakeMC;
+    FPSTelemetryPassRushMC OnPassRushMoveMC;
     FPSTelemetryPersonnelMC OnPersonnelMC;
 
 private:
