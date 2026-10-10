@@ -228,7 +228,7 @@ bool FPSTouchLayoutTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Juke on touch has a glyph"), Config->GetGlyphForAction(TEXT("Juke"), TEXT("BallCarrier"), EPSInputDevice::Touch, Glyph));
     TestEqual(TEXT("Juke on touch is its button"), Glyph.GlyphId, FName(TEXT("Touch_Juke")));
     TestFalse(TEXT("Juke has no glyph on the field outside the carrier context"), Config->GetGlyphForAction(TEXT("Juke"), TEXT("OnField"), EPSInputDevice::Touch, Glyph));
-    TestTrue(TEXT("Touch keys belong to the Touch device"), UPSInputGlyphs::GetDeviceForKey(EKeys::Touch1) == EPSInputDevice::Touch);
+    TestTrue(TEXT("Touch keys belong to the Touch device"), UPSInputGlyphs::GetDeviceForKey(EKeys::TouchKeys[ETouchIndex::Touch1]) == EPSInputDevice::Touch);
     TestTrue(TEXT("Gamepad keys still belong to the gamepad"), UPSInputGlyphs::GetDeviceForKey(EKeys::Gamepad_FaceButton_Bottom) == EPSInputDevice::Gamepad);
 
     // The active device follows a finger, and the glyph a prompt shows follows the bus event.
@@ -260,7 +260,7 @@ bool FPSTouchLayoutTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("A finger switches to Touch"), Devices->GetActiveDevice() == EPSInputDevice::Touch);
         Devices->NotifyInput(EKeys::Gamepad_FaceButton_Bottom, 1.f);
         TestTrue(TEXT("A pad button switches to the gamepad"), Devices->GetActiveDevice() == EPSInputDevice::Gamepad);
-        Devices->NotifyInput(EKeys::Touch1, 1.f);
+        Devices->NotifyInput(EKeys::TouchKeys[ETouchIndex::Touch1], 1.f);
         TestTrue(TEXT("A touch key switches back to Touch"), Devices->GetActiveDevice() == EPSInputDevice::Touch);
 
         TestEqual(TEXT("Three device changes reached the bus"), PromptGlyphs.Num(), 3);
