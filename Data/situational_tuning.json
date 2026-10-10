@@ -1,0 +1,47 @@
+{
+    "Tempos": [
+        { "Tempo": "Huddle", "Label": "Huddle", "SnapAtPlayClockSeconds": 12.0, "bRerunLastCall": false },
+        { "Tempo": "NoHuddle", "Label": "No-huddle", "SnapAtPlayClockSeconds": 25.0, "bRerunLastCall": false },
+        { "Tempo": "HurryUp", "Label": "Hurry-up", "SnapAtPlayClockSeconds": 40.0, "bRerunLastCall": true },
+        { "Tempo": "MilkClock", "Label": "Milk the clock", "SnapAtPlayClockSeconds": 2.0, "bRerunLastCall": false }
+    ],
+    "SituationTempos": [
+        { "Situation": "Normal", "ClockRunningTempo": "Huddle", "ClockStoppedTempo": "Huddle" },
+        { "Situation": "TwoMinuteDrill", "ClockRunningTempo": "HurryUp", "ClockStoppedTempo": "NoHuddle" },
+        { "Situation": "FourMinuteOffense", "ClockRunningTempo": "MilkClock", "ClockStoppedTempo": "Huddle" },
+        { "Situation": "VictoryFormation", "ClockRunningTempo": "MilkClock", "ClockStoppedTempo": "MilkClock" }
+    ],
+    "HumanTempoCycle": ["Huddle", "NoHuddle", "HurryUp"],
+    "SpikeTempo": "HurryUp",
+    "KneelTempo": "MilkClock",
+    "TwoMinuteWindowSeconds": 120.0,
+    "TwoScoreWindowSeconds": 300.0,
+    "OneScorePoints": 8,
+    "ClockUrgencySeconds": 60.0,
+    "MaxSpikeDown": 2,
+    "SpikeMinSeconds": 3.0,
+    "FourMinuteWindowSeconds": 240.0,
+    "DefenseTimeoutWindowSeconds": 180.0,
+    "MaxDeficitToChase": 16,
+    "KneelPlaySeconds": 2.0,
+    "KneelPreSnapSeconds": 38.0,
+    "EndOfHalfKneelSeconds": 30.0,
+    "EndOfHalfKneelMaxYardLine": 30,
+    "ClockPlayWeight": 5.0,
+    "SidelineRouteIds": ["Out", "Flat"],
+    "MiddleRouteIds": ["Slant", "Curl", "Post"],
+    "SidelinePlayDelta": 1.0,
+    "MiddlePlayDelta": -0.5,
+    "CategoryWeights": [
+        { "Situation": "TwoMinuteDrill", "bOffense": true, "Category": "Run", "Delta": -1.0, "Reason": "Two-minute drill: a run keeps the clock moving" },
+        { "Situation": "TwoMinuteDrill", "bOffense": true, "Category": "DeepPass", "Delta": 1.0, "Reason": "Two-minute drill: need chunks of yardage" },
+        { "Situation": "TwoMinuteDrill", "bOffense": true, "Category": "Screen", "Delta": 0.5, "Reason": "Two-minute drill: yards after the catch" },
+        { "Situation": "TwoMinuteDrill", "bOffense": false, "Category": "Prevent", "Delta": 1.5, "Reason": "Two-minute drill: keep everything in front" },
+        { "Situation": "TwoMinuteDrill", "bOffense": false, "Category": "Blitz", "Delta": -1.0, "Reason": "Two-minute drill: don't give up the big play" },
+        { "Situation": "FourMinuteOffense", "bOffense": true, "Category": "Run", "Delta": 1.5, "Reason": "Four-minute offense: run and keep the clock moving" },
+        { "Situation": "FourMinuteOffense", "bOffense": true, "Category": "DeepPass", "Delta": -1.0, "Reason": "Four-minute offense: an incompletion stops the clock" },
+        { "Situation": "FourMinuteOffense", "bOffense": true, "Category": "PlayAction", "Delta": -0.5, "Reason": "Four-minute offense: an incompletion stops the clock" },
+        { "Situation": "FourMinuteOffense", "bOffense": false, "Category": "Base", "Delta": 1.0, "Reason": "Need a stop: load up against the run" },
+        { "Situation": "FourMinuteOffense", "bOffense": false, "Category": "Prevent", "Delta": -1.0, "Reason": "Need the ball back: no soft coverage" }
+    ]
+}

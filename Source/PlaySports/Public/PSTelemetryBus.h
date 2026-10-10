@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "PSSituationData.h"
 #include "PSTelemetryBus.generated.h"
 
 UENUM(BlueprintType)
@@ -22,7 +23,8 @@ enum class EPSTelemetryEventType : uint8
     PlayCall,
     PumpFake,
     PassRushMove,
-    PreSnap
+    PreSnap,
+    Timeout
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -300,6 +302,19 @@ struct FPSTelemetryPlayCallEvent
     /** True when a person chose it; false for the CPU's call. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bHumanCall = false;
+
+    /** The offense's tempo for this snap (Epic 76); the defense's call carries Huddle. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSTempo Tempo = EPSTempo::Huddle;
+
+    /** The play-clock reading the offense snaps at (its tempo's); negative for the defense.
+     *  UPSPlaySimulation runs a running game clock down to it at the snap. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float SnapAtPlayClockSeconds = -1.f;
+
+    /** What the offense's ball carrier does about the sideline on this call. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSBoundaryIntent BoundaryIntent = EPSBoundaryIntent::None;
 };
 
 /** The passer sold a throw he didn't make (Epic 104): coverage that bites freezes. */
@@ -384,6 +399,25 @@ struct FPSTelemetryPreSnapEvent
     bool bManIndicator = false;
 };
 
+/** A side calls a timeout (Epic 76). UPSPlaySimulation, the clock's authority, charges it
+ *  and stops the clock, or refuses it when the side has none left. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryTimeoutEvent
+{
+    GENERATED_BODY()
+
+    /** True for the possessing team, false for the defense. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bOffense = true;
+
+    /** True when a person called it; false for the CPU. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHumanCall = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float GameClockSeconds = 0.f;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -425,6 +459,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallSignature, const
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeSignature, const FPSTelemetryPumpFakeEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushSignature, const FPSTelemetryPassRushEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapSignature, const FPSTelemetryPreSnapEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutSignature, const FPSTelemetryTimeoutEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -442,6 +477,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallMC, const FPSTelemetryPl
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeMC, const FPSTelemetryPumpFakeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushMC, const FPSTelemetryPassRushEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapMC, const FPSTelemetryPreSnapEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutMC, const FPSTelemetryTimeoutEvent&);
 
 /** Any event, once it is in the history and before its typed delegates fire (Epic 26). */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryEventRecordedMC, const FPSTelemetryEvent&);
@@ -501,6 +537,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishPreSnap(const FPSTelemetryPreSnapEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishTimeout(const FPSTelemetryTimeoutEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -576,6 +615,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPreSnapSignature OnPreSnap;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryTimeoutSignature OnTimeout;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -592,6 +634,7 @@ public:
     FPSTelemetryPumpFakeMC OnPumpFakeMC;
     FPSTelemetryPassRushMC OnPassRushMoveMC;
     FPSTelemetryPreSnapMC OnPreSnapMC;
+    FPSTelemetryTimeoutMC OnTimeoutMC;
 
     /** Fires for every event as it is recorded, before its typed delegates, so a listener
      *  sees the world exactly as it was when the event happened (Epic 26's keyframes). */
