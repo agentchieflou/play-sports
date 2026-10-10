@@ -1,9 +1,11 @@
 #include "PSPlayOrchestrator.h"
+#include "PSAIFieldSnapshot.h"
 #include "PSPlayerPawn.h"
 #include "PSOffenseController.h"
 #include "PSDefenseController.h"
 #include "PSPreSnapSubsystem.h"
 #include "PSRouteRunnerComponent.h"
+#include "PSDataIngestion.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 
@@ -83,6 +85,8 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
         {
             continue;
         }
+        // The play it hands out is the one it re-coordinates if it breaks down.
+        BindToBus(Pawn->GetWorld());
 
         const EPlayerRole PawnRole = Pawn->GetAttributes().Role;
         int32& Cursor = RoleAssignmentCursor.FindOrAdd(PawnRole, 0);
@@ -184,35 +188,81 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
     }
 }
 
-void UPSPlayOrchestrator::TriggerScrambleDrill(const TArray<APSPlayerPawn*>& OnFieldPawns, const FVector& QBLocation)
+void UPSPlayOrchestrator::TriggerScrambleDrill(const TArray<APSPlayerPawn*>& OnFieldPawns, const FVector& QBLocation, float ScrambleSide)
 {
+    const FPocketTuningRow& Tuning = GetScrambleTuning();
+    const float Side = ScrambleSide != 0.f ? ScrambleSide : (QBLocation.Y < 0.f ? -1.f : 1.f);
     for (APSPlayerPawn* Pawn : OnFieldPawns)
     {
-        if (!Pawn)
+        if (!Pawn || Pawn->TeamSide != EPSTeamSide::Offense)
         {
             continue;
         }
-
         const EPlayerRole Role = Pawn->GetAttributes().Role;
-        if (Role != EPlayerRole::WideReceiver && Role != EPlayerRole::TightEnd)
+        if (Role != EPlayerRole::WideReceiver && Role != EPlayerRole::TightEnd && Role != EPlayerRole::RunningBack)
         {
             continue;
         }
 
+        // Only players out on a route: a blocker keeps blocking.
         APSOffenseController* OffenseController = Cast<APSOffenseController>(Pawn->GetController());
-        if (!OffenseController)
+        if (!OffenseController || OffenseController->GetRouteWaypointCount() == 0)
         {
             continue;
         }
 
-        // Scramble drill: abandon the current route, break toward open space
-        // near the scrambling QB, jittered deterministically per receiver.
-        const float JitterX = DeterminismStream.FRandRange(-300.f, 300.f);
-        const float JitterY = DeterminismStream.FRandRange(-300.f, 300.f);
+        // Scramble drill: abandon the route for a spot the QB can throw to, jittered
+        // deterministically per receiver.
+        const FVector2D Jitter(DeterminismStream.FRandRange(-1.f, 1.f), DeterminismStream.FRandRange(-1.f, 1.f));
         TArray<FVector> ScrambleTarget;
-        ScrambleTarget.Add(QBLocation + FVector(400.f + JitterX, JitterY, 0.f));
+        ScrambleTarget.Add(PSPocket::ScrambleDrillSpot(Pawn->GetActorLocation(), QBLocation, Side, Jitter, Tuning));
         OffenseController->SetAssignedRoute(ScrambleTarget);
+        if (UPSRouteRunnerComponent* Runner = OffenseController->GetRouteRunner())
+        {
+            Runner->ClearRoutePlan();
+        }
     }
+}
+
+void UPSPlayOrchestrator::BindToBus(UWorld* World)
+{
+    UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Bus || BoundBus.Get() == Bus)
+    {
+        return;
+    }
+    if (UPSTelemetryBus* Previous = BoundBus.Get())
+    {
+        Previous->OnPocketMC.RemoveAll(this);
+    }
+    Bus->OnPocketMC.AddUObject(this, &UPSPlayOrchestrator::HandlePocket);
+    BoundBus = Bus;
+}
+
+void UPSPlayOrchestrator::HandlePocket(const FPSTelemetryPocketEvent& Event)
+{
+    UPSTelemetryBus* Bus = BoundBus.Get();
+    if (Event.Kind != EPSPocketEventKind::Escape || !Bus)
+    {
+        return;
+    }
+    // The field as the AI reads it this frame (Epic 17.5).
+    TriggerScrambleDrill(UPSAIFieldSnapshot::GetFieldPawns(Bus->GetWorld()), Event.Location, Event.ScrambleSide);
+}
+
+const FPocketTuningRow& UPSPlayOrchestrator::GetScrambleTuning()
+{
+    if (!bScrambleTuningLoaded)
+    {
+        bScrambleTuningLoaded = true;
+        UPSDataIngestion* Ingestion = NewObject<UPSDataIngestion>(this);
+        FPocketTuningRow Loaded;
+        if (Ingestion->LoadPocketTuningFromJson(UPSPocketComponent::GetDefaultTuningPath(), Loaded))
+        {
+            ScrambleTuning = Loaded;
+        }
+    }
+    return ScrambleTuning;
 }
 
 void UPSPlayOrchestrator::SeedDeterminism(int32 Seed)

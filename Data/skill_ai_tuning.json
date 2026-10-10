@@ -17,5 +17,6 @@
     "SidelineCushion": 450.0,
     "SidelineSteerWeight": 1.0,
     "ReadWindowSeconds": 0.8,
-    "MaxAnticipationSeconds": 0.3
+    "MaxAnticipationSeconds": 0.3,
+    "BlownCoverageSeparation": 1000.0
 }

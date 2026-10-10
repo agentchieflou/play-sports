@@ -9,6 +9,7 @@
 #include "PSPlayerPawn.h"
 #include "PSPreSnapSubsystem.h"
 #include "PSRouteRunnerComponent.h"
+#include "PSPocketComponent.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
 
@@ -86,6 +87,7 @@ void UPSSkillPlayerAIComponent::BindToBus()
     Bus->OnThrowMC.AddUObject(this, &UPSSkillPlayerAIComponent::HandleThrow);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSSkillPlayerAIComponent::HandlePhaseChange);
     Bus->OnControlChangeMC.AddUObject(this, &UPSSkillPlayerAIComponent::HandleControlChange);
+    Bus->OnPocketMC.AddUObject(this, &UPSSkillPlayerAIComponent::HandlePocket);
     BoundBus = Bus;
 }
 
@@ -98,6 +100,7 @@ void UPSSkillPlayerAIComponent::UnbindFromBus()
         Bus->OnThrowMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
         Bus->OnControlChangeMC.RemoveAll(this);
+        Bus->OnPocketMC.RemoveAll(this);
     }
     BoundBus.Reset();
 }
@@ -144,9 +147,26 @@ void UPSSkillPlayerAIComponent::HandleSnap(const FPSTelemetrySnapEvent& Event)
     bSnapPending = true;
     TimeSinceSnap = 0.f;
     LineOfScrimmage = Event.LineOfScrimmage;
+    bScrambleDrill = false;
     if (UPSRouteRunnerComponent* Runner = GetRouteRunner())
     {
         Runner->ResetRun();
+    }
+    if (UPSPocketComponent* Pocket = GetPocket())
+    {
+        // The play's rolls, the same every time this snap is replayed.
+        const int32 Seed = Event.Down * 7919 + Event.YardLine * 104729 + FMath::RoundToInt(Event.GameClockSeconds * 100.f);
+        Pocket->ResetPlay(Seed);
+    }
+}
+
+void UPSSkillPlayerAIComponent::HandlePocket(const FPSTelemetryPocketEvent& Event)
+{
+    // The QB is out of the pocket: receivers go into the scramble drill (the orchestrator hands
+    // out the spots); the next tick runs it.
+    if (Event.Kind == EPSPocketEventKind::Escape && bPlayLive)
+    {
+        bScrambleDrill = true;
     }
 }
 
@@ -198,7 +218,24 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
         StartOpeningAction(Self);
     }
 
-    // Whoever holds the ball carries it -- except a QB who hasn't decided what to do yet.
+    // The scramble drill: a receiver on (or done with) his route runs to his drill spot.
+    if (bScrambleDrill)
+    {
+        bScrambleDrill = false;
+        const APSOffenseController* Controller = GetOffenseController();
+        const bool bFree = Action == EPSSkillPlayerAction::RunRoute || Action == EPSSkillPlayerAction::Idle;
+        if (Role != EPlayerRole::Quarterback && bFree && !Self->HasPossession() && Controller && Controller->GetRouteWaypointCount() > 0)
+        {
+            Action = EPSSkillPlayerAction::RunRoute;
+            if (UPSRouteRunnerComponent* Runner = GetRouteRunner())
+            {
+                Runner->ResetRun();
+            }
+        }
+    }
+
+    // Whoever holds the ball carries it -- except a QB who hasn't decided what to do yet. A QB
+    // carrying it is scrambling: behind the line he can still throw (Epic 71).
     if (Self->HasPossession())
     {
         if (Role == EPlayerRole::Quarterback && Action != EPSSkillPlayerAction::CarryBall)
@@ -208,6 +245,10 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
         else
         {
             Action = EPSSkillPlayerAction::CarryBall;
+            if (Role == EPlayerRole::Quarterback)
+            {
+                TickScrambler(Self);
+            }
         }
     }
     else if (Action == EPSSkillPlayerAction::CarryBall)
@@ -230,8 +271,22 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
             Direction = SteerAlongRoute(Self);
         }
         break;
+    case EPSSkillPlayerAction::ReadDefense:
+        // The QB moves in the pocket as it asks: climb, slide, or hold (Epic 71).
+        if (Role == EPlayerRole::Quarterback && Self->HasPossession() && GetPocket())
+        {
+            Direction = GetPocket()->ReadPocket(Self, GetFieldPawns(), LineOfScrimmage).Direction;
+        }
+        break;
     case EPSSkillPlayerAction::CarryBall:
-        Direction = SteerAsCarrier(Self);
+        if (Role == EPlayerRole::Quarterback && GetPocket() && GetPocket()->IsScrambling() && Self->GetActorLocation().X < LineOfScrimmage.X)
+        {
+            Direction = GetPocket()->SteerScramble(Self, GetFieldPawns());
+        }
+        else
+        {
+            Direction = SteerAsCarrier(Self);
+        }
         break;
     case EPSSkillPlayerAction::TrackBall:
         if (FVector::Dist2D(Self->GetActorLocation(), TrackTarget) > GetTuning().WaypointArrivalRadius)
@@ -330,9 +385,20 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
         return;
     }
 
+    // The pocket (Epic 71): a sack about to land is settled first -- a blind-side strip, or the
+    // ball thrown away -- and a collapsed pocket counts as pressure.
+    const TArray<APSPlayerPawn*> Pawns = GetFieldPawns();
+    UPSPocketComponent* Pocket = GetPocket();
+    if (Pocket && Pocket->ResolveImminentSack(Self, Pawns, LineOfScrimmage))
+    {
+        Action = EPSSkillPlayerAction::Idle;
+        return;
+    }
+    const FPSPocketRead PocketRead = Pocket ? Pocket->ReadPocket(Self, Pawns, LineOfScrimmage) : FPSPocketRead();
+
     float PressureDistance = TNumericLimits<float>::Max();
-    PSFieldReads::NearestOpponent(GetFieldPawns(), Self->TeamSide, Self->GetActorLocation(), &PressureDistance);
-    const bool bPressured = PressureDistance <= Settings.PressureRadius;
+    PSFieldReads::NearestOpponent(Pawns, Self->TeamSide, Self->GetActorLocation(), &PressureDistance);
+    const bool bPressured = PressureDistance <= Settings.PressureRadius || PocketRead.bCollapsed;
     if (TimeSinceSnap < Settings.MinReadSeconds && !bPressured)
     {
         return;
@@ -355,9 +421,46 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
         }
         else
         {
+            // Out of the pocket: the escape sends the receivers into the scramble drill.
             Action = EPSSkillPlayerAction::CarryBall;
+            if (Pocket)
+            {
+                Pocket->BeginScramble(Self, PocketRead, TimeSinceSnap);
+            }
         }
     }
+}
+
+void UPSSkillPlayerAIComponent::TickScrambler(APSPlayerPawn* Self)
+{
+    UPSPocketComponent* Pocket = GetPocket();
+    if (!Pocket)
+    {
+        return;
+    }
+    const TArray<APSPlayerPawn*> Pawns = GetFieldPawns();
+    if (Pocket->IsScrambling() && Self->GetActorLocation().X < LineOfScrimmage.X)
+    {
+        // Behind the line he can still throw: away under a sack, or on the run to an open man.
+        if (Pocket->ResolveImminentSack(Self, Pawns, LineOfScrimmage))
+        {
+            Action = EPSSkillPlayerAction::Idle;
+            return;
+        }
+        if (Pocket->CanThrowOnTheRun(TimeSinceSnap))
+        {
+            bool bOpen = false;
+            float Separation = 0.f;
+            APSPlayerPawn* Receiver = ChooseReceiver(bOpen, Separation, true);
+            if (Receiver && bOpen)
+            {
+                ThrowTo(Self, Receiver);
+            }
+        }
+        return;
+    }
+    // Past it he is a runner, and protects himself.
+    Pocket->MaybeSlide(Self, Pawns, LineOfScrimmage);
 }
 
 APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& OutSeparation, bool bWholeField)
@@ -410,11 +513,13 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& 
     {
         APSPlayerPawn* Candidate = Eligible[Index];
         UPSRouteRunnerComponent* Runner = Runners[Index];
-        if (Runner && !bLate && (TimeSinceSnap < Runner->GetReadTime() - Anticipation || TimeSinceSnap > Runner->GetReadTime() + Settings.ReadWindowSeconds))
+        // A receiver whose coverage is blown is read whatever his timing (Epic 17).
+        float Separation = PSFieldReads::Separation(Pawns, Candidate);
+        const bool bBlown = Separation >= Settings.BlownCoverageSeparation;
+        if (Runner && !bLate && !bBlown && (TimeSinceSnap < Runner->GetReadTime() - Anticipation || TimeSinceSnap > Runner->GetReadTime() + Settings.ReadWindowSeconds))
         {
             continue;
         }
-        float Separation = PSFieldReads::Separation(Pawns, Candidate);
         if (Runner && Runner->HasBreak() && !Runner->HasBroken())
         {
             // Throwing before the break, he counts on the separation it will make.
@@ -597,6 +702,12 @@ UPSRouteRunnerComponent* UPSSkillPlayerAIComponent::GetRouteRunner() const
 {
     const APSOffenseController* Controller = GetOffenseController();
     return Controller ? Controller->GetRouteRunner() : nullptr;
+}
+
+UPSPocketComponent* UPSSkillPlayerAIComponent::GetPocket() const
+{
+    const APSOffenseController* Controller = GetOffenseController();
+    return Controller ? Controller->GetPocket() : nullptr;
 }
 
 APSPlayerPawn* UPSSkillPlayerAIComponent::GetSelf() const

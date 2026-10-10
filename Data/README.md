@@ -61,6 +61,7 @@ every CI build.
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `pocket_tuning.json` | `FPocketTuningRow` (single object) | `UPSDataIngestion::LoadPocketTuningFromJson`, via `UPSPocketComponent` and `UPSPlayOrchestrator` |
 | `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
@@ -263,6 +264,8 @@ more; distances are cm, times seconds:
 - `ReadWindowSeconds`, `MaxAnticipationSeconds` (Epic 68): a receiver on a planned route is read
   from his break (as much as `MaxAnticipationSeconds` before it at Awareness 100) until
   `ReadWindowSeconds` after it.
+- `BlownCoverageSeparation` (Epic 17's broken-play reactions): a receiver this far from every
+  defender is read whatever his route's timing.
 
 ## Defensive AI tuning schema (`FDefenderAITuningRow`)
 
@@ -696,3 +699,36 @@ Single object (Epic 39; `UPSCameraSkycamComponent`, a camera hung from four cabl
 - `LookAheadCm`: how far ahead of whoever it follows it looks. `FieldOfView` (0-170 degrees).
 
 `UPSCameraSkycamComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Pocket tuning schema (`FPocketTuningRow`)
+
+Single object (Epic 71; the quarterback's pocket and scramble, `UPSPocketComponent`, and the
+scramble drill, `UPSPlayOrchestrator::TriggerScrambleDrill`). Every field is a number, 0 or
+more; distances are cm, chances 0-1, ratings 0-100:
+- `PocketRadius`, `EngagedPressureWeight` (at most 1), `EdgeWidth`: rushers within the radius
+  press on the pocket, a blocked one at the weight of a free one, more the closer; one further
+  than `EdgeWidth` across the field from the quarterback comes off the edge.
+- `MinPressure`, `CollapsePressure` (min below collapse), `EscapeRadius`: below `MinPressure`
+  he holds; edge pressure makes him climb (never within `ClimbStopDistance` of the line),
+  inside pressure slide away from it. The pocket has collapsed at `CollapsePressure`, or with a
+  free rusher within `EscapeRadius`: time to escape.
+- `SackImminentRadius`: a free rusher this close is about to sack him.
+- `StripBaseChance`, `StripStrengthWeight`: a rusher sacking him from behind (his blind side)
+  strips the ball with the base chance plus the weight per point of Strength he has on him.
+- `ThrowawayMinAwareness`, `GroundingAvoidAwareness` (min not above avoid): a quarterback who
+  sees the sack coming throws the ball away from the first Awareness on; from the second he
+  takes the sack rather than ground it.
+- `TackleBoxHalfWidth`: a throwaway from inside the tackle box with no receiver near it is a
+  grounding risk (announced for the rules to flag).
+- `ThrowawayReceiverRange`, `ThrowawayShort`, `ThrowawayDepth`, `ThrowawayWidth`: he throws it
+  away at the feet of a receiver within the range (`ThrowawayShort` short of him), else past the
+  line and out toward his sideline.
+- `ScrambleForwardBias`, `ScrambleMaxSeconds`, `RunLaneClearance`, `RunLaneWidth`: scrambling,
+  he runs across the field this much upfield, looks to throw on the run for this long, and tucks
+  it and runs when no defender is in his lane this far ahead.
+- `SlideTriggerRadius`, `SlideMinGain`: past the line he slides ahead of a defender this close
+  once he has gained `SlideMinGain`.
+- `ScrambleDrillDepth`, `ScrambleDrillWidth`, `ScrambleDrillJitter`, `ScrambleDeepDepth`,
+  `ScrambleDeepRunOn`: in the scramble drill a receiver breaks to `ScrambleDrillDepth` upfield of
+  the quarterback, `ScrambleDrillWidth` toward his side, give or take the jitter; one already
+  `ScrambleDeepDepth` downfield of him runs `ScrambleDeepRunOn` further, toward that side.

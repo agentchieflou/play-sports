@@ -33,6 +33,7 @@
 #include "PSCameraFraming.h"
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
+#include "PSPocketComponent.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -114,6 +115,10 @@ public:
      *  missing file, malformed JSON, or an unrecognized Move. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
+
+    /** Loads the quarterback's pocket and scramble tuning (Data/pocket_tuning.json, Epic 71). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPocketTuningFromJson(const FString& JsonFilePath, FPocketTuningRow& OutTuning);
 
     /** Loads the route-running model's tuning (Data/route_running.json, Epic 68). */
     UFUNCTION(BlueprintCallable, Category = "Data")
