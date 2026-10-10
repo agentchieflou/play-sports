@@ -28,6 +28,50 @@ enum class EPlayerArchetypeClass : uint8
     Lineman UMETA(DisplayName = "Lineman")
 };
 
+/** A player's style (Epic 79): how he plays, apart from how well. Each axis runs from -1 to 1
+ *  between two styles, 0 being neither. Data/player_dna.json says which roles each axis applies
+ *  to, which AI tuning it scales (PSPlayerDNA), and the scouting trait at each end; an axis that
+ *  doesn't apply to a player's role is ignored. A roster that gives no DNA plays neutral. */
+USTRUCT(BlueprintType)
+struct FPSPlayerDNA
+{
+    GENERATED_BODY()
+
+    /** Quarterback: -1 a pocket passer who stands in and throws, +1 a scrambler who leaves the
+     *  pocket early and runs rather than force it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DNA")
+    float Mobility = 0.f;
+
+    /** Quarterback: -1 a game manager who throws only to the open man, +1 a gunslinger who fits
+     *  it into tight windows and throws before the break. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DNA")
+    float Gunslinger = 0.f;
+
+    /** Running back: -1 elusive (veers away from tacklers early), +1 power (runs through them). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DNA")
+    float RunPower = 0.f;
+
+    /** Receivers and tight ends: -1 a route technician (sharp breaks, sold fakes), +1 a vertical
+     *  threat (rounds his breaks, hurries his fakes). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DNA")
+    float RouteStyle = 0.f;
+
+    /** Pass rushers: -1 finesse (swim, rip, spin), +1 power (bull rush, club). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DNA")
+    float RushPower = 0.f;
+
+    /** Coverage: -1 blanket (tight on his man, rarely bites), +1 ball hawk (sits off, jumps
+     *  throws from further away, bites harder on fakes). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DNA")
+    float BallHawk = 0.f;
+
+    /** True when every axis is 0: the player plays every tuning as loaded. */
+    bool IsNeutral() const
+    {
+        return Mobility == 0.f && Gunslinger == 0.f && RunPower == 0.f && RouteStyle == 0.f && RushPower == 0.f && BallHawk == 0.f;
+    }
+};
+
 USTRUCT(BlueprintType)
 struct FPlayerAttributes : public FTableRowBase
 {
@@ -65,6 +109,11 @@ struct FPlayerAttributes : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float Stamina = 0.0f;
+
+    /** His style (Epic 79): optional in a roster file ("DNA": { "Mobility": 0.6 }); missing
+     *  axes are 0. tools/player_dna.py generates it from the ratings. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FPSPlayerDNA DNA;
 };
 
 USTRUCT(BlueprintType)

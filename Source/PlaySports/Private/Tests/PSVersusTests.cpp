@@ -322,10 +322,10 @@ bool FPSVersusSessionFlowTest::RunTest(const FString& Parameters)
 
     // From the front end: the Head to Head screen's travel options, read back by the URL helpers.
     UPSMenuComponent* Menu = Rig.P1->GetMenuComponent();
-    TestEqual(TEXT("Player 2 home travels as a versus game with home seat 1"), Menu->BuildTravelOptions(EPSMenuCommand::StartVersus, TEXT("1")), FString(TEXT("mode=Versus?home=1")));
+    TestEqual(TEXT("Player 2 home travels as a versus game with home seat 1"), Menu->BuildTravelOptions(EPSMenuCommand::StartVersus, TEXT("1")), FString(TEXT("mode=Versus?homeseat=1")));
     FURL VersusURL;
     VersusURL.AddOption(TEXT("mode=Versus"));
-    VersusURL.AddOption(TEXT("home=1"));
+    VersusURL.AddOption(TEXT("homeseat=1"));
     FURL PlayNowURL;
     PlayNowURL.AddOption(TEXT("mode=PlayNow"));
     TestTrue(TEXT("A versus URL is recognised"), UPSVersusSubsystem::IsVersusURL(VersusURL));

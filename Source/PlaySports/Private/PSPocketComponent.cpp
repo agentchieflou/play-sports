@@ -5,6 +5,7 @@
 #include "PSDataIngestion.h"
 #include "PSFieldReads.h"
 #include "PSHealthComponent.h"
+#include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
@@ -91,14 +92,26 @@ bool UPSPocketComponent::LoadTuningFromJson(const FString& JsonFilePath)
         UE_LOG(LogTemp, Warning, TEXT("UPSPocketComponent: Could not load pocket tuning from %s; keeping defaults."), *JsonFilePath);
         return false;
     }
+    BaseTuning = Loaded;
     Tuning = Loaded;
     return true;
 }
 
 void UPSPocketComponent::SetTuning(const FPocketTuningRow& InTuning)
 {
+    BaseTuning = InTuning;
     Tuning = InTuning;
     bTuningLoaded = true;
+}
+
+void UPSPocketComponent::ApplyPlayerDNA(const FPlayerAttributes& Passer)
+{
+    GetTuning();
+    Tuning = BaseTuning;
+    if (UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld()))
+    {
+        DNA->ApplyTo(Passer, TEXT("Pocket"), Tuning);
+    }
 }
 
 void UPSPocketComponent::ResetPlay(int32 Seed)

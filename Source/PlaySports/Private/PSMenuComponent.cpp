@@ -7,6 +7,7 @@
 #include "PSPlayCallComponent.h"
 #include "PSPlayCallSubsystem.h"
 #include "PSLoadingTips.h"
+#include "PSMatchSetup.h"
 #include "PSLoadingScreenSubsystem.h"
 #include "PSSettingsSubsystem.h"
 #include "PSSettingsComponent.h"
@@ -502,14 +503,16 @@ FString UPSMenuComponent::BuildTravelOptions(EPSMenuCommand Command, FName Paylo
 {
     switch (Command)
     {
+    // The match's teams travel in UPSMatchSetup's options; the game mode reads them back there.
     case EPSMenuCommand::StartPlayNow:
-        return Payload.IsNone() ? FString(TEXT("mode=PlayNow")) : FString::Printf(TEXT("mode=PlayNow?team=%s"), *Payload.ToString());
+        return UPSMatchSetup::BuildOptions(EPSMatchMode::PlayNow, Payload);
     case EPSMenuCommand::StartVersus:
-        return Payload.IsNone() ? FString(TEXT("mode=Versus")) : FString::Printf(TEXT("mode=Versus?home=%s"), *Payload.ToString());
+        // The seat (0 or 1) whose player is the home team; home= is UPSMatchSetup's team.
+        return Payload.IsNone() ? FString(TEXT("mode=Versus")) : FString::Printf(TEXT("mode=Versus?homeseat=%s"), *Payload.ToString());
     case EPSMenuCommand::StartFranchise:
-        return TEXT("mode=Franchise");
+        return UPSMatchSetup::BuildOptions(EPSMatchMode::Franchise, NAME_None);
     case EPSMenuCommand::StartPractice:
-        return TEXT("mode=Practice");
+        return UPSMatchSetup::BuildOptions(EPSMatchMode::Practice, NAME_None);
     case EPSMenuCommand::QuitToMainMenu:
         return FString::Printf(TEXT("game=%s"), *MenuGameModeAlias);
     default:

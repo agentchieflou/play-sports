@@ -383,7 +383,7 @@ bool UPSVersusSubsystem::IsVersusURL(const FURL& URL)
 
 int32 UPSVersusSubsystem::GetHomeSeatFromURL(const FURL& URL)
 {
-    const TCHAR* HomeOption = URL.GetOption(TEXT("home="), nullptr);
+    const TCHAR* HomeOption = URL.GetOption(TEXT("homeseat="), nullptr);
     return HomeOption && FCString::Atoi(HomeOption) == 1 ? 1 : 0;
 }
 

@@ -7,6 +7,7 @@
 #include "PSFieldReads.h"
 #include "PSOffenseController.h"
 #include "PSPlatformTiers.h"
+#include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
 #include "PSPreSnapSubsystem.h"
 #include "PSRouteRunnerComponent.h"
@@ -57,8 +58,28 @@ bool UPSSkillPlayerAIComponent::LoadTuningFromJson(const FString& JsonFilePath)
         UE_LOG(LogTemp, Warning, TEXT("UPSSkillPlayerAIComponent: Could not load AI tuning from %s; keeping defaults."), *JsonFilePath);
         return false;
     }
+    BaseTuning = Loaded;
     Tuning = Loaded;
     return true;
+}
+
+void UPSSkillPlayerAIComponent::ApplyPlayerDNA(const APSPlayerPawn* Self)
+{
+    GetTuning();
+    Tuning = BaseTuning;
+    if (!Self)
+    {
+        return;
+    }
+    const FPlayerAttributes Attributes = Self->GetAttributes();
+    if (UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld()))
+    {
+        DNA->ApplyTo(Attributes, TEXT("SkillAI"), Tuning);
+    }
+    if (UPSPocketComponent* Pocket = GetPocket())
+    {
+        Pocket->ApplyPlayerDNA(Attributes);
+    }
 }
 
 void UPSSkillPlayerAIComponent::BeginPlay()
@@ -315,6 +336,8 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
 void UPSSkillPlayerAIComponent::StartOpeningAction(const APSPlayerPawn* Self)
 {
     bSnapPending = false;
+    // The play starts: he plays it in his own style (Epic 79).
+    ApplyPlayerDNA(Self);
     const APSOffenseController* Controller = GetOffenseController();
     const bool bHasRoute = Controller && Controller->GetRouteWaypointCount() > 0;
     Action = bHasRoute ? EPSSkillPlayerAction::RunRoute
