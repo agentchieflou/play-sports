@@ -32,7 +32,8 @@ FKickMeterTuningRow, each named action a Boolean in its context; "CutRules" file
 FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json; "ReticleStates" files against
 FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuningRow, each pick
 action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files against
-FPSBroadcastOverlayTheme.
+FPSBroadcastOverlayTheme. Teams, the league config, the playbook, player rating ranges and every
+reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -42,6 +43,11 @@ import json
 import re
 import sys
 from pathlib import Path
+
+try:
+    from tools import content_contracts  # imported as part of the tools package (tests)
+except ImportError:
+    import content_contracts  # run as a script from tools/
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO / "Data"
@@ -1744,12 +1750,15 @@ def main():
         print("validate_data: no Data/ directory - nothing to check")
         return 0
     files = sorted(DATA_DIR.rglob("*.json"))
+    parsed = {}
     for path in files:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             err(path, f"invalid JSON: {exc}")
             continue
+        parsed[path] = payload
+        content_contracts.check_file(path, payload, err)
         if isinstance(payload, dict) and "Players" in payload:
             if not isinstance(payload["Players"], list):
                 err(path, "'Players' must be an array")
@@ -1817,6 +1826,7 @@ def main():
             validate_settings_catalog(path, payload)
         if isinstance(payload, dict) and "CutRules" in payload:
             validate_camera_director(path, payload, load_all22_rig_ids())
+    content_contracts.check_references(REPO, parsed, err)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

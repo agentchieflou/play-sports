@@ -56,7 +56,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 - **Tier 1, Track E:** 67 defensive pre-snap (66 is in), 71 QB pocket play, 75 special-teams
   depth.
 - **Tier 2:** 89 coaching staffs, 19.5 personnel packages.
-- **Tier 3 / infra:** 125 content validation CLI, 24 test expansion.
+- **Tier 3 / infra:** 24 test expansion (117 and 125 done).
 - **Overlay and camera code:** 30, 33, 38 and 40 are done.
   With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
   38, 41, 49, 78, 82, 85, 92, 96, 115.
@@ -224,7 +224,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "122": {"track": "L", "mode": "code", "status": "open", "depends_on": ["19", "79"]},
     "123": {"track": "L", "mode": "mixed", "status": "open", "depends_on": ["37", "56"]},
     "124": {"track": "L", "mode": "mixed", "status": "open", "depends_on": ["52", "123"]},
-    "125": {"track": "L", "mode": "code", "status": "open", "depends_on": ["21", "113"]},
+    "125": {"track": "L", "mode": "code", "status": "done", "depends_on": ["21", "113"]},
     "126": {"track": "M", "mode": "code", "status": "done", "depends_on": ["3"]},
     "127": {"track": "M", "mode": "code", "status": "done", "depends_on": ["126", "C3-ff-A"]},
     "128": {"track": "M", "mode": "code", "status": "done", "depends_on": ["127"]},

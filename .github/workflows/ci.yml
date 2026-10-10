@@ -26,10 +26,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Convention linter failed" }
 
       - name: Validate data contracts
+        # Every contract and every cross-file reference (tools/content_contracts.py, Epic 125):
+        # a generated-content PR is gated here like any other.
         shell: powershell
         run: |
           python tools/validate_data.py
           if ($LASTEXITCODE -ne 0) { throw "Data validation failed" }
+
+      - name: Content report
+        # Rating distributions, name duplication and roster shape (Epic 125). Informational:
+        # it warns in the log and does not fail the build.
+        shell: powershell
+        run: python tools/content.py report
 
       - name: Tool tests
         shell: powershell
