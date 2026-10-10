@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "Engine/DataTable.h"
 #include "PSInputConfigTypes.h"
+#include "PSPlayerAttributes.h"
 #include "PSPlayerPawn.h"
 #include "PSControlHandoffComponent.generated.h"
 
@@ -28,6 +29,15 @@ struct FControlHandoffTuningRow : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Control")
     FName PickRightAction = TEXT("PickPlayerRight");
+
+    /** The player a single human takes when their team has the ball (an offensive role), and
+     *  when the other team has it (a defensive role): UPSHumanTeamComponent moves the human
+     *  there as possession changes. A head-to-head game's seats use Data/versus_rules.json. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Control")
+    EPlayerRole OffenseControlRole = EPlayerRole::Quarterback;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Control")
+    EPlayerRole DefenseControlRole = EPlayerRole::Linebacker;
 };
 
 /**
@@ -65,8 +75,9 @@ public:
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
 
-    /** Problems with InTuning (empty when sound): a negative window; with Catalog, a pick
-     *  action that isn't a Boolean action in the PreSnap context. */
+    /** Problems with InTuning (empty when sound): a negative window, a control role on the
+     *  wrong side of the ball; with Catalog, a pick action that isn't a Boolean action in the
+     *  PreSnap context. */
     static TArray<FString> ValidateTuning(const FControlHandoffTuningRow& InTuning, const FPSInputCatalog* Catalog = nullptr);
 
     /** Listens for the pick actions on the controller's input buffer. Idempotent. */

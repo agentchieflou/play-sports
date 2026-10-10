@@ -1906,7 +1906,12 @@ def validate_control_handoff(path, payload, catalog):
             action = actions.get(action_id)
             if action is None or action.get("ValueType") != "Boolean" or "PreSnap" not in (action.get("Contexts") or []):
                 err(path, f"{field}: '{action_id}' must be a Boolean action in input_actions.json's PreSnap context")
-    extra = set(payload) - {"CycleWindowSeconds", "PickLeftAction", "PickRightAction"}
+    offense_role, defense_role = payload.get("OffenseControlRole"), payload.get("DefenseControlRole")
+    if offense_role not in OFFENSIVE_ROLES:
+        err(path, f"OffenseControlRole: '{offense_role}' must be an offensive role ({sorted(OFFENSIVE_ROLES)})")
+    if defense_role not in DEFENSIVE_ROLES:
+        err(path, f"DefenseControlRole: '{defense_role}' must be a defensive role ({sorted(DEFENSIVE_ROLES)})")
+    extra = set(payload) - {"CycleWindowSeconds", "PickLeftAction", "PickRightAction", "OffenseControlRole", "DefenseControlRole"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FControlHandoffTuningRow exactly")
 

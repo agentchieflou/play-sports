@@ -1434,6 +1434,10 @@ Single object (Epic 30; `UPSControlHandoffComponent`):
   next player in the same nearest-to-the-ball order instead of ranking again.
 - `PickLeftAction`, `PickRightAction`: the pre-snap direct-pick actions, each a Boolean action in
   the input catalog's `PreSnap` context.
+- `OffenseControlRole` (an offensive role), `DefenseControlRole` (a defensive one): the player a
+  single human takes when their team has the ball, and when the other team has it.
+  `UPSHumanTeamComponent` moves the human there when possession changes, so they keep playing
+  for their own team. A head-to-head game's seats use `versus_rules.json`'s roles instead.
 
 ## Broadcast package schema (`FPSBroadcastOverlayTheme`)
 
