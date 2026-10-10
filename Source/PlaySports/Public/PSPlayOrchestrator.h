@@ -26,9 +26,17 @@ public:
      *  role has an assignment slot; a role with more players than slots repeats its last
      *  slot. RouteLibrary resolves Route assignment kinds to waypoint offsets from the
      *  player's own split (LineOfScrimmage's X, the pawn's Y), mirrored for a player left
-     *  of the ball; a zone is played on the defender's own side of the field. */
+     *  of the ball; a zone is played on the defender's own side of the field. An offensive
+     *  player's pre-snap changes (UPSPreSnapSubsystem: hot route, kept in, released) apply
+     *  first, and an offensive player with no route this play has his old one cleared, so
+     *  he blocks. */
     UFUNCTION(BlueprintCallable, Category = "AI|Orchestration")
     void DistributePlayCall(const FPSPlayDefinition& Play, const TArray<APSPlayerPawn*>& OnFieldPawns, const UDataTable* RouteLibrary, const FVector& LineOfScrimmage);
+
+    /** The play's assignment for the RoleIndex-th player (0-based) of Role: the role's slot of
+     *  that index, or its last slot when the role has more players than slots. Null when the
+     *  play has no slot for Role. */
+    static const FPSPlayAssignment* FindAssignmentSlot(const FPSPlayDefinition& Play, EPlayerRole Role, int32 RoleIndex);
 
     /** Broken-play adaptation: redirects offensive skill players still running routes
      *  toward space near the scrambling QB's current location. */
