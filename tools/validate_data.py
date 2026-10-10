@@ -32,7 +32,7 @@ FKickMeterTuningRow, each named action a Boolean in its context; "CutRules" file
 FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json; "ReticleStates" files against
 FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuningRow, each pick
 action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files against
-FPSBroadcastOverlayTheme. Teams, the league config, the playbook, player rating ranges and every
+FPSBroadcastOverlayTheme; "UprightWidth" files against FPSBallFlightStyle. Teams, the league config, the playbook, player rating ranges and every
 reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -1735,6 +1735,48 @@ def validate_broadcast_overlay(path, payload):
             err(path, f"ChyronKinds: no '{kind}' entry")
 
 
+BALL_FLIGHT_COLORS = ("ArcColor", "LandingColor", "LeadOnTargetColor", "LeadOffTargetColor", "GoodColor", "NoGoodColor")
+BALL_FLIGHT_TEXTS = ("DotMeshPath", "RingMeshPath", "MaterialPath", "ColorParameter", "GoodLabel", "WideLeftLabel",
+                     "WideRightLabel", "ShortLabel")
+BALL_FLIGHT_POSITIVE = ("MeshDiameter", "ArcDotDiameter", "LandingRadiusFallback", "LeadRadius", "DeviationTolerance",
+                        "MaxFlightSeconds", "UprightWidth", "ReadoutTextSize")
+BALL_FLIGHT_NON_NEGATIVE = ("RingThickness", "GroundClearance", "LingerSeconds", "ReadoutSeconds", "CrossbarHeight",
+                            "ReadoutHeight")
+BALL_FLIGHT_FIELDS = {"ArcPoints", "GroundZ", "GoalPostX", "GoalPostY", *BALL_FLIGHT_COLORS, *BALL_FLIGHT_TEXTS,
+                      *BALL_FLIGHT_POSITIVE, *BALL_FLIGHT_NON_NEGATIVE}
+
+
+def validate_ball_flight_overlay(path, payload):
+    """FPSBallFlightStyle (Data/ball_flight_overlay.json, Epic 32); mirrors
+    UPSOverlayBallFlightSubsystem::ValidateStyle."""
+    for field in BALL_FLIGHT_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in BALL_FLIGHT_TEXTS:
+        if not isinstance(payload.get(field), str) or not payload[field]:
+            err(path, f"{field}: must be a non-empty string")
+    for field in BALL_FLIGHT_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in BALL_FLIGHT_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("GroundZ", "GoalPostY"):
+        if not is_number(payload.get(field)):
+            err(path, f"{field}: '{payload.get(field)}' must be a number")
+    points = payload.get("ArcPoints")
+    if not isinstance(points, int) or isinstance(points, bool) or points < 2:
+        err(path, f"ArcPoints: '{points}' must be a whole number, 2 or more (release and landing)")
+    posts = payload.get("GoalPostX")
+    if not isinstance(posts, list) or not posts or not all(is_number(x) for x in posts):
+        err(path, "GoalPostX: must be a non-empty array of numbers (each end line's X)")
+    extra = set(payload) - BALL_FLIGHT_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSBallFlightStyle exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1802,6 +1844,8 @@ def main():
             validate_control_handoff(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "ChyronKinds" in payload:
             validate_broadcast_overlay(path, payload)
+        if isinstance(payload, dict) and "UprightWidth" in payload:
+            validate_ball_flight_overlay(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "PressRadius" in payload:

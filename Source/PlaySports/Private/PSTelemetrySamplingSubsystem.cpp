@@ -3,6 +3,7 @@
 #include "PSDataIngestion.h"
 #include "PSPlayerPawn.h"
 #include "GameFramework/FloatingPawnMovement.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/PlatformTime.h"
@@ -38,6 +39,19 @@ namespace PSTelemetrySamplingPrivate
             }
         }
         return Subject.PlayerId.IsNone() ? nullptr : Frame.FindPawn(Subject.PlayerId);
+    }
+
+    /** The ball's velocity as it moves: its carrier's while carried, its projectile movement's
+     *  in flight. The actor's own velocity only catches up on the ball's next tick, so at a
+     *  throw's keyframe it would still read the carry (Epic 32's arcs start from this). */
+    FVector BallVelocity(const APSBall& Ball)
+    {
+        if (const AActor* Carrier = Ball.GetAttachParentActor())
+        {
+            return Carrier->GetVelocity();
+        }
+        const UProjectileMovementComponent* Flight = Ball.GetProjectileMovement();
+        return Flight && Flight->IsActive() ? Flight->Velocity : FVector::ZeroVector;
     }
 
     /** Offense before defense, then by PlayerId. */
@@ -477,7 +491,7 @@ void UPSTelemetrySamplingSubsystem::CaptureFrame(FPSSnapshotFrame& OutFrame, dou
     const APSBall* SampledBall = Ball.Get();
     OutFrame.bBallSampled = IsValid(SampledBall);
     OutFrame.BallLocation = OutFrame.bBallSampled ? SampledBall->GetActorLocation() : FVector::ZeroVector;
-    OutFrame.BallVelocity = OutFrame.bBallSampled ? SampledBall->GetVelocity() : FVector::ZeroVector;
+    OutFrame.BallVelocity = OutFrame.bBallSampled ? PSTelemetrySamplingPrivate::BallVelocity(*SampledBall) : FVector::ZeroVector;
 
     SET_DWORD_STAT(STAT_PSTelemetryPawnsPerFrame, OutFrame.Pawns.Num());
 }
