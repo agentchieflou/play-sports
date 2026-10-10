@@ -354,6 +354,8 @@ bool FAutonomixMcpToolsTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("An expression's value is the result"), GetObject(Sum, TEXT("structuredContent")).IsValid()
             && GetObject(Sum, TEXT("structuredContent"))->TryGetStringField(TEXT("result"), Value) && Value == TEXT("2"));
         TestTrue(TEXT("What a script prints is in its log"), ResultText(CallTool(Server, TEXT("run_python"), TEXT("{\"script\":\"print('autonomix says hi')\"}"))).Contains(TEXT("autonomix says hi")));
+        // The editor logs a raising script's traceback as errors (LogPython); here they are meant.
+        AddExpectedError(TEXT("Traceback|File \"<string>\"|ZeroDivisionError"), EAutomationExpectedErrorFlags::Contains, 0, true);
         const TSharedPtr<FJsonObject> Raised = CallTool(Server, TEXT("run_python"), TEXT("{\"script\":\"1 / 0\"}"));
         TestTrue(TEXT("A script that raises is an error with its traceback"), IsToolError(Raised) && ResultText(Raised).Contains(TEXT("ZeroDivisionError")));
     }
