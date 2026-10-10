@@ -91,9 +91,8 @@ void UPSPlayResultWidget::NativeConstruct()
         UPSTelemetryBus* Bus = World->GetSubsystem<UPSTelemetryBus>();
         if (Bus)
         {
-            Bus->OnTackle.AddDynamic(this, &UPSPlayResultWidget::HandleOnTackle);
-            Bus->OnScore.AddDynamic(this, &UPSPlayResultWidget::HandleOnScore);
-            Bus->OnPhaseChange.AddDynamic(this, &UPSPlayResultWidget::HandleOnPhaseChange);
+            // The play's own result, as the simulation (the outcome authority) announces it.
+            Bus->OnPlayResult.AddDynamic(this, &UPSPlayResultWidget::HandleOnPlayResult);
         }
     }
 }
@@ -120,23 +119,51 @@ FText UPSPlayResultWidget::MakeIncompletePassBanner()
     return UPSLocalization::GetText(TEXT("HUD.IncompletePass"));
 }
 
-void UPSPlayResultWidget::HandleOnTackle(const FPSTelemetryTackleEvent& Event)
+bool UPSPlayResultWidget::MakePlayResultBanner(const FPSTelemetryPlayResultEvent& Play, FText& OutBanner)
 {
-    BannerText = MakeYardsBanner(Event.YardsGained);
-    OnShowPlayResultBanner();
-}
-
-void UPSPlayResultWidget::HandleOnScore(const FPSTelemetryScoreEvent& Event)
-{
-    BannerText = MakeScoreBanner(Event.ScoreType);
-    OnShowPlayResultBanner();
-}
-
-void UPSPlayResultWidget::HandleOnPhaseChange(const FPSTelemetryPhaseChangeEvent& Event)
-{
-    if (Event.NewPhase == TEXT("Scoring") && Event.OldPhase == TEXT("PassRush"))
+    // A score first: the offense's touchdown or the defense's return of an interception, a
+    // safety, a field goal.
+    const bool bReturnTouchdown = Play.Result == TEXT("Interception") && Play.HomePoints + Play.AwayPoints > 0;
+    if (Play.Result == TEXT("Touchdown") || bReturnTouchdown)
     {
-        BannerText = MakeIncompletePassBanner();
+        OutBanner = MakeScoreBanner(TEXT("Touchdown"));
+    }
+    else if (Play.Result == TEXT("Safety"))
+    {
+        OutBanner = MakeScoreBanner(TEXT("Safety"));
+    }
+    else if (Play.Result == TEXT("FieldGoalGood"))
+    {
+        OutBanner = MakeScoreBanner(TEXT("FieldGoal"));
+    }
+    else if (Play.Result == TEXT("FieldGoalMissed"))
+    {
+        OutBanner = UPSLocalization::GetText(TEXT("HUD.FieldGoalMissed"));
+    }
+    else if (Play.Result == TEXT("Interception"))
+    {
+        OutBanner = UPSLocalization::GetText(TEXT("HUD.Interception"));
+    }
+    else if (Play.Result == TEXT("Incomplete"))
+    {
+        OutBanner = MakeIncompletePassBanner();
+    }
+    else if (Play.Result == TEXT("Tackle"))
+    {
+        OutBanner = Play.bTurnoverOnDowns ? UPSLocalization::GetText(TEXT("HUD.TurnoverOnDowns")) : MakeYardsBanner(Play.YardsGained);
+    }
+    else
+    {
+        // Kickoffs and punts: the next snap's situation tells the story.
+        return false;
+    }
+    return true;
+}
+
+void UPSPlayResultWidget::HandleOnPlayResult(const FPSTelemetryPlayResultEvent& Event)
+{
+    if (MakePlayResultBanner(Event, BannerText))
+    {
         OnShowPlayResultBanner();
     }
 }
