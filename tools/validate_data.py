@@ -7,7 +7,8 @@ Validates every JSON file under Data/ : parseability always; files carrying a
 types, valid EPlayerRole values, unique non-empty PlayerId; files carrying
 "Contexts" + "Actions" against the input catalog contract (FPSInputCatalog,
 Source/PlaySports/Public/PSInputConfigTypes.h; Specs/Input_Architecture.md); files
-carrying "StickDeadZoneLower" against FInputTuningRow's ranges.
+carrying "StickDeadZoneLower" against FInputTuningRow's ranges; files carrying
+"Screens" + "RootScreen" against the menu catalog rules (FPSMenuCatalog).
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -164,6 +165,53 @@ def validate_input_catalog(path, payload):
                     err(path, f"{where}: key '{key}' is already bound to '{owner}' in context '{cid}'")
 
 
+MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame"}
+
+
+def validate_menu_catalog(path, payload):
+    """FPSMenuCatalog (Data/ui_menus.json); mirrors UPSMenuComponent::ValidateCatalog."""
+    screens = payload.get("Screens")
+    if not isinstance(screens, list):
+        err(path, "'Screens' must be an array")
+        return
+    by_id = {}
+    for idx, screen in enumerate(screens):
+        if not isinstance(screen, dict) or not isinstance(screen.get("ScreenId"), str) or not screen["ScreenId"]:
+            err(path, f"Screens[{idx}]: needs a non-empty ScreenId")
+            continue
+        sid = screen["ScreenId"]
+        if sid in by_id:
+            err(path, f"Screens[{idx}]: duplicate ScreenId '{sid}'")
+        by_id[sid] = screen
+    for key in ("RootScreen", "PauseScreen"):
+        if payload.get(key) not in by_id:
+            err(path, f"{key} '{payload.get(key)}' is not a screen")
+    root = by_id.get(payload.get("RootScreen"))
+    if root is not None and root.get("bAllowBack", True):
+        err(path, f"RootScreen '{payload['RootScreen']}' must set bAllowBack to false")
+    if payload.get("TransitionSeconds", 0) < 0:
+        err(path, "TransitionSeconds must not be negative")
+    for sid, screen in by_id.items():
+        options = screen.get("Options", [])
+        if not options and not screen.get("bAllowBack", True):
+            err(path, f"Screen '{sid}' has no options and blocks Back")
+        seen = set()
+        for option in options:
+            oid = option.get("OptionId")
+            where = f"Screen '{sid}', option '{oid}'"
+            if not oid or oid in seen:
+                err(path, f"{where}: empty or duplicate OptionId")
+            seen.add(oid)
+            command = option.get("Command", "None")
+            target = option.get("TargetScreen")
+            if command not in MENU_COMMANDS:
+                err(path, f"{where}: unknown Command '{command}' ({sorted(MENU_COMMANDS)})")
+            if not target and command == "None":
+                err(path, f"{where}: needs a TargetScreen or a Command")
+            if target and target not in by_id:
+                err(path, f"{where}: unknown TargetScreen '{target}'")
+
+
 INPUT_TUNING_FIELDS = ("StickDeadZoneLower", "StickDeadZoneUpper", "StickResponseExponent", "DeviceSwitchAnalogThreshold")
 
 
@@ -206,6 +254,8 @@ def main():
             validate_input_catalog(path, payload)
         if isinstance(payload, dict) and "StickDeadZoneLower" in payload:
             validate_input_tuning(path, payload)
+        if isinstance(payload, dict) and "Screens" in payload and "RootScreen" in payload:
+            validate_menu_catalog(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

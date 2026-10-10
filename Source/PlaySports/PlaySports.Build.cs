@@ -22,12 +22,14 @@ public class PlaySports : ModuleRules
         });
 
         // Slate's input pre-processor and the platform device mapper feed active-device
-        // tracking (Epic 127, UPSInputDeviceComponent).
+        // tracking (Epic 127, UPSInputDeviceComponent); EngineSettings gives the front end
+        // the default map to travel to (Epic 101, UPSMenuComponent).
         PrivateDependencyModuleNames.AddRange(new string[]
         {
             "Slate",
             "SlateCore",
-            "ApplicationCore"
+            "ApplicationCore",
+            "EngineSettings"
         });
 
         PublicIncludePaths.AddRange(new string[] { });

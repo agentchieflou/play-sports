@@ -6,6 +6,7 @@
 #include "PSLeagueData.h"
 #include "PSArchetypeTuning.h"
 #include "PSInputConfigTypes.h"
+#include "PSMenuTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -38,6 +39,11 @@ public:
     /** Loads the gamepad response tuning (Data/input_tuning.json, Epic 127). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadInputTuningFromJson(const FString& JsonFilePath, FInputTuningRow& OutTuning);
+
+    /** Loads the front-end menu catalog (Data/ui_menus.json, Epic 101). False on a missing
+     *  file, malformed JSON, or an unrecognized Command string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadMenuCatalogFromJson(const FString& JsonFilePath, FPSMenuCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

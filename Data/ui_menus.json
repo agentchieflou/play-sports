@@ -1,0 +1,41 @@
+{
+    "RootScreen": "MainMenu",
+    "PauseScreen": "Pause",
+    "TransitionSeconds": 0.15,
+    "Screens": [
+        {
+            "ScreenId": "MainMenu",
+            "Title": "PLAY SPORTS",
+            "bAllowBack": false,
+            "Options": [
+                { "OptionId": "Play", "Label": "Play", "TargetScreen": "ModeSelect" },
+                { "OptionId": "Settings", "Label": "Settings", "TargetScreen": "Settings" },
+                { "OptionId": "Quit", "Label": "Quit", "Command": "QuitGame" }
+            ]
+        },
+        {
+            "ScreenId": "ModeSelect",
+            "Title": "Choose a Mode",
+            "Options": [
+                { "OptionId": "PlayNow", "Label": "Play Now", "Command": "StartPlayNow" },
+                { "OptionId": "Franchise", "Label": "Franchise", "Command": "StartFranchise" },
+                { "OptionId": "Practice", "Label": "Practice / Gym", "Command": "StartPractice" }
+            ]
+        },
+        {
+            "ScreenId": "Pause",
+            "Title": "Paused",
+            "Options": [
+                { "OptionId": "Resume", "Label": "Resume", "Command": "Resume" },
+                { "OptionId": "Settings", "Label": "Settings", "TargetScreen": "Settings" },
+                { "OptionId": "QuitToMenu", "Label": "Quit to Main Menu", "Command": "QuitToMainMenu" }
+            ]
+        },
+        {
+            "ScreenId": "Settings",
+            "Title": "Settings",
+            "Body": "Display, audio, controls and accessibility settings arrive with Epic 103.",
+            "Options": []
+        }
+    ]
+}

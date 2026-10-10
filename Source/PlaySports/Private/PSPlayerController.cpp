@@ -1,6 +1,7 @@
 #include "PSPlayerController.h"
 #include "PSInputConfig.h"
 #include "PSInputDeviceComponent.h"
+#include "PSMenuComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -24,6 +25,7 @@ APSPlayerController::APSPlayerController()
     MoveActionId = TEXT("Move");
     SprintActionId = TEXT("Sprint");
     SwitchPlayerActionId = TEXT("SwitchPlayer");
+    PauseActionId = TEXT("Pause");
     HumanSide = EPSTeamSide::Offense;
     DefaultControlRole = EPlayerRole::Quarterback;
     bTakeDefaultControlOnBeginPlay = true;
@@ -31,6 +33,7 @@ APSPlayerController::APSPlayerController()
     ParkedPawn = nullptr;
 
     InputDeviceComponent = CreateDefaultSubobject<UPSInputDeviceComponent>(TEXT("InputDeviceComp"));
+    MenuComponent = CreateDefaultSubobject<UPSMenuComponent>(TEXT("MenuComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()
@@ -106,6 +109,10 @@ void APSPlayerController::BindCatalogActions(UEnhancedInputComponent& InInputCom
         else if (ActionDef.ActionId == SwitchPlayerActionId)
         {
             InInputComponent.BindAction(Action, ETriggerEvent::Started, this, &APSPlayerController::HandleSwitchPlayer);
+        }
+        else if (ActionDef.ActionId == PauseActionId)
+        {
+            InInputComponent.BindAction(Action, ETriggerEvent::Started, this, &APSPlayerController::HandlePause);
         }
         else if (ActionDef.ValueType == EInputActionValueType::Boolean)
         {
@@ -316,6 +323,14 @@ void APSPlayerController::HandleSwitchPlayer(const FInputActionValue& Value)
     if (BallIt)
     {
         SwitchToBestPawn(BallIt->GetActorLocation());
+    }
+}
+
+void APSPlayerController::HandlePause(const FInputActionValue& Value)
+{
+    if (MenuComponent)
+    {
+        MenuComponent->TogglePause();
     }
 }
 

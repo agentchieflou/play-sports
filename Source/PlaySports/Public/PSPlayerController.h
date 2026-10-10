@@ -11,6 +11,7 @@ class AAIController;
 class UEnhancedInputComponent;
 class UPSInputConfig;
 class UPSInputDeviceComponent;
+class UPSMenuComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -32,9 +33,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * otherwise to the eligible teammate nearest the ball. Every handoff is published on
  * UPSTelemetryBus; HUD and camera read it there or from APSPlayerPawn::IsUserControlled().
  *
- * Move, Sprint and SwitchPlayer drive the game here. Every other Boolean catalog action is
- * broadcast on OnCatalogActionStarted by ID for its consumer (Epic 101's menus) to
- * subscribe to -- no consumer casts to this controller to read input.
+ * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
+ * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
+ * OnCatalogActionStarted by ID for its consumer to subscribe to -- no consumer casts to this
+ * controller to read input.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSPlayerController : public APlayerController
@@ -51,6 +53,10 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSInputDeviceComponent* GetInputDeviceComponent() const { return InputDeviceComponent; }
+
+    /** The front-end shell and pause menu (Epic 101). */
+    UFUNCTION(BlueprintPure, Category = "Menu")
+    UPSMenuComponent* GetMenuComponent() const { return MenuComponent; }
 
     /** True while ContextId is on this controller's context stack. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -106,6 +112,9 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     FName SwitchPlayerActionId;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    FName PauseActionId;
+
     /** The side the human plays when not yet controlling a pawn. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Possession")
     EPSTeamSide HumanSide;
@@ -129,6 +138,7 @@ private:
     void HandleSprintStarted(const FInputActionValue& Value);
     void HandleSprintCompleted(const FInputActionValue& Value);
     void HandleSwitchPlayer(const FInputActionValue& Value);
+    void HandlePause(const FInputActionValue& Value);
     void HandleCatalogActionStarted(const FInputActionInstance& Instance);
     void HandleDeferredDefaultControl();
 
@@ -142,6 +152,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSInputDeviceComponent* InputDeviceComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Menu")
+    UPSMenuComponent* MenuComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

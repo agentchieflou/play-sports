@@ -42,7 +42,8 @@ from `agentchieflou/this-next-please` (`RawAssets/world/reference/browser/WORLD.
 Epic 126's catalog (Move, Sprint, Confirm, Cancel, SwitchPlayer) is a subset of this; the rows above
 add Look, Interact, Secondary, ViewToggle and Picker, which Epic 143 (the look picker) and Epic 101
 (the front-end shell) need. Keep the physical assignments: A confirms, B cancels, Y toggles the
-camera, Start opens the character sheet, on every context.
+camera, on every context. Start opens the character sheet off the field and pauses on it (Epic
+101) -- the look picker is an off-field screen, so the two never meet in one context.
 
 ## 3. Feel (from the world's walking, for Epic 104)
 
@@ -75,3 +76,9 @@ stick binding gets a radial dead zone and an exponential response curve from `FI
 `Config/DefaultInput.ini` are zeroed so the two don't stack. Rule 4 is live:
 `UPSInputDeviceComponent` publishes `InputDeviceChange` on the bus from a last-input heuristic
 (analog input counts only past `DeviceSwitchAnalogThreshold`) and gamepad connect/disconnect.
+
+Status (2026-10-09, Epic 101): a `Menu` context (priority 2) names the keys menus treat as Confirm
+(Enter, A) and Back (Escape, B). Menus move focus with Slate's own navigation (D-pad, stick,
+arrows, Tab), so the context is not pushed on Enhanced Input; `UPSMenuComponent` reads its Back
+keys from it. The `Pause` action (P, Start) lives in `OnField`; on the pause screen the same keys
+close it again.

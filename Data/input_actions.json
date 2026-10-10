@@ -9,6 +9,11 @@
             "ContextId": "OnField",
             "Priority": 1,
             "Description": "The possessed pawn during play. APSPlayerController applies it on possessing an APSPlayerPawn (Epic 126); Epic 127 tunes its gamepad response."
+        },
+        {
+            "ContextId": "Menu",
+            "Priority": 2,
+            "Description": "Front-end and pause menus (Epic 101). Slate moves focus between buttons with the D-pad, stick or arrows; these rows name the keys menus treat as Confirm and Back."
         }
     ],
     "Actions": [
@@ -54,7 +59,7 @@
             "ActionId": "Confirm",
             "ValueType": "Boolean",
             "Description": "Accept or advance. A confirms in every context.",
-            "Contexts": ["OnField"],
+            "Contexts": ["OnField", "Menu"],
             "Bindings": [
                 { "Key": "Enter" },
                 { "Key": "Gamepad_FaceButton_Bottom" }
@@ -64,10 +69,20 @@
             "ActionId": "Cancel",
             "ValueType": "Boolean",
             "Description": "Back out or close. B cancels in every context.",
-            "Contexts": ["World", "OnField"],
+            "Contexts": ["World", "OnField", "Menu"],
             "Bindings": [
                 { "Key": "Escape" },
                 { "Key": "Gamepad_FaceButton_Right" }
+            ]
+        },
+        {
+            "ActionId": "Pause",
+            "ValueType": "Boolean",
+            "Description": "Pause the game and open the pause menu (Epic 101). On the field Start pauses; off the field it opens the look picker.",
+            "Contexts": ["OnField"],
+            "Bindings": [
+                { "Key": "P" },
+                { "Key": "Gamepad_Special_Right" }
             ]
         },
         {
