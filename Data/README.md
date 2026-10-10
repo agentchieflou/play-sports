@@ -1082,7 +1082,8 @@ here.
   if he played `MinSeasons` seasons and his hall score reaches `InductionScore`; at most
   `MaxInducteesPerSeason` a season, the best first. His hall score is his best category: the highest
   of his career totals over their `Thresholds[]` (`Category`, a player `EPSStatCategory`;
-  `CareerValue`).
+  `CareerValue`), plus each award he won (Epic 93) times its `AwardScores[]` entry (`Award`, an
+  `EPSAwardKind`, at most once; `Score`).
 - `LeaderCategories`: the player categories whose season leader each season's archive keeps.
 - `RoleCurves[]` (read by `UPSPlayerAging`): `Role` and its `Curve`, Core 19's `FPSProgressionTuning`
   (`PeakAgeStart`, `PeakAgeEnd`, `GrowthPerYear`, `DeclinePerYear`, `LowSnapShareThreshold`); a role

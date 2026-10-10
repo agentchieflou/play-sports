@@ -435,8 +435,9 @@ bool UPSFranchiseFlow::EndSeason()
     }
     if (LeagueHistory)
     {
-        // Epic 94: the season goes into the archive.
+        // Epic 94: the season goes into the archive; the hall of fame counts the awards (Epic 93).
         LeagueHistory->ArchiveSeason(FinishedSeason, Season->GetSortedStandings(), Stats);
+        LeagueHistory->SetAwards(Narrative);
     }
     Retirements.Reset();
     if (PlayerAging)
