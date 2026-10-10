@@ -42,6 +42,7 @@
 #include "PSCameraSkycamComponent.h"
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
+#include "PSContractData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSDataIngestion.generated.h"
@@ -257,6 +258,12 @@ public:
      *  on a missing file or malformed JSON; PSPlayerDNA::ValidateCatalog checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPlayerDNACatalogFromJson(const FString& JsonFilePath, FPSPlayerDNACatalog& OutCatalog);
+
+    /** Loads the league's economics: the salary cap, contract rules, negotiation and free agency
+     *  (Data/contracts.json, Epic 87). False on a missing file, malformed JSON or an unknown Role;
+     *  UPSContractManager::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadContractTuningFromJson(const FString& JsonFilePath, FPSContractTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

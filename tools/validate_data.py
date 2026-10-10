@@ -47,8 +47,10 @@ base call), coaches' schemes and roles, each staff's team in sample_teams.json a
 coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "DimStencil" files against
 FPSEmphasisStyle (Epic 36); "Axes" + "Bindings" files against FPSPlayerDNACatalog, each axis an
 FPSPlayerDNA field, each binding a numeric field of its target's tuning file and each rush move in
-pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79).
-Teams, the league config, the playbook, player rating ranges and every reference between files are
+pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
+"PositionMarkets" files against FPSContractTuning (Epic 87): one market per EPlayerRole, ordered
+rating and guarantee bounds, offer ratios walk-away <= accept <= instant. Teams, the league config,
+the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -2739,6 +2741,96 @@ def validate_player_dna_catalog(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(set(lean) - {'Move', 'Lean'})}")
 
 
+CONTRACT_INT_FIELDS = {
+    "FirstLeagueYear", "SalaryCap", "MinimumSalary", "MaxContractYears", "MaxProrationYears",
+    "PrimeAge", "DeclineAge", "FreeAgencyDays", "DecisionDays", "AIOffersPerDay", "DefaultPlayerAge",
+}
+CONTRACT_FLOAT_FIELDS = {
+    "CapGrowthRate", "MaxCarryoverFraction", "ReplacementRating", "EliteRating", "DemandCurveExponent",
+    "YearsLostPerYearPastPrime", "AgeDiscountPerYear", "MinAgeMultiplier", "MinGuaranteeFraction",
+    "MaxGuaranteeFraction", "MarketSpaceWeight", "NeutralCapSpaceFraction", "MaxMarketAdjustment",
+    "MoraleLoyaltyWeight", "GuaranteeValueWeight", "YearsMismatchPenalty", "AcceptRatio", "WalkAwayRatio",
+    "InstantAcceptRatio", "DemandDecayPerDay", "DemandFloorFraction", "AIBidRatio", "AINeedPremium",
+    "AICapCushionFraction",
+}
+CONTRACT_FRACTIONS = {
+    "MaxCarryoverFraction", "MinAgeMultiplier", "MinGuaranteeFraction", "MaxGuaranteeFraction",
+    "NeutralCapSpaceFraction", "MaxMarketAdjustment", "MoraleLoyaltyWeight", "AICapCushionFraction",
+    "DemandFloorFraction",
+}
+
+
+def validate_contract_tuning(path, payload):
+    """FPSContractTuning (Data/contracts.json, Epic 87); mirrors UPSContractManager::ValidateTuning."""
+    for field in sorted(CONTRACT_INT_FIELDS):
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    for field in sorted(CONTRACT_FLOAT_FIELDS):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+        elif field in CONTRACT_FRACTIONS and value > 1:
+            err(path, f"{field}: a fraction, at most 1")
+    extra = set(payload) - CONTRACT_INT_FIELDS - CONTRACT_FLOAT_FIELDS - {"PositionMarkets"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSContractTuning exactly")
+
+    def num(field):
+        value = payload.get(field)
+        return value if is_number(value) else None
+
+    def ordered(low, high, strict=False):
+        a, b = num(low), num(high)
+        if a is not None and b is not None and (a >= b if strict else a > b):
+            err(path, f"{low} must be {'below' if strict else 'at most'} {high}")
+
+    for field in ("SalaryCap", "MinimumSalary", "MaxContractYears", "MaxProrationYears", "FreeAgencyDays",
+                  "DecisionDays", "DemandCurveExponent", "WalkAwayRatio", "DemandFloorFraction"):
+        if num(field) == 0:
+            err(path, f"{field}: must be above 0")
+    ordered("MinimumSalary", "SalaryCap", strict=True)
+    ordered("ReplacementRating", "EliteRating", strict=True)
+    ordered("MinGuaranteeFraction", "MaxGuaranteeFraction")
+    ordered("WalkAwayRatio", "AcceptRatio")
+    ordered("AcceptRatio", "InstantAcceptRatio")
+    ordered("PrimeAge", "DeclineAge")
+    if num("DemandDecayPerDay") is not None and num("DemandDecayPerDay") >= 1:
+        err(path, "DemandDecayPerDay: must be below 1")
+    for field in ("ReplacementRating", "EliteRating"):
+        if num(field) is not None and num(field) > 100:
+            err(path, f"{field}: ratings run 0-100")
+
+    markets = payload.get("PositionMarkets")
+    if not isinstance(markets, list):
+        err(path, "'PositionMarkets' must be an array")
+        return
+    seen = set()
+    for idx, market in enumerate(markets):
+        where = f"PositionMarkets[{idx}]"
+        if not isinstance(market, dict):
+            err(path, f"{where}: not an object")
+            continue
+        role = market.get("Role")
+        if role not in PLAYER_ROLES:
+            err(path, f"{where}.Role: '{role}' is not a valid EPlayerRole")
+        elif role in seen:
+            err(path, f"{where}.Role: duplicate '{role}'")
+        seen.add(role)
+        top = market.get("TopCapFraction")
+        if not is_number(top) or not 0 < top <= 1:
+            err(path, f"{where}.TopCapFraction: '{top}' must be a fraction above 0, at most 1")
+        target = market.get("RosterTarget")
+        if isinstance(target, bool) or not isinstance(target, int) or target < 0:
+            err(path, f"{where}.RosterTarget: '{target}' must be a whole number, 0 or more")
+        extra = set(market) - {"Role", "TopCapFraction", "RosterTarget"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSPositionMarket exactly")
+    missing = PLAYER_ROLES - seen
+    if missing:
+        err(path, f"PositionMarkets: no market for {sorted(missing)}")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2854,6 +2946,8 @@ def main():
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "Axes" in payload and "Bindings" in payload:
             validate_player_dna_catalog(path, payload)
+        if isinstance(payload, dict) and "SalaryCap" in payload and "PositionMarkets" in payload:
+            validate_contract_tuning(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:
