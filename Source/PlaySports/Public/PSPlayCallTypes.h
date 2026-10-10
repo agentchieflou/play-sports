@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
 #include "PSPlaybookData.h"
+#include "PSSituationData.h"
 #include "PSPlayCallTypes.generated.h"
 
 /** Who made a side's call. */
@@ -28,6 +29,10 @@ struct FPSPlayCall
 
     UPROPERTY(BlueprintReadOnly, Category = "PlayCall")
     EPSPlayCaller Caller = EPSPlayCaller::None;
+
+    /** The offense's tempo for the snap (Epic 76); always Huddle on the defense's call. */
+    UPROPERTY(BlueprintReadOnly, Category = "PlayCall")
+    EPSTempo Tempo = EPSTempo::Huddle;
 
     bool IsSet() const { return Caller != EPSPlayCaller::None; }
 };
