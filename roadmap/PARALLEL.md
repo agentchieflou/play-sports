@@ -134,7 +134,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "32":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["26", "7"]},
     "33":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["5", "10", "12"]},
     "34":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "2", "10"]},
-    "35":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["27", "31", "16"]},
+    "35":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["27", "31", "16"]},
     "36":  {"track": "A", "mode": "mixed", "status": "partial", "depends_on": ["26"], "open_stories": ["36.4 editor pass: tune against night lighting (needs an editor session)"]},
     "37":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["28", "29", "33", "34"]},
     "38":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["4", "26"]},
