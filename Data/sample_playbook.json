@@ -113,6 +113,48 @@
             ]
         },
         {
+            "PlayId": "Offense_TripsRightStretch",
+            "DisplayName": "Stretch Right",
+            "Formation": "Trips Right",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Run",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -100, "Y": 0, "Z": 0 } },
+                { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -400, "Y": 400, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "RunBlock" },
+                { "Role": "TightEnd", "Kind": "RunBlock" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" }
+            ]
+        },
+        {
+            "PlayId": "Offense_IFormSlants",
+            "DisplayName": "I-Form Slants",
+            "Formation": "I-Form",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "ShortPass",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -300, "Y": 0, "Z": 0 } },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Slant" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Out" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Offense_ShotgunDraw",
+            "DisplayName": "Shotgun Draw",
+            "Formation": "Shotgun",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Run",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -500, "Y": 0, "Z": 0 } },
+                { "Role": "RunningBack", "Kind": "Route", "FormationOffset": { "X": -450, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" },
+                { "Role": "TightEnd", "Kind": "RunBlock" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Curl" }
+            ]
+        },
+        {
             "PlayId": "Offense_Spike",
             "DisplayName": "Spike",
             "Formation": "Clock",
