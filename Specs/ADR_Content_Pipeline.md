@@ -199,7 +199,7 @@ A binary asset is generated only where the engine needs one:
 
 | Content | How | Why |
 |---|---|---|
-| The default level (`/Game/Maps/GameMap`) | Generated `.umap` (step `game_map`) | The engine boots into a level asset. It holds only lighting, a player start, the field grid (which builds the field at runtime) and its game mode. |
+| The default level (`/Game/Maps/GameMap`) | Generated `.umap` (step `game_map`) | The engine boots into a level asset. It holds only lighting, a player start and its game mode. |
 | The field: surface, yard lines, hashes, end zones | Built at runtime from `Data/field_dimensions.json` with engine basic shapes and dynamic material instances (146.3) | It already has one authority (`PSField`); a baked mesh would be a second copy to keep in step. |
 | HUD, menus, play-call screen, touch controls | C++ `UUserWidget` classes that build their own widget trees (`RebuildWidget`), as the score bug and the menu screens already do (146.4) | UMG Widget Blueprints are poorly exposed to Python, and their diffs can't be reviewed; a C++ tree is reviewable and testable headlessly. |
 | Imported meshes, textures, materials (the world kit) | Generated `.uasset`s imported from `RawAssets/` through Interchange (146.5) | Imported art is inherently binary. |

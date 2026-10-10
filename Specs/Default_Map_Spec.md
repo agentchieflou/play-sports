@@ -17,13 +17,12 @@ The level holds:
 - **The match as its GameMode Override** (`APSGameMode`). The game boots into the map with
   `?game=Menu` (`LocalMapOptions`), which runs the front end instead. Play Now travels back to it
   without a game option, so the override starts the match.
-- **The field grid** (`APSFieldGrid`) at the origin (146.3). At BeginPlay it spawns the field's
-  trigger volumes and its surface (`APSFieldSurface`: the ground, grass, end zones, lines and hash
-  marks), both built from data (`Specs/Field_Geometry_Spec.md`, `Specs/Field_Markings_Spec.md`).
-  So the front end has the field behind it, and the match uses this grid instead of spawning one.
-
-The level holds no field geometry of its own, so changing the field's dimensions or look never
-means regenerating the map.
+The field is not in the level (146.3). The match's game mode spawns an `APSFieldGrid` when the
+level has none, and at BeginPlay the grid spawns the field's trigger volumes and its surface
+(`APSFieldSurface`: the ground, grass, end zones, lines and hash marks). Both are built from data
+(`Specs/Field_Geometry_Spec.md`, `Specs/Field_Markings_Spec.md`), so changing the field's dimensions
+or look never means regenerating the map. The front end, booted into the same level, has no field
+behind it yet. A later step can place a grid in the level for that.
 
 ## Changing it
 
