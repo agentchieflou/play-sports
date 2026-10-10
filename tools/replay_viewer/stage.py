@@ -18,15 +18,20 @@ The staged folder:
   index.html app.js loader.js gait.js field.js replay_schema.json   the viewer
   data/field_dimensions.json data/sample_teams.json                 from Data/
   assets/standin.glb assets/LICENSE                                 RawAssets/world/people/ (CC0)
+  assets/standin.glb.b64.txt                                        the same model as base64 text: the
+                                                                    Artifact host doesn't serve .glb, so
+                                                                    the page falls back to this there
   recordings/index.json recordings/<play>.json ...                  the recordings, as listed,
                                                                     written compact (same JSON)
   sample/SYNTHETIC_*                                                with --synthetic only
---print-files prints the published-path -> source map for the Artifact tool's `files`.
+--print-files prints the published-path -> source map for the Artifact tool's `files` (without
+the .glb, which the Artifact host refuses; the page reads the base64 copy instead).
 
 Exit 0 when staged, 1 otherwise. Run from the repo root.
 """
 
 import argparse
+import base64
 import json
 import shutil
 import sys
@@ -44,6 +49,8 @@ ASSET_FILES = {"assets/standin.glb": REPO / "RawAssets" / "world" / "people" / "
 MAX_TEXT_BYTES = 16 * 1024 * 1024
 MAX_BINARY_BYTES = 15 * 1024 * 1024
 MAX_FILES = 255
+# The model's base64 copy, for hosts that don't serve .glb (app.js reads it when the .glb fails).
+MODEL_TEXT = "assets/standin.glb.b64.txt"
 
 
 def load_schema(path=SCHEMA_PATH):
@@ -272,6 +279,12 @@ def stage(out, recordings=None, synthetic=False, schema=None, log=print, standal
                 target = out / published
                 doc = json.loads(target.read_text(encoding="utf-8-sig"))
                 target.write_text(json.dumps(doc, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+    # The model again as base64 text, for the Artifact host, which serves no .glb.
+    model_text = out / MODEL_TEXT
+    model_text.write_text(base64.b64encode((out / "assets" / "standin.glb").read_bytes()).decode("ascii"), encoding="ascii")
+    if model_text.stat().st_size > MAX_TEXT_BYTES:
+        raise StageError(f"{MODEL_TEXT} is over the {MAX_TEXT_BYTES}-byte limit for one file.")
+    files[MODEL_TEXT] = model_text
     if standalone:
         page = out / "index.html"
         page.write_text(SKELETON_HEAD + page.read_text(encoding="utf-8") + SKELETON_TAIL, encoding="utf-8")
@@ -296,7 +309,7 @@ def main(argv=None):
         return 1
     if args.print_files:
         out = Path(args.out).resolve()
-        print(json.dumps({k: str(out / k) for k in files if k != "index.html"}, indent=2))
+        print(json.dumps({k: str(out / k) for k in files if k != "index.html" and not k.endswith(".glb")}, indent=2))
     return 0
 
 
