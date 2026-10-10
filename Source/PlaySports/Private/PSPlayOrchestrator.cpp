@@ -2,6 +2,8 @@
 #include "PSPlayerPawn.h"
 #include "PSOffenseController.h"
 #include "PSDefenseController.h"
+#include "PSPreSnapSubsystem.h"
+#include "Engine/World.h"
 #include "Engine/DataTable.h"
 
 EPSDefensiveAssignmentType UPSPlayOrchestrator::ToDefensiveAssignmentType(EPSAssignmentKind Kind)
@@ -45,6 +47,28 @@ TArray<FVector> UPSPlayOrchestrator::ResolveRouteWaypoints(const FName& RouteId,
     return WorldWaypoints;
 }
 
+const FPSPlayAssignment* UPSPlayOrchestrator::FindAssignmentSlot(const FPSPlayDefinition& Play, EPlayerRole Role, int32 RoleIndex)
+{
+    // The sample plays list one slot per role; a role with more players than slots repeats
+    // its last slot, so every receiver runs a route and every defender has a job (Epic 14).
+    const FPSPlayAssignment* Matched = nullptr;
+    int32 SeenForRole = 0;
+    for (const FPSPlayAssignment& Assignment : Play.Assignments)
+    {
+        if (Assignment.Role != Role)
+        {
+            continue;
+        }
+        Matched = &Assignment;
+        if (SeenForRole == RoleIndex)
+        {
+            break;
+        }
+        ++SeenForRole;
+    }
+    return Matched;
+}
+
 void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, const TArray<APSPlayerPawn*>& OnFieldPawns, const UDataTable* RouteLibrary, const FVector& LineOfScrimmage)
 {
     // Track how many pawns of each role have already been assigned so repeated
@@ -61,28 +85,15 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
 
         const EPlayerRole PawnRole = Pawn->GetAttributes().Role;
         int32& Cursor = RoleAssignmentCursor.FindOrAdd(PawnRole, 0);
-
-        // The play's Cursor-th slot for this role; a role with more players than slots
-        // repeats its last slot, so every receiver runs a route and every defender has a
-        // job (Epic 14: the sample plays list one slot per role).
-        const FPSPlayAssignment* MatchedAssignment = nullptr;
-        int32 SeenForRole = 0;
-        for (const FPSPlayAssignment& Assignment : Play.Assignments)
-        {
-            if (Assignment.Role != PawnRole)
-            {
-                continue;
-            }
-            MatchedAssignment = &Assignment;
-            if (SeenForRole == Cursor)
-            {
-                break;
-            }
-            ++SeenForRole;
-        }
-
+        const FPSPlayAssignment* MatchedAssignment = FindAssignmentSlot(Play, PawnRole, Cursor);
         if (!MatchedAssignment)
         {
+            // An offensive player the play gives no job doesn't run last play's route.
+            APSOffenseController* Unassigned = (Play.bIsOffensivePlay && Pawn->TeamSide == EPSTeamSide::Offense) ? Cast<APSOffenseController>(Pawn->GetController()) : nullptr;
+            if (Unassigned)
+            {
+                Unassigned->SetAssignedRoute(TArray<FVector>());
+            }
             continue;
         }
         ++Cursor;
@@ -100,19 +111,33 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
                 continue;
             }
 
-            if (MatchedAssignment->Kind == EPSAssignmentKind::Route)
+            // The offense's pre-snap changes for this player (Epic 66): a hot route, a back
+            // kept in to block, a tight end released.
+            FPSPlayAssignment Assignment = *MatchedAssignment;
+            UWorld* World = Pawn->GetWorld();
+            if (UPSPreSnapSubsystem* PreSnap = World ? World->GetSubsystem<UPSPreSnapSubsystem>() : nullptr)
+            {
+                PreSnap->ApplyAdjustment(Pawn, Assignment);
+            }
+
+            if (Assignment.Kind == EPSAssignmentKind::Route)
             {
                 // A route starts from the player's own split, not the ball.
-                const FVector Offset = MatchedAssignment->FormationOffset;
+                const FVector Offset = Assignment.FormationOffset;
                 const FVector Origin(LineOfScrimmage.X + Offset.X, PawnY + Offset.Y * Mirror, LineOfScrimmage.Z + Offset.Z);
-                TArray<FVector> Waypoints = ResolveRouteWaypoints(MatchedAssignment->RouteId, RouteLibrary, Origin, Mirror);
+                TArray<FVector> Waypoints = ResolveRouteWaypoints(Assignment.RouteId, RouteLibrary, Origin, Mirror);
                 // A route with no RouteId is "go to your spot": the QB's drop, the RB's mesh
                 // point on a run (Epic 14).
-                if (Waypoints.Num() == 0 && MatchedAssignment->RouteId.IsNone())
+                if (Waypoints.Num() == 0 && Assignment.RouteId.IsNone())
                 {
                     Waypoints.Add(Origin);
                 }
                 OffenseController->SetAssignedRoute(Waypoints);
+            }
+            else
+            {
+                // A blocker has no route: his AI blocks (Epic 14), whatever he ran last play.
+                OffenseController->SetAssignedRoute(TArray<FVector>());
             }
         }
         else
