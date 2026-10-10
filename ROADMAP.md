@@ -73,19 +73,20 @@ in `roadmap/PARALLEL.md`, which stays the source of truth for what is unblocked.
 - **Tier 0, out of the editor (all platforms wait on it):** 145 (packaged Win64 build in CI),
   146 (content as code: the headless editor pipeline), 147 (minimum playable content set). These
   close the editor stories that have stalled all project long: 2.1–2.2, 22's minimum, 23.3–23.4's
-  sounds, 24.1 and 142's imports. Start the owner paperwork for iOS (a Mac and an Apple account)
-  and Xbox (ID@Xbox) at the same time, because both have long lead times.
+  sounds, 24.1 and 142's imports. Content is committed through Git LFS (owner decision,
+  2026-10-10).
 - **Tier 1, PC playable and complete:** 147's newcomer playtest, then 148 (settings, input
-  parity, 60 fps, Shipping, distribution).
-- **Tier 2, iOS:** 149, once the owner has a Mac path (131.1), with 152 (platform services)
-  landing first.
-- **Tier 3, Xbox:** 150 (access, then the console target compiling in CI), then 151 (device
-  bring-up and certification readiness).
+  parity, 60 fps, Shipping, and a private zip; Steam later).
+- **Tier 2, iOS:** 149, once the owner's Mac is registered as the second CI runner (131.1 is
+  accepted: Option B with a free Apple ID), with 152 (platform services) landing first.
+- **Tier 3, Xbox:** 150 (the guts: everything Xbox needs that builds and tests on PC; pure code,
+  so a spare lane may pull it forward), then 151 (console bring-up and certification readiness),
+  which waits for the owner's ID@Xbox application.
 - **Alongside every tier:** 153 (build matrix, release checklist, cross-platform determinism and
   performance budgets) grows with each platform.
-- **Dream depth, after all three are playable:** Tracks C, D, H, B and A (presentation), then J's
-  online play, O's playbook and the remaining E, F and G depth. Until Tier 0 lands these are
-  frozen, except for stories a ladder rung names.
+- **Dream depth, after all three are playable:** Tracks C, D, H, B and A (presentation), then O's
+  playbook and the remaining E, F and G depth. Until Tier 0 lands these are frozen, except for
+  stories a ladder rung names. Online play (Track J's 108.3–108.4) is parked by the owner.
 
 Cross-cutting planning docs: `roadmap/MILESTONES_PLATFORMS.md` (the launch-critical path to the
 three platform goals; it supersedes `roadmap/MILESTONE_FIRST_GAME.md`, kept for its history) and

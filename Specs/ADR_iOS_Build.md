@@ -1,6 +1,7 @@
 # ADR: iOS Build Pipeline (Mac in the Loop)
 
-**Status:** Proposed (2026-10-10). Waiting on the owner's answer to the question at the end.
+**Status:** Accepted (2026-10-10): **Option B** (a Mac as a second self-hosted runner), with a
+**free Apple ID**. See "Decision" below.
 **Epic:** 131 (`roadmap/platform-ports.md`, Track N)
 **Related:** `Specs/ADR_CI_Environment.md` (the Windows runner), `Specs/Platform_Audit.md`
 (Epic 129: the iPhone budget), `Specs/iOS_Signing_Runbook.md` (the human signing steps),
@@ -114,9 +115,22 @@ launches straight to the connected iPhone from the editor or `RunUAT.sh`.
 - **Option A:** not recommended as the primary path. It has the most moving parts, and its 5.8
   support is unverified. It is only worth it if a Mac is on the network but can't host a runner.
 
-This ADR stays **Proposed** until the owner answers. On an answer, change the status to
-Accepted with the chosen option and the date, and delete the options that no longer apply from
-"Consequences".
+
+## Decision (2026-10-10)
+
+The owner chose **Option B** with a **free Apple ID**:
+
+- iOS builds run on a Mac registered as a second self-hosted runner (`self-hosted, macOS, mac`),
+  through `.github/workflows/ios-package.yml`, once `IOS_MAC_RUNNER` is `true`. The first build on
+  that Mac is done by hand (Option D) to prove signing, as recommended.
+- Signing uses the owner's free Apple ID (a Personal Team in Xcode on the runner Mac). Builds stop
+  launching after 7 days and are reinstalled from that Mac; the iPhone is paired with it once.
+- TestFlight is deferred until the owner joins the Developer Program.
+- Still to come from the owner, when iOS work starts (`roadmap/platform-release.md`, 149.1): the
+  Mac itself (model and chip, macOS version, free disk, able to stay on) and the runner
+  registration.
+
+Options A and C are not pursued. Option C needed the paid Developer Program in any case.
 
 ## Prerequisites the first iOS build will hit (found while writing this ADR)
 
@@ -160,7 +174,7 @@ in order on the first Mac build.
   job (`Config/DefaultDeviceProfiles.ini`, Epic 129). The iOS section doesn't repeat them, so
   each setting has one authority.
 
-## Question for the owner
+## Question for the owner (answered 2026-10-10; see "Decision")
 
 > **Do you have a Mac you can use for iOS builds?**
 >

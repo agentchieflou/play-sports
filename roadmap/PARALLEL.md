@@ -35,20 +35,21 @@ editor stories (2.1 field geometry, 2.2 markings), which wait for a human editor
 
 **Re-pointed 2026-10-10 (evening):** the roadmap now aims at one game playable on iOS, Xbox and
 PC (`roadmap/MILESTONES_PLATFORMS.md`). Group G10 (Track S, 145–153) comes first. Its unblocked
-Epics today are 145 (packaged Win64 build), 146 (headless content pipeline, after the owner's
-decision in 146.1), 150 (opens with the owner's ID@Xbox gate) and 152 (platform services, pure
-code). Depth work in the other groups is frozen until the shared S0 rungs land, except for stories
-a ladder rung names. G10 is not serialized as a whole: 145 → 146 → 147 is one chain that shares
-`ci.yml` and `Content/`, and 152 and 150 can run beside it.
+Epics today are 145 (packaged Win64 build), 146 (headless content pipeline; the owner chose Git
+LFS) and 152 (platform services, pure code); 150 (the Xbox guts, tested on PC) opens when 152
+lands. The owner's order is PC, then iOS, then Xbox; the ID@Xbox application waits until the owner
+chooses, and online play is parked. Depth work in the other groups is frozen until the shared S0
+rungs land, except for stories a ladder rung names. G10 is not serialized as a whole: 145 → 146 →
+147 is one chain that shares `ci.yml` and `Content/`, and 152 → 150 can run beside it.
 
 These groups can run at the same time (see the scope note under the table):
 
 | Group | Label | Epics (order) | Owner suggestion |
 |---|---|---|---|
-| G10 | Three-platform release (Track S) | **First priority.** 145 → 146 → 147 (one chain: shared `ci.yml` and `Content/`); 152 in parallel; 150 after the owner's ID@Xbox answer; then 148, 149 (after the Mac answer), 151 and 153 | Claude Code; 146.1, 149.1 and 150.1 are owner gates |
+| G10 | Three-platform release (Track S) | **First priority.** 145 → 146 → 147 (one chain: shared `ci.yml` and `Content/`); 152 → 150 in parallel; then 148, 149 (once the Mac runner exists), 153, and 151 (after the owner applies to ID@Xbox) | Claude Code; 149.1 (the Mac) and 151.1 (ID@Xbox) are owner gates |
 | G2 | Orchestrator (Track P) | Done (135–138); `python -m tools.orchestrator check-parallel` now validates this file | — |
 | G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
-| G4 | Platform ports (Track N, iPhone first) | Code done: 129 and 130 (touch drives every gameplay context; the touch HUD widget is an editor handoff). 131 is done but its ADR, which waits on the owner's answer about a Mac and an Apple account | Claude Code; packaging waits on a Mac |
+| G4 | Platform ports (Track N, iPhone first) | Done: 129, 130 and 131 (its ADR accepted 2026-10-10: a Mac as a second CI runner, free Apple ID). The touch HUD widget is built in 146.4; iOS packaging continues in Track S's 149 | — |
 | G5 | Bridge track | 25: 25.3 MCP server and 25.5 router done; 25.1–25.2 Autonomix and 25.6 smoke test need an editor, 25.4 registration waits on the owner (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 17.5's device measurement (14, 15, 16, 18 and 17.4 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
@@ -240,7 +241,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "128": {"track": "M", "mode": "code", "status": "done", "depends_on": ["127"]},
     "129": {"track": "N", "mode": "code", "status": "done", "depends_on": []},
     "130": {"track": "N", "mode": "code", "status": "done", "depends_on": ["126", "128", "129"]},
-    "131": {"track": "N", "mode": "mixed", "status": "partial", "depends_on": ["129"], "open_stories": ["131.1 ADR_iOS_Build.md accepted (Proposed; waits on the owner's answer about a Mac and an Apple account)"]},
+    "131": {"track": "N", "mode": "mixed", "status": "done", "depends_on": ["129"]},
     "132": {"track": "O", "mode": "code", "status": "partial", "depends_on": [], "open_stories": ["132.1 compliance review (written: NOT cleared; owner chooses manual authoring or permission, tools/playbook_scraper/COMPLIANCE.md)", "132.2 site recon (blocked by the compliance gate)"]},
     "133": {"track": "O", "mode": "code", "status": "open", "depends_on": ["132"]},
     "134": {"track": "O", "mode": "code", "status": "open", "depends_on": ["133"]},
@@ -259,8 +260,8 @@ one CI run) rather than re-merging main into each PR after every landing.
     "147": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["145", "146", "142"]},
     "148": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["145", "147"]},
     "149": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["131", "145", "147"]},
-    "150": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["112", "129"]},
-    "151": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["150", "147", "152"]},
+    "150": {"track": "S", "mode": "code", "status": "open", "depends_on": ["152", "129"]},
+    "151": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["150", "147"]},
     "152": {"track": "S", "mode": "code", "status": "open", "depends_on": ["115", "117"]},
     "153": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["145"]}
   },
