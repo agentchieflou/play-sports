@@ -6,7 +6,7 @@
     "PreSnapFrames": 60,
     "HistogramBucketMs": 0.005,
     "HistogramBucketCount": 4000,
-    "MaxBusEventsPerPlay": 60,
+    "MaxBusEventsPerPlay": 120,
     "HardFailMultiplier": 3.0,
     "RegressionTolerance": 0.25,
     "MinRegressionMs": 0.05,
