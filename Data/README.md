@@ -138,6 +138,7 @@ every CI build.
 | `field_markings.json` | `FPSFieldMarkingsStyle` (single object) | `UPSDataIngestion::LoadFieldMarkingsStyleFromJson`, via `APSFieldSurface::LoadStyle` (`APSFieldGrid::SpawnFieldSurface`) |
 | `stadium_set.json` | `FPSStadiumSetStyle` (single object) | `UPSDataIngestion::LoadStadiumSetStyleFromJson`, via `APSStadiumSet::LoadStyle` (`APSFieldGrid::SpawnStadiumSet`) |
 | `ball_look.json` | `FPSBallLookStyle` (single object) | `UPSDataIngestion::LoadBallLookStyleFromJson`, via `PSBallLook::LoadStyle` (`APSBall::BeginPlay`) |
+| `character_look.json` | `FPSCharacterLookStyle` (single object) | `UPSDataIngestion::LoadCharacterLookStyleFromJson`, via `UPSCharacterLookComponent::LoadStyle` (each `APSPlayerPawn`) |
 | `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
@@ -2170,6 +2171,22 @@ ball's X and `WidthCm` across, in `BallColor` (`#RRGGBB`) through a dynamic inst
 (with a vector parameter `ColorParameter`). The look never changes how the ball flies or lands: its
 collision is the ball's own sphere. Every size is above 0. `PSBallLook::ValidateStyle` and
 `tools/validate_data.py` check it.
+
+## Character look schema (`FPSCharacterLookStyle`)
+
+Single object: what a player looks like (Epic 147.2; `UPSCharacterLookComponent`, the one look
+authority that Epic 143's inclusive looks extend). Team colours are not here: they are each team's
+`PrimaryColor` and `SecondaryColor` in the team identity data (`sample_teams.json`).
+
+- `SkeletalMeshPath`: the character (the world kit's stand-in on the engine's body bones), turned
+  `MeshYawDegrees` to face +X, its feet on the capsule's bottom. Its `PrimarySlots` (the jersey) and
+  `SecondarySlots` (the pants) are material slot names, tinted through `TeamColorParameter`. Empty
+  means the fallback body, which is the look until the import's asset and parameter are confirmed.
+- `FallbackMeshPath` (`FallbackMeshSizeCm` across and tall at scale 1, centred) sized to the pawn's
+  capsule, in the team's primary colour through `FallbackMaterialPath`'s `FallbackColorParameter`.
+- `NeutralColor` (`#RRGGBB`): before the match's teams are known.
+
+`UPSCharacterLookComponent::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Formation schema (`FPSFormationCatalog`)
 

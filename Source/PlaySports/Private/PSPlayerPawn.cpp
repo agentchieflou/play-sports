@@ -1,4 +1,5 @@
 #include "PSPlayerPawn.h"
+#include "PSCharacterLook.h"
 #include "PSFieldGrid.h"
 #include "PSBallActionComponent.h"
 #include "PSCarrierMoveComponent.h"
@@ -45,6 +46,9 @@ APSPlayerPawn::APSPlayerPawn()
 
     // Epic 104.5: a defender's get-off and strip attempt
     DefenderTechniqueComponent = CreateDefaultSubobject<UPSDefenderTechniqueComponent>(TEXT("DefenderTechniqueComp"));
+
+    // Epic 147.2: what he looks like, in his team's colours
+    CharacterLookComponent = CreateDefaultSubobject<UPSCharacterLookComponent>(TEXT("CharacterLookComp"));
 
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;

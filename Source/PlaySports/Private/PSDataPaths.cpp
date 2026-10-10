@@ -26,6 +26,7 @@ namespace PSDataPathsPrivate
         TEXT("Data/camera_skycam.json"),
         TEXT("Data/carrier_moves.json"),
         TEXT("Data/catch_tuning.json"),
+        TEXT("Data/character_look.json"),
         TEXT("Data/coaching_staffs.json"),
         TEXT("Data/commentary_hooks.json"),
         TEXT("Data/commentary_lines.json"),

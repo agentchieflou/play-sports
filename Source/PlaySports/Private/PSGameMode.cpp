@@ -17,6 +17,7 @@
 #include "PSBall.h"
 #include "PSPlayerPawn.h"
 #include "PSFieldGrid.h"
+#include "PSCharacterLook.h"
 #include "PSBroadcastCamera.h"
 #include "PSRoster.h"
 #include "PSPersonnelManager.h"
@@ -318,6 +319,16 @@ void APSGameMode::StartPlay()
                 }
             }
 
+            // Each pawn wears the team it plays for (Epic 147.2): the match is the one authority on
+            // which teams those are.
+            for (APSPlayerPawn* Pawn : CachedPawns)
+            {
+                if (UPSCharacterLookComponent* Look = Pawn ? Pawn->GetCharacterLookComponent() : nullptr)
+                {
+                    Look->SetMatchSetup(MatchSetup);
+                }
+            }
+
             FActorSpawnParameters BallSpawnParams;
             BallSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
             ActiveBall = GetWorld()->SpawnActor<APSBall>(APSBall::StaticClass(), FVector(100.f, 0.f, 100.f), FRotator::ZeroRotator, BallSpawnParams);
@@ -523,6 +534,10 @@ void APSGameMode::ResetPawnPositions()
                 ExtraDefenderPawn = Spawned[0];
                 ExtraDefenderPawn->TeamSide = EPSTeamSide::Defense;
                 CachedPawns.Add(ExtraDefenderPawn);
+                if (UPSCharacterLookComponent* Look = ExtraDefenderPawn->GetCharacterLookComponent())
+                {
+                    Look->SetMatchSetup(MatchSetup);
+                }
                 UE_LOG(LogTemp, Display, TEXT("PSGameMode: 4th-down defensive overload -- fielded extra defender %s."), *ExtraDefenderAttributes.DisplayName);
             }
         }
