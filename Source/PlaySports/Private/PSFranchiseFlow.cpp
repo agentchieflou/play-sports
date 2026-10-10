@@ -1,6 +1,8 @@
 #include "PSFranchiseFlow.h"
+#include "PSContractManager.h"
 #include "PSDataIngestion.h"
 #include "PSFranchiseSeason.h"
+#include "PSFreeAgency.h"
 #include "PSLeagueData.h"
 #include "PSMatchSetup.h"
 #include "PSPlayerAttributes.h"
@@ -16,7 +18,26 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     Staffs = InStaffs;
     UserTeamId = InUserTeamId;
     CarouselEvents.Reset();
+    FreeAgency = nullptr;
+    LastRollover = FPSLeagueYearRollover();
     bSeasonEnded = false;
+}
+
+int32 UPSFranchiseFlow::SignLeagueContracts()
+{
+    if (!Contracts)
+    {
+        return 0;
+    }
+    int32 Signed = 0;
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        if (Team.Value)
+        {
+            Signed += Contracts->SignRosterAtDemand(Team.Key, Team.Value->GetFullRoster());
+        }
+    }
+    return Signed;
 }
 
 void UPSFranchiseFlow::SetTeamRoster(FName TeamId, UPSRoster* Roster)
@@ -192,6 +213,40 @@ bool UPSFranchiseFlow::EndSeason()
         {
             UE_LOG(LogTemp, Display, TEXT("UPSFranchiseFlow: Carousel: %s"), *Event.Description);
         }
+    }
+
+    // The league year turns over (Epic 87): deals run out, CPU teams get under the new cap, and
+    // free agency opens with everyone unsigned.
+    if (Contracts)
+    {
+        LastRollover = Contracts->RolloverLeagueYear();
+        TArray<FPlayerAttributes> Released;
+        TArray<FName> ReleasedBy;
+        for (const FName& TeamId : LastRollover.TeamsOverCap)
+        {
+            if (TeamId != UserTeamId)
+            {
+                const int32 Before = Released.Num();
+                Contracts->EnforceCompliance(TeamId, GetTeamRoster(TeamId), Released);
+                for (int32 Index = Before; Index < Released.Num(); ++Index)
+                {
+                    ReleasedBy.Add(TeamId);
+                }
+            }
+        }
+
+        FreeAgency = NewObject<UPSFreeAgency>(this);
+        FreeAgency->Initialize(Contracts);
+        for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+        {
+            FreeAgency->RegisterTeam(Team.Key, Team.Value, Team.Key == UserTeamId);
+        }
+        FreeAgency->ReleaseUnsignedToPool(TMap<FName, int32>());
+        for (int32 Index = 0; Index < Released.Num(); ++Index)
+        {
+            FreeAgency->AddFreeAgent(Released[Index], Contracts->GetTuning().DefaultPlayerAge, 0.5f, ReleasedBy[Index]);
+        }
+        FreeAgency->BeginPeriod();
     }
     return true;
 }

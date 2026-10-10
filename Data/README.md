@@ -84,6 +84,7 @@ every CI build.
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
+| `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
@@ -637,6 +638,30 @@ staffs after each carousel, while the schemes and tuning always come from here.
 
 `tools/validate_data.py` checks it, including that each scheme's formations are in the playbook on
 its side (an offense keeping a run and a pass, a defense a `Base` call).
+
+## Contract tuning schema (`FPSContractTuning`)
+
+Single object (Epic 87), read by `UPSContractManager`. Money is in thousands of dollars (whole
+numbers): `255000` is a $255 million cap. The contracts themselves live in the franchise save
+(`UPSFranchiseSaveGame::ContractLedger`), not here.
+- The cap: `FirstLeagueYear`, `SalaryCap` (the first year's), `CapGrowthRate` (per rollover),
+  `MinimumSalary`, `MaxContractYears`, `MaxProrationYears` (a bonus spreads over at most this many
+  years), `MaxCarryoverFraction` (unused space carried into the next year, as a fraction of the cap).
+- Demands (`UPSContractNegotiation`): `ReplacementRating` asks the minimum and `EliteRating` his
+  role's top of the market along `DemandCurveExponent`; `PrimeAge` and `YearsLostPerYearPastPrime`
+  (deal length), `DeclineAge`, `AgeDiscountPerYear`, `MinAgeMultiplier` (value with age);
+  `MinGuaranteeFraction`/`MaxGuaranteeFraction`; the market's `MarketSpaceWeight`,
+  `NeutralCapSpaceFraction`, `MaxMarketAdjustment`.
+- Offers: `MoraleLoyaltyWeight` (morale on his own team's offers), `GuaranteeValueWeight`,
+  `YearsMismatchPenalty`, `AcceptRatio`, `WalkAwayRatio` (counter at or above, reject below).
+- Free agency (`UPSFreeAgency`): `FreeAgencyDays`, `DecisionDays`, `InstantAcceptRatio`,
+  `DemandDecayPerDay`, `DemandFloorFraction`, the CPU's `AIBidRatio`, `AINeedPremium`,
+  `AICapCushionFraction`, `AIOffersPerDay`, and `DefaultPlayerAge` (players have no age field yet).
+- `PositionMarkets[]`: one per `EPlayerRole`: `Role`, `TopCapFraction` (an elite player's ask as
+  a fraction of the cap), `RosterTarget` (how many a team wants; fewer is a free-agency need).
+
+`tools/validate_data.py` checks it: every role has one market, the bounds are ordered and the
+offer ratios run walk-away <= accept <= instant.
 
 ## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
 

@@ -4,9 +4,12 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "PSStaffData.h"
+#include "PSContractData.h"
 #include "PSFranchiseFlow.generated.h"
 
+class UPSContractManager;
 class UPSFranchiseSeason;
+class UPSFreeAgency;
 class UPSMatchSetup;
 class UPSRoster;
 class UPSStaffManager;
@@ -23,8 +26,11 @@ class UPSStaffManager;
  *    recorded in the season.
  *  - AdvanceWeek: on to the next week; once the last week's games are all played, the season
  *    ends.
- *  - EndSeason: the off-season. It runs the coaching carousel (UPSStaffManager::RunCarousel) on
- *    the final standings, once per season.
+ *  - EndSeason: the off-season, once per season. The coaching carousel
+ *    (UPSStaffManager::RunCarousel) runs on the final standings; then, with a contract manager
+ *    (UPSContractManager, Epic 87), the league year rolls over, CPU teams over the new cap cut
+ *    back under it, and free agency (UPSFreeAgency) opens with every player whose deal ran out or
+ *    who was cut. The player's team bids there; GetFreeAgency()->AdvanceDay() runs its days.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSFranchiseFlow : public UObject
@@ -35,6 +41,19 @@ public:
     /** The season to run, the league's coaching staffs and the team the player runs. */
     UFUNCTION(BlueprintCallable, Category = "Franchise")
     void Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager* InStaffs, FName InUserTeamId);
+
+    /** The league's contracts and cap (Epic 87); the off-season rolls its league year over and
+     *  opens free agency. Optional: without one the season ends with the carousel alone. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetContracts(UPSContractManager* InContracts) { Contracts = InContracts; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSContractManager* GetContracts() const { return Contracts; }
+
+    /** A new franchise's contracts: every team with a roster signs its players at their demands
+     *  (UPSContractManager::SignRosterAtDemand). Returns the contracts signed. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    int32 SignLeagueContracts();
 
     /** The roster TeamId plays its quick-sim games with. */
     UFUNCTION(BlueprintCallable, Category = "Franchise")
@@ -88,6 +107,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Franchise")
     bool HasSeasonEnded() const { return bSeasonEnded; }
 
+    /** The free agency the season's end opened; null before then or without contracts. */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSFreeAgency* GetFreeAgency() const { return FreeAgency; }
+
+    /** What the season-end league-year rollover did (empty before then). */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    const FPSLeagueYearRollover& GetLastRollover() const { return LastRollover; }
+
     /** What the carousel did at the season's end, in order (empty before then). */
     UFUNCTION(BlueprintPure, Category = "Franchise")
     const TArray<FPSCarouselEvent>& GetCarouselEvents() const { return CarouselEvents; }
@@ -101,6 +128,15 @@ private:
 
     UPROPERTY(Transient)
     TMap<FName, UPSRoster*> RostersByTeam;
+
+    UPROPERTY(Transient)
+    UPSContractManager* Contracts = nullptr;
+
+    UPROPERTY(Transient)
+    UPSFreeAgency* FreeAgency = nullptr;
+
+    UPROPERTY(Transient)
+    FPSLeagueYearRollover LastRollover;
 
     UPROPERTY(Transient)
     TArray<FPSCarouselEvent> CarouselEvents;
