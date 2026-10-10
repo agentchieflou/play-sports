@@ -17,6 +17,7 @@ class UPSPlayCallComponent;
 class UPSPlayContextComponent;
 class UPSPassingComponent;
 class UPSCarrierInputComponent;
+class UPSInputBufferComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -44,7 +45,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * (Epic 104) is two components': UPSPlayContextComponent keeps the gameplay-depth context
  * (PreSnap, Passing, BallCarrier, Defense) matching the moment of the play,
  * UPSPassingComponent throws to receiver slots when the controlled QB passes, and
- * UPSCarrierInputComponent turns the move buttons into the carrier's moves.
+ * UPSCarrierInputComponent turns the move buttons into the carrier's moves. Both hear their
+ * buttons through UPSInputBufferComponent, which holds a press while its target is busy and
+ * carries a press into a depth context that came on just after it (Epic 104.4).
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -90,12 +93,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSCarrierInputComponent* GetCarrierInputComponent() const { return CarrierInputComponent; }
 
+    /** Buffers catalog presses whose target is busy (Epic 104.4). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSInputBufferComponent* GetInputBufferComponent() const { return InputBufferComponent; }
+
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
     FVector2D GetMoveInput() const { return MoveInput; }
 
     /** Puts ContextId on the stack as the one gameplay-depth context (Epic 104), above the
-     *  gameplay context, replacing the previous one; NAME_None clears it. */
+     *  gameplay context, replacing the previous one; NAME_None clears it. The input buffer
+     *  hears of the new context so a press made just before it counts there. */
     UFUNCTION(BlueprintCallable, Category = "Input")
     void SetDepthContext(FName ContextId);
 
@@ -221,6 +229,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSCarrierInputComponent* CarrierInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSInputBufferComponent* InputBufferComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

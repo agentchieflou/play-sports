@@ -59,9 +59,11 @@ struct FPassingInputTuningRow : public FTableRowBase
  *     moment (UPSDefenderAIComponent), and the ball stays in the passer's hands.
  *
  * It throws through APSPlayerPawn::ThrowPass like the AI passer, so accuracy, arm strength,
- * the throw event and its landing point all work the same for a human. Input arrives as the
- * owning APSPlayerController's catalog-action events (only while the Passing context is on);
- * ThrowToSlot and PumpFake are public so headless tests can drive them directly.
+ * the throw event and its landing point all work the same for a human. Input arrives through
+ * the owning APSPlayerController's UPSInputBufferComponent (only while the Passing context is
+ * on): a pass button pressed before the passer holds the ball waits for it, and the hold that
+ * picks touch or bullet is timed from the physical press (Epic 104.4). ThrowToSlot and PumpFake
+ * are public so headless tests can drive them directly.
  */
 UCLASS(ClassGroup = "PlaySports", BlueprintType, meta = (BlueprintSpawnableComponent))
 class PLAYSPORTS_API UPSPassingComponent : public UActorComponent
@@ -78,8 +80,13 @@ public:
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
 
-    /** Listens to the owning controller's catalog actions. Idempotent. */
+    /** Listens to the owning controller's input buffer (binding the buffer to the controller
+     *  too) and gives it this component's busy check. Idempotent. */
     void BindToController();
+
+    /** True while ActionId is a pass button or the pump fake and the controlled player can't
+     *  pass yet, so the press waits in the input buffer. */
+    bool IsPassActionBusy(FName ActionId);
 
     /** True when the controlled player is a QB holding the ball. */
     UFUNCTION(BlueprintPure, Category = "Passing")
@@ -106,19 +113,16 @@ protected:
 
 private:
     UFUNCTION()
-    void HandleActionStarted(FName ActionId);
+    void HandleActionPressed(FName ActionId, float HeldSeconds);
 
     UFUNCTION()
-    void HandleActionCompleted(FName ActionId);
+    void HandleActionReleased(FName ActionId, float HeldSeconds);
 
     APSPlayerController* GetPlayerController() const;
     APSPlayerPawn* GetPasser() const;
 
     UPROPERTY(Transient)
     FPassingInputTuningRow Tuning;
-
-    /** World time each slot button went down, by slot; negative while up. */
-    TArray<float> SlotPressedAt;
 
     bool bTuningLoaded = false;
 };

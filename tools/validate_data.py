@@ -19,6 +19,7 @@ against FPassingInputTuningRow, including that each named action is a Boolean in
 catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
 DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
+"MaxQueued" files against FInputBufferTuningRow, each buffered action a Boolean catalog action;
 "RushMoves" files against FPSRushMoveCatalog.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -596,8 +597,8 @@ def validate_platform_tiers(path, payload):
 
 CARRIER_MOVES = {"Juke", "Spin", "Truck", "StiffArm", "Hurdle", "Slide"}
 CARRIER_MOVE_ATTRIBUTES = {"Agility", "Strength", "Speed"}
-CARRIER_MOVE_NUMBERS = ("MinAttribute", "WindowSeconds", "CooldownSeconds", "StaminaCost", "TackleChanceScale",
-                        "SpeedRetained", "LateralSpeed", "ForwardSpeed")
+CARRIER_MOVE_NUMBERS = ("MinAttribute", "WindowSeconds", "CommitSeconds", "CooldownSeconds", "StaminaCost",
+                        "TackleChanceScale", "SpeedRetained", "LateralSpeed", "ForwardSpeed")
 
 
 def validate_carrier_moves(path, payload, catalog):
@@ -645,6 +646,42 @@ def validate_carrier_moves(path, payload, catalog):
         extra = set(row) - set(CARRIER_MOVE_NUMBERS) - {"Move", "ActionId", "Attribute", "bGivesUp"}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
+def validate_input_buffer(path, payload, catalog):
+    """FInputBufferTuningRow (Data/input_buffer.json, Epic 104.4); mirrors
+    UPSInputBufferComponent::ValidateTuning plus the catalog cross-check."""
+    max_queued = payload.get("MaxQueued")
+    if isinstance(max_queued, bool) or not isinstance(max_queued, int) or max_queued < 1:
+        err(path, f"MaxQueued: '{max_queued}' must be a whole number, 1 or more")
+    extra = set(payload) - {"MaxQueued", "Actions"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FInputBufferTuningRow exactly")
+    rows = payload.get("Actions")
+    if not isinstance(rows, list):
+        err(path, "'Actions' must be an array")
+        return
+    actions = {a.get("ActionId"): a for a in (catalog or {}).get("Actions", []) if isinstance(a, dict)}
+    seen = set()
+    for idx, row in enumerate(rows):
+        where = f"Actions[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        action_id = row.get("ActionId")
+        if not isinstance(action_id, str) or not action_id or action_id in seen:
+            err(path, f"{where}.ActionId: empty or used twice")
+        seen.add(action_id)
+        window = row.get("BufferSeconds")
+        if not is_number(window) or window < 0:
+            err(path, f"{where}.BufferSeconds: '{window}' must be a number, 0 or more")
+        extra = set(row) - {"ActionId", "BufferSeconds"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+        if catalog is not None and isinstance(action_id, str) and action_id:
+            action = actions.get(action_id)
+            if action is None or action.get("ValueType") != "Boolean":
+                err(path, f"{where}.ActionId: '{action_id}' must be a Boolean action in input_actions.json")
 
 
 RUSH_MOVES = {"Bull", "Swim", "Rip", "Spin", "Club", "Split"}
@@ -772,6 +809,8 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "MaxQueued" in payload:
+            validate_input_buffer(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "RushMoves" in payload:
             validate_rush_moves(path, payload)
     if errors:
