@@ -7,8 +7,10 @@
 #include "PSLockerRoom.h"
 #include "PSLeagueData.h"
 #include "PSLeagueGenerator.h"
+#include "PSLeagueHistory.h"
 #include "PSMatchSetup.h"
 #include "PSOwnerEconomy.h"
+#include "PSPlayerAging.h"
 #include "PSPlayerAttributes.h"
 #include "PSQuickSimRunner.h"
 #include "PSRoster.h"
@@ -25,6 +27,7 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     UserTeamId = InUserTeamId;
     CarouselEvents.Reset();
     EconomyReports.Reset();
+    Retirements.Reset();
     LockerRoomEvents.Reset();
     TrainingEvents.Reset();
     FreeAgency = nullptr;
@@ -395,14 +398,38 @@ bool UPSFranchiseFlow::EndSeason()
         }
     }
 
+    // The season being finished, numbered as the statistics (else the contracts) number it,
+    // before either moves on.
+    const int32 FinishedSeason = Stats && Stats->GetSeason() > 0 ? Stats->GetSeason()
+        : Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear()
+        : LeagueHistory && LeagueHistory->GetSeasons().Num() > 0 ? LeagueHistory->GetSeasons().Last().Season + 1 : 1;
     if (Stats)
     {
         Stats->EndSeason();
+    }
+    if (LeagueHistory)
+    {
+        // Epic 94: the season goes into the archive.
+        LeagueHistory->ArchiveSeason(FinishedSeason, Season->GetSortedStandings(), Stats);
+    }
+    Retirements.Reset();
+    if (PlayerAging)
+    {
+        // Epic 94: veterans retire (before the injured heal), everyone else ages a year.
+        for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+        {
+            Retirements.Append(PlayerAging->RunOffseason(Team.Key, Team.Value, FinishedSeason, Contracts, Stats, Preparation, LockerRoom, LeagueHistory));
+        }
     }
     if (Preparation)
     {
         // The off-season heals everyone (Epic 90).
         Preparation->EndSeason();
+    }
+    if (LeagueHistory)
+    {
+        // The hall of fame votes on the retired (Epic 94).
+        LeagueHistory->RunHallOfFameVote(FinishedSeason);
     }
     if (Economy)
     {

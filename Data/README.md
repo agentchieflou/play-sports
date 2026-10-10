@@ -95,6 +95,7 @@ every CI build.
 | `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
 | `draft.json` | `FPSDraftTuning` (single object: prospect uncertainty, `CombineDrills`, scouting, the CPU's board, the rookie scale) | `UPSDataIngestion::LoadDraftTuningFromJson`, via `UPSDraft` |
 | `training.json` | `FPSTrainingTuning` (single object: allocation, development, funding, gameplan `FocusAreas`, fatigue, `PracticeInjury`, recommendation fields) | `UPSDataIngestion::LoadTrainingTuningFromJson`, via `UPSWeeklyPreparation` |
+| `legacy.json` | `FPSLegacyTuning` (single object: `HallOfFame`, `LeaderCategories`) | `UPSDataIngestion::LoadLegacyTuningFromJson`, via `UPSLeagueHistory` |
 | `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
 | `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -1055,6 +1056,29 @@ money is in thousands of dollars.
 
 `tools/validate_data.py` checks it: positive uncertainties and costs, 0-1 shares and guarantees,
 each drill reading a rating, `RookieYears` within `contracts.json`'s `MaxContractYears`.
+
+## Legacy schema (`FPSLegacyTuning`)
+
+Single object (Epic 94), read by `UPSLeagueHistory`. The archive itself (every finished season, every
+retired player, the hall of fame) lives in the franchise save (`UPSFranchiseSaveGame::History`), not
+here.
+- `HallOfFame`: a retired player is voted in once `WaitSeasons` seasons have passed since he retired,
+  if he played `MinSeasons` seasons and his hall score reaches `InductionScore`; at most
+  `MaxInducteesPerSeason` a season, the best first. His hall score is his best category: the highest
+  of his career totals over their `Thresholds[]` (`Category`, a player `EPSStatCategory`;
+  `CareerValue`).
+- `LeaderCategories`: the player categories whose season leader each season's archive keeps.
+- `RoleCurves[]` (read by `UPSPlayerAging`): `Role` and its `Curve`, Core 19's `FPSProgressionTuning`
+  (`PeakAgeStart`, `PeakAgeEnd`, `GrowthPerYear`, `DeclinePerYear`, `LowSnapShareThreshold`); a role
+  not listed ages on `player_progression.json`'s curve.
+- `Retirement` (`UPSPlayerAging`): from `MinAge`, `BaseChance` plus `ChancePerYear` a year past it,
+  plus `LowRatingChance` under `LowRating`, `InjuredChance` when hurt at the season's end,
+  `LowMoraleChance` under `LowMorale`; always at `ForcedAge`; at most `MaxRetirementShare` of a
+  roster a season (the forced always); `RandomSeed`.
+
+`tools/validate_data.py` checks it: whole-number waits, a positive score, each threshold and leader
+a player category listed once, one curve per role with its peak in order, 0-1 chances, `ForcedAge`
+above `MinAge`.
 
 ## Owner economics schema (`FPSEconomyTuning`)
 
