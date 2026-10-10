@@ -231,6 +231,11 @@ public:
     /** Replaces the tuning (headless tests). */
     void SetTuning(const FPocketTuningRow& InTuning);
 
+    /** Puts the passer's style into this play's tuning (Epic 79): the tuning as loaded, scaled by
+     *  Data/player_dna.json's Pocket bindings for Passer's DNA. UPSSkillPlayerAIComponent calls it
+     *  as each play starts. */
+    void ApplyPlayerDNA(const FPlayerAttributes& Passer);
+
     /** A new play: not scrambling, no strips tried, rolls seeded. */
     void ResetPlay(int32 Seed);
 
@@ -269,6 +274,10 @@ private:
 
     UPROPERTY(Transient)
     FPocketTuningRow Tuning;
+
+    /** The tuning as loaded (or set); Tuning is this with the passer's DNA applied. */
+    UPROPERTY(Transient)
+    FPocketTuningRow BaseTuning;
 
     /** Rushers who already tried to strip the ball this play. */
     TSet<FObjectKey> StripTried;

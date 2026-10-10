@@ -1,0 +1,95 @@
+{
+    "TraitThreshold": 0.4,
+    "RushStyleWeight": 0.5,
+    "Axes": [
+        {
+            "Axis": "Mobility",
+            "Roles": ["Quarterback"],
+            "LowTrait": "PocketPasser",
+            "LowLabel": "Pocket passer",
+            "LowDescription": "Stands in against pressure and gets the ball out rather than run.",
+            "HighTrait": "Scrambler",
+            "HighLabel": "Scrambler",
+            "HighDescription": "Leaves the pocket at the first sign of trouble and makes plays with his legs.",
+            "Generator": { "HighAttribute": "Speed", "LowAttribute": "Awareness", "RatingLean": 0.06, "Spread": 0.35 }
+        },
+        {
+            "Axis": "Gunslinger",
+            "Roles": ["Quarterback"],
+            "LowTrait": "GameManager",
+            "LowLabel": "Game manager",
+            "LowDescription": "Takes what the defense gives him and only throws to the open man.",
+            "HighTrait": "Gunslinger",
+            "HighLabel": "Gunslinger",
+            "HighDescription": "Throws into tight windows and lets it go before the receiver breaks.",
+            "Generator": { "HighAttribute": "Strength", "LowAttribute": "Awareness", "RatingLean": 0.05, "Spread": 0.4 }
+        },
+        {
+            "Axis": "RunPower",
+            "Roles": ["RunningBack"],
+            "LowTrait": "ElusiveBack",
+            "LowLabel": "Elusive back",
+            "LowDescription": "Makes tacklers miss, cutting away from them early.",
+            "HighTrait": "PowerBack",
+            "HighLabel": "Power back",
+            "HighDescription": "Runs north and south, through contact rather than around it.",
+            "Generator": { "HighAttribute": "Strength", "LowAttribute": "Agility", "RatingLean": 0.06, "Spread": 0.35 }
+        },
+        {
+            "Axis": "RouteStyle",
+            "Roles": ["WideReceiver", "TightEnd"],
+            "LowTrait": "RouteTechnician",
+            "LowLabel": "Route technician",
+            "LowDescription": "Snaps off sharp breaks and sells every fake.",
+            "HighTrait": "VerticalThreat",
+            "HighLabel": "Vertical threat",
+            "HighDescription": "Wins with speed: rounds his breaks and hurries through his fakes.",
+            "Generator": { "HighAttribute": "Speed", "LowAttribute": "Agility", "RatingLean": 0.08, "Spread": 0.35 }
+        },
+        {
+            "Axis": "RushPower",
+            "Roles": ["DefensiveLineman", "Linebacker"],
+            "LowTrait": "FinesseRusher",
+            "LowLabel": "Finesse rusher",
+            "LowDescription": "Beats blockers with his hands and feet: swims, rips and spins.",
+            "HighTrait": "PowerRusher",
+            "HighLabel": "Power rusher",
+            "HighDescription": "Goes through blockers: bull rushes and clubs.",
+            "Generator": { "HighAttribute": "Strength", "LowAttribute": "Agility", "RatingLean": 0.05, "Spread": 0.35 }
+        },
+        {
+            "Axis": "BallHawk",
+            "Roles": ["DefensiveBack", "Linebacker"],
+            "LowTrait": "BlanketCover",
+            "LowLabel": "Blanket cover",
+            "LowDescription": "Stays glued to his man and rarely bites on a fake.",
+            "HighTrait": "BallHawk",
+            "HighLabel": "Ball hawk",
+            "HighDescription": "Sits off his man reading the passer and jumps throws, but bites on fakes.",
+            "Generator": { "HighAttribute": "Awareness", "LowAttribute": "Speed", "RatingLean": 0.05, "Spread": 0.35 }
+        }
+    ],
+    "Bindings": [
+        { "Axis": "Mobility", "Target": "Pocket", "Field": "CollapsePressure", "AtLow": 1.5, "AtHigh": 0.6 },
+        { "Axis": "Mobility", "Target": "Pocket", "Field": "EscapeRadius", "AtLow": 0.6, "AtHigh": 1.6 },
+        { "Axis": "Mobility", "Target": "SkillAI", "Field": "PressuredThrowSeparation", "AtLow": 0.5, "AtHigh": 2.0 },
+        { "Axis": "Gunslinger", "Target": "SkillAI", "Field": "OpenSeparation", "AtLow": 1.3, "AtHigh": 0.7 },
+        { "Axis": "Gunslinger", "Target": "SkillAI", "Field": "MaxAnticipationSeconds", "AtLow": 0.5, "AtHigh": 1.8 },
+        { "Axis": "Gunslinger", "Target": "Pocket", "Field": "ThrowawayMinAwareness", "AtLow": 0.7, "AtHigh": 1.3 },
+        { "Axis": "RunPower", "Target": "SkillAI", "Field": "CarrierAvoidWeight", "AtLow": 1.6, "AtHigh": 0.35 },
+        { "Axis": "RunPower", "Target": "SkillAI", "Field": "CarrierAvoidRadius", "AtLow": 1.3, "AtHigh": 0.7 },
+        { "Axis": "RouteStyle", "Target": "RouteRunning", "Field": "MaxBreakRounding", "AtLow": 0.5, "AtHigh": 1.6 },
+        { "Axis": "RouteStyle", "Target": "RouteRunning", "Field": "FakeSellSeconds", "AtLow": 1.6, "AtHigh": 0.5 },
+        { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "BallHawkRadius", "AtLow": 0.6, "AtHigh": 1.5 },
+        { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "ManCushion", "AtLow": 0.5, "AtHigh": 1.6 },
+        { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "ZoneShadeWeight", "AtLow": 0.7, "AtHigh": 1.3 },
+        { "Axis": "BallHawk", "Target": "DefenderAI", "Field": "PumpFakeFreezeSeconds", "AtLow": 0.5, "AtHigh": 1.8 }
+    ],
+    "RushMoveLeans": [
+        { "Move": "Bull", "Lean": 1.0 },
+        { "Move": "Club", "Lean": 0.6 },
+        { "Move": "Swim", "Lean": -1.0 },
+        { "Move": "Rip", "Lean": -0.8 },
+        { "Move": "Spin", "Lean": -1.0 }
+    ]
+}
