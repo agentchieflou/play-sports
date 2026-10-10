@@ -143,11 +143,13 @@ in order on the first Mac build.
    build will also be the first build of the `PlaySports` game target, on any platform. Any
    editor-only code outside `WITH_EDITOR` will fail there. A cheap early warning, which needs no
    Mac, is a Win64 `PlaySports` (game) compile in CI. That is a Track K (`.github/workflows/ci.yml`)
-   decision, not this ADR's.
+   decision, not this ADR's. *Epic 145 does it: `.github/workflows/package.yml` builds, cooks and
+   packages the Win64 game target and smoke-tests it.*
 2. **`Plugins/Autonomix` depends on editor-only modules.** Its module is `Developer` type, and its
    `Build.cs` depends on `EditorScriptingUtilities` and `PythonScriptPlugin`. If the build pulls
    it into a game target, the build fails. The fix is to make its module `Editor` type, or to
-   restrict its platforms in `Autonomix.uplugin`. That plugin is Track K's.
+   restrict its platforms in `Autonomix.uplugin`. That plugin is Track K's. *Epic 145 made both
+   plugins' modules `Editor` type, so no game target builds them.*
 3. **There is no map to cook.** `Content/` is empty. `GameDefaultMap=/Game/Maps/GameMap` does not
    exist until an editor session creates it (`Specs/Default_Map_Spec.md`). Until then, an iOS
    build proves the toolchain and signing, not the game.
