@@ -86,7 +86,9 @@
                 { "ActionId": "HotRoute", "GlyphId": "Touch_HotRoute", "Label": "Hot Route" },
                 { "ActionId": "Motion", "GlyphId": "Touch_Motion", "Label": "Motion" },
                 { "ActionId": "SlideProtection", "GlyphId": "Touch_SlideProtection", "Label": "Protection" },
-                { "ActionId": "BlockRelease", "GlyphId": "Touch_BlockRelease", "Label": "Block" }
+                { "ActionId": "BlockRelease", "GlyphId": "Touch_BlockRelease", "Label": "Block" },
+                { "ActionId": "Tempo", "GlyphId": "Touch_Tempo", "Label": "Tempo" },
+                { "ActionId": "Timeout", "GlyphId": "Touch_Timeout", "Label": "Timeout" }
             ]
         }
     ]

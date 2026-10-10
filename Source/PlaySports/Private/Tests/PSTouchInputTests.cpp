@@ -407,6 +407,7 @@ bool FPSTouchMatchesGamepadTest::RunTest(const FString& Parameters)
         { TEXT("Sprint"), EKeys::Gamepad_RightTrigger },
         { TEXT("TriggerLeft"), EKeys::Gamepad_LeftTrigger },
         { TEXT("Pause"), EKeys::Gamepad_Special_Right },
+        { TEXT("ButtonView"), EKeys::Gamepad_Special_Left },
         { TEXT("DPadUp"), EKeys::Gamepad_DPad_Up },
         { TEXT("DPadDown"), EKeys::Gamepad_DPad_Down },
         { TEXT("DPadLeft"), EKeys::Gamepad_DPad_Left },

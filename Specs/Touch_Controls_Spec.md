@@ -100,7 +100,7 @@ action in the same place.
 
 ```
  +--------------------------------------------------------------------------+
- |     [DUp]                       (Pause)                                  |
+ |     [DUp]                (View) (Pause)                                  |
  | [DLeft]  [DRight]              [TrigLeft] [UpperLeft]       [UpperRight] |
  |     [DDown]                                                              |
  |                                                                          |
@@ -125,13 +125,14 @@ action in the same place.
 | `ButtonUpperRight` | Button | 0.95, 0.18 | 0.07 | RB |
 | `Sprint` | Button | 0.68, 0.86 | 0.09 (65 pt) | RT |
 | `Pause` | Button | 0.50, 0.07 | 0.065 (47 pt) | Menu (Start) |
+| `ButtonView` | Button | 0.40, 0.07 | 0.065 (47 pt) | View (Back) |
 | `TriggerLeft` | Button | 0.58, 0.18 | 0.07 | LT |
 | `DPadUp`, `DPadDown`, `DPadLeft`, `DPadRight` | Buttons, a cross at the top left, clear of the stick zone | 0.20, 0.07 / 0.20, 0.28 / 0.13, 0.175 / 0.27, 0.175 | 0.065 (47 pt) | D-pad |
 | `SwipeUp`, `SwipeDown`, `SwipeLeft`, `SwipeRight` | Swipe from anywhere in the gesture zone (x 0.45-1) that is not a button | — | at least 0.12 heights (43 pt), within 0.35 s | — |
 
 Every button is at least 44 pt across, Apple's minimum touch target. Only the controls the active
-contexts bind are drawn. The D-pad and the LT twin appear only before the snap, the busiest moment
-(twelve buttons, while the play is not yet live); with the ball there are eight. The stick floats, because
+contexts bind are drawn. The D-pad and the LT and View twins appear only before the snap, the busiest
+moment (fourteen buttons, while the play is not yet live); with the ball there are eight. The stick floats, because
 a phone has no physical stick to find by feel: the thumb lands anywhere in the left zone and
 steers from there.
 
@@ -149,7 +150,8 @@ context. The automation test checks this for every button in every gameplay cont
 | ButtonBottom | Confirm (hike, play call) | Confirm (hike) | Throw to receiver 5 | Truck |
 | ButtonRight | Cancel | Cancel | Throw to receiver 3 | Spin |
 | ButtonLeft | Switch player | Switch player | Throw to receiver 1 | Juke |
-| ButtonTop | — | — | Throw to receiver 2 | Hurdle |
+| ButtonTop | — | Tempo (huddle, no-huddle, hurry-up) | Throw to receiver 2 | Hurdle |
+| ButtonView | — | Timeout | — | — |
 | ButtonUpperLeft | Switch player | Switch player | Pump fake | Slide |
 | ButtonUpperRight | — | Select receiver | Throw to receiver 4 | Stiff-arm |
 | TriggerLeft | — | Slide protection | — | — |

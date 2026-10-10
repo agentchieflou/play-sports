@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "PSPlayerAttributes.h"
+#include "PSSituationData.h"
 #include "PSTelemetryBus.h"
 #include "PSPlaySimulation.generated.h"
 
@@ -116,6 +117,10 @@ struct FPlayResult
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EPlayResultType ResultType = EPlayResultType::Incomplete;
+
+    /** The carrier went out of bounds (Epic 76): late in a half the clock stays stopped. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bOutOfBounds = false;
 };
 
 UCLASS(Blueprintable)
@@ -144,8 +149,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void SetPlayPhase(EPlayPhase NewPhase);
 
+    /** The carrier is down in bounds. Ignored once the play is over (Scoring). */
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void RecordTackle(int32 YardsGained);
+
+    /** The carrier ran out of bounds (Epic 76): a tackle that stops the clock until the snap
+     *  inside DoesOutOfBoundsStopClock's window. Ignored once the play is over. */
+    UFUNCTION(BlueprintCallable, Category = "Simulation")
+    void RecordOutOfBounds(int32 YardsGained);
 
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void EndPlayAndPrepareNext();
@@ -192,6 +203,15 @@ public:
     UFUNCTION()
     void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);
 
+    /** The offense's call before its snap (Epic 76): its tempo's play-clock mark, and whether
+     *  it is a spike or a kneel, which this resolves at the snap. */
+    UFUNCTION()
+    void OnBusPlayCallEvent(const FPSTelemetryPlayCallEvent& Event);
+
+    /** A side's timeout: charged through CallTimeout. */
+    UFUNCTION()
+    void OnBusTimeoutEvent(const FPSTelemetryTimeoutEvent& Event);
+
     UFUNCTION(BlueprintCallable, Category = "Simulation|Clock")
     bool CallTimeout(bool bHomeTeam);
 
@@ -212,5 +232,12 @@ private:
     UPROPERTY(Transient)
     UWorld* CachedWorld = nullptr;
 
+    /** From the offense's call for the coming snap (Epic 76). */
+    EPSClockPlay PendingClockPlay = EPSClockPlay::None;
+    float PendingSnapPlayClock = -1.f;
+
     void ResolvePlayResult();
+
+    /** Ends a spike or a kneel at the snap: nothing physical decides it. */
+    void ResolveClockPlay();
 };

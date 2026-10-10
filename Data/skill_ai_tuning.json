@@ -12,5 +12,8 @@
     "CarrierAvoidWeight": 1.0,
     "ThrowLeadSpeed": 2000.0,
     "BlockSetDistance": 150.0,
-    "BlockEngageRadius": 500.0
+    "BlockEngageRadius": 500.0,
+    "FieldHalfWidth": 2438.4,
+    "SidelineCushion": 450.0,
+    "SidelineSteerWeight": 1.0
 }

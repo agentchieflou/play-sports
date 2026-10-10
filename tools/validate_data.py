@@ -26,6 +26,8 @@ files against FPSTouchLayout (Epic 130), each bound action living in its context
 control's value type, every action of a listed context reachable by touch, and every touch-bound
 action drawn by the default Touch glyph set.
 
+"SituationTempos" files against FPSSituationalTuning, its route IDs against the route library.
+
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
 """
@@ -481,7 +483,7 @@ def validate_defensive_adjustments(path, payload):
 SKILL_AI_FIELDS = ("WaypointArrivalRadius", "OpenSeparation", "AwarenessMisreadSeparation", "MinReadSeconds",
                    "MaxReadSeconds", "PressureRadius", "PressuredThrowSeparation", "HandoffRadius",
                    "HandoffTimeoutSeconds", "CarrierAvoidRadius", "CarrierAvoidWeight", "ThrowLeadSpeed",
-                   "BlockSetDistance", "BlockEngageRadius")
+                   "BlockSetDistance", "BlockEngageRadius", "FieldHalfWidth", "SidelineCushion", "SidelineSteerWeight")
 
 
 def validate_skill_ai_tuning(path, payload):
@@ -857,6 +859,144 @@ def validate_presnap_tuning(path, payload, catalog, route_ids):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPreSnapTuningRow exactly")
 
 
+TEMPOS = ("Huddle", "NoHuddle", "HurryUp", "MilkClock")
+GAME_SITUATIONS = ("Normal", "TwoMinuteDrill", "FourMinuteOffense", "VictoryFormation")
+SITUATIONAL_SECONDS = ("TwoMinuteWindowSeconds", "TwoScoreWindowSeconds", "ClockUrgencySeconds", "SpikeMinSeconds",
+                       "FourMinuteWindowSeconds", "DefenseTimeoutWindowSeconds", "KneelPlaySeconds",
+                       "KneelPreSnapSeconds", "EndOfHalfKneelSeconds", "ClockPlayWeight")
+SITUATIONAL_COUNTS = ("OneScorePoints", "MaxSpikeDown", "MaxDeficitToChase", "EndOfHalfKneelMaxYardLine")
+SITUATIONAL_FIELDS = set(SITUATIONAL_SECONDS) | set(SITUATIONAL_COUNTS) | {
+    "Tempos", "SituationTempos", "HumanTempoCycle", "SpikeTempo", "KneelTempo", "SidelineRouteIds",
+    "MiddleRouteIds", "SidelinePlayDelta", "MiddlePlayDelta", "CategoryWeights"}
+
+
+def load_route_ids():
+    """The route library's IDs, or None when it is missing or broken (its own checks report that)."""
+    try:
+        routes = json.loads((DATA_DIR / "sample_routes.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(routes, dict) or not isinstance(routes.get("Routes"), list):
+        return None
+    return {r.get("RouteId") for r in routes["Routes"] if isinstance(r, dict)}
+
+
+def validate_situational_tuning(path, payload, route_ids):
+    """FPSSituationalTuning (Data/situational_tuning.json, Epic 76)."""
+    extra = set(payload) - SITUATIONAL_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSSituationalTuning exactly")
+    for field in SITUATIONAL_SECONDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in SITUATIONAL_COUNTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    if isinstance(payload.get("MaxSpikeDown"), int) and not 1 <= payload["MaxSpikeDown"] <= 4:
+        err(path, "MaxSpikeDown must be a down, 1-4")
+    if isinstance(payload.get("EndOfHalfKneelMaxYardLine"), int) and payload["EndOfHalfKneelMaxYardLine"] > 100:
+        err(path, "EndOfHalfKneelMaxYardLine must be a yard line, 0-100")
+    for field in ("SidelinePlayDelta", "MiddlePlayDelta"):
+        if not is_number(payload.get(field)):
+            err(path, f"{field}: '{payload.get(field)}' must be a number")
+
+    defined = set()
+    tempos = payload.get("Tempos")
+    if not isinstance(tempos, list):
+        err(path, "'Tempos' must be an array")
+        tempos = []
+    for idx, tempo in enumerate(tempos):
+        where = f"Tempos[{idx}]"
+        if not isinstance(tempo, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        name = tempo.get("Tempo")
+        if name not in TEMPOS:
+            err(path, f"{where}.Tempo: '{name}' is not an EPSTempo ({list(TEMPOS)})")
+        elif name in defined:
+            err(path, f"{where}.Tempo: '{name}' is defined twice")
+        defined.add(name)
+        if not str(tempo.get("Label", "")).strip():
+            err(path, f"{where}: no Label")
+        mark = tempo.get("SnapAtPlayClockSeconds")
+        if not is_number(mark) or not 0 <= mark <= 40:
+            err(path, f"{where}.SnapAtPlayClockSeconds: '{mark}' must be a play-clock reading, 0-40")
+        if not isinstance(tempo.get("bRerunLastCall"), bool):
+            err(path, f"{where}.bRerunLastCall: must be true or false")
+
+    def check_tempo(where, name):
+        if name not in TEMPOS:
+            err(path, f"{where}: '{name}' is not an EPSTempo ({list(TEMPOS)})")
+        elif name not in defined:
+            err(path, f"{where}: '{name}' has no entry in Tempos")
+
+    situation_tempos = payload.get("SituationTempos")
+    if not isinstance(situation_tempos, list):
+        err(path, "'SituationTempos' must be an array")
+        situation_tempos = []
+    seen = set()
+    for idx, row in enumerate(situation_tempos):
+        where = f"SituationTempos[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        situation = row.get("Situation")
+        if situation not in GAME_SITUATIONS:
+            err(path, f"{where}.Situation: '{situation}' is not an EPSGameSituation ({list(GAME_SITUATIONS)})")
+        elif situation in seen:
+            err(path, f"{where}.Situation: '{situation}' is listed twice")
+        seen.add(situation)
+        check_tempo(f"{where}.ClockRunningTempo", row.get("ClockRunningTempo"))
+        check_tempo(f"{where}.ClockStoppedTempo", row.get("ClockStoppedTempo"))
+
+    cycle = payload.get("HumanTempoCycle")
+    if not isinstance(cycle, list) or not cycle:
+        err(path, "HumanTempoCycle: must list at least one tempo")
+    else:
+        for idx, name in enumerate(cycle):
+            check_tempo(f"HumanTempoCycle[{idx}]", name)
+        if len(set(map(str, cycle))) != len(cycle):
+            err(path, "HumanTempoCycle: lists a tempo twice")
+    check_tempo("SpikeTempo", payload.get("SpikeTempo"))
+    check_tempo("KneelTempo", payload.get("KneelTempo"))
+
+    route_sets = {}
+    for field in ("SidelineRouteIds", "MiddleRouteIds"):
+        ids = payload.get(field)
+        if not isinstance(ids, list) or not all(isinstance(r, str) and r for r in ids):
+            err(path, f"{field}: must be an array of route IDs")
+            continue
+        route_sets[field] = set(ids)
+        for rid in ids:
+            if route_ids is not None and rid not in route_ids:
+                err(path, f"{field}: '{rid}' is not a route in sample_routes.json")
+    both = route_sets.get("SidelineRouteIds", set()) & route_sets.get("MiddleRouteIds", set())
+    if both:
+        err(path, f"route(s) {sorted(both)} are both sideline and middle routes")
+
+    weights = payload.get("CategoryWeights")
+    if not isinstance(weights, list):
+        err(path, "'CategoryWeights' must be an array")
+        weights = []
+    for idx, row in enumerate(weights):
+        where = f"CategoryWeights[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        if row.get("Situation") not in GAME_SITUATIONS:
+            err(path, f"{where}.Situation: '{row.get('Situation')}' is not an EPSGameSituation ({list(GAME_SITUATIONS)})")
+        if not isinstance(row.get("bOffense"), bool):
+            err(path, f"{where}.bOffense: must be true or false")
+        if not str(row.get("Category", "")).strip():
+            err(path, f"{where}: no Category")
+        if not is_number(row.get("Delta")):
+            err(path, f"{where}.Delta: '{row.get('Delta')}' must be a number")
+        if not str(row.get("Reason", "")).strip():
+            err(path, f"{where}: no Reason (the play-call screen shows it)")
+
+
 TOUCH_KINDS = {"Stick", "Button", "Swipe"}
 TOUCH_DIRECTIONS = {"Left", "Right", "Up", "Down"}
 TOUCH_LAYOUT_FIELDS = {"SafeZone", "LayoutAspect", "bFloatingStick", "StickZone", "GestureZone",
@@ -1067,6 +1207,8 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "SituationTempos" in payload:
+            validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "HotRouteSets" in payload:
             validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
         if isinstance(payload, dict) and "MaxQueued" in payload:
