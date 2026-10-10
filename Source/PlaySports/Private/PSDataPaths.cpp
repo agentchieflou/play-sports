@@ -18,6 +18,7 @@ namespace PSDataPathsPrivate
         TEXT("Data/ai_scenarios.json"),
         TEXT("Data/audio_cues.json"),
         TEXT("Data/ball_flight_overlay.json"),
+        TEXT("Data/ball_look.json"),
         TEXT("Data/blown_coverage.json"),
         TEXT("Data/broadcast_overlay.json"),
         TEXT("Data/camera_all22.json"),

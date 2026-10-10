@@ -1,4 +1,5 @@
 #include "PSBall.h"
+#include "PSBallLook.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -73,6 +74,9 @@ APSBall::APSBall()
 void APSBall::BeginPlay()
 {
     Super::BeginPlay();
+
+    // What it looks like (Epic 147.4): data, not an asset. Its collision stays the sphere.
+    PSBallLook::Apply(MeshComponent, PSBallLook::LoadStyle(PSBallLook::GetDefaultStylePath()), this);
 
     if (CollisionComponent)
     {

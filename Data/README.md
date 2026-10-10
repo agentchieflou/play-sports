@@ -137,6 +137,7 @@ every CI build.
 | `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
 | `field_markings.json` | `FPSFieldMarkingsStyle` (single object) | `UPSDataIngestion::LoadFieldMarkingsStyleFromJson`, via `APSFieldSurface::LoadStyle` (`APSFieldGrid::SpawnFieldSurface`) |
 | `stadium_set.json` | `FPSStadiumSetStyle` (single object) | `UPSDataIngestion::LoadStadiumSetStyleFromJson`, via `APSStadiumSet::LoadStyle` (`APSFieldGrid::SpawnStadiumSet`) |
+| `ball_look.json` | `FPSBallLookStyle` (single object) | `UPSDataIngestion::LoadBallLookStyleFromJson`, via `PSBallLook::LoadStyle` (`APSBall::BeginPlay`) |
 | `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
@@ -2160,6 +2161,15 @@ collides: the field's ground is the only collision surface, and whether a kick i
 - `bCastShadows`: whether the set casts dynamic shadows (off: they cost every frame on a phone).
 
 `APSStadiumSet::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Ball look schema (`FPSBallLookStyle`)
+
+Single object: what the ball looks like (Epic 147.4). `APSBall` puts it on its mesh at BeginPlay:
+`MeshPath` (`MeshSizeCm` across at scale 1, centred) stretched to `LengthCm` tip to tip along the
+ball's X and `WidthCm` across, in `BallColor` (`#RRGGBB`) through a dynamic instance of `MaterialPath`
+(with a vector parameter `ColorParameter`). The look never changes how the ball flies or lands: its
+collision is the ball's own sphere. Every size is above 0. `PSBallLook::ValidateStyle` and
+`tools/validate_data.py` check it.
 
 ## Formation schema (`FPSFormationCatalog`)
 

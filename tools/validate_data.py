@@ -122,8 +122,10 @@ material named, #RRGGBB colors, positive line sizes and spacings. "PressedOpacit
 FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1, #RRGGBB
 colors, positive sizes. "CrossbarHeightYards" files against FPSStadiumSetStyle
 (Data/stadium_set.json, Epic 147.1): meshes and material named, #RRGGBB colors, positive sizes,
-a bench span that runs forward. Teams, the league config, the playbook, player rating ranges and
-every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+a bench span that runs forward. "BallColor" files against FPSBallLookStyle (Data/ball_look.json,
+Epic 147.4): mesh and material named, a #RRGGBB color, positive sizes. Teams, the league config, the
+playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -2238,6 +2240,29 @@ def validate_stadium_set(path, payload):
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSStadiumSetStyle exactly")
+
+
+BALL_LOOK_FIELDS = ("MeshPath", "MeshSizeCm", "LengthCm", "WidthCm", "MaterialPath", "ColorParameter", "BallColor")
+
+
+def validate_ball_look(path, payload):
+    """FPSBallLookStyle (Data/ball_look.json, Epic 147.4): the ball's mesh, size and colour; mirrors
+    PSBallLook::ValidateStyle."""
+    for field in ("MeshPath", "MaterialPath"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.startswith("/"):
+            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Sphere.Sphere")
+    if not isinstance(payload.get("ColorParameter"), str) or not payload["ColorParameter"]:
+        err(path, "ColorParameter must name the material's color parameter")
+    if not isinstance(payload.get("BallColor"), str) or not HEX_COLOR.match(payload["BallColor"]):
+        err(path, f"BallColor: '{payload.get('BallColor')}' must be #RRGGBB")
+    for field in ("MeshSizeCm", "LengthCm", "WidthCm"):
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    extra = set(payload) - set(BALL_LOOK_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSBallLookStyle exactly")
 
 
 PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
@@ -6129,6 +6154,8 @@ def main(root=None):
             validate_field_markings(path, payload)
         if isinstance(payload, dict) and "CrossbarHeightYards" in payload:
             validate_stadium_set(path, payload)
+        if isinstance(payload, dict) and "BallColor" in payload:
+            validate_ball_look(path, payload)
         if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:

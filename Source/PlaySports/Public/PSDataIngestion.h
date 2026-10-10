@@ -83,6 +83,7 @@
 #include "PSFieldDimensions.h"
 #include "PSFieldSurfaceTypes.h"
 #include "PSStadiumSetTypes.h"
+#include "PSBallLook.h"
 #include "PSFormations.h"
 #include "PSDataIngestion.generated.h"
 
@@ -510,6 +511,11 @@ public:
      *  APSStadiumSet::ValidateStyle checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadStadiumSetStyleFromJson(const FString& JsonFilePath, FPSStadiumSetStyle& OutStyle);
+
+    /** Loads the ball's look (Data/ball_look.json, Epic 147.4): its mesh, size and colour. False on
+     *  a missing file or malformed JSON; PSBallLook::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadBallLookStyleFromJson(const FString& JsonFilePath, FPSBallLookStyle& OutStyle);
 
     /** Loads every formation, front and shell's alignment (Data/formations.json): where each
      *  player lines up for a call (PSFormations). False on a missing file or malformed JSON;
