@@ -23,8 +23,10 @@ class PLAYSPORTS_API UPSPlayOrchestrator : public UObject
 
 public:
     /** Resolves Play into per-pawn assignments for every pawn in OnFieldPawns whose
-     *  role matches an assignment slot. RouteLibrary resolves Route assignment kinds
-     *  to waypoint offsets; LineOfScrimmage is the world-space origin for offsets. */
+     *  role has an assignment slot; a role with more players than slots repeats its last
+     *  slot. RouteLibrary resolves Route assignment kinds to waypoint offsets from the
+     *  player's own split (LineOfScrimmage's X, the pawn's Y), mirrored for a player left
+     *  of the ball; a zone is played on the defender's own side of the field. */
     UFUNCTION(BlueprintCallable, Category = "AI|Orchestration")
     void DistributePlayCall(const FPSPlayDefinition& Play, const TArray<APSPlayerPawn*>& OnFieldPawns, const UDataTable* RouteLibrary, const FVector& LineOfScrimmage);
 
@@ -44,7 +46,7 @@ public:
 private:
     static EPSDefensiveAssignmentType ToDefensiveAssignmentType(EPSAssignmentKind Kind);
 
-    TArray<FVector> ResolveRouteWaypoints(const FName& RouteId, const UDataTable* RouteLibrary, const FVector& Origin) const;
+    TArray<FVector> ResolveRouteWaypoints(const FName& RouteId, const UDataTable* RouteLibrary, const FVector& Origin, float MirrorY = 1.f) const;
 
     UPROPERTY(Transient)
     FRandomStream DeterminismStream;

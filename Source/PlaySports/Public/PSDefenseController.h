@@ -42,6 +42,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "AI|Defense")
     EPSDefensiveAssignmentType GetAssignment() const { return CurrentAssignment; }
 
+    /** The man to cover when the play names one (null: the defender picks his own). */
+    UFUNCTION(BlueprintPure, Category = "AI|Defense")
+    AActor* GetCoverageTarget() const { return AssignmentCoverageTarget; }
+
+    /** The world spot of this defender's zone (line of scrimmage + the play's zone offset). */
+    UFUNCTION(BlueprintPure, Category = "AI|Defense")
+    FVector GetZoneLocation() const { return AssignmentZoneLocation; }
+
     /** Attribute-scaled pursuit angle: predicts an intercept point ahead of the ball
      *  carrier's current velocity, scaled by this controller's Awareness attribute
      *  (higher awareness reads the carrier's path more accurately). */

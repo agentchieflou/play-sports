@@ -264,8 +264,8 @@ bool FPSCallWindowTest::RunTest(const FString& Parameters)
     Bus->PublishSnap(Snap);
 
     TestFalse(TEXT("The snap closes the window"), PlayCall->IsCallWindowOpen());
-    TestTrue(TEXT("The WR runs the called Slant from the line of scrimmage"),
-        WRController && WRController->GetCurrentTargetLocation().Equals(Snap.LineOfScrimmage + FVector(300.f, 0.f, 0.f)));
+    TestTrue(TEXT("The WR runs the called Slant from his split on the line of scrimmage"),
+        WRController && WRController->GetCurrentTargetLocation().Equals(Snap.LineOfScrimmage + FVector(300.f, 500.f, 0.f)));
     TestTrue(TEXT("The LB runs the called blitz"), LBController && LBController->GetAssignment() == EPSDefensiveAssignmentType::PassRush);
     TestFalse(TEXT("No calls after the snap"), PlayCall->CallPlay(TEXT("Offense_FourVerts"), EPSPlayCaller::Human));
     TestFalse(TEXT("Nothing to snap after the snap"), PlayCall->PollReadyToSnap(10.f));
