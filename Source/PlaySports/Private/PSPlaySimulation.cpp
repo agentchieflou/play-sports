@@ -1,4 +1,5 @@
 #include "PSPlaySimulation.h"
+#include "PSPerfBudget.h"
 #include "PSGameStateEvents.h"
 #include "PSRulesConfig.h"
 #include "PSSpecialTeamsModel.h"
@@ -149,6 +150,7 @@ void UPSPlaySimulation::ResolveClockPlay()
 
 void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
 {
+    PS_PERF_SCOPE(Simulation);
     CurrentState.GameTimeSeconds += DeltaSeconds;
     PhaseTimer += DeltaSeconds;
 

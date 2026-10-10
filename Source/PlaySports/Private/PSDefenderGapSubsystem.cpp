@@ -1,4 +1,5 @@
 #include "PSDefenderGapSubsystem.h"
+#include "PSPerfBudget.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSDefenseController.h"
@@ -441,6 +442,7 @@ void UPSDefenderGapSubsystem::AssignTechniques()
 
 void UPSDefenderGapSubsystem::UpdateFits(float DeltaSeconds)
 {
+    PS_PERF_SCOPE_NESTED(AI);
     if (!bPlayLive)
     {
         return;

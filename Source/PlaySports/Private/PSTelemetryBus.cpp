@@ -1,4 +1,5 @@
 #include "PSTelemetryBus.h"
+#include "PSPerfBudget.h"
 #include "JsonObjectConverter.h"
 #include "Engine/World.h"
 
@@ -50,6 +51,8 @@ bool UPSTelemetryBus::FindLatestEventOfType(EPSTelemetryEventType EventType, FPS
 
 void UPSTelemetryBus::RecordHistory(EPSTelemetryEventType EventType, const FString& Description, const FString& JsonPayload)
 {
+    PS_PERF_SCOPE(Telemetry);
+    PSPerf::AddCount(EPSPerfCounter::BusEvents);
     FPSTelemetryEvent Event;
     Event.EventType = EventType;
     Event.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;

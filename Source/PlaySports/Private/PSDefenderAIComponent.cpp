@@ -1,5 +1,6 @@
 #include "PSDefenderAIComponent.h"
 #include "PSAIDecisionLog.h"
+#include "PSPerfBudget.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSCoverageMatchupSubsystem.h"
 #include "PSDataIngestion.h"
@@ -449,6 +450,8 @@ bool UPSDefenderAIComponent::IsBallOut(const APSPlayerPawn* Carrier) const
 void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
 {
     SCOPE_CYCLE_COUNTER(STAT_PSAIDefenderDecision);
+    PS_PERF_SCOPE(AI);
+    PSPerf::AddCount(EPSPerfCounter::AIDecisions);
     DesiredDirection = FVector::ZeroVector;
     APSPlayerPawn* Self = GetSelf();
     if (!Self || !bPlayLive)

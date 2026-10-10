@@ -61,6 +61,7 @@
 #include "PSLooseBallSubsystem.h"
 #include "PSDifficultyTypes.h"
 #include "PSDeceptionSubsystem.h"
+#include "PSPerfTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -226,6 +227,11 @@ public:
      *  malformed JSON or an unrecognized enum string. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadVersusRulesFromJson(const FString& JsonFilePath, FPSVersusRules& OutRules);
+
+    /** Loads the profiling harness and CI budget-check settings (Data/perf_harness.json,
+     *  Epic 114). False on a missing file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPerfHarnessTuningFromJson(const FString& JsonFilePath, FPSPerfHarnessTuning& OutTuning);
 
     /** Loads the broadcast package: score bug and chyron theme and rules
      *  (Data/broadcast_overlay.json, Epic 33). False on a missing file, malformed JSON, or an

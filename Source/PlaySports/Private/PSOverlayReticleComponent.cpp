@@ -1,4 +1,5 @@
 #include "PSOverlayReticleComponent.h"
+#include "PSPerfBudget.h"
 #include "PSDataIngestion.h"
 #include "PSPlayContextComponent.h"
 #include "PSPlayerController.h"
@@ -155,6 +156,7 @@ void UPSOverlayReticleComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 
 void UPSOverlayReticleComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+    PS_PERF_SCOPE(Overlays);
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
     AdvanceAnimation(DeltaTime);
     Refresh();
@@ -248,6 +250,7 @@ APSOverlayReticle* UPSOverlayReticleComponent::EnsureReticle()
 
 void UPSOverlayReticleComponent::Refresh()
 {
+    PS_PERF_SCOPE_NESTED(Overlays);
     const EPSReticleState State = ComputeState();
     if (State == EPSReticleState::Hidden && !IsValid(Reticle))
     {
