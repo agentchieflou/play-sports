@@ -58,8 +58,10 @@ counter pairing a play category the human calls with one the CPU answers on the 
 78); "PausesPerHalf" files against FPSVersusRules (Epic 107): control roles on their sides, screen
 and overlay audiences, pause and resume etiquette; "bLogDecisions" files against FPSAIDebugTuning
 and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover target naming a
-player of its scenario (Epic 85). Teams, the league config, the playbook, player rating ranges and
-every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+player of its scenario (Epic 85); "StadiumCapacity" files against FPSEconomyTuning (Epic 95):
+ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBudgetFraction. Teams,
+the league config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -3301,6 +3303,66 @@ def validate_ai_scenarios(path, payload, dna_catalog):
                 err(path, f"{ewhere}.Heading: must be an X/Y/Z object")
 
 
+ECONOMY_FIELDS = {
+    "StadiumCapacity": int, "BaseTicketPrice": float, "MinTicketPrice": float, "MaxTicketPrice": float,
+    "BaseFillRate": float, "WinFillWeight": float, "SatisfactionFillWeight": float, "PriceElasticity": float,
+    "MinFillRate": float, "ConcessionsPerFan": float, "MediaRevenuePerTeam": int, "StartingSatisfaction": float,
+    "WinSatisfactionGain": float, "LossSatisfactionLoss": float, "PriceSatisfactionLoss": float,
+    "WinningSeasonSatisfactionGain": float, "LosingSeasonSatisfactionLoss": float,
+    "RelocationSatisfactionThreshold": float, "RelocationLosingSeasons": int, "MaxBudgetFraction": float,
+}
+ECONOMY_FRACTIONS = {
+    "BaseFillRate", "MinFillRate", "StartingSatisfaction", "WinSatisfactionGain", "LossSatisfactionLoss",
+    "PriceSatisfactionLoss", "WinningSeasonSatisfactionGain", "LosingSeasonSatisfactionLoss",
+    "RelocationSatisfactionThreshold", "MaxBudgetFraction",
+}
+BUDGET_FIELDS = ("ScoutingFraction", "TrainingFraction", "StaffFraction")
+
+
+def validate_owner_economics(path, payload):
+    """FPSEconomyTuning (Data/owner_economics.json, Epic 95); mirrors UPSOwnerEconomy::ValidateTuning."""
+    for field, ftype in ECONOMY_FIELDS.items():
+        value = payload.get(field)
+        if ftype is int:
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+        elif not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+        elif field in ECONOMY_FRACTIONS and value > 1:
+            err(path, f"{field}: a fraction, at most 1")
+    extra = set(payload) - set(ECONOMY_FIELDS) - {"DefaultBudget"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSEconomyTuning exactly")
+
+    def num(field):
+        value = payload.get(field)
+        return value if is_number(value) else None
+
+    for field in ("StadiumCapacity", "MinTicketPrice", "RelocationLosingSeasons"):
+        if num(field) == 0:
+            err(path, f"{field}: must be above 0")
+    for low, high in (("MinTicketPrice", "BaseTicketPrice"), ("BaseTicketPrice", "MaxTicketPrice"), ("MinFillRate", "BaseFillRate")):
+        if num(low) is not None and num(high) is not None and num(low) > num(high):
+            err(path, f"{low} must not exceed {high}")
+
+    budget = payload.get("DefaultBudget")
+    if not isinstance(budget, dict):
+        err(path, "'DefaultBudget' must be an object of ScoutingFraction, TrainingFraction, StaffFraction")
+        return
+    total = 0
+    for field in BUDGET_FIELDS:
+        value = budget.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"DefaultBudget.{field}: '{value}' must be a number, 0 or more")
+        else:
+            total += value
+    extra = set(budget) - set(BUDGET_FIELDS)
+    if extra:
+        err(path, f"DefaultBudget: unknown field(s) {sorted(extra)} - names must match FPSTeamBudget exactly")
+    if num("MaxBudgetFraction") is not None and total > num("MaxBudgetFraction") + 1e-6:
+        err(path, f"DefaultBudget: its shares total {total:g}, over MaxBudgetFraction")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -3434,6 +3496,8 @@ def main():
             validate_ai_debug(path, payload)
         if isinstance(payload, dict) and "Scenarios" in payload:
             validate_ai_scenarios(path, payload, load_dna_catalog())
+        if isinstance(payload, dict) and "StadiumCapacity" in payload:
+            validate_owner_economics(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

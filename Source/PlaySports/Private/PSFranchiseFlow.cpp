@@ -5,6 +5,7 @@
 #include "PSFreeAgency.h"
 #include "PSLeagueData.h"
 #include "PSMatchSetup.h"
+#include "PSOwnerEconomy.h"
 #include "PSPlayerAttributes.h"
 #include "PSQuickSimRunner.h"
 #include "PSRoster.h"
@@ -19,6 +20,7 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     Staffs = InStaffs;
     UserTeamId = InUserTeamId;
     CarouselEvents.Reset();
+    EconomyReports.Reset();
     FreeAgency = nullptr;
     LastRollover = FPSLeagueYearRollover();
     bSeasonEnded = false;
@@ -174,9 +176,18 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
         {
             Stats->FinishGame();
         }
+        // The home crowd comes for the record the team brought into the game (Epic 95).
+        const TArray<FPSTeamStanding> Standings = Season->GetStandings();
+        const FPSTeamStanding* HomeRecord = Standings.FindByPredicate([&Matchup](const FPSTeamStanding& Standing) { return Standing.TeamId == Matchup.HomeTeamId; });
+        const bool bHomePlayed = HomeRecord && HomeRecord->Wins + HomeRecord->Losses + HomeRecord->Ties > 0;
+        const float HomeWinPercentage = bHomePlayed ? HomeRecord->GetWinPercentage() : 0.5f;
         if (Season->RecordGameResult(Week, Matchup.HomeTeamId, Matchup.AwayTeamId, Result.HomeScore, Result.AwayScore))
         {
             ++Played;
+            if (Economy)
+            {
+                Economy->RecordGame(Matchup.HomeTeamId, Matchup.AwayTeamId, Result.HomeScore, Result.AwayScore, HomeWinPercentage);
+            }
         }
     }
     return Played;
@@ -241,6 +252,11 @@ bool UPSFranchiseFlow::EndSeason()
     if (Stats)
     {
         Stats->EndSeason();
+    }
+    if (Economy)
+    {
+        // The books close on the league year just played, before the rollover below.
+        EconomyReports = Economy->EndSeason(Season->GetStandings(), Contracts);
     }
 
     // The league year turns over (Epic 87): deals run out, CPU teams get under the new cap, and
