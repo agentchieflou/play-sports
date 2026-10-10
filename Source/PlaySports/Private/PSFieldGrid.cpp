@@ -1,5 +1,7 @@
 #include "PSFieldGrid.h"
 #include "PSPlayerPawn.h"
+#include "PSDefenseController.h"
+#include "PSOffenseController.h"
 #include "Engine/World.h"
 #include "PSEndZoneVolume.h"
 #include "PSOutOfBoundsVolume.h"
@@ -202,6 +204,84 @@ FVector APSFieldGrid::GetFormationSpawnLocation(
     return GetWorldPositionFromFieldCoordinate(TargetYardLine, LateralYard);
 }
 
+EPSTeamSide APSFieldGrid::GetSideForRole(EPlayerRole Role)
+{
+    return (Role == EPlayerRole::DefensiveLineman || Role == EPlayerRole::Linebacker || Role == EPlayerRole::DefensiveBack)
+        ? EPSTeamSide::Defense
+        : EPSTeamSide::Offense;
+}
+
+TArray<FVector> APSFieldGrid::ComputeLineup(const TArray<EPlayerRole>& Roles, float ScrimmageX)
+{
+    TMap<EPlayerRole, int32> Counts;
+    for (const EPlayerRole Role : Roles)
+    {
+        Counts.FindOrAdd(Role)++;
+    }
+
+    // Centred across the field: Index 0..Count-1 spread Spacing apart around Y = 0.
+    auto Centred = [](int32 Index, int32 Count, float Spacing)
+    {
+        return (Index - (Count - 1) * 0.5f) * Spacing;
+    };
+    // Split wide, alternating right and left, each pair Stagger further out.
+    auto Split = [](int32 Index, float Width, float Stagger)
+    {
+        const float Side = (Index % 2 == 0) ? 1.f : -1.f;
+        return Side * (Width + Stagger * (Index / 2));
+    };
+
+    TMap<EPlayerRole, int32> Seen;
+    TArray<FVector> Lineup;
+    Lineup.Reserve(Roles.Num());
+    for (const EPlayerRole Role : Roles)
+    {
+        const int32 Index = Seen.FindOrAdd(Role)++;
+        const int32 Count = Counts[Role];
+        float X = ScrimmageX;
+        float Y = 0.f;
+        switch (Role)
+        {
+        case EPlayerRole::OffensiveLineman:
+            X -= LineSetback;
+            Y = Centred(Index, Count, LinemanSpacing);
+            break;
+        case EPlayerRole::Quarterback:
+            X -= QBDepth;
+            Y = Centred(Index, Count, LinemanSpacing);
+            break;
+        case EPlayerRole::RunningBack:
+            X -= RunningBackDepth;
+            Y = Centred(Index, Count, LinemanSpacing);
+            break;
+        case EPlayerRole::WideReceiver:
+            X -= LineSetback;
+            Y = Split(Index, ReceiverSplit, ReceiverStagger);
+            break;
+        case EPlayerRole::TightEnd:
+            X -= LineSetback;
+            Y = Split(Index, TightEndSplit, LinemanSpacing);
+            break;
+        case EPlayerRole::DefensiveLineman:
+            X += DefensiveLineDepth;
+            Y = Centred(Index, Count, DefensiveLineSpacing);
+            break;
+        case EPlayerRole::Linebacker:
+            X += LinebackerDepth;
+            Y = Centred(Index, Count, LinebackerSpacing);
+            break;
+        case EPlayerRole::DefensiveBack:
+            X += SecondaryDepth;
+            Y = Split(Index, ReceiverSplit, ReceiverStagger);
+            break;
+        default:
+            break;
+        }
+        Lineup.Add(FVector(X, Y, PawnHeight));
+    }
+    return Lineup;
+}
+
 TArray<APSPlayerPawn*> APSFieldGrid::SpawnPlayersFromRoster(
     const TArray<const FPlayerAttributes*>& Roster,
     float ScrimmageX,
@@ -213,29 +293,35 @@ TArray<APSPlayerPawn*> APSFieldGrid::SpawnPlayersFromRoster(
         return SpawnedPawns;
     }
 
-    float XOffset = 0.f;
+    TArray<const FPlayerAttributes*> Players;
+    TArray<EPlayerRole> Roles;
     for (const FPlayerAttributes* Player : Roster)
     {
-        if (!Player)
+        if (Player)
+        {
+            Players.Add(Player);
+            Roles.Add(Player->Role);
+        }
+    }
+    const TArray<FVector> Lineup = ComputeLineup(Roles, ScrimmageX);
+
+    for (int32 Index = 0; Index < Players.Num(); ++Index)
+    {
+        // Deferred so each pawn gets its side's AI before it is auto-possessed: the
+        // defense's assignments only reach an APSDefenseController (Epic 14).
+        const FTransform SpawnTransform(Lineup[Index]);
+        APSPlayerPawn* NewPawn = World->SpawnActorDeferred<APSPlayerPawn>(
+            APSPlayerPawn::StaticClass(), SpawnTransform, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        if (!NewPawn)
         {
             continue;
         }
-
-        FActorSpawnParameters SpawnParams;
-        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-        // Position logic mirrors original GameMode spawn loop
-        float SpawnX = (Player->Role == EPlayerRole::Quarterback) ? ScrimmageX - QBDropbackDistance : ScrimmageX;
-        FVector SpawnLocation(SpawnX, XOffset, 100.f);
-        XOffset += FormationLateralSpacing;
-
-        APSPlayerPawn* NewPawn = World->SpawnActor<APSPlayerPawn>(
-            APSPlayerPawn::StaticClass(), SpawnLocation, FRotator::ZeroRotator, SpawnParams);
-        if (NewPawn)
-        {
-            NewPawn->InitializePlayerPointer(Player);
-            SpawnedPawns.Add(NewPawn);
-        }
+        NewPawn->AIControllerClass = GetSideForRole(Players[Index]->Role) == EPSTeamSide::Defense
+            ? APSDefenseController::StaticClass()
+            : APSOffenseController::StaticClass();
+        NewPawn->FinishSpawning(SpawnTransform);
+        NewPawn->InitializePlayerPointer(Players[Index]);
+        SpawnedPawns.Add(NewPawn);
     }
 
     UE_LOG(LogTemp, Display, TEXT("APSFieldGrid::SpawnPlayersFromRoster: Spawned %d pawns."), SpawnedPawns.Num());

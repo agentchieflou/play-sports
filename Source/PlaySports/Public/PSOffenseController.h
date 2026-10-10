@@ -7,10 +7,12 @@
 
 class UBehaviorTree;
 class UBlackboardComponent;
+class UPSSkillPlayerAIComponent;
 
 /**
- * APSOffenseController drives offensive skill players (QB, RB, WR, TE)
- * using Behavior Trees synchronized via UPSTelemetryBus events.
+ * APSOffenseController drives offensive skill players (QB, RB, WR, TE). Its
+ * UPSSkillPlayerAIComponent plays the called play in C++ (Epic 14); the blackboard keys are
+ * kept in sync for Behavior Tree assets an editor session may add later.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSOffenseController : public AAIController
@@ -44,6 +46,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "AI|Offense")
     int32 GetRouteWaypointIndex() const { return CurrentWaypointIndex; }
 
+    UFUNCTION(BlueprintPure, Category = "AI|Offense")
+    int32 GetRouteWaypointCount() const { return RouteWaypoints.Num(); }
+
+    /** Plays the called play for the possessed pawn (Epic 14): routes, reads, hand-offs. */
+    UFUNCTION(BlueprintPure, Category = "AI|Offense")
+    UPSSkillPlayerAIComponent* GetSkillAI() const { return SkillAI; }
+
 protected:
     virtual void OnPossess(APawn* InPawn) override;
     virtual void OnUnPossess() override;
@@ -53,6 +62,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
     UBlackboardComponent* BlackboardComp;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+    UPSSkillPlayerAIComponent* SkillAI;
 
 private:
     UFUNCTION()

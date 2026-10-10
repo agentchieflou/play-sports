@@ -23,7 +23,7 @@ EPSDefensiveAssignmentType UPSPlayOrchestrator::ToDefensiveAssignmentType(EPSAss
     }
 }
 
-TArray<FVector> UPSPlayOrchestrator::ResolveRouteWaypoints(const FName& RouteId, const UDataTable* RouteLibrary, const FVector& Origin) const
+TArray<FVector> UPSPlayOrchestrator::ResolveRouteWaypoints(const FName& RouteId, const UDataTable* RouteLibrary, const FVector& Origin, float MirrorY) const
 {
     TArray<FVector> WorldWaypoints;
     if (!RouteLibrary || RouteId.IsNone())
@@ -39,7 +39,7 @@ TArray<FVector> UPSPlayOrchestrator::ResolveRouteWaypoints(const FName& RouteId,
 
     for (const FPSRouteWaypoint& Waypoint : Route->Waypoints)
     {
-        WorldWaypoints.Add(Origin + Waypoint.Offset);
+        WorldWaypoints.Add(Origin + FVector(Waypoint.Offset.X, Waypoint.Offset.Y * MirrorY, Waypoint.Offset.Z));
     }
 
     return WorldWaypoints;
@@ -62,6 +62,9 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
         const EPlayerRole PawnRole = Pawn->GetAttributes().Role;
         int32& Cursor = RoleAssignmentCursor.FindOrAdd(PawnRole, 0);
 
+        // The play's Cursor-th slot for this role; a role with more players than slots
+        // repeats its last slot, so every receiver runs a route and every defender has a
+        // job (Epic 14: the sample plays list one slot per role).
         const FPSPlayAssignment* MatchedAssignment = nullptr;
         int32 SeenForRole = 0;
         for (const FPSPlayAssignment& Assignment : Play.Assignments)
@@ -70,9 +73,9 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
             {
                 continue;
             }
+            MatchedAssignment = &Assignment;
             if (SeenForRole == Cursor)
             {
-                MatchedAssignment = &Assignment;
                 break;
             }
             ++SeenForRole;
@@ -84,6 +87,11 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
         }
         ++Cursor;
 
+        // Assignments are authored for a player lined up right of the ball (+Y); one lined
+        // up left of it runs them mirrored.
+        const float PawnY = Pawn->GetActorLocation().Y;
+        const float Mirror = PawnY < 0.f ? -1.f : 1.f;
+
         if (Play.bIsOffensivePlay)
         {
             APSOffenseController* OffenseController = Cast<APSOffenseController>(Pawn->GetController());
@@ -94,7 +102,16 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
 
             if (MatchedAssignment->Kind == EPSAssignmentKind::Route)
             {
-                const TArray<FVector> Waypoints = ResolveRouteWaypoints(MatchedAssignment->RouteId, RouteLibrary, LineOfScrimmage + MatchedAssignment->FormationOffset);
+                // A route starts from the player's own split, not the ball.
+                const FVector Offset = MatchedAssignment->FormationOffset;
+                const FVector Origin(LineOfScrimmage.X + Offset.X, PawnY + Offset.Y * Mirror, LineOfScrimmage.Z + Offset.Z);
+                TArray<FVector> Waypoints = ResolveRouteWaypoints(MatchedAssignment->RouteId, RouteLibrary, Origin, Mirror);
+                // A route with no RouteId is "go to your spot": the QB's drop, the RB's mesh
+                // point on a run (Epic 14).
+                if (Waypoints.Num() == 0 && MatchedAssignment->RouteId.IsNone())
+                {
+                    Waypoints.Add(Origin);
+                }
                 OffenseController->SetAssignedRoute(Waypoints);
             }
         }
@@ -106,8 +123,14 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
                 continue;
             }
 
+            // A zone is played on the defender's own side of the field.
+            FVector Zone = MatchedAssignment->ZoneOffset;
+            if (PawnY * Zone.Y < 0.f)
+            {
+                Zone.Y = -Zone.Y;
+            }
             const EPSDefensiveAssignmentType AssignmentType = ToDefensiveAssignmentType(MatchedAssignment->Kind);
-            DefenseController->SetAssignment(AssignmentType, nullptr, LineOfScrimmage + MatchedAssignment->ZoneOffset);
+            DefenseController->SetAssignment(AssignmentType, nullptr, LineOfScrimmage + Zone);
         }
     }
 }

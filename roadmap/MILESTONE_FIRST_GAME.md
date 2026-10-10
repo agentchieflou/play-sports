@@ -47,7 +47,7 @@ Already sufficient and done: Epics 3, 4, 6–11, 13, C1, C2, C4.
 
 ## M5 — The CPU can play football
 
-- [ ] Epic 14 — skill-position behavior (QB/RB/WR/TE)
+- [x] Epic 14 — skill-position behavior (QB/RB/WR/TE)
 - [x] Epic 15 — line & defensive behavior (OL/DL/LB/DB)
 - [x] Epic 16 — playbook & play data system
 - [ ] Epic 17 — 22-agent coordinated play orchestration

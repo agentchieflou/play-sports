@@ -2,6 +2,13 @@
 
 This document details the Behavior Tree (BT) and Blackboard (BB) configuration for offensive skill positions (Quarterback, Running Back, Wide Receiver, and Tight End) in `play-sports`. 
 
+> **As built (Epic 14):** the behavior below runs in C++ today, in `UPSSkillPlayerAIComponent`
+> (owned by `APSOffenseController`), because a BT asset needs an editor session. It steers with
+> `AddMovementInput` like a human pad does, hears the call, snap and throw on the telemetry bus,
+> and reads `Data/skill_ai_tuning.json`. The blackboard keys are still kept in sync, so an
+> editor-authored BT can take over later; if one does, retire the component's matching action
+> rather than run both.
+
 ## Blackboard Keys Specification
 
 The following keys must be defined in the Blackboard asset used by the offensive AI Controllers:

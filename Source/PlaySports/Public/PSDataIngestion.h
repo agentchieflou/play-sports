@@ -11,6 +11,7 @@
 #include "PSForceFeedbackTypes.h"
 #include "PSInputGlyphs.h"
 #include "PSPlayCallTypes.h"
+#include "PSSkillPlayerAIComponent.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -71,6 +72,10 @@ public:
      *  False on a missing file, malformed JSON, or an unrecognized Role or Kind string. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadDefensiveAdjustmentsFromJson(const FString& JsonFilePath, FPSDefensiveAdjustmentCatalog& OutCatalog);
+
+    /** Loads the offensive AI tuning (Data/skill_ai_tuning.json, Epic 14). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSkillPlayerAITuningFromJson(const FString& JsonFilePath, FSkillPlayerAITuningRow& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

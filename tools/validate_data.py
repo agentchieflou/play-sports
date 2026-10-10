@@ -13,7 +13,8 @@ identity fields (colors, abbreviation) on "Teams" files; "Tips" files against
 FPSLoadingTipCatalog; "Cues" + "MasterIntensity" files against FPSForceFeedbackTuning;
 "GlyphSets" files against FPSInputGlyphCatalog, including that every key the input
 catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRow;
-"Adjustments" files against FPSDefensiveAdjustmentCatalog.
+"Adjustments" files against FPSDefensiveAdjustmentCatalog; "OpenSeparation" files against
+FSkillPlayerAITuningRow.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -464,6 +465,30 @@ def validate_defensive_adjustments(path, payload):
             err(path, f"{where}.Kind: '{adjustment.get('Kind')}' is not a defensive assignment ({sorted(DEFENSIVE_KINDS)})")
 
 
+SKILL_AI_FIELDS = ("WaypointArrivalRadius", "OpenSeparation", "AwarenessMisreadSeparation", "MinReadSeconds",
+                   "MaxReadSeconds", "PressureRadius", "PressuredThrowSeparation", "HandoffRadius",
+                   "HandoffTimeoutSeconds", "CarrierAvoidRadius", "CarrierAvoidWeight", "ThrowLeadSpeed",
+                   "BlockSetDistance", "BlockEngageRadius")
+
+
+def validate_skill_ai_tuning(path, payload):
+    """FSkillPlayerAITuningRow (Data/skill_ai_tuning.json, Epic 14)."""
+    for field in SKILL_AI_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    extra = set(payload) - set(SKILL_AI_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FSkillPlayerAITuningRow exactly")
+    low, high = payload.get("MinReadSeconds"), payload.get("MaxReadSeconds")
+    if is_number(low) and is_number(high) and low > high:
+        err(path, f"MinReadSeconds ({low}) must not exceed MaxReadSeconds ({high})")
+    if is_number(payload.get("HandoffRadius")) and payload["HandoffRadius"] > 200:
+        err(path, "HandoffRadius must be at most 200 (the hand-off's own reach)")
+    if is_number(payload.get("ThrowLeadSpeed")) and payload["ThrowLeadSpeed"] <= 0:
+        err(path, "ThrowLeadSpeed must be positive")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -502,6 +527,8 @@ def main():
             validate_loading_tips(path, payload)
         if isinstance(payload, dict) and "Cues" in payload and "MasterIntensity" in payload:
             validate_force_feedback(path, payload)
+        if isinstance(payload, dict) and "OpenSeparation" in payload:
+            validate_skill_ai_tuning(path, payload)
         if isinstance(payload, dict) and "Adjustments" in payload:
             validate_defensive_adjustments(path, payload)
         if isinstance(payload, dict) and "CpuSnapDelaySeconds" in payload:

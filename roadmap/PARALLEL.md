@@ -39,7 +39,7 @@ These groups can run at the same time (see the scope note under the table):
 | G3 | Playbook extraction (Track O) | 132 → 133 → 134 | Any agent (Python-only) |
 | G4 | Platform audit | 129 | Any agent (docs/config-only) |
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
-| G7 | Phase 2 AI | 14.2–14.5 → 17.4–17.5 (15, 16, 18 done) | Any strong agent |
+| G7 | Phase 2 AI | 17.4–17.5 (14, 15, 16, 18 done; 15's coverage doesn't run live yet, see Epic 14's PR) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
 | G9 | Front end and input feel (Track I) | 104 → 103 → 106 → 105 (101 done; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
@@ -104,7 +104,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "C3-ff-A": {"track": "core", "mode": "code", "status": "done", "depends_on": ["C3"], "scope": ["Source/PlaySports/**/PSPlayerPawn*", "Source/PlaySports/**/PSBallAction*"], "note": "extract ball-action component from APSPlayerPawn"},
     "C3-ff-B": {"track": "core", "mode": "code", "status": "done", "depends_on": ["C3-ff-A"], "scope": ["Source/PlaySports/**/PSGameMode*", "Source/PlaySports/**/PSPlayerPawn*", "Source/PlaySports/**/PSPlaySimulation*"], "note": "single roster source of truth"},
     "C4":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["C2", "C3"]},
-    "14":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"], "open_stories": ["14.2 QB dropback/reads/throw-scramble-sack decision", "14.3 WR/TE route running from route data", "14.4 RB handoff/run-lane/pass-pro", "14.5 catch-point convergence"]},
+    "14":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"]},
     "15":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["9", "14"]},
     "16":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["14"]},
     "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation", "17.5 performance pass"]},
