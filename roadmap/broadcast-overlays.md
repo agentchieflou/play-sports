@@ -132,9 +132,9 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Individual players can be visually emphasized — glow, outline, spotlight — for key-player callouts, mismatch alerts, and replay focus.
 **Depends on:** 26
 
-- [ ] Outline/glow post-process pass togglable per pawn
-- [ ] Emphasis API consumed by commentary (Track H), replay (Track B), and coaching tips
-- [ ] Spotlight/dim-others mode for isolation replays
+- [x] Outline/glow post-process pass togglable per pawn *(`UPSOverlayEmphasisSubsystem` marks a player's meshes for the custom-depth pass with his look's stencil value, and unmarks them, per pawn; `Config/DefaultEngine.ini` turns on the custom depth-stencil pass. The post-process material that draws outline and glow by stencil is the editor pass below, `Specs/Player_Emphasis_Spec.md`)*
+- [x] Emphasis API consumed by commentary (Track H), replay (Track B), and coaching tips *(`Emphasize(Pawn, Highlight / Mismatch / Focus, Source, Seconds)`, `ClearEmphasis`, `ClearSource`: the highest priority request on a player wins, timed ones run out, and at most `MaxEmphasized` are drawn. Commentary and a replay player don't exist yet; this is the door they call)*
+- [x] Spotlight/dim-others mode for isolation replays *(`Spotlight(Pawn, ...)`: a Focus that marks every other player with the dim stencil, unless he has a drawn look of his own; lifting it restores them)*
 - [ ] Editor pass: tune against night lighting so emphasis reads without blowing out
 
 ### Epic 37: Overlay Theming & Branding System

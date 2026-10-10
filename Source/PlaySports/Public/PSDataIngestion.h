@@ -28,6 +28,7 @@
 #include "PSOverlayBroadcastTypes.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSOverlayBallFlightTypes.h"
+#include "PSOverlayEmphasisTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSSpecialTeamsData.h"
@@ -195,6 +196,11 @@ public:
      *  False on a missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadBallFlightStyleFromJson(const FString& JsonFilePath, FPSBallFlightStyle& OutStyle);
+
+    /** Loads the player emphasis rules (Data/player_emphasis.json, Epic 36). False on a missing
+     *  file, malformed JSON, or an unrecognized Kind. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadEmphasisStyleFromJson(const FString& JsonFilePath, FPSEmphasisStyle& OutStyle);
 
     /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
