@@ -15,7 +15,8 @@ class UWorld;
  *  - list_actors   {class?, limit?}               actors with name, label, class, location
  *  - get_property  {actor, property}              an editable or Blueprint-visible property, as text
  *  - set_property  {actor, property, value}       an instance-editable property, as an undoable edit
- *  - call_function {actor, function, arguments?}  a BlueprintCallable UFUNCTION; outputs as text
+ *  - call_function {actor, function, arguments?}  a BlueprintCallable UFUNCTION, run as a
+ *                                                 CallInEditor button runs it; outputs as text
  *  - spawn_actor   {class, location?, rotation?, label?}  a new actor, as an undoable edit
  *
  * Values travel in Unreal's text format ("(X=1,Y=2,Z=3)", "(\"Tag\")", "True"); JSON numbers and

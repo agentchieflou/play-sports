@@ -292,9 +292,11 @@ bool FAgenticLinkEngineToolsTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("...and returns its location as text"), bHasReturnValue && Returned.InitFromString(ReturnValue));
     TestTrue(TEXT("...which is where the actor stands"), Returned.Equals(First->GetActorLocation(), 0.1f));
     TestTrue(TEXT("...where it was spawned"), First->GetActorLocation().Equals(FVector(100.f, 0.f, 0.f), 0.1f));
-    const TSharedPtr<FJsonObject> Hidden = CallTool(Server, TEXT("call_function"), FString::Printf(TEXT(R"({"actor":"%s","function":"SetActorHiddenInGame","arguments":{"bNewHidden":true}})"), *FirstName));
-    TestFalse(TEXT("SetActorHiddenInGame can be called with a JSON boolean"), IsToolError(Hidden));
-    TestTrue(TEXT("...and hides the actor"), First->IsHidden());
+    // A target point starts hidden in game, so showing it proves the call ran.
+    TestTrue(TEXT("A target point starts hidden"), First->IsHidden());
+    const TSharedPtr<FJsonObject> Shown = CallTool(Server, TEXT("call_function"), FString::Printf(TEXT(R"({"actor":"%s","function":"SetActorHiddenInGame","arguments":{"bNewHidden":false}})"), *FirstName));
+    TestFalse(TEXT("SetActorHiddenInGame can be called with a JSON boolean"), IsToolError(Shown));
+    TestFalse(TEXT("...and shows the actor"), First->IsHidden());
     TestTrue(TEXT("A missing argument is refused"),
         ResultText(CallTool(Server, TEXT("call_function"), FString::Printf(TEXT(R"({"actor":"%s","function":"SetActorHiddenInGame"})"), *FirstName))).Contains(TEXT("bNewHidden")));
     TestTrue(TEXT("A function Blueprints can't call is refused"),

@@ -6,6 +6,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "Misc/OutputDeviceNull.h"
+#include "UObject/Script.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
 #if WITH_EDITOR
@@ -369,7 +370,13 @@ namespace AgenticLinkTools
         }
 
         FEditScope Edit(FString::Printf(TEXT("Agent calls %s.%s"), *Actor->GetName(), *FunctionName), Actor);
-        Actor->ProcessEvent(Function, ParameterMemory);
+        {
+            // AActor::ProcessEvent does nothing in a world whose actors aren't initialized
+            // for play (the editor's level) unless script execution is allowed, as it is
+            // for a CallInEditor button.
+            FEditorScriptExecutionGuard ScriptGuard;
+            Actor->ProcessEvent(Function, ParameterMemory);
+        }
 
         TSharedPtr<FJsonObject> Outputs = MakeShared<FJsonObject>();
         for (TFieldIterator<FProperty> It(Function); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
