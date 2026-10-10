@@ -218,7 +218,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "116": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "117": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "118": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25"]},
-    "119": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25", "135"]},
+    "119": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["25", "135"], "open_stories": ["119.4 MCP registration: the stdio server is built (#138, entries in AGENTS.md); registering it waits on the owner, as 25.4 does"]},
     "120": {"track": "K", "mode": "code", "status": "done", "depends_on": ["112", "113"]},
     "121": {"track": "L", "mode": "code", "status": "open", "depends_on": ["16", "89"]},
     "122": {"track": "L", "mode": "code", "status": "open", "depends_on": ["19", "79"]},
