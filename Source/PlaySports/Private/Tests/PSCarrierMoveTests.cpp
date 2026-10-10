@@ -2,8 +2,8 @@
 //
 // Tests covered:
 //   1. The move set data: all six moves, sound numbers, each on a BallCarrier button.
-//   2. Moves are attribute-gated, cost stamina, respect their window and cooldown, need the
-//      ball, and change the carrier's velocity the moment they start.
+//   2. Moves are attribute-gated, cost stamina, respect their window, commitment and cooldown,
+//      need the ball, and change the carrier's velocity the moment they start.
 //   3. Moves change the tackle odds: the extracted tackle formula, scaled by the active move,
 //      and a slide gives the carrier up.
 //   4. The buttons: a BallCarrier action reaches the controlled pawn's move, the Move stick
@@ -176,6 +176,18 @@ bool FPSCarrierMoveRulesTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("...and the tackle odds are back to normal"), Moves->GetTackleChanceMultiplier(), 1.f);
     Moves->AdvanceTime(Juke->CooldownSeconds);
     TestTrue(TEXT("After the cooldown he can juke again"), Moves->TryMove(EPSCarrierMove::Juke, FVector2D(1.f, 0.f)));
+
+    // Committed to the juke, he can't start another move until its commitment ends (Epic 104.4).
+    if (Juke->CommitSeconds > 0.f)
+    {
+        TestTrue(TEXT("The juke commits him"), Moves->IsCommitted());
+        TestFalse(TEXT("No spin while committed to the juke"), Moves->TryMove(EPSCarrierMove::Spin, FVector2D::ZeroVector));
+        TestTrue(TEXT("...the spin is busy, worth buffering"), Moves->IsMoveBusy(EPSCarrierMove::Spin));
+    }
+    Moves->AdvanceTime(Juke->CommitSeconds + 0.01f);
+    TestFalse(TEXT("The commitment ends"), Moves->IsCommitted());
+    TestFalse(TEXT("...and the spin is free"), Moves->IsMoveBusy(EPSCarrierMove::Spin));
+    TestTrue(TEXT("...while the juke still cools down"), Moves->IsMoveBusy(EPSCarrierMove::Juke));
 
     // Gated by rating and stamina.
     TestFalse(TEXT("Strength 40 can't truck (the move needs more)"), Moves->TryMove(EPSCarrierMove::Truck, FVector2D::ZeroVector));

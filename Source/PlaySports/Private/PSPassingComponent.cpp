@@ -3,6 +3,7 @@
 #include "PSBallActionComponent.h"
 #include "PSDataIngestion.h"
 #include "PSFieldReads.h"
+#include "PSInputBufferComponent.h"
 #include "PSPlayerController.h"
 #include "PSPlayerPawn.h"
 #include "PSTelemetryBus.h"
@@ -54,53 +55,55 @@ void UPSPassingComponent::BeginPlay()
 
 void UPSPassingComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    if (APSPlayerController* Controller = GetPlayerController())
+    APSPlayerController* Controller = GetPlayerController();
+    if (UPSInputBufferComponent* Buffer = Controller ? Controller->GetInputBufferComponent() : nullptr)
     {
-        Controller->OnCatalogActionStarted.RemoveDynamic(this, &UPSPassingComponent::HandleActionStarted);
-        Controller->OnCatalogActionCompleted.RemoveDynamic(this, &UPSPassingComponent::HandleActionCompleted);
+        Buffer->OnActionPressed.RemoveDynamic(this, &UPSPassingComponent::HandleActionPressed);
+        Buffer->OnActionReleased.RemoveDynamic(this, &UPSPassingComponent::HandleActionReleased);
+        Buffer->RemoveBusyChecks(this);
     }
     Super::EndPlay(EndPlayReason);
 }
 
 void UPSPassingComponent::BindToController()
 {
-    if (APSPlayerController* Controller = GetPlayerController())
+    APSPlayerController* Controller = GetPlayerController();
+    UPSInputBufferComponent* Buffer = Controller ? Controller->GetInputBufferComponent() : nullptr;
+    if (!Buffer)
     {
-        Controller->OnCatalogActionStarted.AddUniqueDynamic(this, &UPSPassingComponent::HandleActionStarted);
-        Controller->OnCatalogActionCompleted.AddUniqueDynamic(this, &UPSPassingComponent::HandleActionCompleted);
+        return;
     }
+    Buffer->BindToController();
+    Buffer->OnActionPressed.AddUniqueDynamic(this, &UPSPassingComponent::HandleActionPressed);
+    Buffer->OnActionReleased.AddUniqueDynamic(this, &UPSPassingComponent::HandleActionReleased);
+    Buffer->RemoveBusyChecks(this);
+    Buffer->AddBusyCheck(FPSInputBusyCheck::CreateUObject(this, &UPSPassingComponent::IsPassActionBusy));
 }
 
-void UPSPassingComponent::HandleActionStarted(FName ActionId)
+bool UPSPassingComponent::IsPassActionBusy(FName ActionId)
 {
     const FPassingInputTuningRow& Settings = GetTuning();
-    if (ActionId == Settings.PumpFakeAction)
-    {
-        PumpFake();
-        return;
-    }
-    const int32 Slot = Settings.SlotActions.IndexOfByKey(ActionId);
-    if (Slot == INDEX_NONE || !GetWorld())
-    {
-        return;
-    }
-    if (SlotPressedAt.Num() < Settings.SlotActions.Num())
-    {
-        SlotPressedAt.Init(-1.f, Settings.SlotActions.Num());
-    }
-    SlotPressedAt[Slot] = GetWorld()->GetTimeSeconds();
+    const bool bPassAction = ActionId == Settings.PumpFakeAction || Settings.SlotActions.Contains(ActionId);
+    return bPassAction && !CanPass();
 }
 
-void UPSPassingComponent::HandleActionCompleted(FName ActionId)
+void UPSPassingComponent::HandleActionPressed(FName ActionId, float HeldSeconds)
 {
+    if (ActionId == GetTuning().PumpFakeAction)
+    {
+        PumpFake();
+    }
+}
+
+void UPSPassingComponent::HandleActionReleased(FName ActionId, float HeldSeconds)
+{
+    // The throw goes on release, so how long the button was held (from the physical press, as
+    // the buffer times it) picks touch or bullet.
     const int32 Slot = GetTuning().SlotActions.IndexOfByKey(ActionId);
-    if (Slot == INDEX_NONE || !SlotPressedAt.IsValidIndex(Slot) || SlotPressedAt[Slot] < 0.f || !GetWorld())
+    if (Slot == INDEX_NONE)
     {
         return;
     }
-    // The throw goes on release, so how long the button was held shapes it.
-    const float HeldSeconds = GetWorld()->GetTimeSeconds() - SlotPressedAt[Slot];
-    SlotPressedAt[Slot] = -1.f;
     const APSPlayerController* Controller = GetPlayerController();
     ThrowToSlot(Slot, HeldSeconds, Controller ? Controller->GetMoveInput() : FVector2D::ZeroVector);
 }

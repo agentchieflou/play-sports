@@ -1,0 +1,17 @@
+{
+    "MaxQueued": 1,
+    "Actions": [
+        { "ActionId": "Juke",        "BufferSeconds": 0.2 },
+        { "ActionId": "Spin",        "BufferSeconds": 0.2 },
+        { "ActionId": "Truck",       "BufferSeconds": 0.2 },
+        { "ActionId": "StiffArm",    "BufferSeconds": 0.2 },
+        { "ActionId": "Hurdle",      "BufferSeconds": 0.2 },
+        { "ActionId": "Slide",       "BufferSeconds": 0.2 },
+        { "ActionId": "PassTarget1", "BufferSeconds": 0.15 },
+        { "ActionId": "PassTarget2", "BufferSeconds": 0.15 },
+        { "ActionId": "PassTarget3", "BufferSeconds": 0.15 },
+        { "ActionId": "PassTarget4", "BufferSeconds": 0.15 },
+        { "ActionId": "PassTarget5", "BufferSeconds": 0.15 },
+        { "ActionId": "PumpFake",    "BufferSeconds": 0.15 }
+    ]
+}
