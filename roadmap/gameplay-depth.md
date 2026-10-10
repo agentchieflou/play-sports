@@ -41,11 +41,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** Routes are contested skills, not spline-following — releases, stems, breaks, and double moves resolved by attributes.
 **Depends on:** C3, C4, Core 14, Core 16
 
-- [ ] Release contest vs. press coverage at the line (win/delay/reroute outcomes)
-- [ ] Stem/break sharpness derived from `Agility` (round vs. sharp cuts, separation math)
-- [ ] Double-move system with defender-bite probability (ties to 69's leverage state)
-- [ ] Option/sight-adjust routes reading coverage post-snap (hooks Epic 16's schema)
-- [ ] Timing windows: QB read progression (14) synchronized to route break timing
+- [x] Release contest vs. press coverage at the line (win/delay/reroute outcomes) *(`UPSRouteRunnerComponent` on `APSOffenseController`: a defender within `PressRadius` in front at the snap contests the release, `(Agility + Strength) / 2` against the presser's, rolled from the play's seed; a delay holds him, a reroute moves his route toward the sideline. Announced as `RouteRunning` on the bus. Defenders don't line up in press yet: that alignment is Epic 69's)*
+- [x] Stem/break sharpness derived from `Agility` (round vs. sharp cuts, separation math) *(a stiff receiver turns for the next leg up to `MaxBreakRounding` before the corner, a sharp one cuts on it; `PSRouteRunning::BreakSeparationGain` is the separation a break makes on the defender, which the QB counts on when he throws before the break)*
+- [x] Double-move system with defender-bite probability (ties to 69's leverage state) *(`bFake` waypoints (`SlantGo`, `OutAndUp`): the receiver sells the fake, the nearest defender bites by `BiteChance` (receiver Agility against his Awareness) and `UPSDefenderAIComponent` freezes him. The leverage term joins the bite chance when Epic 69's leverage state exists)*
+- [x] Option/sight-adjust routes reading coverage post-snap (hooks Epic 16's schema) *(`FPSRoute::OptionReadWaypoint`, `VsManBranch`, `VsZoneBranch`: at the read a man defender sends him on the man branch, away from the defender's leverage; zone sits him down (`Option` route, `Offense_TwinsOption`))*
+- [x] Timing windows: QB read progression (14) synchronized to route break timing *(`ChooseReceiver` reads a planned receiver only from his break (up to `MaxAnticipationSeconds` early, by Awareness) to `ReadWindowSeconds` after; out of time, or past every window, he reads the whole field. Tests: `Tests/PSRouteRunningTests.cpp`)*
 
 ### Epic 69: Coverage Matchup Engine
 
@@ -143,10 +143,10 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** The game understands its own leverage moments — two-minute drill, four-minute offense, clock-kill, hurry-up.
 **Depends on:** Core 12, Core 18
 
-- [ ] Tempo system: huddle/no-huddle/hurry-up pacing controls for user and AI
-- [ ] Two-minute logic: sideline throws, spike/kneel, timeout optimization
-- [ ] Four-minute (leading) logic: clock-kill runs, stay-inbounds behavior
-- [ ] End-of-half decision correctness harness (scripted scenarios asserting sane AI choices, extends Epic 24)
+- [x] Tempo system: huddle/no-huddle/hurry-up pacing controls for user and AI *(every offensive call carries a tempo (`EPSTempo`, `Data/situational_tuning.json`): the CPU's from `UPSSituationAI::ChooseTempo`, a human's from the `Tempo` action (N / Y) through `UPSPlayCallSubsystem::CycleHumanTempo`; hurry-up reruns the human's last real play with no call screen. The call's play-clock mark rides the `PlayCall` bus event and `UPSPlaySimulation` runs a running game clock down to it at the snap (an accelerated clock: the CPU still snaps after `CpuSnapDelaySeconds`), replacing the flat 30-second tackle runoff outside quick sim)*
+- [x] Two-minute logic: sideline throws, spike/kneel, timeout optimization *(`UPSSituationAI` reads the two-minute drill; `UPSCoachingAI` weights sideline routes up and middle routes and runs down from data, calls a spike on a running clock with no timeout left, and the CPU side calls its timeout when the window opens (`Timeout` bus event, charged by the sim). Spike and kneel are `Clock` plays in `sample_playbook.json`, resolved by the sim at the snap; a carrier out of bounds stops the clock in the last 2:00 / 5:00 of a half (`DoesOutOfBoundsStopClock`); the carrier AI heads for the sideline when the call says so)*
+- [x] Four-minute (leading) logic: clock-kill runs, stay-inbounds behavior *(four-minute offense puts the run first and milks the play clock; the carrier AI turns back inside near the sideline (`FSkillPlayerAITuningRow::SidelineCushion`); victory formation kneels when the kneels and the milked clock the defense can't stop cover the time; a trailing defense spends its timeouts on a running clock)*
+- [x] End-of-half decision correctness harness (scripted scenarios asserting sane AI choices, extends Epic 24) *(`PlaySports.Situation.EndOfHalfDecisionHarness`: 16 scripted clock/score/field scenarios, each asserting the situation, clock play, both sides' timeouts, tempo, sideline intent and the play caller's pick)*
 
 ### Epic 77: Momentum & Composure Layer
 

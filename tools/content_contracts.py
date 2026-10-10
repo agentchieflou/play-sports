@@ -5,8 +5,8 @@ validate_data.py already holds:
   - teams (FPSTeamInfo, Source/PlaySports/Public/PSLeagueData.h);
   - the league config (FPSLeagueConfig, same header);
   - the playbook (FPSPlayDefinition, PSPlaybookData.h);
-  - the route library (FPSRoute, same header);
   - rating and body ranges on every player (FPlayerAttributes).
+The route library itself (FPSRoute) is validate_data.py's validate_routes (Epic 68).
 
 Also the references between files, which no single file can check:
   - the league config's TeamsDataTablePath names a teams file, and that file holds at least
@@ -31,8 +31,9 @@ OFFENSE_ROLES = {"Quarterback", "RunningBack", "WideReceiver", "TightEnd", "Offe
 DEFENSE_ROLES = {"DefensiveLineman", "Linebacker", "DefensiveBack"}
 OFFENSE_KINDS = {"Route", "PassBlock", "RunBlock"}
 DEFENSE_KINDS = {"ManCoverage", "ZoneCoverage", "PassRush", "RunFit", "Blitz"}
-# FPSPlayDefinition::PlayCategory: what the coaching AI weights (UPSCoachingAI).
-OFFENSE_CATEGORIES = {"Run", "ShortPass", "DeepPass", "PlayAction", "Screen"}
+# FPSPlayDefinition::PlayCategory: what the coaching AI weights (UPSCoachingAI), plus the clock
+# plays the simulation resolves at the snap (EPSClockPlay, PSSituationData.h).
+OFFENSE_CATEGORIES = {"Run", "ShortPass", "DeepPass", "PlayAction", "Screen", "Spike", "Kneel"}
 DEFENSE_CATEGORIES = {"Base", "Blitz", "Prevent"}
 
 TEAM_FIELDS = {
@@ -50,8 +51,6 @@ PLAY_FIELDS = {
 }
 PLAY_REQUIRED = ("PlayId", "DisplayName", "Formation", "bIsOffensivePlay", "PlayCategory", "Assignments")
 ASSIGNMENT_FIELDS = {"Role": str, "Kind": str, "RouteId": str, "ZoneOffset": dict, "FormationOffset": dict}
-ROUTE_FIELDS = {"RouteId": str, "Waypoints": list}
-WAYPOINT_FIELDS = {"Offset": dict, "TimingSeconds": (int, float)}
 
 
 def is_number(value):
@@ -205,41 +204,6 @@ def validate_playbook(path, plays, err):
                 check_vector(path, f"{awhere}.{field}", assignment.get(field), err)
 
 
-def validate_routes(path, routes, err):
-    """FPSRoute rows: named, with waypoints in time order."""
-    seen = set()
-    for idx, route in enumerate(routes):
-        where = f"Routes[{idx}]"
-        if not check_object(path, where, route, ROUTE_FIELDS, ("RouteId", "Waypoints"), err, "FPSRoute"):
-            continue
-        rid = route.get("RouteId")
-        where = f"Routes[{idx}] '{rid}'"
-        if isinstance(rid, str):
-            if not rid:
-                err(path, f"{where}.RouteId: empty")
-            elif rid in seen:
-                err(path, f"{where}.RouteId: duplicate")
-            seen.add(rid)
-        waypoints = route.get("Waypoints")
-        if not isinstance(waypoints, list):
-            continue
-        if not waypoints:
-            err(path, f"{where}.Waypoints: empty, so the route goes nowhere")
-        last = None
-        for widx, waypoint in enumerate(waypoints):
-            wwhere = f"{where}.Waypoints[{widx}]"
-            if not check_object(path, wwhere, waypoint, WAYPOINT_FIELDS, ("Offset", "TimingSeconds"), err, "FPSRouteWaypoint"):
-                continue
-            check_vector(path, f"{wwhere}.Offset", waypoint.get("Offset"), err)
-            timing = waypoint.get("TimingSeconds")
-            if is_number(timing):
-                if timing < 0:
-                    err(path, f"{wwhere}.TimingSeconds: {timing} must not be negative")
-                elif last is not None and timing < last:
-                    err(path, f"{wwhere}.TimingSeconds: {timing} comes before the previous waypoint's {last}")
-                last = timing
-
-
 def is_league_config(payload):
     return isinstance(payload, dict) and "LeagueName" in payload and "TeamsDataTablePath" in payload
 
@@ -256,8 +220,6 @@ def check_file(path, payload, err):
         validate_league_config(path, payload, err)
     if isinstance(payload.get("Plays"), list):
         validate_playbook(path, payload["Plays"], err)
-    if isinstance(payload.get("Routes"), list):
-        validate_routes(path, payload["Routes"], err)
 
 
 # ---------------------------------------------------------------------------

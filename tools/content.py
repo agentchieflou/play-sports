@@ -35,6 +35,9 @@ except ImportError:
 
 REPO = Path(__file__).resolve().parent.parent
 
+# The clock plays are called by the situation, not chosen for yardage: no coverage warning.
+CLOCK_CATEGORIES = {"Spike", "Kneel"}
+
 # Report heuristics for generated content. They describe a plausible league, not a rule of
 # the game, so they warn rather than fail.
 INFLATED_MEAN = 90.0        # a role whose mean rating is this high: "a league of 99s"
@@ -167,11 +170,13 @@ def build_report(repo):
     plays = league["plays"]
     by_category = Counter((bool(p.get("bIsOffensivePlay")), p.get("PlayCategory")) for p in plays)
     for offense, categories in ((True, content_contracts.OFFENSE_CATEGORIES), (False, content_contracts.DEFENSE_CATEGORIES)):
-        for category in sorted(categories):
+        for category in sorted(categories - CLOCK_CATEGORIES):
             if plays and by_category[(offense, category)] == 0:
                 side = "offensive" if offense else "defensive"
                 warnings.append(f"no {side} {category} play - the coaching AI has nothing to call there")
     used_routes = {a.get("RouteId") for p in plays for a in p.get("Assignments", []) if isinstance(a, dict)}
+    # An option route's branches are run through it.
+    used_routes |= {r.get(branch) for r in league["routes"] if r.get("RouteId") in used_routes for branch in ("VsManBranch", "VsZoneBranch")}
     unused = sorted(r.get("RouteId") for r in league["routes"] if r.get("RouteId") not in used_routes)
 
     summary = {

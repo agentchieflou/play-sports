@@ -111,14 +111,6 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(any("'DeepPass' is not a defensive category" in e for e in errors), errors)
         self.assertTrue(any("PlayId: duplicate" in e for e in errors), errors)
 
-    def test_route_timing(self):
-        routes = copy.deepcopy(ROUTES)
-        routes["Routes"][0]["Waypoints"][1]["TimingSeconds"] = 0.5
-        routes["Routes"].append({"RouteId": "Empty", "Waypoints": []})
-        errors = check(league(**{"Data/routes.json": routes}))
-        self.assertTrue(any("comes before the previous waypoint's 1.0" in e for e in errors), errors)
-        self.assertTrue(any("'Empty'.Waypoints: empty" in e for e in errors), errors)
-
 
 class ReferenceTests(unittest.TestCase):
     def test_missing_roster_and_orphan_roster(self):
