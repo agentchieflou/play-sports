@@ -141,6 +141,13 @@ void APSBall::Launch(const FVector& Velocity)
 
     if (ProjectileMovement)
     {
+        // A ball that came to rest stopped simulating, which can leave the projectile without
+        // the component it moves (UProjectileMovementComponent::StopSimulating clears it): point
+        // it back at the ball, or a relaunched ball would never leave the spot.
+        if (ProjectileMovement->UpdatedComponent != CollisionComponent)
+        {
+            ProjectileMovement->SetUpdatedComponent(CollisionComponent);
+        }
         ProjectileMovement->Velocity = Velocity;
         ProjectileMovement->Activate();
         UE_LOG(LogTemp, Display, TEXT("APSBall: Launched with velocity %s (speed: %.1f cm/s)"), *Velocity.ToString(), Velocity.Size());

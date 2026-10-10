@@ -5,6 +5,7 @@
 //   2. A live tackle goes out on the bus: UPSBallActionComponent::ResolveTackle publishes the
 //      Tackle event (tackler, carrier, spot, yards, sack), the play simulation records the play
 //      from it, and the statistics engine counts a rush with its tackler, then a sack.
+//   3. A ball that came to rest (its projectile stopped simulating) flies again when relaunched.
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "PSPlayerPawn.h"
@@ -15,6 +16,8 @@
 #include "PSStatsData.h"
 #include "PSStatsEngine.h"
 #include "PSTelemetryBus.h"
+#include "Components/SphereComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 
@@ -218,6 +221,52 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("The quarterback sacked, not rushing"), QuarterbackLine && QuarterbackLine->TimesSacked == 1 && QuarterbackLine->RushAttempts == 0);
 
     Stats->UnbindFromBus();
+    DestroyTestWorld(World);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 3 -- A ball that came to rest flies again
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSBallRelaunchAfterRestTest,
+    "PlaySports.C3.BallRelaunchesAfterComingToRest",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSBallRelaunchAfterRestTest::RunTest(const FString& Parameters)
+{
+    using namespace PSBallActionTests;
+
+    UWorld* World = CreateTestWorld();
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    APSBall* Ball = World ? World->SpawnActor<APSBall>(APSBall::StaticClass(), FVector(0.f, 0.f, 500.f), FRotator::ZeroRotator, SpawnParams) : nullptr;
+    UProjectileMovementComponent* Movement = Ball ? Ball->GetProjectileMovement() : nullptr;
+    if (!TestNotNull(TEXT("A ball with its projectile movement"), Movement))
+    {
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return false;
+    }
+
+    // Thrown, then at rest: the projectile stops simulating, as it does once the ball's bounces
+    // die out.
+    Ball->Launch(FVector(1000.f, 0.f, 0.f));
+    Movement->StopSimulating(FHitResult());
+    TestTrue(TEXT("At rest"), Movement->Velocity.IsNearlyZero());
+    AddInfo(FString::Printf(TEXT("After StopSimulating the projectile's updated component was %s."),
+        Movement->UpdatedComponent ? TEXT("kept") : TEXT("cleared")));
+
+    // The next throw: the ball is the projectile's again, and the movement's own tick carries it.
+    const FVector Before = Ball->GetActorLocation();
+    Ball->Launch(FVector(1000.f, 0.f, 500.f));
+    TestTrue(TEXT("The relaunched projectile moves the ball"), Movement->UpdatedComponent == Ball->GetCollisionComponent());
+    TestTrue(TEXT("...and is active"), Movement->IsActive());
+    Movement->TickComponent(0.1f, LEVELTICK_All, nullptr);
+    TestTrue(TEXT("A tick carries the ball downfield"), Ball->GetActorLocation().X > Before.X + 50.f);
+
     DestroyTestWorld(World);
     return true;
 }
