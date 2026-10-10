@@ -53,7 +53,7 @@ take it on trust.
 
 Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 
-- **Tier 1, Track E:** 67 defensive pre-snap (66 is in), (71 QB pocket play and 75 special-teams
+- **Tier 1, Track E:** done (66 is in; 67 defensive pre-snap, 71 QB pocket play and 75 special-teams
   depth done).
 - **Tier 2:** done (89 coaching staffs, 19.5 personnel packages).
 - **Tier 3 / infra:** 24.1 gym map (editor; 24.2–24.5, 117 and 125 done).
@@ -166,7 +166,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "64":  {"track": "D", "mode": "editor", "status": "open", "depends_on": ["9", "22"]},
     "65":  {"track": "D", "mode": "mixed", "status": "open", "depends_on": ["11", "2"]},
     "66":  {"track": "E", "mode": "code", "status": "partial", "depends_on": ["14", "16"], "open_stories": ["66.5 crowd-noise interference on road audibles (waits on Epic 49)"]},
-    "67":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["15", "16", "66"]},
+    "67":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["15", "16", "66"]},
     "68":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "14", "16"]},
     "69":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["C3", "C4", "15", "68"]},
     "70":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "9"]},
