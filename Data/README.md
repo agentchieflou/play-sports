@@ -156,7 +156,8 @@ context from it at runtime; `APSPlayerController` applies the `OnField` context 
 possesses a pawn.
 
 - `Contexts[]`: `ContextId` (unique), `Priority` (int; higher wins on a shared key),
-  `Description`.
+  `Description`, optional `bRemappable` (default true). An action in a context with
+  `bRemappable` false keeps its keys: the menus read `Menu`'s through Slate (Epic 103.4).
 - `Actions[]`: `ActionId` (unique), `ValueType` (`Boolean`, `Axis1D`, `Axis2D`, `Axis3D` --
   the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`.
 - `Bindings[]`: `Key` (an engine `EKeys` name such as `W`, `Mouse2D`, `Gamepad_Left2D`),
@@ -164,7 +165,8 @@ possesses a pawn.
 
 Rules enforced by `tools/validate_data.py` and `UPSInputConfig::Validate()`: every action has
 at least one keyboard/mouse key and one `Gamepad_*` key in every context it is declared for,
-and no key is bound to two actions in the same context.
+and no key is bound to two actions in the same context. A player's remap (saved in the profile,
+never written here) passes the same checks before it applies.
 
 ## Input tuning schema (`FInputTuningRow`)
 

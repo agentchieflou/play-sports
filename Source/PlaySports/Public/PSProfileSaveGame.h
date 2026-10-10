@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "PSSaveGame.h"
+#include "PSInputConfigTypes.h"
 #include "PSProfileSaveGame.generated.h"
 
 /**
@@ -32,4 +33,8 @@ public:
      *  at its default. */
     UPROPERTY(BlueprintReadWrite, Category = "Profile")
     TMap<FName, float> Settings;
+
+    /** The player's own keys over the input catalog's (Epic 103.4). */
+    UPROPERTY(BlueprintReadWrite, Category = "Profile")
+    TArray<FPSInputRemap> InputRemaps;
 };

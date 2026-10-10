@@ -67,6 +67,7 @@ public:
 protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+    virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
     /** Lets a Widget Blueprint refresh its designer layout from GetScreen(). */

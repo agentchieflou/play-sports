@@ -50,6 +50,7 @@ void UPSSettingsComponent::Bind(UPSSettingsSubsystem* InSettings)
     if (InSettings)
     {
         InSettings->OnSettingChangedMC.AddUObject(this, &UPSSettingsComponent::HandleSettingChanged);
+        InSettings->OnInputRemapsChangedMC.AddUObject(this, &UPSSettingsComponent::ApplyRemaps);
         BoundSettings = InSettings;
     }
 }
@@ -59,6 +60,7 @@ void UPSSettingsComponent::Unbind()
     if (UPSSettingsSubsystem* Settings = BoundSettings.Get())
     {
         Settings->OnSettingChangedMC.RemoveAll(this);
+        Settings->OnInputRemapsChangedMC.RemoveAll(this);
     }
     BoundSettings.Reset();
 }
@@ -69,6 +71,76 @@ void UPSSettingsComponent::ApplyAll()
     Apply(VibrationStrengthSettingId);
     Apply(StickDeadZoneSettingId);
     Apply(InputBufferingSettingId);
+    ApplyRemaps();
+}
+
+void UPSSettingsComponent::ApplyRemaps()
+{
+    UPSSettingsSubsystem* Settings = GetSettings();
+    APSPlayerController* Controller = GetPlayerController();
+    UPSInputConfig* Config = Controller ? Controller->GetInputConfig() : nullptr;
+    if (!Settings || !Config)
+    {
+        return;
+    }
+    // Keep each saved remap the catalog still accepts alongside the ones before it.
+    TArray<FPSInputRemap> Accepted;
+    TArray<FString> Problems;
+    for (const FPSInputRemap& Remap : Settings->GetInputRemaps())
+    {
+        TArray<FPSInputRemap> Trial = Accepted;
+        Trial.Add(Remap);
+        if (Config->ApplyRemaps(Trial, Problems))
+        {
+            Accepted = MoveTemp(Trial);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("UPSSettingsComponent: Dropped the saved key for '%s': %s"),
+                *Remap.ActionId.ToString(), Problems.Num() > 0 ? *Problems[0] : TEXT(""));
+        }
+    }
+    Config->ApplyRemaps(Accepted, Problems);
+    Controller->RefreshInputMappings();
+}
+
+bool UPSSettingsComponent::RequestRemap(FName ActionId, bool bGamepad, FName Key, FString& OutProblem)
+{
+    OutProblem.Reset();
+    UPSSettingsSubsystem* Settings = GetSettings();
+    APSPlayerController* Controller = GetPlayerController();
+    UPSInputConfig* Config = Controller ? Controller->GetInputConfig() : nullptr;
+    if (!Settings || !Config)
+    {
+        OutProblem = TEXT("Settings aren't available");
+        return false;
+    }
+
+    TArray<FPSInputRemap> Wanted = Settings->GetInputRemaps();
+    Wanted.RemoveAll([ActionId, bGamepad](const FPSInputRemap& Existing) { return Existing.ActionId == ActionId && Existing.bGamepad == bGamepad; });
+    FPSInputRemap Remap;
+    Remap.ActionId = ActionId;
+    Remap.bGamepad = bGamepad;
+    Remap.Key = Key;
+    Wanted.Add(Remap);
+
+    // Try it on this player's config first: a refused remap changes nothing.
+    TArray<FString> Problems;
+    if (!Config->ApplyRemaps(Wanted, Problems))
+    {
+        OutProblem = Problems.Num() > 0 ? Problems[0] : FString(TEXT("The key was refused"));
+        return false;
+    }
+    Settings->SetInputRemaps(Wanted);
+    return true;
+}
+
+void UPSSettingsComponent::ResetRemaps()
+{
+    if (UPSSettingsSubsystem* Settings = GetSettings())
+    {
+        Settings->SetInputRemaps(TArray<FPSInputRemap>());
+    }
 }
 
 void UPSSettingsComponent::HandleSettingChanged(FName SettingId, float Value)

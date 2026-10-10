@@ -22,7 +22,11 @@ enum class EPSMenuCommand : uint8
     /** Move the setting named by the Payload on a step (Epic 103): flip, next choice, slider up. */
     StepSetting,
     /** Put the settings of the category named by the Payload back to their defaults. */
-    ResetSettings
+    ResetSettings,
+    /** Wait for the next key, then give it to the action named by the Payload (Epic 103.4). */
+    BeginRemap,
+    /** Put every action back on its catalog keys. */
+    ResetRemaps
 };
 
 /** Where a screen's options come from. */
@@ -51,7 +55,10 @@ enum class EPSMenuScreenContent : uint8
     Settings,
     /** The chosen category's settings, each showing its value and stepping it when chosen,
      *  then a reset to defaults. */
-    SettingsCategory
+    SettingsCategory,
+    /** One option per action a player may remap, showing its key on the active device; choosing
+     *  one waits for the new key (Epic 103.4). Then a reset. */
+    InputRemap
 };
 
 /** How the screen stack changed; screen widgets use it to pick a transition. */

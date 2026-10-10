@@ -13,6 +13,7 @@
         {
             "ContextId": "Menu",
             "Priority": 2,
+            "bRemappable": false,
             "Description": "Front-end and pause menus (Epic 101). Slate moves focus between buttons with the D-pad, stick or arrows; these rows name the keys menus treat as Confirm and Back."
         },
         {

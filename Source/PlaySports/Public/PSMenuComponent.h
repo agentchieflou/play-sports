@@ -72,6 +72,19 @@ public:
     /** Shows and changes InSettings instead of the game instance's (headless tests). */
     void SetSettings(UPSSettingsSubsystem* InSettings) { SettingsOverride = InSettings; }
 
+    /** Waits for the next key to give ActionId (Epic 103.4); the remap screen says so. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    void BeginRemap(FName ActionId);
+
+    /** True while a remap waits for its key. */
+    UFUNCTION(BlueprintPure, Category = "Menu")
+    bool IsListeningForRemap() const { return !RemapActionId.IsNone(); }
+
+    /** The key pressed while a remap waits: a Back key cancels; any other becomes the action's
+     *  key on that key's kind of device, if the catalog accepts it. The remap screen then says
+     *  what happened. False when no remap was waiting (the key is the menu's as usual). */
+    bool HandleRemapKey(const FKey& Key);
+
     /** True while the game is paused because this component paused it. */
     UFUNCTION(BlueprintPure, Category = "Menu")
     bool IsPausedByMenu() const { return bPausedByMenu; }
@@ -186,6 +199,12 @@ private:
 
     UPROPERTY(Transient)
     UPSSettingsSubsystem* SettingsOverride = nullptr;
+
+    /** The action a remap waits a key for; NAME_None when none waits. */
+    FName RemapActionId;
+
+    /** What the last remap did, shown on the remap screen. */
+    FString RemapMessage;
 
     FString PendingTravelOptions;
     FString PendingLoadingTip;

@@ -268,6 +268,16 @@ FString UPSSettingsSubsystem::FormatValue(FName SettingId)
     }
 }
 
+void UPSSettingsSubsystem::SetInputRemaps(const TArray<FPSInputRemap>& InRemaps)
+{
+    InputRemaps = InRemaps;
+    if (Saves)
+    {
+        SaveToProfile(Saves, Slot);
+    }
+    OnInputRemapsChangedMC.Broadcast();
+}
+
 bool UPSSettingsSubsystem::LoadFromProfile(UPSSaveSubsystem* InSaves, const FString& InSlot)
 {
     // Changes from now on are saved here.
@@ -279,6 +289,7 @@ bool UPSSettingsSubsystem::LoadFromProfile(UPSSaveSubsystem* InSaves, const FStr
         return false;
     }
     Values.Reset();
+    InputRemaps = Profile->InputRemaps;
     for (const TPair<FName, float>& Stored : Profile->Settings)
     {
         // A setting the catalog dropped is forgotten; the rest are snapped into today's range.
@@ -303,6 +314,7 @@ bool UPSSettingsSubsystem::SaveToProfile(UPSSaveSubsystem* InSaves, const FStrin
         Profile = NewObject<UPSProfileSaveGame>(this);
     }
     Profile->Settings = Values;
+    Profile->InputRemaps = InputRemaps;
     if (!InSaves->SaveToSlot(Profile, InSlot))
     {
         UE_LOG(LogTemp, Warning, TEXT("UPSSettingsSubsystem: Could not save the settings to %s."), *InSlot);
