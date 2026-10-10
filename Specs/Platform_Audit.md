@@ -112,7 +112,8 @@ cost on a device.
 | The profile's settings reach an iPhone | Nothing: Win64 CI never loads the IOS profile | A Mac build on the phone. Read `sg.*` and `t.MaxFPS` in the console, and check the engine's per-model profile doesn't override them. |
 | Frame time, memory and heat over a full game | Nothing | Xcode Instruments on the phone during a CPU-vs-CPU game: tune the tier numbers from those measurements |
 | The AI scans the field once a frame, however many players decide | `PlaySports.AI.Performance.OneFieldScanPerFrame` | — |
-| The AI's time per frame with 22 players | Nothing measured. `stat PSAI` shows it (section 6) | The device run in section 6 |
+| The AI's time per frame with 22 players | Nothing measured on a device. `stat PSAI` shows it (section 6); CI times it headless (section 7) | The device run in section 6 |
+| Every system holds to its tier's frame-time budget | `PlaySports.Perf.StandardPlayProfile` profiles the standard play headless; `tools/perf_budget.py` holds it to the budgets and the trend in CI (section 7) | `PS.Perf.Capture` on the phone (section 7) |
 
 ## 6. AI performance pass (Epic 17.5)
 
@@ -143,8 +144,9 @@ measured the frame rate yet. Measure it with this procedure:
 1. Run a CPU-vs-CPU game: both sides called by the CPU, no human input, the default map.
    - On Win64, run it in a Development build, not the editor.
    - On the iPhone, run the Epic 131 build.
-2. Open the console and turn on `stat unit`, `stat game` and `stat PSAI`. Play at least one full
-   drive, so every play type runs: a run, a pass and a sack.
+2. Open the console and turn on `stat unit`, `stat game`, `stat PSAI` and `stat PlaySports`, and
+   run `PS.Perf.Capture 120` (section 7). Play at least one full drive, so every play type runs: a
+   run, a pass and a sack.
 3. Record the game-thread time and the `PSAI` counters at the snap, during the rush, and in
    pursuit. The counters are:
    - `Defender AI decision`
@@ -159,3 +161,74 @@ measured the frame rate yet. Measure it with this procedure:
 - If it doesn't, raise that tier's `AIDecisionInterval` before changing code.
 
 Record the measured numbers here, replacing this paragraph.
+
+## 7. Frame-time budgets and the profiling harness (Epic 114)
+
+**Budgets.** Each tier in `Data/platform_tiers.json` has a `TargetFrameRate` and a
+`SystemBudgets` entry for every system the game runs on the game thread. Each entry is that
+system's share of the frame, in ms. The shares must fit in the frame. The rest of the frame goes
+to the engine: movement, physics queries and UMG's own layout. Rendering runs on the render
+thread.
+
+| System | What it covers | DesktopHigh (60 fps, 16.7 ms) | MobileBaseline (60 fps, 16.7 ms) | MobileLow (30 fps, 33.3 ms) |
+|---|---|---|---|---|
+| Simulation | `UPSPlaySimulation` | 1.0 | 0.75 | 1.0 |
+| AI | decisions, the field scan, the pass rush, gap fits | 2.0 | 2.0 (section 6) | 3.0 |
+| Telemetry | the bus recording events, the sampler (includes `TelemetrySampleBudgetMs`) | 0.5 | 0.3 | 0.3 |
+| Overlays | ball flight, broadcast package, reticle, badges | 1.0 | 0.75 | 0.5 |
+| UI | HUD and menus | 1.0 | 0.75 | 1.0 |
+| Animation | not built yet (Track A) | 3.0 | 2.5 | 4.0 |
+| Crowd | not built yet (Track R) | 2.0 | 1.0 | 0.5 |
+| Audio | not built yet (Track E) | 1.0 | 0.75 | 1.0 |
+
+These are proposed figures, like section 6's, set before the world kit arrives. A device
+measurement replaces them. A system that lands later keeps to its row, or argues for a new
+one in the same change.
+
+**Instrumentation.** Each system's entry points open a `PS_PERF_SCOPE(<System>)`
+(`PSPerfBudget.h`):
+- AI: the AI decisions;
+- Simulation: `UPSPlaySimulation::AdvancePlay`;
+- Telemetry: `UPSTelemetryBus::RecordHistory` and the sampler's frame;
+- Overlays: each overlay's step and the score bug and chyron widgets.
+
+Time is exclusive. A bus event published from an AI decision counts as Telemetry, not as AI too.
+The same scopes feed `stat PlaySports`: one counter per system, plus bus events, AI decisions and
+field scans per frame. The finer AI counters stay in `stat PSAI`.
+
+**The harness (CI).** `UPSPerfHarness` plays the standard play under full load in a headless
+world:
+- two full elevens under AI, and the ball;
+- the snap, with the CPU calling both sides;
+- the rush, the routes and the coverage;
+- a throw and a catch, pursuit, the tackle and the whistle;
+- the next down's pre-snap.
+
+Each frame it steps what the game ticks, at the running tier's AI decision interval.
+`PlaySports.Perf.StandardPlayProfile` runs it in CI. It asserts the counts, which hold on any
+machine: at most one field scan a frame, and the bus within `MaxBusEventsPerPlay` events. It then
+writes `Saved/Profiling/StandardPlay_<tier>.json`.
+
+CI's Performance budgets step (`tools/perf_budget.py`) checks that report:
+- A system over its budget at the 95th percentile is a warning.
+- A system over `HardFailMultiplier` times its budget fails the build.
+- A system that regressed against the median of its last runs on main is a warning. Pushes to
+  main record each run in the runner's history (`%USERPROFILE%\play-sports-ci\perf_history.jsonl`,
+  or `PS_PERF_HISTORY`).
+
+The report is uploaded as the `perf-report` artifact, and the step summary shows the table.
+`python tools/perf_budget.py trend --history <file>` prints the history.
+
+The CI runner is the editor with no renderer, on a laptop shared with other work. Its times
+check the budgets' order of magnitude and catch regressions. They are not device numbers.
+
+**On a device.** Two console commands write the same report, which `tools/perf_budget.py check
+<file>` reads:
+- `PS.Perf.Capture [seconds]` profiles real play for that long (30 s by default) and writes
+  `Saved/Profiling/Live_<tier>.json`.
+- `PS.Perf.RunHarness` plays the standard play in a scratch world and writes
+  `StandardPlay_<tier>.json`.
+
+Run both on the phone (Epic 131's build) and on a packaged Win64 build at each tier. Record the
+numbers here, replacing the proposed budgets. Nothing in this section has been measured on a
+device yet.

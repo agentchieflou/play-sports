@@ -16,6 +16,7 @@ class APSPlayerPawn;
 class UPSRouteRunnerComponent;
 class UPSPocketComponent;
 class UPSAIDecisionLog;
+class UPSDeceptionSubsystem;
 
 /** What an offensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -34,7 +35,13 @@ enum class EPSSkillPlayerAction : uint8
     /** Converging on a pass thrown to this player. */
     TrackBall,
     /** No route: holding in front of the QB and taking on the nearest rusher. */
-    Block
+    Block,
+    /** Going for a blocked kick's loose ball, or running down the defender who scooped it up
+     *  (UPSLooseBallSubsystem, Epic 17.4). */
+    LooseBall,
+    /** Play-action: the QB carrying out his fake hand-off toward the back before the drop
+     *  (UPSDeceptionSubsystem, Epic 72). */
+    Fake
 };
 
 /** Offensive AI tuning (Data/skill_ai_tuning.json; Architecture rule 4). Distances in cm. */
@@ -154,15 +161,16 @@ public:
     static FString GetDefaultTuningPath();
 
     /** The tuning in use, loaded from the default path on first use: as loaded, with this play's
-     *  player's style applied (ApplyPlayerDNA). */
+     *  player's style and difficulty applied (ApplyPlayTuning). */
     const FSkillPlayerAITuningRow& GetTuning();
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
 
-    /** Puts Self's style into this play's tuning (Epic 79): the tuning as loaded, scaled by
-     *  Data/player_dna.json's SkillAI bindings for his DNA (UPSPlayerDNASubsystem), and the same
-     *  for his pocket's. Called as each play starts. */
-    void ApplyPlayerDNA(const APSPlayerPawn* Self);
+    /** This play's tuning for Self: the tuning as loaded, scaled by Data/player_dna.json's SkillAI
+     *  bindings for his style (UPSPlayerDNASubsystem, Epic 79), then by the difficulty tier when
+     *  he plays for the CPU (UPSDifficultySubsystem, Epic 84); and the same for his pocket's.
+     *  Called as each play starts. */
+    void ApplyPlayTuning(const APSPlayerPawn* Self);
 
     /** Listens for the call, the snap, throws, the end of the play and control handoffs.
      *  Idempotent. */
@@ -233,6 +241,8 @@ private:
     APSOffenseController* GetOffenseController() const;
     UPSRouteRunnerComponent* GetRouteRunner() const;
     UPSPocketComponent* GetPocket() const;
+    /** The play's fake and reads (Epic 72). */
+    UPSDeceptionSubsystem* GetDeception() const;
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindTeammate(EPlayerRole Role) const;
     const TArray<APSPlayerPawn*>& GetFieldPawns() const;

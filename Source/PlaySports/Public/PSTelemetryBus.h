@@ -38,7 +38,10 @@ enum class EPSTelemetryEventType : uint8
     OpponentAdjustment,
     Versus,
     PlayResult,
-    RecordBroken
+    RecordBroken,
+    Coverage,
+    LooseBall,
+    Deception
 };
 
 /** What a statistic counts (Epic 92). Player categories first, then team ones. */
@@ -98,7 +101,10 @@ enum class EPSRouteEventKind : uint8
     /** A double move's fake, and whether the defender bit. */
     DoubleMove,
     /** An option route's read of the coverage. */
-    OptionRead
+    OptionRead,
+    /** He made his route's break (Epic 69: the coverage matchup engine resolves it against the
+     *  defender's leverage). */
+    Break
 };
 
 /** Something the quarterback did with the pocket breaking down (Epic 71). */
@@ -140,6 +146,66 @@ enum class EPSVersusEventKind : uint8
     Reconnected,
     /** A seat quit: the other seat wins. */
     Forfeit
+};
+
+/** A coverage contest (Epic 69), as UPSCoverageMatchupSubsystem decides it. */
+UENUM(BlueprintType)
+enum class EPSCoverageEventKind : uint8
+{
+    /** A man defender's jam at the snap: "Jammed", "Rerouted" or "Beaten" (out of phase for
+     *  Seconds). */
+    Press,
+    /** A man defender lost his leverage ("Lost": the receiver crossed his face) or got it back
+     *  ("Regained"). */
+    Leverage,
+    /** A receiver broke on his man: "IntoLeverage", "AwayFromLeverage" or "Straight"; the
+     *  defender is out of phase for Seconds. */
+    Break,
+    /** A zone defender picked up a receiver in his zone ("Zone"), or carries him on past it
+     *  ("Vertical"). */
+    Carry,
+    /** A zone defender handed his receiver to the defender whose zone he ran into
+     *  (OtherDefenderName). */
+    HandOff,
+    /** A zone defender let an underneath receiver go as he left the zone. */
+    PassOff,
+    /** A deep defender moved over to keep the deep zones covered after one left them. */
+    Rotate,
+    /** A man defender left over took the shell's free role: "DeepMiddle" or "Robber". */
+    FreeRole,
+    /** A defender played through the targeted receiver before the ball arrived: a flag. */
+    PassInterference
+};
+
+/** A deception play's moment (Epic 72), as UPSDeceptionSubsystem decides it. */
+UENUM(BlueprintType)
+enum class EPSDeceptionEventKind : uint8
+{
+    /** The quarterback sold a play-action fake hand-off. */
+    Fake,
+    /** A run-fit defender bit on the fake: frozen for Seconds. */
+    Bite,
+    /** The quarterback read his key: "Give", "Keep", "Throw" or "Pitch". */
+    Read,
+    /** The defense saw the mesh and gave a defender his option job: "Dive", "Quarterback" or
+     *  "Pitch". */
+    Assignment
+};
+
+/** A loose ball the players play (Epic 17.4: a blocked kick), as UPSLooseBallSubsystem runs it. */
+UENUM(BlueprintType)
+enum class EPSLooseBallEventKind : uint8
+{
+    /** The kick was blocked (UPSPlaySimulation, from Epic 75's model): the ball comes loose. */
+    Blocked,
+    /** The ball is on the ground and live: the players near it go for it. */
+    Loose,
+    /** A player got to it and couldn't hold on: it squirted away. */
+    Muffed,
+    /** A player has it: scooped up to return (bScooped), or fallen on. */
+    Recovered,
+    /** The play is over: the spot, who has the ball, and whether the defense scored. */
+    Dead
 };
 
 /** Which kind of hardware the human player last used (Epic 127; Touch is Epic 130's
@@ -580,6 +646,10 @@ struct FPSTelemetryRouteEvent
     /** How long it holds: a jammed receiver's hold, a bitten defender's freeze. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     float Seconds = 0.f;
+
+    /** A break: the direction (unit, on the ground) of the leg he breaks onto. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Direction = FVector::ZeroVector;
 };
 
 /** A human kicker lines up for a kick, or kicks (Epic 104.5). UPSKickMeterComponent publishes
@@ -1053,6 +1123,118 @@ struct FPSTelemetryRecordBrokenEvent
     FString Description;
 };
 
+/** A deception play's moment (Epic 72): the fake, a bite, the quarterback's read, a defender's
+ *  option job. UPSDeceptionSubsystem decides these; the quarterback and the defenders act on
+ *  them. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryDeceptionEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSDeceptionEventKind Kind = EPSDeceptionEventKind::Fake;
+
+    /** The quarterback (fake, read) or the defender (bite, assignment). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** A read: the defender read. An assignment: the man he takes. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString OtherName;
+
+    /** See EPSDeceptionEventKind. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Outcome;
+
+    /** A bite: how long he is frozen. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Seconds = 0.f;
+};
+
+/** A loose ball (Epic 17.4): a blocked kick's ball on the ground, a muff, a recovery and the dead
+ *  ball. UPSPlaySimulation announces the block; UPSLooseBallSubsystem runs the rest, and the
+ *  simulation takes the dead ball as the kick's outcome. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryLooseBallEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSLooseBallEventKind Kind = EPSLooseBallEventKind::Blocked;
+
+    /** The kick that was blocked: "Punt" or "FieldGoal". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString KickType;
+
+    /** Blocked: how far behind the line of scrimmage it comes loose (0: where the kick is
+     *  held, the loose-ball tuning's). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 YardsBehindLine = 0;
+
+    /** The player who muffed or recovered it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** Recovered or dead: the kicking team has it (else the defense). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bKickingTeam = false;
+
+    /** Recovered: picked up to return, not fallen on. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bScooped = false;
+
+    /** Dead: the defense returned it into the end zone. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bTouchdown = false;
+
+    /** Dead: the spot, in yards from the kicking team's own goal line. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 YardLine = 0;
+
+    /** Where the ball is (loose, muffed, recovered) or was downed. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Location = FVector::ZeroVector;
+};
+
+/** A coverage contest (Epic 69): a jam, leverage won or lost, a break, a zone carry, hand-off or
+ *  pass-off, a deep rotation, a free role, or pass interference. UPSCoverageMatchupSubsystem
+ *  decides these; UPSDefenderAIComponent plays them, UPSPlaySimulation flags the interference,
+ *  and a coverage overlay (Track A, Epic 31) can draw them. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryCoverageEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSCoverageEventKind Kind = EPSCoverageEventKind::Press;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString DefenderName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString ReceiverName;
+
+    /** A hand-off: the defender who takes the receiver. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString OtherDefenderName;
+
+    /** The kind's outcome (see EPSCoverageEventKind). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Outcome;
+
+    /** How long the defender is out of phase (a beaten jam, a break). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Seconds = 0.f;
+
+    /** Where it happened: the receiver, or a rotating defender's new spot. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Location = FVector::ZeroVector;
+
+    /** Pass interference: the foul's spot, in whole yards past the line of scrimmage (at least 1). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 YardsPastLine = 0;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -1109,6 +1291,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryOpponentAdjustmentSignat
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryVersusSignature, const FPSTelemetryVersusEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayResultSignature, const FPSTelemetryPlayResultEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecordBrokenSignature, const FPSTelemetryRecordBrokenEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageSignature, const FPSTelemetryCoverageEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallSignature, const FPSTelemetryLooseBallEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionSignature, const FPSTelemetryDeceptionEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -1144,6 +1329,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryOpponentAdjustmentMC, const FPST
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryVersusMC, const FPSTelemetryVersusEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayResultMC, const FPSTelemetryPlayResultEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecordBrokenMC, const FPSTelemetryRecordBrokenEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageMC, const FPSTelemetryCoverageEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallMC, const FPSTelemetryLooseBallEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionMC, const FPSTelemetryDeceptionEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1247,6 +1435,15 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishVersus(const FPSTelemetryVersusEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishCoverage(const FPSTelemetryCoverageEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishLooseBall(const FPSTelemetryLooseBallEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishDeception(const FPSTelemetryDeceptionEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -1367,6 +1564,15 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryRecordBrokenSignature OnRecordBroken;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryCoverageSignature OnCoverage;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryLooseBallSignature OnLooseBall;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryDeceptionSignature OnDeception;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -1402,6 +1608,9 @@ public:
     FPSTelemetryVersusMC OnVersusMC;
     FPSTelemetryPlayResultMC OnPlayResultMC;
     FPSTelemetryRecordBrokenMC OnRecordBrokenMC;
+    FPSTelemetryCoverageMC OnCoverageMC;
+    FPSTelemetryLooseBallMC OnLooseBallMC;
+    FPSTelemetryDeceptionMC OnDeceptionMC;
 
 private:
     UPROPERTY(Transient)
