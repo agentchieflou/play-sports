@@ -247,3 +247,19 @@ void UPSTelemetryBus::PublishPumpFake(const FPSTelemetryPumpFakeEvent& Event)
     }
     OnPumpFakeMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishTimeout(const FPSTelemetryTimeoutEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryTimeoutEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Timeout: %s, by %s, %.0f s left"),
+        Event.bOffense ? TEXT("Offense") : TEXT("Defense"), Event.bHumanCall ? TEXT("human") : TEXT("CPU"), Event.GameClockSeconds);
+    RecordHistory(EPSTelemetryEventType::Timeout, Description, JsonPayload);
+
+    if (OnTimeout.IsBound())
+    {
+        OnTimeout.Broadcast(Event);
+    }
+    OnTimeoutMC.Broadcast(Event);
+}

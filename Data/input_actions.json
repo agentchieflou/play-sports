@@ -286,6 +286,26 @@
                 { "Key": "LeftControl" },
                 { "Key": "Gamepad_LeftShoulder" }
             ]
+        },
+        {
+            "ActionId": "Tempo",
+            "ValueType": "Boolean",
+            "Description": "Before the snap, on offense: cycle the tempo, huddle / no-huddle / hurry-up (Epic 76). Hurry-up reruns your last play with no call screen. UPSPlayCallComponent; the tempos are Data/situational_tuning.json.",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "H" },
+                { "Key": "Gamepad_DPad_Up" }
+            ]
+        },
+        {
+            "ActionId": "Timeout",
+            "ValueType": "Boolean",
+            "Description": "Before the snap: call a timeout for your side, which stops the clock if you have one left (Epic 76). UPSPlayCallComponent.",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "J" },
+                { "Key": "Gamepad_DPad_Down" }
+            ]
         }
     ]
 }

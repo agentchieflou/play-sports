@@ -39,7 +39,7 @@ void APSOutOfBoundsVolume::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, A
         if (Pawn->HasPossession())
         {
             float YardsGained = (Pawn->GetActorLocation().X - Pawn->GetStartingLocation().X) / 100.f;
-            GM->PlaySimulation->RecordTackle(FMath::RoundToInt(YardsGained));
+            GM->PlaySimulation->RecordOutOfBounds(FMath::RoundToInt(YardsGained));
             UE_LOG(LogTemp, Display, TEXT("PSOutOfBoundsVolume: Player with ball ran Out of Bounds. Yards gained: %.1f"), YardsGained);
         }
     }

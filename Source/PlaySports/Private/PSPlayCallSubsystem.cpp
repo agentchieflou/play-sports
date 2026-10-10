@@ -7,6 +7,7 @@
 #include "PSPlaySimulation.h"
 #include "PSProfileSaveGame.h"
 #include "PSSaveSubsystem.h"
+#include "PSSituationAI.h"
 #include "Engine/GameInstance.h"
 #include "Engine/DataTable.h"
 #include "Engine/World.h"
@@ -89,6 +90,7 @@ namespace PSPlayCallPrivate
 void UPSPlayCallSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
+    CoachingAI = NewObject<UPSCoachingAI>(this);
 
     UPSTelemetryBus* Bus = Collection.InitializeDependency<UPSTelemetryBus>();
     if (Bus)
@@ -549,7 +551,22 @@ TArray<FName> UPSPlayCallSubsystem::GetFavorites(bool bOffense)
 FString UPSPlayCallSubsystem::BuildCallScreenBody(bool bOffense) const
 {
     const FString Tendencies = DescribeTendencies(bOffense);
-    const FString SituationLine = DescribeSituation(Situation);
+    FString SituationLine = DescribeSituation(Situation);
+
+    // The leverage moment, and the offense's tempo (Epic 76).
+    if (const UPSSituationAI* Read = CoachingAI ? CoachingAI->GetSituationAI() : nullptr)
+    {
+        const FString Moment = UPSSituationAI::DescribeSituation(Read->ClassifySituation(Situation));
+        if (!Moment.IsEmpty())
+        {
+            SituationLine += FString::Printf(TEXT(" \u00B7 %s"), *Moment);
+        }
+        const FPSTempoDef* TempoDef = bOffense ? Read->FindTempo(HumanTempo) : nullptr;
+        if (TempoDef)
+        {
+            SituationLine += FString::Printf(TEXT("\nTempo: %s"), *TempoDef->Label);
+        }
+    }
     return Tendencies.IsEmpty() ? SituationLine : FString::Printf(TEXT("%s\n%s"), *SituationLine, *Tendencies);
 }
 
@@ -646,6 +663,8 @@ FPSSituationContext UPSPlayCallSubsystem::MakeSituation(const FPlayState& State)
     Context.GameClockSeconds = State.GameClockSeconds;
     Context.ScoreDifferential = State.bHomeHasPossession ? State.HomeScore - State.AwayScore : State.AwayScore - State.HomeScore;
     Context.TimeoutsRemaining = State.bHomeHasPossession ? State.HomeTimeoutsRemaining : State.AwayTimeoutsRemaining;
+    Context.OpponentTimeoutsRemaining = State.bHomeHasPossession ? State.AwayTimeoutsRemaining : State.HomeTimeoutsRemaining;
+    Context.bClockRunning = State.bIsClockRunning;
     return Context;
 }
 
@@ -660,13 +679,85 @@ void UPSPlayCallSubsystem::OpenPlayCall(const FPSSituationContext& InSituation)
     bSnapRequested = false;
     bWindowOpen = true;
 
+    // A CPU side that needs to stop a running clock calls its timeout first (Epic 76).
     for (const bool bOffense : { true, false })
     {
-        if (IsHumanSide(bOffense))
+        if (!IsHumanSide(bOffense) && CoachingAI && CoachingAI->ShouldCallTimeout(Situation, bOffense))
+        {
+            RequestTimeout(bOffense, false);
+        }
+    }
+
+    // A human offense in hurry-up runs its last play again, with no call screen.
+    const bool bOffenseRerun = IsHumanSide(true) && RerunLastHumanCall();
+    for (const bool bOffense : { true, false })
+    {
+        if (IsHumanSide(bOffense) && !(bOffense && bOffenseRerun))
         {
             OnHumanCallNeeded.Broadcast(bOffense);
         }
     }
+}
+
+bool UPSPlayCallSubsystem::RerunLastHumanCall()
+{
+    const UPSSituationAI* Read = CoachingAI ? CoachingAI->GetSituationAI() : nullptr;
+    const FPSTempoDef* TempoDef = Read ? Read->FindTempo(HumanTempo) : nullptr;
+    if (!TempoDef || !TempoDef->bRerunLastCall)
+    {
+        return false;
+    }
+
+    // The last real play: a spike or a kneel is never rerun.
+    for (int32 Index = CallHistory.Num() - 1; Index >= 0; --Index)
+    {
+        const FPSPlayCallRecord& Record = CallHistory[Index];
+        FPSPlayDefinition Play;
+        if (Record.bOffense && PSSituation::ClockPlayFromCategory(Record.PlayCategory) == EPSClockPlay::None && FindPlay(Record.PlayId, Play))
+        {
+            SetCall(Play, EPSPlayCaller::Human);
+            return true;
+        }
+    }
+    return false;
+}
+
+void UPSPlayCallSubsystem::SetHumanTempo(EPSTempo InTempo)
+{
+    HumanTempo = InTempo;
+    FPSPlayDefinition Play;
+    if (bWindowOpen && OffenseCall.IsSet() && OffenseCall.Caller != EPSPlayCaller::CPU && FindPlay(OffenseCall.PlayId, Play))
+    {
+        SetCall(Play, OffenseCall.Caller);
+    }
+}
+
+EPSTempo UPSPlayCallSubsystem::CycleHumanTempo()
+{
+    const UPSSituationAI* Read = CoachingAI ? CoachingAI->GetSituationAI() : nullptr;
+    SetHumanTempo(Read ? Read->GetNextHumanTempo(HumanTempo) : HumanTempo);
+    return HumanTempo;
+}
+
+bool UPSPlayCallSubsystem::RequestTimeout(bool bOffense, bool bHumanCall)
+{
+    int32& Left = bOffense ? Situation.TimeoutsRemaining : Situation.OpponentTimeoutsRemaining;
+    UPSTelemetryBus* Bus = BoundBus.Get();
+    if (!bWindowOpen || Left <= 0 || !Bus)
+    {
+        return false;
+    }
+    --Left;
+    Situation.bClockRunning = false;
+    UE_LOG(LogTemp, Display, TEXT("UPSPlayCallSubsystem: %s timeout (%s), %d left."),
+        bOffense ? TEXT("Offense") : TEXT("Defense"), bHumanCall ? TEXT("human") : TEXT("CPU"), Left);
+
+    FPSTelemetryTimeoutEvent Event;
+    Event.bOffense = bOffense;
+    Event.bHumanCall = bHumanCall;
+    Event.GameClockSeconds = Situation.GameClockSeconds;
+    Bus->PublishTimeout(Event);
+    return true;
 }
 
 bool UPSPlayCallSubsystem::CallPlay(FName PlayId, EPSPlayCaller Caller)
@@ -687,8 +778,17 @@ void UPSPlayCallSubsystem::SetCall(const FPSPlayDefinition& Play, EPSPlayCaller 
     Call.Caller = Caller;
     TimeSinceCallsComplete = 0.f;
 
-    UE_LOG(LogTemp, Display, TEXT("UPSPlayCallSubsystem: %s calls %s (%s)."),
-        Play.bIsOffensivePlay ? TEXT("Offense") : TEXT("Defense"), *Play.DisplayName, *UEnum::GetValueAsString(Caller));
+    // The offense's tempo: the CPU's from the situation, a human's own; a spike or a kneel
+    // takes its own (Epic 76).
+    const UPSSituationAI* Read = CoachingAI ? CoachingAI->GetSituationAI() : nullptr;
+    Call.Tempo = EPSTempo::Huddle;
+    if (Play.bIsOffensivePlay && Read)
+    {
+        Call.Tempo = Read->GetTempoForPlay(Play, Caller == EPSPlayCaller::CPU ? Read->ChooseTempo(Situation) : HumanTempo);
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("UPSPlayCallSubsystem: %s calls %s (%s, %s)."),
+        Play.bIsOffensivePlay ? TEXT("Offense") : TEXT("Defense"), *Play.DisplayName, *UEnum::GetValueAsString(Caller), *UEnum::GetValueAsString(Call.Tempo));
 
     if (UPSTelemetryBus* Bus = BoundBus.Get())
     {
@@ -699,6 +799,12 @@ void UPSPlayCallSubsystem::SetCall(const FPSPlayDefinition& Play, EPSPlayCaller 
         Event.PlayCategory = Play.PlayCategory;
         Event.bOffense = Play.bIsOffensivePlay;
         Event.bHumanCall = Caller == EPSPlayCaller::Human;
+        Event.Tempo = Call.Tempo;
+        if (Play.bIsOffensivePlay && Read)
+        {
+            Event.SnapAtPlayClockSeconds = Read->GetSnapPlayClock(Call.Tempo);
+            Event.BoundaryIntent = Read->GetBoundaryIntent(Situation);
+        }
         Bus->PublishPlayCall(Event);
     }
 }

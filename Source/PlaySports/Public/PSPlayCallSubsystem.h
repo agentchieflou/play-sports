@@ -35,6 +35,13 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSHumanCallNeededMC, bool /* bOffense */);
  *
  * Which pawns humans control comes from the bus (ControlChange); every call is announced on
  * it (PlayCall).
+ *
+ * Situational football (Epic 76): each offensive call carries a tempo -- the CPU's from the
+ * coaching AI's situational read, a human's from the tempo they set (it holds from down to
+ * down; hurry-up reruns their last play with no call screen) -- and the ball carrier's
+ * sideline intent. When a window opens, a CPU side that needs to stop a running clock calls
+ * a timeout (Timeout on the bus; the simulation charges it); a human side asks with
+ * RequestTimeout.
  */
 UCLASS()
 class PLAYSPORTS_API UPSPlayCallSubsystem : public UWorldSubsystem
@@ -95,6 +102,23 @@ public:
 
     /** "3rd & 7 at own 35", from the situation the window opened with. */
     static FString DescribeSituation(const FPSSituationContext& InSituation);
+
+    /** The tempo a human offense plays at (Epic 76). It holds from down to down. */
+    EPSTempo GetHumanTempo() const { return HumanTempo; }
+
+    /** Sets the human offense's tempo. A call already in for the human offense is announced
+     *  again at the new tempo, so the snap runs at it. */
+    void SetHumanTempo(EPSTempo InTempo);
+
+    /** Moves the human offense to the next tempo in the cycle and returns it. */
+    EPSTempo CycleHumanTempo();
+
+    /** A side asks for a timeout: announced on the bus (the simulation charges it and stops
+     *  the clock) while the window is open and the side has one left. True when announced. */
+    bool RequestTimeout(bool bOffense, bool bHumanCall);
+
+    /** The coaching AI, which holds the situational read (UPSSituationAI). */
+    UPSCoachingAI* GetCoachingAI() const { return CoachingAI; }
 
     /** Distinct plays the human called and ran for the side, most recent first. */
     TArray<FName> GetRecentCalls(bool bOffense, int32 MaxCount) const;
@@ -200,6 +224,8 @@ private:
     UPSSaveSubsystem* GetSaveSubsystem() const;
     FPSMenuOptionDef MakePlayOption(const FPSPlayDefinition& Play, const FString& Label);
     void CallForCpu(bool bOffense);
+    /** A human offense in a rerun tempo calls its last play again; true when it did. */
+    bool RerunLastHumanCall();
     void QuickCall(bool bOffense);
     void SetCall(const FPSPlayDefinition& Play, EPSPlayCaller Caller);
     void Distribute(const FVector& LineOfScrimmage);
@@ -247,6 +273,7 @@ private:
     TMap<FName, bool> HumanPawnSides;
 
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
+    EPSTempo HumanTempo = EPSTempo::Huddle;
     float TimeSinceCallsComplete = 0.f;
     float PlayClockSeconds = -1.f;
     FName DefensiveAdjustment;

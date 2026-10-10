@@ -128,6 +128,7 @@ void UPSSkillPlayerAIComponent::HandlePlayCall(const FPSTelemetryPlayCallEvent& 
     if (Event.bOffense)
     {
         bRunPlay = Event.PlayCategory == TEXT("Run");
+        BoundaryIntent = Event.BoundaryIntent;
     }
 }
 
@@ -418,6 +419,18 @@ FVector UPSSkillPlayerAIComponent::SteerAsCarrier(APSPlayerPawn* Self) const
         }
         const float Urgency = 1.f - Distance / Settings.CarrierAvoidRadius;
         Heading += Away.GetSafeNormal() * Settings.CarrierAvoidWeight * Urgency;
+    }
+
+    // The call's sideline intent (Epic 76): past the line, head out of bounds to stop the clock;
+    // near the sideline, turn back inside to keep it running.
+    const float Side = Location.Y >= 0.f ? 1.f : -1.f;
+    if (BoundaryIntent == EPSBoundaryIntent::GetOutOfBounds && Location.X > LineOfScrimmage.X)
+    {
+        Heading.Y += Side * Settings.SidelineSteerWeight;
+    }
+    else if (BoundaryIntent == EPSBoundaryIntent::StayInbounds && FMath::Abs(Location.Y) > Settings.FieldHalfWidth - Settings.SidelineCushion)
+    {
+        Heading.Y = -Side * Settings.SidelineSteerWeight;
     }
     Heading.Z = 0.f;
     return Heading.GetSafeNormal();
