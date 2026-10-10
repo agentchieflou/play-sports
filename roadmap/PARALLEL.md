@@ -56,7 +56,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 - **Tier 1, Track E:** 67 defensive pre-snap (66 is in), 71 QB pocket play, 75 special-teams
   depth.
 - **Tier 2:** 89 coaching staffs, 19.5 personnel packages.
-- **Tier 3 / infra:** 24 test expansion (117 and 125 done).
+- **Tier 3 / infra:** 24.1 gym map (editor; 24.2–24.5, 117 and 125 done).
 - **Overlay and camera code:** 30, 33, 38 and 40 are done.
   With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
   38, 41, 49, 78, 82, 85, 92, 96, 115.
@@ -123,7 +123,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "21":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "19"]},
     "22":  {"track": "core", "mode": "editor", "status": "open", "depends_on": ["6", "7", "8"]},
     "23":  {"track": "core", "mode": "mixed", "status": "open", "depends_on": ["8", "11"]},
-    "24":  {"track": "core", "mode": "code", "status": "open", "depends_on": []},
+    "24":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "open_stories": ["24.1 gym map and one APSFunctionalGym test per core system (editor)"]},
     "25":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"], "open_stories": ["25.1 Autonomix T3D injection", "25.2 Autonomix Python escape hatch", "25.3 AgenticLink MCP server (PR #91 in progress)", "25.4 register the server in .mcp.json and .vscode/mcp.json", "25.6 agent smoke test over MCP"]},
     "26":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["C1", "3", "6"]},
     "27":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "16"]},
@@ -214,7 +214,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "112": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "113": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "114": {"track": "K", "mode": "code", "status": "open", "depends_on": ["17"]},
-    "115": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["17", "26"], "open_stories": ["115.4 record/playback round-trip test", "115.5 divergence bisection tool"]},
+    "115": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["17", "26"], "open_stories": ["115.4 record/playback round-trip test"]},
     "116": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "117": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "118": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25"]},
