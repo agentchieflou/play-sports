@@ -748,6 +748,12 @@ struct FPSTelemetryGameStateEvent
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     int32 YardLineToGain = 30;
 
+    /** The ball's spot in world space, the line the coming snap is from: the Snap event's line
+     *  (PSGameStateEvents::LineOfScrimmageFor). The pre-snap play art resolves the call against
+     *  it (Epic 27). It follows YardLine, so HasSameStateAs needn't compare it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector LineOfScrimmage = FVector::ZeroVector;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bHomeHasPossession = true;
 

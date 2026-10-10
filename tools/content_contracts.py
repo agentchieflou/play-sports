@@ -57,7 +57,7 @@ DECEPTION_FIELDS = {"Type": str, "PlaySide": int, "PassRole": str, "PitchRole": 
 DECEPTION_TYPES = {"None", "PlayAction", "RPO", "ZoneRead", "TripleOption"}
 RUN_OPTIONS = {"RPO", "ZoneRead", "TripleOption"}
 PLAY_REQUIRED = ("PlayId", "DisplayName", "Formation", "bIsOffensivePlay", "PlayCategory", "Assignments")
-ASSIGNMENT_FIELDS = {"Role": str, "Kind": str, "RouteId": str, "ZoneOffset": dict, "FormationOffset": dict}
+ASSIGNMENT_FIELDS = {"Role": str, "Kind": str, "RouteId": str, "ZoneOffset": dict, "FormationOffset": dict, "ReadOrder": int}
 
 
 def is_number(value):
@@ -164,7 +164,9 @@ def validate_league_config(path, payload, err):
 
 
 def validate_playbook(path, plays, err):
-    """FPSPlayDefinition rows: each assignment's role and kind belong to the play's side."""
+    """FPSPlayDefinition rows: each assignment's role and kind belong to the play's side. A
+    route's optional ReadOrder (the play art's primary read and check-downs, Epic 27) is on a
+    route with a RouteId only, and a play's ranks run 1, 2, 3, ... without a gap or a repeat."""
     seen = set()
     for idx, play in enumerate(plays):
         where = f"Plays[{idx}]"
@@ -196,6 +198,7 @@ def validate_playbook(path, plays, err):
             continue
         if not assignments:
             err(path, f"{where}.Assignments: empty, so nobody has a job")
+        reads = []
         for aidx, assignment in enumerate(assignments):
             awhere = f"{where}.Assignments[{aidx}]"
             if not check_object(path, awhere, assignment, ASSIGNMENT_FIELDS, ("Role", "Kind"), err, "FPSPlayAssignment"):
@@ -209,6 +212,16 @@ def validate_playbook(path, plays, err):
                 err(path, f"{awhere}.RouteId: only a Route assignment runs one (Kind is '{kind}')")
             for field in ("ZoneOffset", "FormationOffset"):
                 check_vector(path, f"{awhere}.{field}", assignment.get(field), err)
+            read = assignment.get("ReadOrder")
+            if "ReadOrder" in assignment and has_type(read, int):
+                if read < 1:
+                    err(path, f"{awhere}.ReadOrder: {read} - 1 is the primary read, then 2, 3, ...; leave it out for an unranked route")
+                elif kind != "Route" or not assignment.get("RouteId"):
+                    err(path, f"{awhere}.ReadOrder: only a route with a RouteId is read (Kind '{kind}', RouteId '{assignment.get('RouteId', '')}')")
+                else:
+                    reads.append(read)
+        if sorted(reads) != list(range(1, len(reads) + 1)):
+            err(path, f"{where}: ReadOrder values {sorted(reads)} must run 1, 2, 3, ... with no gap or repeat")
         validate_deception(path, where, play, err)
 
 

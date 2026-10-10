@@ -11,6 +11,12 @@ bool PSGameStateEvents::IsPlayClockRunning(const FPlayState& State)
     return State.Phase == EPlayPhase::PreSnap;
 }
 
+FVector PSGameStateEvents::LineOfScrimmageFor(int32 YardLine)
+{
+    // One yard is 100 cm, and the offense always drives toward +X from its goal line at X = 0.
+    return FVector(YardLine * 100.f, 0.f, 0.f);
+}
+
 FPSTelemetryGameStateEvent PSGameStateEvents::MakeEvent(const FPlayState& State, const FDriveSummary& LastDrive, int32 CompletedDrives, int32 MaxTimeouts)
 {
     FPSTelemetryGameStateEvent Event;
@@ -25,6 +31,7 @@ FPSTelemetryGameStateEvent PSGameStateEvents::MakeEvent(const FPlayState& State,
     Event.Distance = State.Distance;
     Event.YardLine = State.YardLine;
     Event.YardLineToGain = State.YardLineToGain;
+    Event.LineOfScrimmage = LineOfScrimmageFor(State.YardLine);
     Event.bHomeHasPossession = State.bHomeHasPossession;
     Event.bKickoff = State.bKickoff;
     Event.HomeScore = State.HomeScore;

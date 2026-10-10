@@ -91,6 +91,8 @@
 "Setting.AutoSlide.Description","Your quarterback slides when a tackler closes on him past the line.","ui_settings.json: setting description"
 "Setting.SuggestedPlayHighlight.Label","Highlight suggested play","ui_settings.json: setting name"
 "Setting.SuggestedPlayHighlight.Description","The play your coach suggests stands out on the play-call screens.","ui_settings.json: setting description"
+"Setting.RouteArt.Label","Route art","ui_settings.json: setting name"
+"Setting.RouteArt.Description","Before the snap, your receivers' routes are drawn on the field, the primary read in its own color.","ui_settings.json: setting description"
 "Setting.Vibration.Label","Vibration","ui_settings.json: setting name"
 "Setting.Vibration.Description","The controller rumbles on hits, catches and scores.","ui_settings.json: setting description"
 "Setting.VibrationStrength.Label","Vibration strength","ui_settings.json: setting name"

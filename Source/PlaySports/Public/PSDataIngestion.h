@@ -62,6 +62,7 @@
 #include "PSDifficultyTypes.h"
 #include "PSDeceptionSubsystem.h"
 #include "PSPerfTypes.h"
+#include "PSPlayArtTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -371,6 +372,11 @@ public:
      *  False on a missing file or malformed JSON; PSDifficulty::ValidateCatalog checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadDifficultyCatalogFromJson(const FString& JsonFilePath, FPSDifficultyCatalog& OutCatalog);
+
+    /** Loads the play art's style (Data/play_art.json, Epic 27). False on a missing file or
+     *  malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlayArtStyleFromJson(const FString& JsonFilePath, FPSPlayArtStyle& OutStyle);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

@@ -71,8 +71,9 @@ setting's choices in order and each assist a toggle in ui_settings.json (Epic 84
 "MeshRecognizeRadius" files against FPSDeceptionTuning (Epic 72): bite chances 0-1 with the floor
 under the ceiling, a discipline rating 0-100; "HardFailMultiplier" files against
 FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system, within its
-frame. Teams, the league config, the playbook, player rating ranges and every reference between
-files are tools/content_contracts.py's (Epic 125), run from here.
+frame; "ReadColors" files against FPSPlayArtStyle (Epic 27), each no-art category an
+offensive play category. Teams, the league config, the playbook, player rating ranges and every
+reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -704,11 +705,15 @@ def validate_platform_tiers(path, payload):
         pose_rate = tier.get("ReplayPoseRateHz")
         if not is_number(pose_rate) or pose_rate < 0:
             err(path, f"{where}.ReplayPoseRateHz: '{pose_rate}' must be a number, 0 (every frame) or more")
+        art_rate = tier.get("PlayArtRefreshHz")
+        if not is_number(art_rate) or art_rate < 0:
+            err(path, f"{where}.PlayArtRefreshHz: '{art_rate}' must be a number, 0 (only on events) or more")
         if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
             err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
         validate_system_budgets(path, where, tier)
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
-                             "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", *TIER_TELEMETRY_NUMBERS}
+                             "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", "PlayArtRefreshHz",
+                             *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -3758,6 +3763,48 @@ def validate_perf_harness(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPerfHarnessTuning exactly")
 
 
+PLAY_ART_NUMBERS = {
+    "RibbonWidth": "above 0", "PrimaryWidthScale": "above 0", "GroundOffset": "0 or more",
+    "RingRadius": "above 0", "BreakMarkerRadius": "0 or more", "SnapFadeSeconds": "0 or more",
+}
+PLAY_ART_FIELDS = set(PLAY_ART_NUMBERS) | {"ReadColors", "UnrankedColor", "BranchOpacity", "NoRouteArtCategories", "bDrawDebug"}
+
+
+def validate_play_art(path, payload):
+    """FPSPlayArtStyle (Data/play_art.json, Epic 27); mirrors PSPlayArt::ValidateStyle, plus
+    each no-art category an offensive play category."""
+    for field, rule in PLAY_ART_NUMBERS.items():
+        value = payload.get(field)
+        bad = not is_number(value) or (value <= 0 if rule == "above 0" else value < 0)
+        if bad:
+            err(path, f"{field}: '{value}' must be a number {rule}")
+    colors = payload.get("ReadColors")
+    if not isinstance(colors, list) or not colors:
+        err(path, "ReadColors: needs a color for the primary read at least")
+    else:
+        for idx, value in enumerate(colors):
+            if not isinstance(value, str) or not HEX_COLOR.match(value):
+                err(path, f"ReadColors[{idx}]: '{value}' must be #RRGGBB")
+    unranked = payload.get("UnrankedColor")
+    if not isinstance(unranked, str) or not HEX_COLOR.match(unranked):
+        err(path, f"UnrankedColor: '{unranked}' must be #RRGGBB")
+    opacity = payload.get("BranchOpacity")
+    if not is_number(opacity) or not 0 <= opacity <= 1:
+        err(path, f"BranchOpacity: '{opacity}' must be a number from 0 to 1")
+    categories = payload.get("NoRouteArtCategories")
+    if not isinstance(categories, list):
+        err(path, "NoRouteArtCategories: must be an array of play categories")
+    else:
+        for idx, category in enumerate(categories):
+            if category not in content_contracts.OFFENSE_CATEGORIES:
+                err(path, f"NoRouteArtCategories[{idx}]: '{category}' is not an offensive play category")
+    if not isinstance(payload.get("bDrawDebug"), bool):
+        err(path, "bDrawDebug: must be true or false")
+    extra = set(payload) - PLAY_ART_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPlayArtStyle exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -3999,6 +4046,8 @@ def main():
             validate_difficulty(path, payload)
         if isinstance(payload, dict) and "HardFailMultiplier" in payload:
             validate_perf_harness(path, payload)
+        if isinstance(payload, dict) and "ReadColors" in payload:
+            validate_play_art(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

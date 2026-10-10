@@ -1,0 +1,13 @@
+{
+    "RibbonWidth": 30.0,
+    "PrimaryWidthScale": 1.5,
+    "GroundOffset": 2.0,
+    "RingRadius": 45.0,
+    "BreakMarkerRadius": 12.0,
+    "ReadColors": ["#F2C94C", "#56CCF2", "#BB6BD9"],
+    "UnrankedColor": "#FFFFFF",
+    "BranchOpacity": 0.5,
+    "SnapFadeSeconds": 0.4,
+    "NoRouteArtCategories": ["Kickoff", "OnsideKick", "Punt", "FieldGoal", "Spike", "Kneel"],
+    "bDrawDebug": true
+}

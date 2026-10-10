@@ -20,6 +20,10 @@ namespace PSGameStateEvents
     /** The play clock runs before the snap. */
     PLAYSPORTS_API bool IsPlayClockRunning(const FPlayState& State);
 
+    /** The world-space spot of the ball for a yard line (from the offense's own goal line): where
+     *  the game mode lines the pawns up, the Snap event's line and the GameState event's. */
+    PLAYSPORTS_API FVector LineOfScrimmageFor(int32 YardLine);
+
     /** The GameState event for State, with the last finished drive. */
     PLAYSPORTS_API FPSTelemetryGameStateEvent MakeEvent(const FPlayState& State, const FDriveSummary& LastDrive, int32 CompletedDrives, int32 MaxTimeouts);
 

@@ -8,8 +8,8 @@
             "PlayCategory": "ShortPass",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -200, "Y": 0, "Z": 0 } },
-                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Slant" },
-                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Slant", "ReadOrder": 1 },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat", "ReadOrder": 2 },
                 { "Role": "TightEnd", "Kind": "PassBlock" },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" }
             ]
@@ -22,8 +22,8 @@
             "PlayCategory": "DeepPass",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -700, "Y": 0, "Z": 0 } },
-                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" },
-                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Post" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go", "ReadOrder": 2 },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Post", "ReadOrder": 1 },
                 { "Role": "RunningBack", "Kind": "PassBlock" },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" }
             ]
@@ -36,8 +36,8 @@
             "PlayCategory": "ShortPass",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -200, "Y": 0, "Z": 0 } },
-                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Out" },
-                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Curl" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Out", "ReadOrder": 1 },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Curl", "ReadOrder": 2 },
                 { "Role": "RunningBack", "Kind": "PassBlock" },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" }
             ]
@@ -78,8 +78,8 @@
             "PlayCategory": "PlayAction",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -300, "Y": 0, "Z": 0 } },
-                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post" },
-                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Out" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Post", "ReadOrder": 1 },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Out", "ReadOrder": 2 },
                 { "Role": "RunningBack", "Kind": "PassBlock" },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" }
             ],
@@ -250,9 +250,9 @@
             "PlayCategory": "ShortPass",
             "Assignments": [
                 { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -300, "Y": 0, "Z": 0 } },
-                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Option" },
-                { "Role": "TightEnd", "Kind": "Route", "RouteId": "OutAndUp" },
-                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Option", "ReadOrder": 1 },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "OutAndUp", "ReadOrder": 2 },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat", "ReadOrder": 3 },
                 { "Role": "OffensiveLineman", "Kind": "PassBlock" }
             ]
         },

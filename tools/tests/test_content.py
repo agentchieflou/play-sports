@@ -132,6 +132,22 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(any("no TightEnd runs a route to be the pass option" in e for e in errors), errors)
         self.assertTrue(any("'Bootleg' is not an EPSDeception" in e for e in errors), errors)
 
+    def test_read_order(self):
+        # Epic 27: the play art's primary read and check-downs.
+        plays = copy.deepcopy(PLAYBOOK)
+        plays["Plays"][0]["Assignments"][1]["ReadOrder"] = 1
+        self.assertEqual(check(league(**{"Data/playbook.json": plays})), [])
+
+        plays["Plays"][0]["Assignments"][0]["ReadOrder"] = 2
+        plays["Plays"][0]["Assignments"].append({"Role": "TightEnd", "Kind": "Route", "RouteId": "Go", "ReadOrder": 3})
+        plays["Plays"][0]["Assignments"].append({"Role": "RunningBack", "Kind": "Route", "RouteId": "Go", "ReadOrder": 0})
+        plays["Plays"][1]["Assignments"][0]["ReadOrder"] = "1"
+        errors = check(league(**{"Data/playbook.json": plays}))
+        self.assertTrue(any("ReadOrder: only a route with a RouteId is read" in e for e in errors), errors)
+        self.assertTrue(any("ReadOrder: 0 - 1 is the primary read" in e for e in errors), errors)
+        self.assertTrue(any("ReadOrder values [1, 3] must run 1, 2, 3" in e for e in errors), errors)
+        self.assertTrue(any("ReadOrder: expected int" in e for e in errors), errors)
+
 
 class ReferenceTests(unittest.TestCase):
     def test_missing_roster_and_orphan_roster(self):

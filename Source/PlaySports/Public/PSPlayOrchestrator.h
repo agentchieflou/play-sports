@@ -27,20 +27,20 @@ class PLAYSPORTS_API UPSPlayOrchestrator : public UObject
     GENERATED_BODY()
 
 public:
-    /** Resolves Play into per-pawn assignments for every pawn in OnFieldPawns whose
-     *  role has an assignment slot; a role with more players than slots repeats its last
-     *  slot. RouteLibrary resolves Route assignment kinds to waypoint offsets from the
-     *  player's own split (LineOfScrimmage's X, the pawn's Y), mirrored for a player left
-     *  of the ball; a zone is played on the defender's own side of the field. An offensive
-     *  player's pre-snap changes (UPSPreSnapSubsystem: hot route, kept in, released) apply
-     *  first, and an offensive player with no route this play has his old one cleared, so
-     *  he blocks. */
+    /** Hands Play to the AI of every pawn in OnFieldPawns whose role has an assignment slot,
+     *  as PSPlayResolution::ResolvePlay resolves it: a role with more players than slots
+     *  repeats its last slot; RouteLibrary resolves Route assignment kinds to waypoint offsets
+     *  from the player's own split (LineOfScrimmage's X, the pawn's Y), mirrored for a player
+     *  left of the ball; a zone is played on the defender's own side of the field. An
+     *  offensive player's pre-snap changes (UPSPreSnapSubsystem: hot route, kept in, released)
+     *  apply first, and an offensive player with no route this play has his old one cleared,
+     *  so he blocks. */
     UFUNCTION(BlueprintCallable, Category = "AI|Orchestration")
     void DistributePlayCall(const FPSPlayDefinition& Play, const TArray<APSPlayerPawn*>& OnFieldPawns, const UDataTable* RouteLibrary, const FVector& LineOfScrimmage);
 
     /** The play's assignment for the RoleIndex-th player (0-based) of Role: the role's slot of
      *  that index, or its last slot when the role has more players than slots. Null when the
-     *  play has no slot for Role. */
+     *  play has no slot for Role. PSPlayResolution::FindAssignmentSlot's. */
     static const FPSPlayAssignment* FindAssignmentSlot(const FPSPlayDefinition& Play, EPlayerRole Role, int32 RoleIndex);
 
     /** Broken-play adaptation, the scramble drill: every receiver, tight end or back still on
@@ -63,12 +63,8 @@ public:
     int32 GetCurrentSeed() const { return DeterminismStream.GetCurrentSeed(); }
 
 private:
-    static EPSDefensiveAssignmentType ToDefensiveAssignmentType(EPSAssignmentKind Kind);
-
     void HandlePocket(const FPSTelemetryPocketEvent& Event);
     const FPocketTuningRow& GetScrambleTuning();
-
-    TArray<FVector> ResolveRouteWaypoints(const FName& RouteId, const UDataTable* RouteLibrary, const FVector& Origin, float MirrorY = 1.f) const;
 
     UPROPERTY(Transient)
     FRandomStream DeterminismStream;
