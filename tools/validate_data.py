@@ -14,7 +14,7 @@ FPSLoadingTipCatalog; "Cues" + "MasterIntensity" files against FPSForceFeedbackT
 "GlyphSets" files against FPSInputGlyphCatalog, including that every key the input
 catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRow;
 "Adjustments" files against FPSDefensiveAdjustmentCatalog; "OpenSeparation" files against
-FSkillPlayerAITuningRow.
+FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -489,6 +489,24 @@ def validate_skill_ai_tuning(path, payload):
         err(path, "ThrowLeadSpeed must be positive")
 
 
+DEFENDER_AI_FIELDS = ("ArrivalRadius", "ManCushion", "ManAnticipationSeconds", "ZoneRadius", "ZoneShadeWeight",
+                      "ContainWidth", "PassReadDepth", "PassDropDepth", "MaxReactionSeconds", "BallHawkRadius")
+
+
+def validate_defender_ai_tuning(path, payload):
+    """FDefenderAITuningRow (Data/defense_ai_tuning.json)."""
+    for field in DEFENDER_AI_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    extra = set(payload) - set(DEFENDER_AI_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FDefenderAITuningRow exactly")
+    shade = payload.get("ZoneShadeWeight")
+    if is_number(shade) and shade > 1:
+        err(path, f"ZoneShadeWeight ({shade}) must be between 0 (hold the spot) and 1 (go to the receiver)")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -529,6 +547,8 @@ def main():
             validate_force_feedback(path, payload)
         if isinstance(payload, dict) and "OpenSeparation" in payload:
             validate_skill_ai_tuning(path, payload)
+        if isinstance(payload, dict) and "ManCushion" in payload:
+            validate_defender_ai_tuning(path, payload)
         if isinstance(payload, dict) and "Adjustments" in payload:
             validate_defensive_adjustments(path, payload)
         if isinstance(payload, dict) and "CpuSnapDelaySeconds" in payload:

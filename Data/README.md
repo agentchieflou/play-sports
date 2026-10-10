@@ -31,6 +31,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `play_call.json` | `FPlayCallTuningRow` (single object) | `UPSDataIngestion::LoadPlayCallTuningFromJson`, via `UPSPlayCallSubsystem` |
 | `defensive_adjustments.json` | `FPSDefensiveAdjustmentCatalog` (single object: `Adjustments`) | `UPSDataIngestion::LoadDefensiveAdjustmentsFromJson`, via `UPSPlayCallSubsystem` |
 | `skill_ai_tuning.json` | `FSkillPlayerAITuningRow` (single object) | `UPSDataIngestion::LoadSkillPlayerAITuningFromJson`, via `UPSSkillPlayerAIComponent` |
+| `defense_ai_tuning.json` | `FDefenderAITuningRow` (single object) | `UPSDataIngestion::LoadDefenderAITuningFromJson`, via `UPSDefenderAIComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
@@ -185,3 +186,19 @@ more; distances are cm, times seconds:
 - `ThrowLeadSpeed` (above 0): ball speed for leading a receiver.
 - `BlockSetDistance`, `BlockEngageRadius`: a blocker sets up this far in front of the QB and
   takes on rushers within the radius of him.
+
+## Defensive AI tuning schema (`FDefenderAITuningRow`)
+
+Single object (how CPU defenders play their assignment). Every field is a number, 0 or more;
+distances are cm, times seconds:
+- `ArrivalRadius`: how close counts as reaching a spot (a zone, the drop, the ball).
+- `ManCushion`, `ManAnticipationSeconds`: a cover defender stays this far downfield of his man
+  and, at Awareness 100, reads this far ahead of the man's movement (not at all at 0).
+- `ZoneRadius`, `ZoneShadeWeight` (at most 1): a zone defender plays receivers this close to his
+  spot, moving this fraction of the way toward the nearest (0 holds the spot).
+- `ContainWidth`: a contain rusher aims this far outside the passer.
+- `PassReadDepth`, `PassDropDepth`: a passer this far behind the line is a pass read; a run-fit
+  defender then drops to `PassDropDepth` past the line.
+- `MaxReactionSeconds`: how long a defender with 0 Awareness takes to react to a read or a
+  throw (no delay at 100).
+- `BallHawkRadius`: coverage defenders this close to where a pass comes down break on it.

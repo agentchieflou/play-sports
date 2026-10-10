@@ -162,37 +162,7 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
             }
         }
     }
-    // Defender pursuit steering behavior
-    else if (TeamSide == EPSTeamSide::Defense && !IsPlayerControlled())
-    {
-        APSPlayerPawn* BallCarrier = nullptr;
-        APSGameMode* GM = Cast<APSGameMode>(GetWorld()->GetAuthGameMode());
-        if (GM && GM->ActiveBall)
-        {
-            BallCarrier = Cast<APSPlayerPawn>(GM->ActiveBall->GetAttachParentActor());
-        }
-
-        if (BallCarrier)
-        {
-            FVector TargetLoc = BallCarrier->GetActorLocation();
-            FVector TargetVel = BallCarrier->GetVelocity();
-
-            FVector SeekDir = TargetLoc - GetActorLocation();
-            float Distance = SeekDir.Size();
-            float MaxSpeed = MovementComponent ? MovementComponent->MaxSpeed : 600.f;
-            float PredictionTime = (MaxSpeed > 0.f) ? (Distance / MaxSpeed) : 0.f;
-            PredictionTime = FMath::Min(PredictionTime, 1.0f);
-
-            FVector PursueTarget = TargetLoc + TargetVel * PredictionTime;
-            FVector SteerDir = PursueTarget - GetActorLocation();
-            SteerDir.Z = 0.f;
-            if (!SteerDir.IsNearlyZero())
-            {
-                SteerDir.Normalize();
-                AddMovementInput(SteerDir, 1.f);
-            }
-        }
-    }
+    // An unblocked AI defender is steered by its UPSDefenderAIComponent (pursuit included).
 
     if (MovementComponent)
     {
