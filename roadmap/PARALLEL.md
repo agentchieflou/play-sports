@@ -206,7 +206,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "104": {"track": "I", "mode": "code", "status": "done", "depends_on": ["3", "6", "126", "127"]},
     "105": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101", "104", "24"], "open_stories": ["105.1 free-practice mode", "105.2 tutorial sequence", "105.3 skill drills with scoring"]},
     "106": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101"], "open_stories": ["106.1 string-table pass: the broadcast overlays", "106.3 pseudo-localization pass: the broadcast overlays"]},
-    "107": {"track": "J", "mode": "code", "status": "open", "depends_on": ["104", "102"]},
+    "107": {"track": "J", "mode": "code", "status": "done", "depends_on": ["104", "102"]},
     "108": {"track": "J", "mode": "code", "status": "open", "depends_on": ["17", "115"]},
     "109": {"track": "J", "mode": "code", "status": "open", "depends_on": ["108", "107"]},
     "110": {"track": "J", "mode": "code", "status": "open", "depends_on": ["109", "38"]},
