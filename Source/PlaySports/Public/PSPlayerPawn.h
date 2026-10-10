@@ -71,9 +71,10 @@ public:
     bool TransferPossessionTo(APSPlayerPawn* TargetPlayerPawn);
 
     // Throw the ball to a target location. IntendedTarget, when provided, is the
-    // receiver an interception on this pass will auto-kill (Epic 140).
+    // receiver an interception on this pass will auto-kill (Epic 140). SpeedScale below 1
+    // throws a touch pass (Epic 104).
     UFUNCTION(BlueprintCallable, Category = "Player")
-    bool ThrowPass(class APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr);
+    bool ThrowPass(class APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr, float SpeedScale = 1.f);
 
     // Perform an instant handoff of the ball to a target player pawn
     UFUNCTION(BlueprintCallable, Category = "Player")

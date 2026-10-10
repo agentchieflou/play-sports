@@ -14,6 +14,26 @@
             "ContextId": "Menu",
             "Priority": 2,
             "Description": "Front-end and pause menus (Epic 101). Slate moves focus between buttons with the D-pad, stick or arrows; these rows name the keys menus treat as Confirm and Back."
+        },
+        {
+            "ContextId": "PreSnap",
+            "Priority": 3,
+            "Description": "Before the snap and after the whistle, while the human controls a player (Epic 104). UPSPlayContextComponent keeps exactly one of PreSnap, Passing, BallCarrier and Defense on the stack, above OnField."
+        },
+        {
+            "ContextId": "Passing",
+            "Priority": 3,
+            "Description": "The human's QB holds the ball behind the line of scrimmage (Epic 104.3). Each PassTarget button throws to a receiver slot, left to right across the field: a tap throws touch, a hold throws a bullet, and the Move stick places the ball. PumpFake sells a throw. Outranks OnField, so A, X and LB throw instead of hiking or switching."
+        },
+        {
+            "ContextId": "BallCarrier",
+            "Priority": 3,
+            "Description": "The human's player holds the ball anywhere else: a runner, a receiver after the catch, a QB past the line. Epic 104.2's move set (juke, spin, truck, stiff-arm, hurdle, slide) binds here."
+        },
+        {
+            "ContextId": "Defense",
+            "Priority": 3,
+            "Description": "The human plays defense during the play. Epic 104.5's defensive inputs (strip attempts) bind here; SwitchPlayer stays in OnField."
         }
     ],
     "Actions": [
@@ -145,6 +165,66 @@
             "Bindings": [
                 { "Key": "C" },
                 { "Key": "Gamepad_Special_Right" }
+            ]
+        },
+        {
+            "ActionId": "PassTarget1",
+            "ValueType": "Boolean",
+            "Description": "Throw to receiver slot 1, the first eligible receiver from the left. Released after a tap: touch pass; held: bullet (UPSPassingComponent).",
+            "Contexts": ["Passing"],
+            "Bindings": [
+                { "Key": "One" },
+                { "Key": "Gamepad_FaceButton_Left" }
+            ]
+        },
+        {
+            "ActionId": "PassTarget2",
+            "ValueType": "Boolean",
+            "Description": "Throw to receiver slot 2, the second eligible receiver from the left. Released after a tap: touch pass; held: bullet (UPSPassingComponent).",
+            "Contexts": ["Passing"],
+            "Bindings": [
+                { "Key": "Two" },
+                { "Key": "Gamepad_FaceButton_Top" }
+            ]
+        },
+        {
+            "ActionId": "PassTarget3",
+            "ValueType": "Boolean",
+            "Description": "Throw to receiver slot 3, the third eligible receiver from the left. Released after a tap: touch pass; held: bullet (UPSPassingComponent).",
+            "Contexts": ["Passing"],
+            "Bindings": [
+                { "Key": "Three" },
+                { "Key": "Gamepad_FaceButton_Right" }
+            ]
+        },
+        {
+            "ActionId": "PassTarget4",
+            "ValueType": "Boolean",
+            "Description": "Throw to receiver slot 4, the fourth eligible receiver from the left. Released after a tap: touch pass; held: bullet (UPSPassingComponent).",
+            "Contexts": ["Passing"],
+            "Bindings": [
+                { "Key": "Four" },
+                { "Key": "Gamepad_RightShoulder" }
+            ]
+        },
+        {
+            "ActionId": "PassTarget5",
+            "ValueType": "Boolean",
+            "Description": "Throw to receiver slot 5, the fifth eligible receiver from the left. Released after a tap: touch pass; held: bullet (UPSPassingComponent).",
+            "Contexts": ["Passing"],
+            "Bindings": [
+                { "Key": "Five" },
+                { "Key": "Gamepad_FaceButton_Bottom" }
+            ]
+        },
+        {
+            "ActionId": "PumpFake",
+            "ValueType": "Boolean",
+            "Description": "Sell a throw without making it: coverage that bites freezes for a moment (UPSDefenderAIComponent).",
+            "Contexts": ["Passing"],
+            "Bindings": [
+                { "Key": "Q" },
+                { "Key": "Gamepad_LeftShoulder" }
             ]
         }
     ]

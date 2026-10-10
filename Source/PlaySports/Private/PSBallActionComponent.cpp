@@ -16,7 +16,7 @@ UPSBallActionComponent::UPSBallActionComponent()
     PrimaryComponentTick.bCanEverTick = false;
 }
 
-bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc, APSPlayerPawn* IntendedTarget)
+bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc, APSPlayerPawn* IntendedTarget, float SpeedScale)
 {
     APSPlayerPawn* OwnerPawn = Cast<APSPlayerPawn>(GetOwner());
     if (!OwnerPawn)
@@ -37,7 +37,8 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
     }
 
     // LaunchSpeed is scaled by Strength (0-100 rating -> 1500 to 3000 cm/s launch speed)
-    float LaunchSpeed = 1500.f + (OwnerPawn->GetAttributes().Strength * 15.f);
+    const float FullSpeed = 1500.f + (OwnerPawn->GetAttributes().Strength * 15.f);
+    float LaunchSpeed = FullSpeed * FMath::Clamp(SpeedScale, 0.1f, 1.f);
 
     // Apply accuracy scatter to the target point based on Awareness (lower awareness = more error)
     FVector ScatterTarget = TargetLocation;
@@ -63,6 +64,13 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
         0.f,
         ESuggestProjVelocityTraceOption::DoNotTrace
     );
+    if (!bSuccess && LaunchSpeed < FullSpeed)
+    {
+        // Too far for a touch pass: it goes on a line instead.
+        LaunchSpeed = FullSpeed;
+        bSuccess = UGameplayStatics::SuggestProjectileVelocity(this, OutVelocity, StartLocation, ScatterTarget, LaunchSpeed,
+            bHighArc, 0.f, 0.f, ESuggestProjVelocityTraceOption::DoNotTrace);
+    }
 
     if (bSuccess)
     {
@@ -84,6 +92,7 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
                 ThrowEvt.StartLocation = StartLocation;
                 ThrowEvt.TargetLocation = TargetLocation;
                 ThrowEvt.LandingLocation = ScatterTarget;
+                ThrowEvt.LaunchSpeed = LaunchSpeed;
                 Bus->PublishThrow(ThrowEvt);
             }
         }

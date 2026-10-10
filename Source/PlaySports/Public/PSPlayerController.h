@@ -14,6 +14,8 @@ class UPSInputDeviceComponent;
 class UPSForceFeedbackComponent;
 class UPSMenuComponent;
 class UPSPlayCallComponent;
+class UPSPlayContextComponent;
+class UPSPassingComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -37,7 +39,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  *
  * Rumble (Epic 128) is UPSForceFeedbackComponent's: it hears gameplay on the bus and plays
  * the authored pattern on this controller's gamepad. Play calling (Epic 102) is
- * UPSPlayCallComponent's: it opens the play-call screens and hikes on Confirm.
+ * UPSPlayCallComponent's: it opens the play-call screens and hikes on Confirm. Input depth
+ * (Epic 104) is two components': UPSPlayContextComponent keeps the gameplay-depth context
+ * (PreSnap, Passing, BallCarrier, Defense) matching the moment of the play, and
+ * UPSPassingComponent throws to receiver slots when the controlled QB passes.
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -70,6 +75,27 @@ public:
     /** The human side of play calling (Epic 102). */
     UFUNCTION(BlueprintPure, Category = "PlayCall")
     UPSPlayCallComponent* GetPlayCallComponent() const { return PlayCallComponent; }
+
+    /** Keeps the gameplay-depth context matching the moment of the play (Epic 104). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSPlayContextComponent* GetPlayContextComponent() const { return PlayContextComponent; }
+
+    /** The human passer: receiver slots, touch and bullet, placement, pump fake (Epic 104). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSPassingComponent* GetPassingComponent() const { return PassingComponent; }
+
+    /** The Move stick's value right now (X right, Y forward); zero once released. */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    FVector2D GetMoveInput() const { return MoveInput; }
+
+    /** Puts ContextId on the stack as the one gameplay-depth context (Epic 104), above the
+     *  gameplay context, replacing the previous one; NAME_None clears it. */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    void SetDepthContext(FName ContextId);
+
+    /** The gameplay-depth context on the stack, or NAME_None. */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    FName GetDepthContext() const { return DepthContextId; }
 
     /** True while ContextId is on this controller's context stack. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -107,6 +133,10 @@ public:
     /** Fires once per press for every Boolean catalog action without a dedicated handler. */
     UPROPERTY(BlueprintAssignable, Category = "Input")
     FPSInputCatalogActionSignature OnCatalogActionStarted;
+
+    /** Fires once per release of the same actions, for consumers that time a hold. */
+    UPROPERTY(BlueprintAssignable, Category = "Input")
+    FPSInputCatalogActionSignature OnCatalogActionCompleted;
 
     /** Optional override for the catalog; when null one is created from the default paths. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
@@ -152,7 +182,9 @@ private:
     void HandleSprintCompleted(const FInputActionValue& Value);
     void HandleSwitchPlayer(const FInputActionValue& Value);
     void HandlePause(const FInputActionValue& Value);
+    void HandleMoveCompleted(const FInputActionValue& Value);
     void HandleCatalogActionStarted(const FInputActionInstance& Instance);
+    void HandleCatalogActionCompleted(const FInputActionInstance& Instance);
     void HandleDeferredDefaultControl();
 
     /** Gives the current APSPlayerPawn back to its AI without touching ParkedPawn. */
@@ -175,8 +207,19 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "PlayCall")
     UPSPlayCallComponent* PlayCallComponent;
 
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSPlayContextComponent* PlayContextComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSPassingComponent* PassingComponent;
+
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;
+
+    /** The gameplay-depth context SetDepthContext put on the stack. */
+    FName DepthContextId;
+
+    FVector2D MoveInput = FVector2D::ZeroVector;
 
     /** The AI controller displaced by TakeControlOf; it resumes the pawn on release. */
     UPROPERTY(Transient)

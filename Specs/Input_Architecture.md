@@ -44,6 +44,8 @@ keeps that mapping.
 | Rumble | `Data/force_feedback.json` → `UPSForceFeedbackComponent` (on the controller) | Which gameplay events shake the gamepad, and how. |
 | Menus | `UPSMenuComponent` (on the controller, Epic 101) | Screen stack, UI input mode, Back keys read from the catalog's `Menu` context. |
 | Play calling | `UPSPlayCallComponent` (on the controller, Epic 102) | Opens the play-call screens for the player's side; Confirm on the field hikes. |
+| Play context | `UPSPlayContextComponent` (on the controller, Epic 104) | Which gameplay-depth context (section 3) is on, from the snap and the end of the play on the bus and the controlled pawn's possession. |
+| Passing | `Data/passing_input.json` → `UPSPassingComponent` (on the controller, Epic 104) | The human passer: receiver slots, touch and bullet, stick placement, pump fake. |
 
 ## 3. The context stack
 
@@ -55,6 +57,14 @@ bind the same key.
 | `World` | 0 | nothing yet (lobby and sideline walking, Epic 143) | The browser world's baseline (section 4). |
 | `OnField` | 1 | `APSPlayerController::OnPossess` of an `APSPlayerPawn`; popped on unpossess | The possessed pawn during play. |
 | `Menu` | 2 | not pushed on Enhanced Input | Names the keys menus treat as Confirm (Enter, A) and Back (Escape, B). While a screen is open the player is in UI input mode and Slate moves focus (D-pad, stick, arrows, Tab); `UPSMenuComponent` reads its Back keys from this context. |
+| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | Pre-snap inputs (empty so far: hiking stays Confirm on `OnField`). |
+| `Passing` | 3 | `UPSPlayContextComponent`: the controlled QB holds the ball behind the line | The pass buttons and the pump fake. They take A, X and LB from `OnField` while on. |
+| `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | Epic 104.2's move set. |
+| `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | Epic 104.5's defensive inputs. |
+
+The four gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
+one of them (`APSPlayerController::SetDepthContext`), on top of `OnField`. An offensive player
+without the ball during the play has none.
 
 `APSPlayerController::ActiveInputContexts` is the stack. The controller mirrors it into the local
 player's `UEnhancedInputLocalPlayerSubsystem` when one exists. Headless test worlds have no local
@@ -80,6 +90,8 @@ as the Xbox glyph set labels them.
 | Secondary | Boolean | World | T | X | `OnCatalogActionStarted` |
 | ViewToggle | Boolean | World | V | Y | `OnCatalogActionStarted` |
 | Picker | Boolean | World | C | Menu (Start) | `OnCatalogActionStarted` (Epic 143) |
+| PassTarget1-5 | Boolean | Passing | 1-5 | X, Y, B, RB, A | `UPSPassingComponent`: throws on release to receiver slots 1-5, left to right across the field. A tap throws touch, a hold throws a bullet, and the Move stick places the ball. |
+| PumpFake | Boolean | Passing | Q | LB | `UPSPassingComponent`: publishes `PumpFake`; low-Awareness coverage freezes |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
 every context. Start opens the character sheet off the field and pauses on it (Epic 101). The
@@ -92,7 +104,9 @@ conversation context.
 
 **Consuming an action.** Move, Sprint, SwitchPlayer and Pause have handlers on the controller.
 Every other Boolean action is broadcast as `APSPlayerController::OnCatalogActionStarted(ActionId)`
-for its consumer to subscribe to by ID. Consumers never cast to the controller to read input.
+on press and `OnCatalogActionCompleted(ActionId)` on release, for its consumer to subscribe to by
+ID. A consumer that needs the stick reads `GetMoveInput()`. Consumers never cast to the
+controller to read input.
 
 **Adding an action:**
 

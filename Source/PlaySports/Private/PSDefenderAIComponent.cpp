@@ -89,6 +89,7 @@ void UPSDefenderAIComponent::BindToBus()
     Bus->OnSnapMC.AddUObject(this, &UPSDefenderAIComponent::HandleSnap);
     Bus->OnThrowMC.AddUObject(this, &UPSDefenderAIComponent::HandleThrow);
     Bus->OnCatchMC.AddUObject(this, &UPSDefenderAIComponent::HandleCatch);
+    Bus->OnPumpFakeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePumpFake);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePhaseChange);
     BoundBus = Bus;
 }
@@ -100,6 +101,7 @@ void UPSDefenderAIComponent::UnbindFromBus()
         Bus->OnSnapMC.RemoveAll(this);
         Bus->OnThrowMC.RemoveAll(this);
         Bus->OnCatchMC.RemoveAll(this);
+        Bus->OnPumpFakeMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
     }
     BoundBus.Reset();
@@ -134,6 +136,7 @@ void UPSDefenderAIComponent::HandleSnap(const FPSTelemetrySnapEvent& Event)
     PursueAt = -1.f;
     PassReadAt = -1.f;
     BallHawkAt = -1.f;
+    FrozenUntil = -1.f;
     LineOfScrimmage = Event.LineOfScrimmage;
     CoveredReceiver.Reset();
     Action = EPSDefenderAction::Idle;
@@ -168,6 +171,19 @@ void UPSDefenderAIComponent::HandleCatch(const FPSTelemetryCatchEvent& Event)
     // Caught (by either side): the next tick sees the carrier and pursues or returns.
     bBallInAir = false;
     BallHawkAt = -1.f;
+}
+
+void UPSDefenderAIComponent::HandlePumpFake(const FPSTelemetryPumpFakeEvent& Event)
+{
+    // Coverage bites on the fake: it freezes, the less aware the longer.
+    const bool bInCoverage = Action == EPSDefenderAction::Cover || Action == EPSDefenderAction::Zone || Action == EPSDefenderAction::Read;
+    const APSPlayerPawn* Self = GetSelf();
+    if (!bPlayLive || !bInCoverage || !Self)
+    {
+        return;
+    }
+    const float Awareness = FMath::Clamp(Self->GetAttributes().Awareness, 0.f, 100.f);
+    FrozenUntil = TimeSinceSnap + GetTuning().PumpFakeFreezeSeconds * (1.f - Awareness / 100.f);
 }
 
 void UPSDefenderAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event)
@@ -317,8 +333,9 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
         }
     }
 
-    // A blocked defender fights the blocker (APSPlayerPawn::Tick steers that).
-    if (Self->bIsEngaged)
+    // A blocked defender fights the blocker (APSPlayerPawn::Tick steers that); one who bit
+    // on a pump fake stands still until it wears off.
+    if (Self->bIsEngaged || IsFrozen())
     {
         return;
     }

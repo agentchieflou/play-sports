@@ -79,6 +79,11 @@ struct FDefenderAITuningRow : public FTableRowBase
     /** Coverage defenders within this distance of where a pass comes down break on it. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float BallHawkRadius = 1200.f;
+
+    /** A coverage defender with 0 Awareness freezes this long on a pump fake (not at all at
+     *  100; Epic 104). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float PumpFakeFreezeSeconds = 0.5f;
 };
 
 /**
@@ -87,7 +92,8 @@ struct FDefenderAITuningRow : public FTableRowBase
  * from a cushion, zone defenders hold their spot and shade to the receiver in it, run-fit
  * defenders read run or pass, coverage defenders break on a thrown ball, and once the ball is
  * out -- a hand-off, a catch, a QB past the line -- everyone pursues the carrier on
- * APSDefenseController's intercept angle. Awareness sets how fast each read happens.
+ * APSDefenseController's intercept angle. Awareness sets how fast each read happens, and how
+ * long a pump fake freezes coverage.
  *
  * It is the defensive twin of UPSSkillPlayerAIComponent and works the same way: it moves the
  * pawn with AddMovementInput (so FMovementTuningRow applies), takes the assignment from
@@ -112,7 +118,7 @@ public:
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
 
-    /** Listens for the snap, throws and the end of the play. Idempotent. */
+    /** Listens for the snap, throws, pump fakes and the end of the play. Idempotent. */
     void BindToBus();
 
     void UnbindFromBus();
@@ -139,6 +145,10 @@ public:
      *  Awareness 0, none at 100. */
     float GetReactionSeconds();
 
+    /** True while a pump fake has this defender frozen. */
+    UFUNCTION(BlueprintPure, Category = "AI")
+    bool IsFrozen() const { return bPlayLive && TimeSinceSnap < FrozenUntil; }
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -148,6 +158,7 @@ private:
     void HandleSnap(const FPSTelemetrySnapEvent& Event);
     void HandleThrow(const FPSTelemetryThrowEvent& Event);
     void HandleCatch(const FPSTelemetryCatchEvent& Event);
+    void HandlePumpFake(const FPSTelemetryPumpFakeEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
 
     void StartAssignment(APSPlayerPawn* Self);
@@ -183,6 +194,8 @@ private:
     float PursueAt = -1.f;
     float PassReadAt = -1.f;
     float BallHawkAt = -1.f;
+    /** Until when a pump fake holds this defender (TimeSinceSnap). */
+    float FrozenUntil = -1.f;
     bool bPlayLive = false;
     bool bSnapPending = false;
     bool bBallInAir = false;

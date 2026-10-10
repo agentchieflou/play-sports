@@ -14,7 +14,9 @@ FPSLoadingTipCatalog; "Cues" + "MasterIntensity" files against FPSForceFeedbackT
 "GlyphSets" files against FPSInputGlyphCatalog, including that every key the input
 catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRow;
 "Adjustments" files against FPSDefensiveAdjustmentCatalog; "OpenSeparation" files against
-FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow.
+FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotActions" files
+against FPassingInputTuningRow, including that each named action is a Boolean in the input
+catalog's Passing context.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -490,7 +492,8 @@ def validate_skill_ai_tuning(path, payload):
 
 
 DEFENDER_AI_FIELDS = ("ArrivalRadius", "ManCushion", "ManAnticipationSeconds", "ZoneRadius", "ZoneShadeWeight",
-                      "ContainWidth", "PassReadDepth", "PassDropDepth", "MaxReactionSeconds", "BallHawkRadius")
+                      "ContainWidth", "PassReadDepth", "PassDropDepth", "MaxReactionSeconds", "BallHawkRadius",
+                      "PumpFakeFreezeSeconds")
 
 
 def validate_defender_ai_tuning(path, payload):
@@ -505,6 +508,41 @@ def validate_defender_ai_tuning(path, payload):
     shade = payload.get("ZoneShadeWeight")
     if is_number(shade) and shade > 1:
         err(path, f"ZoneShadeWeight ({shade}) must be between 0 (hold the spot) and 1 (go to the receiver)")
+
+
+PASSING_INPUT_NUMBERS = ("BulletHoldSeconds", "TouchSpeedScale", "PlacementDepth", "PlacementWidth", "LeadSpeed")
+
+
+def validate_passing_input(path, payload, catalog):
+    """FPassingInputTuningRow (Data/passing_input.json, Epic 104)."""
+    for field in PASSING_INPUT_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    extra = set(payload) - set(PASSING_INPUT_NUMBERS) - {"SlotActions", "PumpFakeAction"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPassingInputTuningRow exactly")
+    scale = payload.get("TouchSpeedScale")
+    if is_number(scale) and not 0 < scale <= 1:
+        err(path, f"TouchSpeedScale ({scale}) must be above 0 and at most 1 (a fraction of the passer's arm)")
+    if is_number(payload.get("LeadSpeed")) and payload["LeadSpeed"] <= 0:
+        err(path, "LeadSpeed must be positive")
+    slots = payload.get("SlotActions")
+    if not isinstance(slots, list) or not slots or not all(isinstance(a, str) and a for a in slots):
+        err(path, "SlotActions must be a non-empty array of action IDs")
+        slots = []
+    elif len(set(slots)) != len(slots):
+        err(path, "SlotActions repeats an action")
+    named = list(slots) + [payload.get("PumpFakeAction")]
+    if catalog is None:
+        return
+    actions = {a.get("ActionId"): a for a in catalog.get("Actions", []) if isinstance(a, dict)}
+    for action_id in named:
+        action = actions.get(action_id)
+        if action is None:
+            err(path, f"'{action_id}' is not an action in input_actions.json")
+        elif action.get("ValueType") != "Boolean" or "Passing" not in (action.get("Contexts") or []):
+            err(path, f"'{action_id}' must be a Boolean action in the Passing context")
 
 
 def load_input_catalog():
@@ -555,6 +593,8 @@ def main():
             validate_play_call_tuning(path, payload)
         if isinstance(payload, dict) and "GlyphSets" in payload:
             validate_input_glyphs(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "SlotActions" in payload:
+            validate_passing_input(path, payload, load_input_catalog())
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

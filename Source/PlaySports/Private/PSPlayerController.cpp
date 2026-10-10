@@ -4,6 +4,8 @@
 #include "PSForceFeedbackComponent.h"
 #include "PSMenuComponent.h"
 #include "PSPlayCallComponent.h"
+#include "PSPlayContextComponent.h"
+#include "PSPassingComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -38,6 +40,8 @@ APSPlayerController::APSPlayerController()
     ForceFeedbackComponent = CreateDefaultSubobject<UPSForceFeedbackComponent>(TEXT("ForceFeedbackComp"));
     MenuComponent = CreateDefaultSubobject<UPSMenuComponent>(TEXT("MenuComp"));
     PlayCallComponent = CreateDefaultSubobject<UPSPlayCallComponent>(TEXT("PlayCallComp"));
+    PlayContextComponent = CreateDefaultSubobject<UPSPlayContextComponent>(TEXT("PlayContextComp"));
+    PassingComponent = CreateDefaultSubobject<UPSPassingComponent>(TEXT("PassingComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()
@@ -104,6 +108,7 @@ void APSPlayerController::BindCatalogActions(UEnhancedInputComponent& InInputCom
         if (ActionDef.ActionId == MoveActionId)
         {
             InInputComponent.BindAction(Action, ETriggerEvent::Triggered, this, &APSPlayerController::HandleMove);
+            InInputComponent.BindAction(Action, ETriggerEvent::Completed, this, &APSPlayerController::HandleMoveCompleted);
         }
         else if (ActionDef.ActionId == SprintActionId)
         {
@@ -121,6 +126,7 @@ void APSPlayerController::BindCatalogActions(UEnhancedInputComponent& InInputCom
         else if (ActionDef.ValueType == EInputActionValueType::Boolean)
         {
             InInputComponent.BindAction(Action, ETriggerEvent::Started, this, &APSPlayerController::HandleCatalogActionStarted);
+            InInputComponent.BindAction(Action, ETriggerEvent::Completed, this, &APSPlayerController::HandleCatalogActionCompleted);
         }
     }
 }
@@ -137,6 +143,7 @@ void APSPlayerController::OnPossess(APawn* InPawn)
 
 void APSPlayerController::OnUnPossess()
 {
+    SetDepthContext(NAME_None);
     PopInputContext(GameplayContextId);
 
     Super::OnUnPossess();
@@ -295,6 +302,7 @@ void APSPlayerController::HandleMove(const FInputActionValue& Value)
 {
     APawn* ControlledPawn = GetPawn();
     const FVector2D Axis = Value.Get<FVector2D>();
+    MoveInput = Axis;
     if (!ControlledPawn || Axis.IsNearlyZero())
     {
         return;
@@ -303,6 +311,11 @@ void APSPlayerController::HandleMove(const FInputActionValue& Value)
     const FRotationMatrix YawMatrix(FRotator(0.f, GetControlRotation().Yaw, 0.f));
     ControlledPawn->AddMovementInput(YawMatrix.GetUnitAxis(EAxis::X), Axis.Y);
     ControlledPawn->AddMovementInput(YawMatrix.GetUnitAxis(EAxis::Y), Axis.X);
+}
+
+void APSPlayerController::HandleMoveCompleted(const FInputActionValue& Value)
+{
+    MoveInput = FVector2D::ZeroVector;
 }
 
 void APSPlayerController::HandleSprintStarted(const FInputActionValue& Value)
@@ -344,6 +357,36 @@ void APSPlayerController::HandleCatalogActionStarted(const FInputActionInstance&
     if (!ActionId.IsNone())
     {
         OnCatalogActionStarted.Broadcast(ActionId);
+    }
+}
+
+void APSPlayerController::HandleCatalogActionCompleted(const FInputActionInstance& Instance)
+{
+    const FName ActionId = InputConfig ? InputConfig->FindActionId(Instance.GetSourceAction()) : NAME_None;
+    if (!ActionId.IsNone())
+    {
+        OnCatalogActionCompleted.Broadcast(ActionId);
+    }
+}
+
+void APSPlayerController::SetDepthContext(FName ContextId)
+{
+    if (ContextId == DepthContextId)
+    {
+        return;
+    }
+    if (!DepthContextId.IsNone())
+    {
+        PopInputContext(DepthContextId);
+    }
+    DepthContextId = NAME_None;
+    if (!ContextId.IsNone())
+    {
+        PushInputContext(ContextId);
+        if (IsInputContextActive(ContextId))
+        {
+            DepthContextId = ContextId;
+        }
     }
 }
 

@@ -8,5 +8,6 @@
     "PassReadDepth": 250,
     "PassDropDepth": 600,
     "MaxReactionSeconds": 0.6,
-    "BallHawkRadius": 1200
+    "BallHawkRadius": 1200,
+    "PumpFakeFreezeSeconds": 0.5
 }

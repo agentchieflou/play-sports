@@ -32,6 +32,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `defensive_adjustments.json` | `FPSDefensiveAdjustmentCatalog` (single object: `Adjustments`) | `UPSDataIngestion::LoadDefensiveAdjustmentsFromJson`, via `UPSPlayCallSubsystem` |
 | `skill_ai_tuning.json` | `FSkillPlayerAITuningRow` (single object) | `UPSDataIngestion::LoadSkillPlayerAITuningFromJson`, via `UPSSkillPlayerAIComponent` |
 | `defense_ai_tuning.json` | `FDefenderAITuningRow` (single object) | `UPSDataIngestion::LoadDefenderAITuningFromJson`, via `UPSDefenderAIComponent` |
+| `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
@@ -202,3 +203,20 @@ distances are cm, times seconds:
 - `MaxReactionSeconds`: how long a defender with 0 Awareness takes to react to a read or a
   throw (no delay at 100).
 - `BallHawkRadius`: coverage defenders this close to where a pass comes down break on it.
+- `PumpFakeFreezeSeconds`: how long a coverage defender with 0 Awareness freezes on a pump fake
+  (no freeze at 100).
+
+## Passing input schema (`FPassingInputTuningRow`)
+
+Single object (Epic 104; how the human QB's buttons throw, `Specs/Input_Architecture.md`):
+- `SlotActions`: the catalog actions that throw to receiver slots 1..N, the receivers ordered left
+  to right across the field. Each must be a Boolean action in the catalog's `Passing` context;
+  so must `PumpFakeAction`.
+- `BulletHoldSeconds`: a slot button held at least this long throws a bullet; a quicker tap
+  throws a touch pass.
+- `TouchSpeedScale` (above 0, at most 1): a touch pass leaves at this fraction of the passer's
+  full arm. A target out of reach that softly is thrown at full speed.
+- `PlacementDepth`, `PlacementWidth` (cm): the Move stick at release moves the throw this far
+  deeper/shorter and to either side of the receiver's lead point.
+- `LeadSpeed` (above 0): ball speed used to lead a moving receiver, as the AI passer does.
+

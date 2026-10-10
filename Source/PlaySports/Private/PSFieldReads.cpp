@@ -81,3 +81,16 @@ float PSFieldReads::Separation(const TArray<APSPlayerPawn*>& Pawns, const APSPla
     NearestOpponent(Pawns, Receiver->TeamSide, Receiver->GetActorLocation(), &Distance);
     return Distance;
 }
+
+FVector PSFieldReads::LeadPoint(const FVector& From, const APSPlayerPawn* Receiver, float LeadSpeed)
+{
+    if (!Receiver)
+    {
+        return From;
+    }
+    const FVector ReceiverLocation = Receiver->GetActorLocation();
+    const float LeadSeconds = FVector::Dist(From, ReceiverLocation) / FMath::Max(1.f, LeadSpeed);
+    FVector Lead = ReceiverLocation + Receiver->GetVelocity() * LeadSeconds;
+    Lead.Z = ReceiverLocation.Z;
+    return Lead;
+}

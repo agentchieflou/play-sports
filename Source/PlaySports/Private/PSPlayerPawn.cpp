@@ -420,9 +420,9 @@ void APSPlayerPawn::ResetFatigue()
     UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Reset fatigue for %s. CurrentStamina: %.1f/%.1f"), *Attributes.DisplayName, CurrentStamina, MaxStamina);
 }
 
-bool APSPlayerPawn::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc, APSPlayerPawn* IntendedTarget)
+bool APSPlayerPawn::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc, APSPlayerPawn* IntendedTarget, float SpeedScale)
 {
-    return BallActionComponent ? BallActionComponent->ThrowPass(Ball, TargetLocation, bHighArc, IntendedTarget) : false;
+    return BallActionComponent ? BallActionComponent->ThrowPass(Ball, TargetLocation, bHighArc, IntendedTarget, SpeedScale) : false;
 }
 
 bool APSPlayerPawn::ExecuteHandoff(APSPlayerPawn* TargetPlayer)

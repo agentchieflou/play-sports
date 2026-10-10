@@ -232,3 +232,18 @@ void UPSTelemetryBus::PublishPlayCall(const FPSTelemetryPlayCallEvent& Event)
     }
     OnPlayCallMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishPumpFake(const FPSTelemetryPumpFakeEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPumpFakeEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("PumpFake: %s toward %s"), *Event.PasserName, *Event.TargetReceiverName);
+    RecordHistory(EPSTelemetryEventType::PumpFake, Description, JsonPayload);
+
+    if (OnPumpFake.IsBound())
+    {
+        OnPumpFake.Broadcast(Event);
+    }
+    OnPumpFakeMC.Broadcast(Event);
+}

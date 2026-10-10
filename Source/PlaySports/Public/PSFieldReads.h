@@ -20,4 +20,9 @@ namespace PSFieldReads
 
     /** How open a receiver is: the distance to the nearest defender (a large number with none). */
     PLAYSPORTS_API float Separation(const TArray<APSPlayerPawn*>& Pawns, const APSPlayerPawn* Receiver);
+
+    /** Where to throw from From to hit Receiver on the move: his spot plus his velocity over
+     *  the ball's flight (distance / LeadSpeed), at his height. Shared by the AI passer and
+     *  the human one (Epic 104). */
+    PLAYSPORTS_API FVector LeadPoint(const FVector& From, const APSPlayerPawn* Receiver, float LeadSpeed);
 }
