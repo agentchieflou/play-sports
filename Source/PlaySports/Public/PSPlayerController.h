@@ -171,6 +171,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Input")
     FName GetDepthContext() const { return DepthContextId; }
 
+    /** Puts a mode context on the stack (bActive) or takes it off: one that sits over play
+     *  rather than in it, such as Replay while a replay plays (Epic 41). The gameplay and
+     *  depth contexts are left as they are. */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    void SetModeContextActive(FName ContextId, bool bActive);
+
     /** True while ContextId is on this controller's context stack. */
     UFUNCTION(BlueprintPure, Category = "Input")
     bool IsInputContextActive(FName ContextId) const;

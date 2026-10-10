@@ -299,6 +299,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Camera|Director")
     bool RequestCut(EPSDirectorShot Shot);
 
+    /** Cuts to Shot at once, however long the live shot has run: a change of scene (a replay
+     *  starting, or its viewer picking an angle, Epic 41) rather than a cut within the
+     *  coverage. False for a shot the tuning doesn't define. */
+    UFUNCTION(BlueprintCallable, Category = "Camera|Director")
+    bool CutNow(EPSDirectorShot Shot);
+
     /** Applies Trigger's cut rule, if it has one. */
     UFUNCTION(BlueprintCallable, Category = "Camera|Director")
     void HandleTrigger(EPSDirectorTrigger Trigger);

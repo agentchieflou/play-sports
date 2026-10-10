@@ -899,14 +899,28 @@ Single object (Epic 39; `UPSCameraSkycamComponent`, a camera hung from four cabl
 
 ## Replay schema (`FPSReplayTuning`)
 
-Single object (Epic 41; how `UPSReplaySubsystem` cuts, plays and saves replays). How often a replay
-re-poses the field is per platform tier (`ReplayPoseRateHz` in `platform_tiers.json`):
+Single object (Epic 41; how `UPSReplaySubsystem` cuts, plays, shows and saves replays). How often a
+replay re-poses the field is per platform tier (`ReplayPoseRateHz` in `platform_tiers.json`):
 - `PreRollSeconds`, `PostRollSeconds` (0 or more): how long before a clip's first event (a play's
   snap) and after its last (the whistle) the clip runs.
 - `PlaybackRates` (each above 0 and at most 1, the first exactly 1, no repeats): the speeds the
   slow-motion control steps through; a replay starts at the first.
+- `ScrubSecondsPerSecond` (above 0): how fast a held scrub button moves the playhead.
 - `SaveFrameRateHz` (above 0): a saved replay keeps a scheduled frame at most this often;
   keyframes and the clip's first and last frames are always kept.
+- `Cameras` (no repeats): the cameras the camera button steps through, the first being the one a
+  replay opens on. `Director` (the camera director, Epic 38), `Skycam` (Epic 39), `Free` (circles
+  the ball on the Move stick), or a `RigId` of `camera_all22.json` (Epic 40).
+- `FreeCamMinDistanceCm` <= `FreeCamDistanceCm` (the start) <= `FreeCamMaxDistanceCm`,
+  `FreeCamPitchDegrees` (above 0, below 90), `FreeCamOrbitDegreesPerSecond`,
+  `FreeCamZoomCmPerSecond` (above 0): the free camera.
+- `bAutoReplay`; `AutoReplayDelaySeconds`, `AutoReplayHoldSeconds` (0 or more): a play with a score
+  or a turnover replays itself this long after it ends, and gives the game back this long after
+  the replay's end (unless the viewer took the controls).
+- `AutoReplays[]`: one rule per `Trigger` (`Score`, `Turnover`): the `Shot` (an `EPSDirectorShot`)
+  the replay opens on and its `PlaybackRate` (above 0, at most 1).
+- `ReducedMotionCamera`: a rig in `Cameras`. With Reduced motion on (Epic 103.5) every replay opens
+  on it, the automatic ones included.
 
 `UPSReplaySubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 

@@ -19,6 +19,14 @@
 //      from the end, and the platform tier's pose rate.
 //   5. Persistence: a clip saved, listed and loaded is the same play, with its frames thinned
 //      to the save rate (keyframes kept), and plays back by PlayerId.
+//   6. The controls' catalog: a Replay context over every depth context, each button with a key,
+//      a pad button and their glyphs, and a touch twin that does what its pad button does.
+//   7. The buttons drive the replay through the player controller, and leave with it.
+//   8. Every camera in replay: the director, both all-22 rigs, the skycam and the free camera
+//      on the Move stick, and the broadcast camera given back as it was.
+//   9. Automatic replays: after a score or a turnover (not a plain play or a kick), at the
+//      rule's speed and angle, giving the game back after the end unless the viewer took the
+//      controls; the next snap cancels one; reduced motion opens on the still rig.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -27,8 +35,17 @@
 #include "GameFramework/FloatingPawnMovement.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Engine/GameInstance.h"
 #include "PSBall.h"
+#include "PSBroadcastCamera.h"
+#include "PSCameraAll22Component.h"
+#include "PSCameraDirectorComponent.h"
 #include "PSDataIngestion.h"
+#include "PSInputConfig.h"
+#include "PSPlayerController.h"
+#include "PSSettingsSubsystem.h"
+#include "PSTouchControls.h"
+#include "PSUIAccessibilitySubsystem.h"
 #include "PSDeterminism.h"
 #include "PSGameStateEvents.h"
 #include "PSPlatformTiers.h"
@@ -285,6 +302,59 @@ namespace PSReplaySystemTests
     const FPSPawnSnapshot* FindSnapshot(const FPSSnapshotFrame& Frame, const TCHAR* PlayerId)
     {
         return Frame.FindPawn(FName(PlayerId));
+    }
+
+    APSPlayerController* SpawnController(UWorld* World)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        return World->SpawnActor<APSPlayerController>(APSPlayerController::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+    }
+
+    APSBroadcastCamera* SpawnCamera(UWorld* World)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        return World->SpawnActor<APSBroadcastCamera>(APSBroadcastCamera::StaticClass(), FVector(0.0, -2800.0, 600.0), FRotator(-10.0, 90.0, 0.0), SpawnParams);
+    }
+
+    /** StepCount more 0.1 s steps of the scripted motion from the sampler's clock on, with
+     *  AtStep(Step) after each. */
+    void RunSteps(FReplayFixture& Fixture, int32 StepCount, TFunctionRef<void(int32)> AtStep)
+    {
+        for (int32 Step = 1; Step <= StepCount; ++Step)
+        {
+            PlaceAll(Fixture.Play, Fixture.Sampler->GetClock() + StepSeconds);
+            Fixture.Sampler->AdvanceTime(StepSeconds);
+            AtStep(Step);
+        }
+    }
+
+    void PublishSnap(UPSTelemetryBus* Bus)
+    {
+        FPSTelemetrySnapEvent Snap;
+        Snap.Down = 1;
+        Snap.Distance = 10;
+        Snap.YardLine = 30;
+        Bus->PublishSnap(Snap);
+    }
+
+    void PublishWhistle(UPSTelemetryBus* Bus)
+    {
+        FPSTelemetryPhaseChangeEvent Whistle;
+        Whistle.OldPhase = TEXT("BallCarrierMovement");
+        Whistle.NewPhase = TEXT("Scoring");
+        Bus->PublishPhaseChange(Whistle);
+    }
+
+    void PublishGameState(UPSTelemetryBus* Bus, const TCHAR* Phase, int32 HomeScore, bool bHomeBall)
+    {
+        FPSTelemetryGameStateEvent GameState;
+        GameState.Phase = Phase;
+        GameState.Quarter = 2;
+        GameState.HomeScore = HomeScore;
+        GameState.bHomeHasPossession = bHomeBall;
+        Bus->PublishGameState(GameState);
     }
 
     FPSTelemetryEvent MakeHistoryEvent(int32 Sequence, EPSTelemetryEventType Type, const FString& Payload)
@@ -846,6 +916,448 @@ bool FPSReplaySaveLoadTest::RunTest(const FString& Parameters)
     }
 
     IFileManager::Get().DeleteDirectory(*Directory, false, true);
+    Fixture.Teardown();
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 6. The controls' catalog and touch twins
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSReplayControlsCatalogTest,
+    "PlaySports.Replay.Controls.CatalogAndTouch",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSReplayControlsCatalogTest::RunTest(const FString& Parameters)
+{
+    UPSInputConfig* Input = NewObject<UPSInputConfig>();
+    if (!TestTrue(TEXT("The input catalog loads"), Input->LoadDefaults()))
+    {
+        return false;
+    }
+    const UPSReplaySubsystem* Probe = GetDefault<UPSReplaySubsystem>();
+    const FName Replay = Probe->ReplayContextId;
+    TestNotNull(TEXT("The Replay context is in the catalog"), Input->FindContext(Replay));
+    for (const TCHAR* Depth : { TEXT("OnField"), TEXT("PreSnap"), TEXT("DefensePreSnap"), TEXT("Passing"), TEXT("BallCarrier"), TEXT("Defense"), TEXT("Kicking") })
+    {
+        TestTrue(*FString::Printf(TEXT("Replay outranks %s"), Depth), Input->GetContextPriority(Replay) > Input->GetContextPriority(FName(Depth)));
+    }
+
+    FPSTouchLayout Layout;
+    UPSDataIngestion* Ingestion = NewObject<UPSDataIngestion>();
+    TestTrue(TEXT("The touch layout loads"), Ingestion->LoadTouchLayoutFromJson(PSTouchControls::GetDefaultLayoutPath(), Layout));
+
+    // Each on-screen button and the pad button it stands for.
+    TMap<FName, FKey> PadTwins;
+    PadTwins.Add(TEXT("ButtonBottom"), EKeys::Gamepad_FaceButton_Bottom);
+    PadTwins.Add(TEXT("ButtonRight"), EKeys::Gamepad_FaceButton_Right);
+    PadTwins.Add(TEXT("ButtonLeft"), EKeys::Gamepad_FaceButton_Left);
+    PadTwins.Add(TEXT("ButtonTop"), EKeys::Gamepad_FaceButton_Top);
+    PadTwins.Add(TEXT("ButtonUpperLeft"), EKeys::Gamepad_LeftShoulder);
+    PadTwins.Add(TEXT("ButtonUpperRight"), EKeys::Gamepad_RightShoulder);
+    PadTwins.Add(TEXT("DPadLeft"), EKeys::Gamepad_DPad_Left);
+    PadTwins.Add(TEXT("DPadRight"), EKeys::Gamepad_DPad_Right);
+    const TArray<FName> Stack = { FName(TEXT("OnField")), Replay };
+    const TArray<FName> Actions = { Probe->PlayPauseActionId, Probe->SlowMotionActionId, Probe->StepBackActionId, Probe->StepForwardActionId,
+        Probe->ScrubBackActionId, Probe->ScrubForwardActionId, Probe->CameraActionId, Probe->ExitActionId };
+    for (const FName& ActionId : Actions)
+    {
+        const FString Name = ActionId.ToString();
+        const FPSInputActionDef* Def = Input->Catalog.Actions.FindByPredicate([ActionId](const FPSInputActionDef& Candidate) { return Candidate.ActionId == ActionId; });
+        TestTrue(*FString::Printf(TEXT("%s is a Boolean action of the Replay context"), *Name),
+            Def && Def->ValueType == EInputActionValueType::Boolean && Def->Contexts.Contains(Replay));
+        FPSInputGlyph Glyph;
+        TestTrue(*FString::Printf(TEXT("%s: the pad glyph"), *Name), Input->GetGlyphForAction(ActionId, Replay, EPSInputDevice::Gamepad, Glyph));
+        TestTrue(*FString::Printf(TEXT("%s: the key glyph"), *Name), Input->GetGlyphForAction(ActionId, Replay, EPSInputDevice::KeyboardMouse, Glyph));
+        TestTrue(*FString::Printf(TEXT("%s: the touch glyph"), *Name), Input->GetGlyphForAction(ActionId, Replay, EPSInputDevice::Touch, Glyph));
+
+        // Its touch twin: the button bound to it in Replay does what that button's pad twin does.
+        bool bHasTwin = false;
+        for (const TPair<FName, FKey>& Twin : PadTwins)
+        {
+            FName TouchAction;
+            FName TouchContext;
+            if (PSTouchControls::ResolveControl(Layout, Input->Catalog, Twin.Key, Stack, TouchAction, TouchContext) && TouchAction == ActionId)
+            {
+                bHasTwin = true;
+                TestEqual(*FString::Printf(TEXT("%s: the %s button is its pad button's twin"), *Name, *Twin.Key.ToString()),
+                    Input->FindActionForKey(Twin.Value, Replay), ActionId);
+            }
+        }
+        TestTrue(*FString::Printf(TEXT("%s has a touch button"), *Name), bHasTwin);
+    }
+    for (const FString& Problem : PSTouchControls::ValidateLayout(Layout, &Input->Catalog, nullptr))
+    {
+        AddError(FString::Printf(TEXT("touch_controls.json: %s"), *Problem));
+    }
+
+    // The pause button and the Move stick stay the field's.
+    TestTrue(TEXT("Start isn't a replay button: it still pauses"), Input->FindActionForKey(EKeys::Gamepad_Special_Right, Replay).IsNone());
+    TestTrue(TEXT("The left stick isn't either: it steers the free camera"), Input->FindActionForKey(EKeys::Gamepad_Left2D, Replay).IsNone());
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 7. The buttons drive the replay
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSReplayButtonsTest,
+    "PlaySports.Replay.Controls.ButtonsDriveTheReplay",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSReplayButtonsTest::RunTest(const FString& Parameters)
+{
+    using namespace PSReplaySystemTests;
+
+    FReplayFixture Fixture;
+    FPSReplayRecording Clip;
+    if (!TestTrue(TEXT("The scripted play runs"), Fixture.Setup()) || !TestTrue(TEXT("... and is cut"), Fixture.Replay->CaptureLastPlay(Clip)))
+    {
+        Fixture.Teardown();
+        return false;
+    }
+    APSPlayerController* Controller = SpawnController(Fixture.World);
+    if (!TestNotNull(TEXT("A player controller"), Controller))
+    {
+        Fixture.Teardown();
+        return false;
+    }
+    UPSReplaySubsystem* Replay = Fixture.Replay;
+    const FName Context = Replay->ReplayContextId;
+    auto Press = [Controller](FName ActionId) { Controller->OnCatalogActionStarted.Broadcast(ActionId); };
+    auto Release = [Controller](FName ActionId) { Controller->OnCatalogActionCompleted.Broadcast(ActionId); };
+
+    TestFalse(TEXT("No Replay context before a replay"), Controller->IsInputContextActive(Context));
+    Replay->StartReplay(Clip);
+    TestTrue(TEXT("The replay puts its context on the controller"), Controller->IsInputContextActive(Context));
+
+    Press(Replay->PlayPauseActionId);
+    TestEqual(TEXT("A pauses"), Replay->GetState(), EPSReplayState::Paused);
+    Press(Replay->PlayPauseActionId);
+    TestEqual(TEXT("... and plays"), Replay->GetState(), EPSReplayState::Playing);
+    Press(Replay->SlowMotionActionId);
+    TestEqual(TEXT("X slows it"), Replay->GetPlaybackRate(), 0.5f);
+
+    Replay->SetPlayhead(0.15f);
+    Press(Replay->StepForwardActionId);
+    TestTrue(TEXT("D-pad right steps a frame on"), FMath::IsNearlyEqual(Replay->GetPlayhead(), 0.2f, 0.01f));
+    Press(Replay->StepBackActionId);
+    TestTrue(TEXT("D-pad left steps a frame back"), FMath::IsNearlyEqual(Replay->GetPlayhead(), 0.1f, 0.01f));
+
+    // A held scrub moves the playhead each step until it is let go.
+    Press(Replay->ScrubForwardActionId);
+    Replay->AdvanceReplay(0.5f);
+    const float Scrubbed = Replay->GetPlayhead();
+    TestTrue(*FString::Printf(TEXT("RB held scrubs forward (%.3f)"), Scrubbed),
+        FMath::IsNearlyEqual(Scrubbed, 0.1f + 0.5f * Replay->GetTuning().ScrubSecondsPerSecond, 0.01f));
+    TestEqual(TEXT("... holding the replay"), Replay->GetState(), EPSReplayState::Paused);
+    Release(Replay->ScrubForwardActionId);
+    Replay->AdvanceReplay(0.5f);
+    TestEqual(TEXT("Let go, it stops"), Replay->GetPlayhead(), Scrubbed);
+    Press(Replay->ScrubBackActionId);
+    Replay->AdvanceReplay(0.25f);
+    TestTrue(TEXT("LB held scrubs back"), Replay->GetPlayhead() < Scrubbed);
+    Release(Replay->ScrubForwardActionId);
+    Replay->AdvanceReplay(0.1f);
+    TestTrue(TEXT("Letting go of the other button doesn't stop it"), Replay->GetPlayhead() < Scrubbed - 0.3f);
+    Release(Replay->ScrubBackActionId);
+
+    // B leaves, and the buttons are the field's again.
+    Press(Replay->ExitActionId);
+    TestFalse(TEXT("B leaves the replay"), Replay->IsReplaying());
+    TestFalse(TEXT("... and takes its context off"), Controller->IsInputContextActive(Context));
+    Press(Replay->PlayPauseActionId);
+    TestFalse(TEXT("A replay button after it does nothing"), Replay->IsReplaying());
+
+    Fixture.Teardown();
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 8. Every camera in replay
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSReplayCamerasTest,
+    "PlaySports.Replay.Controls.EveryCameraInReplay",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSReplayCamerasTest::RunTest(const FString& Parameters)
+{
+    using namespace PSReplaySystemTests;
+
+    FReplayFixture Fixture;
+    FPSReplayRecording Clip;
+    if (!TestTrue(TEXT("The scripted play runs"), Fixture.Setup()) || !TestTrue(TEXT("... and is cut"), Fixture.Replay->CaptureLastPlay(Clip)))
+    {
+        Fixture.Teardown();
+        return false;
+    }
+    APSPlayerController* Controller = SpawnController(Fixture.World);
+    APSBroadcastCamera* Camera = SpawnCamera(Fixture.World);
+    if (!TestNotNull(TEXT("A player controller"), Controller) || !TestNotNull(TEXT("A broadcast camera"), Camera))
+    {
+        Fixture.Teardown();
+        return false;
+    }
+    UPSReplaySubsystem* Replay = Fixture.Replay;
+    UPSCameraAll22Component* All22 = Camera->GetAll22Component();
+    UPSCameraDirectorComponent* Director = Camera->GetDirectorComponent();
+    const FTransform LiveTransform = Camera->GetActorTransform();
+    const bool bDirectorLive = Director->IsDirectorEnabled();
+
+    Replay->StartReplay(Clip);
+    TestTrue(TEXT("The camera ticks through the pause"), static_cast<bool>(Camera->PrimaryActorTick.bTickEvenWhenPaused));
+    TestEqual(TEXT("A replay opens on the first camera, the director"), Replay->GetReplayCamera(), UPSReplaySubsystem::DirectorCamera);
+    TestTrue(TEXT("... which drives"), Director->IsDirectorEnabled() && !All22->IsFilmViewActive() && !Camera->bIsFreeCam);
+
+    TestEqual(TEXT("Y: the all-22 sideline rig"), Replay->CycleReplayCamera(), FName(TEXT("Sideline")));
+    TestEqual(TEXT("... in film view"), All22->GetActiveRigId(), FName(TEXT("Sideline")));
+    TestEqual(TEXT("Y: the end-zone rig"), Replay->CycleReplayCamera(), FName(TEXT("EndZone")));
+    TestEqual(TEXT("... in film view"), All22->GetActiveRigId(), FName(TEXT("EndZone")));
+    TestEqual(TEXT("Y: the skycam"), Replay->CycleReplayCamera(), UPSReplaySubsystem::SkycamCamera);
+    TestTrue(TEXT("... cut to at once by the director"), !All22->IsFilmViewActive() && Director->GetCurrentShot() == EPSDirectorShot::Skycam);
+
+    // The free camera circles the ball on the stick.
+    Controller->OnCatalogActionStarted.Broadcast(Replay->CameraActionId);
+    TestEqual(TEXT("Y on the controller: the free camera"), Replay->GetReplayCamera(), UPSReplaySubsystem::FreeCamera);
+    TestTrue(TEXT("... which nothing else drives"), Camera->bIsFreeCam);
+    FPSSnapshotFrame Shown;
+    Replay->GetShownFrame(Shown);
+    const FPSReplayTuning& Tuning = Replay->GetTuning();
+    const float StartDistance = static_cast<float>(FVector::Dist(Camera->GetActorLocation(), Shown.BallLocation));
+    TestTrue(*FString::Printf(TEXT("It stands its distance from the ball (%.1f)"), StartDistance), FMath::IsNearlyEqual(StartDistance, Tuning.FreeCamDistanceCm, 1.f));
+    TestTrue(TEXT("... looking down at it"), FMath::IsNearlyEqual(static_cast<float>(Camera->GetActorRotation().Pitch), -Tuning.FreeCamPitchDegrees, 0.1f));
+    const float YawBefore = static_cast<float>(Camera->GetActorRotation().Yaw);
+    Replay->SetPaused(true);
+    Controller->HandleMove(FInputActionValue(FVector2D(1.0, 0.0)));
+    Replay->AdvanceReplay(0.5f);
+    const float YawAfter = static_cast<float>(Camera->GetActorRotation().Yaw);
+    TestTrue(*FString::Printf(TEXT("Stick right circles it (%.1f to %.1f)"), YawBefore, YawAfter),
+        FMath::IsNearlyEqual(FMath::FindDeltaAngleDegrees(YawBefore, YawAfter), 0.5f * Tuning.FreeCamOrbitDegreesPerSecond, 0.5f));
+    Controller->HandleMove(FInputActionValue(FVector2D(0.0, 1.0)));
+    Replay->AdvanceReplay(0.5f);
+    const float Closer = static_cast<float>(FVector::Dist(Camera->GetActorLocation(), Shown.BallLocation));
+    TestTrue(*FString::Printf(TEXT("Stick forward closes in (%.1f)"), Closer),
+        FMath::IsNearlyEqual(Closer, FMath::Max(Tuning.FreeCamMinDistanceCm, Tuning.FreeCamDistanceCm - 0.5f * Tuning.FreeCamZoomCmPerSecond), 1.f));
+    Replay->AdvanceReplay(10.f);
+    const float Closest = static_cast<float>(FVector::Dist(Camera->GetActorLocation(), Shown.BallLocation));
+    TestTrue(*FString::Printf(TEXT("... no nearer than its minimum (%.1f)"), Closest), FMath::IsNearlyEqual(Closest, Tuning.FreeCamMinDistanceCm, 1.f));
+    Controller->HandleMove(FInputActionValue(FVector2D::ZeroVector));
+
+    TestEqual(TEXT("Y after the last camera: the director again"), Replay->CycleReplayCamera(), UPSReplaySubsystem::DirectorCamera);
+    TestFalse(TEXT("A camera that isn't in the list is refused"), Replay->SetReplayCamera(TEXT("Blimp")));
+
+    // The end of the replay gives the camera back.
+    Replay->SetReplayCamera(TEXT("EndZone"));
+    Replay->StopReplay();
+    TestFalse(TEXT("The camera rests with the pause again"), static_cast<bool>(Camera->PrimaryActorTick.bTickEvenWhenPaused));
+    TestFalse(TEXT("No film view"), All22->IsFilmViewActive());
+    TestFalse(TEXT("No free camera"), Camera->bIsFreeCam);
+    TestEqual(TEXT("The director as it was"), Director->IsDirectorEnabled(), bDirectorLive);
+    TestTrue(TEXT("Where it was"), Camera->GetActorTransform().Equals(LiveTransform, 0.1));
+
+    Fixture.Teardown();
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 9. Automatic replays
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSReplayAutoTest,
+    "PlaySports.Replay.Controls.AutoReplayAfterScoresAndTurnovers",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSReplayAutoTest::RunTest(const FString& Parameters)
+{
+    using namespace PSReplaySystemTests;
+
+    FReplayFixture Fixture;
+    if (!TestTrue(TEXT("The scripted play runs"), Fixture.Setup()))
+    {
+        Fixture.Teardown();
+        return false;
+    }
+    APSPlayerController* Controller = SpawnController(Fixture.World);
+    APSBroadcastCamera* Camera = SpawnCamera(Fixture.World);
+    if (!TestNotNull(TEXT("A player controller"), Controller) || !TestNotNull(TEXT("A broadcast camera"), Camera))
+    {
+        Fixture.Teardown();
+        return false;
+    }
+    UPSReplaySubsystem* Replay = Fixture.Replay;
+    UPSTelemetryBus* Bus = Fixture.Bus;
+    UPSCameraDirectorComponent* Director = Camera->GetDirectorComponent();
+    const FPSReplayTuning Tuning = Replay->GetTuning();
+    TestFalse(TEXT("The scripted play, with no score or turnover, isn't replayed"), Replay->IsAutoReplayPending());
+
+    // A touchdown: the game state's score goes up after the whistle.
+    RunSteps(Fixture, 16, [Bus](int32 Step)
+    {
+        if (Step == 2)
+        {
+            PublishSnap(Bus);
+        }
+        else if (Step == 12)
+        {
+            PublishWhistle(Bus);
+        }
+        else if (Step == 14)
+        {
+            PublishGameState(Bus, TEXT("PreSnap"), 21, true);
+        }
+    });
+    TestTrue(TEXT("A score is worth a replay"), Replay->IsAutoReplayPending());
+    Replay->AdvanceReplay(Tuning.AutoReplayDelaySeconds - 0.1f);
+    TestFalse(TEXT("... not before its delay"), Replay->IsReplaying());
+    Replay->AdvanceReplay(0.2f);
+    TestTrue(TEXT("... then it plays by itself"), Replay->IsReplaying() && Replay->IsAutoReplay());
+    TestEqual(TEXT("... at the score rule's speed"), Replay->GetPlaybackRate(), 0.5f);
+    TestEqual(TEXT("... from the director"), Replay->GetReplayCamera(), UPSReplaySubsystem::DirectorCamera);
+    TestEqual(TEXT("... on the score rule's angle"), Director->GetCurrentShot(), EPSDirectorShot::EndZone);
+    TestTrue(TEXT("The clip is the scoring play"), Replay->GetClip().Events.ContainsByPredicate(
+        [](const FPSReplayEventRecord& Event) { return Event.EventType == TEXT("Snap"); }));
+    Replay->AdvanceReplay(100.f);
+    TestTrue(TEXT("At its end it holds"), Replay->IsReplaying() && Replay->IsAtEnd());
+    Replay->AdvanceReplay(Tuning.AutoReplayHoldSeconds + 0.05f);
+    TestFalse(TEXT("... then gives the game back"), Replay->IsReplaying());
+
+    // An interception: replayed from the skycam; once the viewer takes the controls, it waits for him.
+    RunSteps(Fixture, 14, [Bus](int32 Step)
+    {
+        if (Step == 2)
+        {
+            PublishSnap(Bus);
+        }
+        else if (Step == 8)
+        {
+            FPSTelemetryCatchEvent Pick;
+            Pick.ReceiverName = TEXT("DB_01");
+            Pick.bIsInterception = true;
+            Bus->PublishCatch(Pick);
+        }
+        else if (Step == 12)
+        {
+            PublishWhistle(Bus);
+        }
+    });
+    TestTrue(TEXT("An interception is worth a replay"), Replay->IsAutoReplayPending());
+    Replay->AdvanceReplay(Tuning.AutoReplayDelaySeconds + 0.1f);
+    TestTrue(TEXT("... which plays by itself"), Replay->IsAutoReplay());
+    TestEqual(TEXT("... on the turnover rule's angle"), Director->GetCurrentShot(), EPSDirectorShot::Skycam);
+    Controller->OnCatalogActionStarted.Broadcast(Replay->SlowMotionActionId);
+    TestFalse(TEXT("A button press hands it to the viewer"), Replay->IsAutoReplay());
+    Replay->AdvanceReplay(100.f);
+    Replay->AdvanceReplay(Tuning.AutoReplayHoldSeconds + 5.f);
+    TestTrue(TEXT("... so it waits at its end"), Replay->IsReplaying());
+    Controller->OnCatalogActionStarted.Broadcast(Replay->ExitActionId);
+    TestFalse(TEXT("... until he leaves"), Replay->IsReplaying());
+
+    // A lost fumble, cancelled by the next snap before its replay.
+    RunSteps(Fixture, 14, [Bus](int32 Step)
+    {
+        if (Step == 2)
+        {
+            PublishSnap(Bus);
+        }
+        else if (Step == 6)
+        {
+            FPSTelemetryFumbleEvent Fumble;
+            Fumble.bIsTurnover = true;
+            Bus->PublishFumble(Fumble);
+        }
+        else if (Step == 12)
+        {
+            PublishWhistle(Bus);
+        }
+    });
+    TestTrue(TEXT("A lost fumble is worth a replay"), Replay->IsAutoReplayPending());
+    PublishSnap(Bus);
+    TestFalse(TEXT("The next snap cancels it"), Replay->IsAutoReplayPending());
+    Replay->AdvanceReplay(Tuning.AutoReplayDelaySeconds + 1.f);
+    TestFalse(TEXT("... and nothing plays"), Replay->IsReplaying());
+
+    // A punt changes hands without a turnover; the ball changing hands on a down is one.
+    RunSteps(Fixture, 16, [Bus](int32 Step)
+    {
+        if (Step == 2)
+        {
+            PublishSnap(Bus);
+        }
+        else if (Step == 4)
+        {
+            PublishGameState(Bus, TEXT("Punt"), 21, true);
+        }
+        else if (Step == 12)
+        {
+            PublishWhistle(Bus);
+        }
+        else if (Step == 14)
+        {
+            PublishGameState(Bus, TEXT("PreSnap"), 21, false);
+        }
+    });
+    TestFalse(TEXT("A punt isn't a turnover"), Replay->IsAutoReplayPending());
+    RunSteps(Fixture, 16, [Bus](int32 Step)
+    {
+        if (Step == 2)
+        {
+            PublishSnap(Bus);
+        }
+        else if (Step == 12)
+        {
+            PublishWhistle(Bus);
+        }
+        else if (Step == 14)
+        {
+            PublishGameState(Bus, TEXT("PreSnap"), 21, true);
+        }
+    });
+    TestTrue(TEXT("The ball changing hands on a down is"), Replay->IsAutoReplayPending());
+    PublishSnap(Bus);
+
+    // Reduced motion: the still rig, never a flying angle.
+    UPSUIAccessibilitySubsystem* Accessibility = Fixture.World->GetSubsystem<UPSUIAccessibilitySubsystem>();
+    if (TestNotNull(TEXT("Accessibility"), Accessibility))
+    {
+        UPSSettingsSubsystem* Settings = NewObject<UPSSettingsSubsystem>(NewObject<UGameInstance>());
+        Accessibility->SetSettings(Settings);
+        Settings->SetValue(Accessibility->ReducedMotionSettingId, 1.f);
+        RunSteps(Fixture, 6, [Bus](int32 Step)
+        {
+            if (Step == 5)
+            {
+                PublishWhistle(Bus);
+            }
+        });
+        TestTrue(TEXT("With reduced motion a turnover still replays"), Replay->StartAutoReplay(EPSReplayTrigger::Turnover));
+        TestEqual(TEXT("... from the still rig"), Replay->GetReplayCamera(), Tuning.ReducedMotionCamera);
+        TestEqual(TEXT("... in film view"), Camera->GetAll22Component()->GetActiveRigId(), Tuning.ReducedMotionCamera);
+        Replay->StopReplay();
+        Accessibility->SetSettings(nullptr);
+    }
+
+    // Switched off in the tuning: nothing replays by itself.
+    FPSReplayTuning Off = TestReplayTuning();
+    Off.bAutoReplay = false;
+    TestTrue(TEXT("Automatic replays can be switched off"), Replay->SetTuning(Off));
+    RunSteps(Fixture, 16, [Bus](int32 Step)
+    {
+        if (Step == 2)
+        {
+            PublishSnap(Bus);
+        }
+        else if (Step == 12)
+        {
+            PublishWhistle(Bus);
+        }
+        else if (Step == 14)
+        {
+            PublishGameState(Bus, TEXT("PreSnap"), 28, true);
+        }
+    });
+    TestFalse(TEXT("... and a score doesn't replay"), Replay->IsAutoReplayPending());
+
     Fixture.Teardown();
     return true;
 }

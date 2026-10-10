@@ -11,6 +11,8 @@
 
 class AActor;
 class APSBall;
+class APSBroadcastCamera;
+class APSPlayerController;
 class APSPlayerPawn;
 class UPSTelemetrySamplingSubsystem;
 
@@ -38,6 +40,21 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPSReplaySignature);
  *    re-posed (0 is every frame); a scrub or a frame step shows at once.
  *  - Persistence: SaveClip writes a clip as JSON (Saved/Replays by default), its scheduled
  *    frames thinned to SaveFrameRateHz; LoadClip and ListSavedClips read them back.
+ *  - Controls: while a replay plays, every APSPlayerController in the world has the Replay
+ *    input context on its stack, and the replay hears its actions on OnCatalogActionStarted
+ *    and OnCatalogActionCompleted (play/pause, slow motion, frame steps, held scrubs, the
+ *    camera, exit). Pause still opens the pause menu, and the replay holds while it is open.
+ *  - Cameras: the broadcast camera shows the replay through any of the tuning's Cameras: the
+ *    camera director (which follows the replay through the sampler), an all-22 rig, the skycam,
+ *    or a free camera circling the ball on the Move stick. StopReplay gives the camera back
+ *    as it was.
+ *  - Auto-replay: a play with a score or a turnover is replayed by itself AutoReplayDelaySeconds
+ *    after it ends, at its rule's speed, opening on its rule's director angle. With Reduced
+ *    motion on (Epic 103.5) it is seen from ReducedMotionCamera, a still rig, instead. It gives
+ *    the game back AutoReplayHoldSeconds after its end, unless the viewer took the controls.
+ *    Scores and turnovers are read off the bus: the game state's score going up (the play
+ *    simulation is the authority) or a Score event; an interception, a lost fumble, or the
+ *    ball changing hands on a play that wasn't a kick.
  *
  * It ticks with its world, paused or not, and calls AdvanceReplay; headless tests, whose worlds
  * don't tick, call AdvanceReplay themselves.
@@ -48,6 +65,8 @@ class PLAYSPORTS_API UPSReplaySubsystem : public UTickableWorldSubsystem
     GENERATED_BODY()
 
 public:
+    UPSReplaySubsystem();
+
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
     virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
@@ -69,10 +88,18 @@ public:
     /** Applies NewTuning when it passes ValidateTuning. */
     bool SetTuning(const FPSReplayTuning& NewTuning);
 
-    /** Problems with InTuning, one line each (empty when sound): negative rolls, no playback
-     *  rates, a rate not in (0, 1] or listed twice, a first rate other than 1, a save rate not
-     *  above 0. */
-    static TArray<FString> ValidateTuning(const FPSReplayTuning& InTuning);
+    /** Problems with InTuning, one line each (empty when sound): negative rolls or delays, no
+     *  playback rates, a rate not in (0, 1] or listed twice, a first rate other than 1, a save
+     *  or scrub rate not above 0, no cameras or one listed twice, free-camera numbers out of
+     *  order, an auto-replay rule repeated or without a shot, a reduced-motion camera that
+     *  isn't a still rig among the cameras. Given All22, every other camera name must be one of
+     *  its rigs. */
+    static TArray<FString> ValidateTuning(const FPSReplayTuning& InTuning, const FPSAll22CameraTuning* All22 = nullptr);
+
+    /** The camera names that aren't all-22 rigs. */
+    static const FName DirectorCamera;
+    static const FName SkycamCamera;
+    static const FName FreeCamera;
 
     /** Takes the pose rate from Tier (Data/platform_tiers.json). The run's active tier is
      *  applied at startup; a test can apply any. */
@@ -196,6 +223,67 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Replay")
     void Restart();
 
+    // --- Cameras -------------------------------------------------------------------------
+
+    /** Shows the replay through CameraName, one of the tuning's Cameras (see there). False for
+     *  a name not in it, or when there is no broadcast camera to drive. */
+    UFUNCTION(BlueprintCallable, Category = "Replay")
+    bool SetReplayCamera(FName CameraName);
+
+    /** Steps to the next of the tuning's Cameras (after the last, the first) and returns it. */
+    UFUNCTION(BlueprintCallable, Category = "Replay")
+    FName CycleReplayCamera();
+
+    /** The camera the replay is seen through. */
+    UFUNCTION(BlueprintPure, Category = "Replay")
+    FName GetReplayCamera() const { return ActiveCamera; }
+
+    // --- Automatic replays ---------------------------------------------------------------
+
+    /** True while the replay playing is one the game started by itself (until the viewer takes
+     *  the controls). */
+    UFUNCTION(BlueprintPure, Category = "Replay")
+    bool IsAutoReplay() const { return bAutoReplay; }
+
+    /** True from the end of a play worth replaying until its replay starts. */
+    UFUNCTION(BlueprintPure, Category = "Replay")
+    bool IsAutoReplayPending() const { return AutoReplayCountdown >= 0.f; }
+
+    /** Replays the last play the way Trigger's rule says, at once. False when it can't be cut
+     *  or played. */
+    UFUNCTION(BlueprintCallable, Category = "Replay")
+    bool StartAutoReplay(EPSReplayTrigger Trigger);
+
+    // --- Controls ------------------------------------------------------------------------
+
+    /** The context the controls live in, pushed on every player controller during a replay. */
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName ReplayContextId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName PlayPauseActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName SlowMotionActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName StepBackActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName StepForwardActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName ScrubBackActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName ScrubForwardActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName CameraActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Replay|Input")
+    FName ExitActionId;
+
     // --- Persistence ---------------------------------------------------------------------
 
     /** Saved/Replays. */
@@ -237,6 +325,37 @@ public:
     FPSReplaySignature OnReplayEnded;
 
 private:
+    UFUNCTION()
+    void HandleActionStarted(FName ActionId);
+
+    UFUNCTION()
+    void HandleActionCompleted(FName ActionId);
+
+    /** Notes scores, turnovers, snaps and whistles for the automatic replays. */
+    void HandleEventRecorded(const FPSTelemetryEvent& Event);
+
+    /** Trigger happened in the play being tracked; Score outranks Turnover. */
+    void NoteTrigger(EPSReplayTrigger Trigger);
+
+    /** Starts the countdown to an automatic replay once the play is over and worth it. */
+    void ArmAutoReplay();
+
+    /** Puts the Replay context on every player controller and listens to their actions, or
+     *  takes them off again. */
+    void BindControllers();
+    void UnbindControllers();
+
+    /** True while any player controller has a menu open (the pause menu over a replay). */
+    bool IsMenuOpen() const;
+
+    bool IsReducedMotion() const;
+
+    /** The broadcast camera the replay is shown through, if any. */
+    APSBroadcastCamera* GetReplayBroadcastCamera() const;
+
+    /** Places the free camera around the shown frame's ball, steered by the Move stick. */
+    void UpdateFreeCamera(float DeltaSeconds);
+
     /** An actor the replay moves, and how to put it back. */
     struct FPosedActor
     {
@@ -296,8 +415,50 @@ private:
     FPosedActor PosedBall;
     bool bHasPosedBall = false;
 
-    /** Cameras made to tick through the pause, and whether each did before. */
-    TArray<TPair<TWeakObjectPtr<AActor>, bool>> HeldCameras;
+    /** A broadcast camera the replay drives, and how to give it back. */
+    struct FHeldCamera
+    {
+        TWeakObjectPtr<APSBroadcastCamera> Camera;
+        bool bTickedWhenPaused = false;
+        bool bFreeCam = false;
+        bool bFollowing = true;
+        FTransform SavedTransform;
+        float SavedFieldOfView = 90.f;
+        FName FilmRig;
+        bool bDirectorEnabled = true;
+        EPSDirectorShot DirectorShot = EPSDirectorShot::None;
+    };
+    TArray<FHeldCamera> HeldCameras;
+
+    FName ActiveCamera;
+    int32 CameraIndex = 0;
+    float FreeCamYaw = 0.f;
+    float FreeCamDistance = 0.f;
+
+    TArray<TWeakObjectPtr<APSPlayerController>> BoundControllers;
+
+    /** -1 or +1 while a scrub button is held, else 0. */
+    int32 ScrubDirection = 0;
+
+    // Automatic replays: what the play since the last snap has shown.
+    bool bTrackingPlay = false;
+    bool bWhistleBlown = false;
+    bool bPlayHasTrigger = false;
+    bool bAutoReplayDone = false;
+    EPSReplayTrigger PlayTrigger = EPSReplayTrigger::Score;
+    int32 ScoreAtSnap = 0;
+    bool bHomeBallAtSnap = true;
+    bool bKickPlay = false;
+    int32 LastScoreTotal = 0;
+    bool bLastHomeBall = true;
+    bool bLastKickoff = false;
+    float AutoReplayCountdown = -1.f;
+
+    /** The replay playing is automatic, and how long it still holds its last frame. */
+    bool bAutoReplay = false;
+    float EndHoldRemaining = -1.f;
+
+    TWeakObjectPtr<UPSTelemetryBus> BoundBus;
 
     /** The replay paused the game, and unpauses it at the end. */
     bool bPausedGame = false;

@@ -69,9 +69,11 @@ bind the same key.
 | `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | The move set (Epic 104.2). It takes the face buttons and both bumpers from `OnField` while on. |
 | `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | The strip attempt (Epic 104.5). X and LB still switch player from `OnField`. |
 | `Kicking` | 3 | `UPSPlayContextComponent`: a kickoff, punt or field goal, while the controlled player is on the kicking side (the offense) | The kick meter (Epic 104.5). It takes A from `OnField` while on. |
+| `Replay` | 4 | `UPSReplaySubsystem` (`APSPlayerController::SetModeContextActive`), on every player controller while a replay plays (Epic 41) | The replay's transport and camera. It takes A, B, X, Y, the bumpers and the D-pad's left and right from whatever the field has while on; Start still pauses, and the Move stick (from `OnField`) steers the free camera. |
 
 The six gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
-one of them (`APSPlayerController::SetDepthContext`), on top of `OnField`. An offensive player
+one of them (`APSPlayerController::SetDepthContext`), on top of `OnField`. A mode context such as `Replay`
+sits over all of them and leaves them as they are (`SetModeContextActive`). An offensive player
 without the ball during the play has none, and neither does the receiving side during a kick.
 
 `APSPlayerController::ActiveInputContexts` is the stack. The controller mirrors it into the local
@@ -118,6 +120,14 @@ as the Xbox glyph set labels them.
 | BlockRelease | Boolean | PreSnap | K | D-pad Down | the same: the selected back or tight end is kept in or released |
 | PickPlayerLeft | Boolean | PreSnap | Q | RS flick left | `UPSControlHandoffComponent`: control to the nearest teammate to the left across the field (Epic 30) |
 | PickPlayerRight | Boolean | PreSnap | E | RS flick right | the same, to the right |
+| ReplayPlayPause | Boolean | Replay | Space | A | `UPSReplaySubsystem` via `OnCatalogActionStarted`: pause, or play on (from the end, from the start) (Epic 41) |
+| ReplaySlowMotion | Boolean | Replay | Z | X | the same: real time, half, quarter (`PlaybackRates` in `Data/replay.json`) |
+| ReplayStepBack | Boolean | Replay | , | D-pad Left | the same: hold and step back one captured frame |
+| ReplayStepForward | Boolean | Replay | . | D-pad Right | the same: hold and step on one captured frame |
+| ReplayScrubBack | Boolean | Replay | Q | LB | the same: scrub backward while held (`OnCatalogActionCompleted` ends it) |
+| ReplayScrubForward | Boolean | Replay | E | RB | the same: scrub forward while held |
+| ReplayCamera | Boolean | Replay | C | Y | the same: the director, the all-22 rigs, the skycam, the free camera (`Cameras` in `Data/replay.json`) |
+| ReplayExit | Boolean | Replay | Esc | B | the same: back to the game |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
 every off-field context. On the field Y is taken: the tempo before the snap, slot 2 while

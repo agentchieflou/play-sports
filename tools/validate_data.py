@@ -45,7 +45,7 @@ touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
 coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "PlaybackRates" files against
-FPSReplayTuning (Epic 41). Teams, the league config, the playbook, player rating ranges and every
+FPSReplayTuning (Epic 41), each camera a named one or a rig in camera_all22.json. Teams, the league config, the playbook, player rating ranges and every
 reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -909,18 +909,26 @@ def validate_telemetry_sampling(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelemetrySamplingTuning exactly")
 
 
-REPLAY_FIELDS = ("PreRollSeconds", "PostRollSeconds", "PlaybackRates", "SaveFrameRateHz")
+REPLAY_FIELDS = ("PreRollSeconds", "PostRollSeconds", "PlaybackRates", "ScrubSecondsPerSecond", "SaveFrameRateHz",
+                 "Cameras", "FreeCamDistanceCm", "FreeCamMinDistanceCm", "FreeCamMaxDistanceCm", "FreeCamPitchDegrees",
+                 "FreeCamOrbitDegreesPerSecond", "FreeCamZoomCmPerSecond", "bAutoReplay", "AutoReplayDelaySeconds",
+                 "AutoReplayHoldSeconds", "AutoReplays", "ReducedMotionCamera")
+# The replay cameras that aren't all-22 rigs (UPSReplaySubsystem::DirectorCamera, ...).
+REPLAY_NAMED_CAMERAS = {"Director", "Skycam", "Free"}
+REPLAY_TRIGGERS = {"Score", "Turnover"}
 
 
-def validate_replay_tuning(path, payload):
-    """FPSReplayTuning (Data/replay.json, Epic 41); mirrors UPSReplaySubsystem::ValidateTuning."""
-    for field in ("PreRollSeconds", "PostRollSeconds"):
+def validate_replay_tuning(path, payload, rig_ids):
+    """FPSReplayTuning (Data/replay.json, Epic 41); mirrors UPSReplaySubsystem::ValidateTuning,
+    with each camera that isn't Director, Skycam or Free a rig of camera_all22.json."""
+    for field in ("PreRollSeconds", "PostRollSeconds", "AutoReplayDelaySeconds", "AutoReplayHoldSeconds"):
         value = payload.get(field)
         if not is_number(value) or value < 0:
             err(path, f"{field}: '{value}' must be a number, 0 or more")
-    value = payload.get("SaveFrameRateHz")
-    if not is_number(value) or value <= 0:
-        err(path, f"SaveFrameRateHz: '{value}' must be a number above 0")
+    for field in ("SaveFrameRateHz", "ScrubSecondsPerSecond", "FreeCamOrbitDegreesPerSecond", "FreeCamZoomCmPerSecond"):
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
     rates = payload.get("PlaybackRates")
     if not isinstance(rates, list) or not rates:
         err(path, "'PlaybackRates' must be a non-empty array of speeds")
@@ -932,6 +940,59 @@ def validate_replay_tuning(path, payload):
                 err(path, f"PlaybackRates[{idx}]: {rate} is listed twice")
         if rates[0] != 1:
             err(path, f"PlaybackRates[0]: '{rates[0]}' must be 1, the speed a replay starts at")
+
+    def is_rig(name):
+        return name not in REPLAY_NAMED_CAMERAS and (rig_ids is None or name in rig_ids)
+
+    cameras = payload.get("Cameras")
+    if not isinstance(cameras, list) or not cameras:
+        err(path, "'Cameras' must be a non-empty array of camera names")
+        cameras = []
+    for idx, name in enumerate(cameras):
+        if not isinstance(name, str) or not name:
+            err(path, f"Cameras[{idx}]: must be a camera name")
+        elif cameras.index(name) != idx:
+            err(path, f"Cameras[{idx}]: '{name}' is listed twice")
+        elif name not in REPLAY_NAMED_CAMERAS and not is_rig(name):
+            err(path, f"Cameras[{idx}]: '{name}' is neither {sorted(REPLAY_NAMED_CAMERAS)} nor a RigId in camera_all22.json")
+    reduced = payload.get("ReducedMotionCamera")
+    if reduced not in cameras or not is_rig(reduced):
+        err(path, f"ReducedMotionCamera: '{reduced}' must be a still all-22 rig listed in Cameras")
+
+    low, mid, high = (payload.get(f) for f in ("FreeCamMinDistanceCm", "FreeCamDistanceCm", "FreeCamMaxDistanceCm"))
+    if not all(is_number(v) for v in (low, mid, high)) or not 0 < low <= mid <= high:
+        err(path, "free camera distances must be 0 < FreeCamMinDistanceCm <= FreeCamDistanceCm <= FreeCamMaxDistanceCm")
+    pitch = payload.get("FreeCamPitchDegrees")
+    if not is_number(pitch) or not 0 < pitch < 90:
+        err(path, f"FreeCamPitchDegrees: '{pitch}' must be above 0 and below 90")
+    if not isinstance(payload.get("bAutoReplay"), bool):
+        err(path, "bAutoReplay must be true or false")
+
+    rules = payload.get("AutoReplays")
+    if not isinstance(rules, list):
+        err(path, "'AutoReplays' must be an array of rules")
+        rules = []
+    seen = set()
+    for idx, rule in enumerate(rules):
+        where = f"AutoReplays[{idx}]"
+        if not isinstance(rule, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        trigger = rule.get("Trigger")
+        if trigger not in REPLAY_TRIGGERS:
+            err(path, f"{where}.Trigger: '{trigger}' is not an EPSReplayTrigger ({sorted(REPLAY_TRIGGERS)})")
+        elif trigger in seen:
+            err(path, f"{where}.Trigger: '{trigger}' already has a rule")
+        seen.add(trigger)
+        if rule.get("Shot") not in DIRECTOR_SHOTS:
+            err(path, f"{where}.Shot: '{rule.get('Shot')}' is not an EPSDirectorShot ({list(DIRECTOR_SHOTS)})")
+        rate = rule.get("PlaybackRate")
+        if not is_number(rate) or not 0 < rate <= 1:
+            err(path, f"{where}.PlaybackRate: '{rate}' must be above 0 and at most 1")
+        extra = set(rule) - {"Trigger", "Shot", "PlaybackRate"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
     if "ReplayPoseRateHz" in payload:
         err(path, "ReplayPoseRateHz: set per tier, in platform_tiers.json")
     extra = set(payload) - set(REPLAY_FIELDS) - {"ReplayPoseRateHz"}
@@ -2674,7 +2735,7 @@ def main():
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "PlaybackRates" in payload:
-            validate_replay_tuning(path, payload)
+            validate_replay_tuning(path, payload, load_all22_rig_ids())
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:
