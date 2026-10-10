@@ -1,0 +1,27 @@
+{
+    "HotRouteSets": [
+        { "Alignment": "Wide", "Routes": ["Go", "Slant", "Out", "Curl", "Post"], "ReleaseRoute": "Go" },
+        { "Alignment": "Slot", "Routes": ["Slant", "Out", "Curl", "Post", "Go"], "ReleaseRoute": "Curl" },
+        { "Alignment": "Tight", "Routes": ["Curl", "Out", "Post", "Go"], "ReleaseRoute": "Out" },
+        { "Alignment": "Backfield", "Routes": ["Flat", "Curl"], "ReleaseRoute": "Flat" }
+    ],
+    "SlotMaxSplit": 700.0,
+    "MotionEndSplit": 300.0,
+    "MotionArrivalRadius": 50.0,
+    "ManTravelLateralRadius": 300.0,
+    "SlideAimOffset": 200.0,
+    "BoxWidth": 600.0,
+    "BoxDepth": 700.0,
+    "CpuReadMinAwareness": 60.0,
+    "HeavyBoxCount": 8,
+    "LightBoxCount": 5,
+    "BlitzHotRoute": "Slant",
+    "bCpuKeepsBackInVsBlitz": true,
+    "bCpuMotionOnPass": true,
+    "AudibleAction": "Audible",
+    "SelectAction": "PreSnapSelect",
+    "HotRouteAction": "HotRoute",
+    "MotionAction": "Motion",
+    "SlideAction": "SlideProtection",
+    "ProtectionAction": "BlockRelease"
+}
