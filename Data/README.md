@@ -82,6 +82,7 @@ every CI build.
 | `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
 | `replay.json` | `FPSReplayTuning` (single object) | `UPSDataIngestion::LoadReplayTuningFromJson`, via `UPSReplaySubsystem` |
 | `highlights.json` | `FPSHighlightTuning` (single object) | `UPSDataIngestion::LoadHighlightTuningFromJson`, via `UPSHighlightSubsystem` |
+| `telestrator.json` | `FPSTelestratorTuning` (single object) | `UPSDataIngestion::LoadTelestratorTuningFromJson`, via `UPSTelestratorSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
@@ -1178,6 +1179,19 @@ Single object (Epic 42; how `UPSHighlightSubsystem` scores plays and plays the r
   `TimeFloor`).
 
 `UPSHighlightSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Telestrator schema (`FPSTelestratorTuning`)
+
+Single object (Epic 44; how `UPSTelestratorSubsystem` keeps drawings on a paused replay or the film
+view):
+- `FieldHeightCm`: the field's height in the world; drawings are pinned to this plane.
+- `MinPointSpacing` (0 or more, a fraction of the screen): a freehand point closer than this to
+  the last one kept is dropped. `MaxStrokePoints` (2 or more): the most one stroke keeps.
+- `PlayerPickRadius` (above 0, a fraction of the screen): a player tap picks the player within
+  this of it.
+- `MaxMarks` (1 or more): the most marks on one frame.
+
+`UPSTelestratorSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 
 ## Ball-flight overlay schema (`FPSBallFlightStyle`)
 

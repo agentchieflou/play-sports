@@ -62,8 +62,9 @@ player of its scenario (Epic 85); "StadiumCapacity" files against FPSEconomyTuni
 ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBudgetFraction;
 "UnownedColor" files against FPSGapOverlayStyle (Epic 81); "TradeRequestWeeks" files against
 FPSMoraleTuning (Epic 91): 0-1 thresholds, each chemistry unit's role, games and bonus; "ReelSize"
-files against FPSHighlightTuning (Epic 42). Teams, the league config, the playbook, player rating
-ranges and every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+files against FPSHighlightTuning (Epic 42); "PlayerPickRadius" files against FPSTelestratorTuning
+(Epic 44). Teams, the league config, the playbook, player rating ranges and every reference between
+files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1074,6 +1075,28 @@ def validate_highlights(path, payload):
         "KindShots", "WinProbability"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSHighlightTuning exactly")
+
+
+TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks")
+
+
+def validate_telestrator(path, payload):
+    """FPSTelestratorTuning (Data/telestrator.json, Epic 44); mirrors UPSTelestratorSubsystem::ValidateTuning."""
+    if not is_number(payload.get("FieldHeightCm")):
+        err(path, f"FieldHeightCm: '{payload.get('FieldHeightCm')}' must be a number")
+    spacing = payload.get("MinPointSpacing")
+    if not is_number(spacing) or spacing < 0:
+        err(path, f"MinPointSpacing: '{spacing}' must be a number, 0 or more")
+    radius = payload.get("PlayerPickRadius")
+    if not is_number(radius) or radius <= 0:
+        err(path, f"PlayerPickRadius: '{radius}' must be a number above 0")
+    for field, low in (("MaxStrokePoints", 2), ("MaxMarks", 1)):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < low:
+            err(path, f"{field}: '{value}' must be a whole number, {low} or more")
+    extra = set(payload) - set(TELESTRATOR_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelestratorTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -3658,6 +3681,8 @@ def main():
             validate_morale(path, payload)
         if isinstance(payload, dict) and "ReelSize" in payload:
             validate_highlights(path, payload)
+        if isinstance(payload, dict) and "PlayerPickRadius" in payload:
+            validate_telestrator(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

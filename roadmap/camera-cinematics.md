@@ -96,9 +96,9 @@ ships tests.
 **Goal:** Draw-on-screen analysis (circles, arrows, freehand) over paused replay or film view.
 **Depends on:** 40, 41
 
-- [ ] Draw layer (freehand, arrow, circle, highlight-player via Epic 36) over paused frames
-- [ ] Save/share annotated stills to disk
-- [ ] LLM hook (bridge-gated per Epic 25): auto-annotate a play with coaching notes
+- [ ] Draw layer (freehand, arrow, circle, highlight-player via Epic 36) over paused frames *(logic built, the on-screen layer not: `UPSTelestratorSubsystem` draws on a held replay (Epic 41, paused for the drawing and played on after) or the film view (Epic 40), on the frame from `UPSCameraAll22Component::CaptureFrame`. Freehand, arrow and circle strokes keep their screen points and are pinned to the field through the frame's shot (`UPSCameraFraming::DeprojectToField`, new). A player tap picks the nearest player and lights him up through `UPSOverlayEmphasisSubsystem`. Undo, clear and a mark limit; tuning in `Data/telestrator.json`. Tests: `PlaySports.Telestrator.*`. Not built: the widget that paints the marks and turns mouse or touch strokes into `BeginStroke`/`ExtendStroke`/`EndStroke` calls, and an input action to enter analysis mode)*
+- [x] Save/share annotated stills to disk *(`ExportStill` writes the frame, its marks and notes as JSON (`Saved/Telestrator` by default), read back by `LoadStill`. With a game viewport it also requests a screenshot with the UI, so the drawing layer is in it; the frame's `ImageFile` names it. Sharing is the file on disk. The screenshot is not exercised headless)*
+- [x] LLM hook (bridge-gated per Epic 25): auto-annotate a play with coaching notes *(`RequestAutoAnnotation` hands the frame, the replay clip's events and its situation to a bound listener, or keeps it for an agent that polls `GetPendingAnnotationRequests` through AgenticLink's `call_function` once `SetAutoAnnotationBridgeOnline` is on. With neither it is refused. `SubmitAutoAnnotation` takes notes and marks in field terms, put on the screen through the frame's shot. An answer for a frame no longer drawn on is refused. No live model has answered one yet)*
 
 ### Epic 45: Photo Mode
 

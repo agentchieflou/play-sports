@@ -44,6 +44,7 @@
 #include "PSCameraSkycamComponent.h"
 #include "PSReplayTypes.h"
 #include "PSHighlightTypes.h"
+#include "PSTelestratorTypes.h"
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
 #include "PSContractData.h"
@@ -337,6 +338,11 @@ public:
      *  the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadHighlightTuningFromJson(const FString& JsonFilePath, FPSHighlightTuning& OutTuning);
+
+    /** Loads how the telestrator draws (Data/telestrator.json, Epic 44). False on a missing
+     *  file or malformed JSON; UPSTelestratorSubsystem::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTelestratorTuningFromJson(const FString& JsonFilePath, FPSTelestratorTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
