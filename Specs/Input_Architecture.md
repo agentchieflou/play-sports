@@ -46,7 +46,8 @@ keeps that mapping.
 | Play calling | `UPSPlayCallComponent` (on the controller, Epic 102) | Opens the play-call screens for the player's side; Confirm on the field hikes. |
 | Play context | `UPSPlayContextComponent` (on the controller, Epic 104) | Which gameplay-depth context (section 3) is on, from the snap and the end of the play on the bus and the controlled pawn's possession. |
 | Passing | `Data/passing_input.json` → `UPSPassingComponent` (on the controller, Epic 104) | The human passer: receiver slots, touch and bullet, stick placement, pump fake. |
-| Carrier moves | `Data/carrier_moves.json` → `UPSCarrierMoveComponent` (on every `APSPlayerPawn`), pressed through `UPSCarrierInputComponent` (on the controller, Epic 104.2) | Juke, spin, truck, stiff-arm, hurdle, slide: attribute gates, stamina, the velocity change, and the tackle-odds window `ResolveTackle` reads. |
+| Carrier moves | `Data/carrier_moves.json` → `UPSCarrierMoveComponent` (on every `APSPlayerPawn`), pressed through `UPSCarrierInputComponent` (on the controller, Epic 104.2) | Juke, spin, truck, stiff-arm, hurdle, slide: attribute gates, stamina, the velocity change, the commitment window, and the tackle-odds window `ResolveTackle` reads. |
+| Input buffer | `Data/input_buffer.json` → `UPSInputBufferComponent` (on the controller, Epic 104.4) | Presses whose target is busy wait for it; a press made just before its context comes on counts there. Passing and the carrier's moves hear their buttons through it. |
 
 ## 3. The context stack
 
@@ -117,7 +118,10 @@ conversation context.
 Every other Boolean action is broadcast as `APSPlayerController::OnCatalogActionStarted(ActionId)`
 on press and `OnCatalogActionCompleted(ActionId)` on release, for its consumer to subscribe to by
 ID. A consumer that needs the stick reads `GetMoveInput()`. Consumers never cast to the
-controller to read input.
+controller to read input. A consumer whose target can be busy (a move during another move, a
+throw before the ball arrives) subscribes instead to `UPSInputBufferComponent::OnActionPressed`
+and `OnActionReleased`, which pass every Boolean action on, hold buffered ones while the
+consumer's busy check says so, and carry the hold time from the physical press (section 6).
 
 **Adding an action:**
 
@@ -194,9 +198,34 @@ outcomes are published, and Hit (every landed tackle), Catch, Interception and F
   `FPSInputActionDef` (or `FPSInputKeyBinding`) a trigger field, and have
   `UPSInputConfig::BuildRuntimeObjects` attach the `UInputTrigger` objects the way it attaches
   stick modifiers today. Hold times are tuning, not constants.
-- **Buffering** belongs in a component on the controller (rule 1). It subscribes to
-  `OnCatalogActionStarted`, timestamps presses, and releases them when the pawn's animation
-  commitment window opens (Track D). Buffer windows are tuning rows.
+- **Buffering** (as built, Epic 104.4) is `UPSInputBufferComponent` on the controller. It
+  subscribes to `OnCatalogActionStarted`/`Completed` and passes every Boolean action on through
+  `OnActionPressed`/`OnActionReleased`. Consumers register a busy check
+  (`AddBusyCheck`); a press of a buffered action (`Data/input_buffer.json`) waits while any
+  check says busy, for that action's `BufferSeconds`, then is dropped. `MaxQueued` presses wait
+  at most, newest first. A waiting press is also dropped when none of its action's contexts is on
+  any more, and `Flush` (on unpossess) drops everything, since the presses were for the player let
+  go. Releases follow their own press, so a hold is timed from the physical press even when the
+  press waited.
+  - **Commitment windows** are `CommitSeconds` per move in `Data/carrier_moves.json`: once a move
+    starts, no other move starts until it ends (`UPSCarrierMoveComponent::IsCommitted`).
+    `IsMoveBusy` is the carrier's busy check: committed, or that move cooling down. A carrier
+    who can't do the move at all (no ball, no stamina, not rated) isn't busy, so the press goes
+    straight through and fails. When Track D's animations exist, they own the commitment
+    window and this number goes.
+  - **The passer** is busy while he can't pass yet (the ball isn't in his hands).
+  - **A press just before its context comes on.** Enhanced Input ignores a key that is already
+    held when a mapping context arrives, so a pass button pressed in the frame before Passing
+    replaces PreSnap would be lost. `SetDepthContext` tells the buffer which context came on and
+    what was on before. For the longest buffer window afterwards the buffer looks, through the
+    catalog, for keys bound to a buffered action in the new context that are down, went down
+    within that action's window, and were bound to nothing in the contexts that were on before.
+    Such a press is passed on as that action, and released when the key comes up. A key that did
+    something where it went down (A hiked on `OnField`) is never replayed (A would throw to slot 5
+    in `Passing`). Key state comes from the controller's player input
+    (`IsInputKeyDown`/`GetInputKeyTimeDown`), so any engine key counts, gamepad, keyboard or
+    touch; `KeyStateQuery` lets tests, or touch controls that inject actions rather than keys
+    (Epic 130), supply it.
 - **Feel.** Walk, jog and run blend from the stick magnitude `HandleMove` already receives,
   after the tuned dead zone and curve. Sprint stays an override (section 7).
 
@@ -265,6 +294,10 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.ForceFeedbackTuningValidates` | The rumble patterns load and validate (Epic 128). |
 | `PlaySports.Input.TelemetryEventsDriveForceFeedback` | Bus events become rumble dispatches (Epic 128). |
 | `PlaySports.Input.GlyphTableCoversCatalog` | The glyph table loads, validates and draws every bound key (Epic 128). |
+| `PlaySports.Input.BufferTuningValidates` | The buffer windows load and validate, every move and pass button is buffered, and the catalog says what a key means in a context (Epic 104.4). |
+| `PlaySports.Input.BufferWaitsOutCommitment` | A move pressed during another's commitment, or near the end of its cooldown, fires as soon as it can; the newest press wins; an early press is dropped; letting the player go empties the buffer (Epic 104.4). |
+| `PlaySports.Input.BufferHoldsPassForTheBall` | A pass button pressed before the ball arrives throws once it does; a stale press throws nothing; a hold is timed from the press; leaving Passing drops a waiting press (Epic 104.4). |
+| `PlaySports.Input.BufferCarriesPressIntoNewContext` | A pass key pressed the frame before Passing comes on throws on release; the hike key and a stale press are not replayed (Epic 104.4). |
 | `PlaySports.Camera.All22ToggleThroughCatalog` | ViewToggle is on the field with a key and a Y glyph, and steps the film view on the viewing controller only (Epic 40). |
 
 What CI cannot show is how the input feels in a player's hands: real rumble strength on a pad,
