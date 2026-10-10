@@ -227,12 +227,20 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
   chosen: the QB's receivers by separation, the rush plan's moves, the coaching AI's plays by
   weight. It is off by default (`Data/ai_debug.json`; console variable `ps.AI.DecisionLog`) and
   costs nothing while off. Recording never changes a decision.*
-- [ ] On-field debug overlay: live BT state, target, assignment above any pawn (reuses Track A badge rendering)
-  *Model half built: with `ps.AI.DebugOverlay` on, each player's latest decision is drawn above
-  him as debug text (`DescribeForOverlay`: player, assignment, action, target and reason), with a
-  line to his target. Still to do: drawing it through Epic 28's badge widget (which hides players
-  during the play, so needs an always-on debug layer), and an editor or PIE session to check how
-  it reads.*
+- [x] On-field debug overlay: live BT state, target, assignment above any pawn (reuses Track A badge rendering)
+  *As built: with `ps.AI.DebugOverlay` on (or `UPSAIDecisionLog::SetOverlayEnabled`), each
+  player's latest decision is shown above him (`DescribeForOverlay`: player, assignment, action,
+  target and reason), with a line to his target. `UPSAIDebugOverlayWidget` is the always-on debug
+  layer, made by `APSHUD` in development builds. Each frame `UPSAIDecisionLog::LayoutOverlay`
+  lays out a card for every player with a decision, for the player's camera, by Epic 28's badge
+  rules (`PSAIDebugOverlay` over `PSOverlayBadgeLayout`: the projection, the scale by distance,
+  the nudging clear of each other). The widget draws each card as the badge widget draws a badge,
+  and the target lines with Slate lines. Unlike the badges it shows every player during the play;
+  a card with no room is dimmed, not hidden. Cards are sized for the display's DPI, so a phone
+  reads them the same. While the layer is up the world's debug text stands down. Look:
+  `ai_debug.json`'s `Overlay*` fields. Tests: `PlaySports.AIDebug.OverlayLayout`,
+  `OverlayCards`, `OverlayTuning`. Not seen on a screen yet: the PIE check of how 22 cards read,
+  `Specs/HUD_Spec.md` (AI Debug Overlay).*
 - [x] Play post-mortem dump: one file per play with all 22 decision streams, replay-linked (41)
   *As built: when a play ends (Scoring, or the next snap), `Saved/AIPostMortems/Play_<time>_<play>.json`
   holds the snap's situation, both calls, the bus events from the snap on, and every player's
