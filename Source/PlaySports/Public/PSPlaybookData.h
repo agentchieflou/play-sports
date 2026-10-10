@@ -28,9 +28,15 @@ struct FPSRouteWaypoint
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector Offset = FVector::ZeroVector;
 
-    /** Seconds after the snap this waypoint should be reached. */
+    /** Seconds after the snap this waypoint should be reached (on an option branch: after the
+     *  read). The quarterback's read of the route comes up at its break (Epic 68). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float TimingSeconds = 0.f;
+
+    /** A double move's fake break (Epic 68): the receiver sells it here, the defender on him
+     *  may bite, and the route goes on. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bFake = false;
 };
 
 /** Reusable route shape, referenced by name from play assignments (Route Library). */
@@ -44,6 +50,20 @@ struct FPSRoute : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FPSRouteWaypoint> Waypoints;
+
+    /** An option (sight-adjust) route (Epic 68): at this waypoint the receiver reads the
+     *  coverage and runs the rest from VsManBranch or VsZoneBranch instead. -1: no read. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 OptionReadWaypoint = -1;
+
+    /** The branch run against man coverage: a route from the library whose offsets start at the
+     *  read point, authored breaking outside; a defender with outside leverage turns it inside. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName VsManBranch;
+
+    /** The branch run against zone: settle in the hole. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName VsZoneBranch;
 };
 
 /** One position slot's assignment within a play. */
