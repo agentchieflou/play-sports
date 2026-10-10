@@ -1116,6 +1116,29 @@ def validate_situational_tuning(path, payload, route_ids):
             err(path, f"{where}: no Reason (the play-call screen shows it)")
 
 
+UI_ACCESSIBILITY_NUMBERS = ("CaptionMinSeconds", "CaptionMaxSeconds", "CaptionWordsPerSecond", "MinMatchupColorDistance")
+
+
+def validate_ui_accessibility(path, payload):
+    """FPSUIAccessibilityTuning (Data/ui_accessibility.json, Epic 103); mirrors
+    UPSUIAccessibilitySubsystem::ValidateTuning."""
+    for field in UI_ACCESSIBILITY_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    low, high = payload.get("CaptionMinSeconds"), payload.get("CaptionMaxSeconds")
+    if is_number(low) and is_number(high) and not 0 < low <= high:
+        err(path, "CaptionMinSeconds must be positive and CaptionMaxSeconds no less")
+    if is_number(payload.get("CaptionWordsPerSecond")) and payload["CaptionWordsPerSecond"] <= 0:
+        err(path, "CaptionWordsPerSecond must be positive")
+    lines = payload.get("CaptionMaxLines")
+    if isinstance(lines, bool) or not isinstance(lines, int) or lines < 1:
+        err(path, f"CaptionMaxLines: '{lines}' must be a whole number, 1 or more")
+    extra = set(payload) - set(UI_ACCESSIBILITY_NUMBERS) - {"CaptionMaxLines"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSUIAccessibilityTuning exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1184,6 +1207,8 @@ def main():
             validate_rush_moves(path, payload)
         if isinstance(payload, dict) and "Settings" in payload and "Categories" in payload:
             validate_settings_catalog(path, payload)
+        if isinstance(payload, dict) and "CaptionWordsPerSecond" in payload:
+            validate_ui_accessibility(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

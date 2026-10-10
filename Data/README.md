@@ -40,6 +40,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `defensive_techniques.json` | `FDefensiveTechniqueTuningRow` (single object) | `UPSDataIngestion::LoadDefensiveTechniquesFromJson`, via `UPSDefenderTechniqueComponent` |
 | `kick_meter.json` | `FKickMeterTuningRow` (single object) | `UPSDataIngestion::LoadKickMeterTuningFromJson`, via `UPSKickMeterComponent` |
 | `ui_settings.json` | `FPSSettingsCatalog` (single object: `Categories`, `Settings`) | `UPSDataIngestion::LoadSettingsCatalogFromJson`, via `UPSSettingsSubsystem` |
+| `ui_accessibility.json` | `FPSUIAccessibilityTuning` (single object) | `UPSDataIngestion::LoadUIAccessibilityTuningFromJson`, via `UPSUIAccessibilitySubsystem` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
@@ -389,6 +390,21 @@ The player's values live in the profile save, by `SettingId`. A setting removed 
 is dropped from the profile on load; a stored value outside today's range is snapped into it.
 Code refers to settings by ID (`UPSSettingsSubsystem` and `UPSSettingsComponent` name the
 ones they apply). `UPSSettingsSubsystem::ValidateCatalog` and `tools/validate_data.py` check it.
+
+## Accessibility tuning schema (`FPSUIAccessibilityTuning`)
+
+Single object (Epic 103.2/103.3; captions and color vision, `Specs/Front_End_Shell.md`):
+- `CaptionMinSeconds` (positive) and `CaptionMaxSeconds` (no less): how long a caption stays up
+  when the speech doesn't say how long it is spoken.
+- `CaptionWordsPerSecond` (positive): the reading pace that times such a caption, between those
+  bounds.
+- `CaptionMaxLines` (a whole number, 1 or more): the most captions on screen; the oldest goes.
+- `MinMatchupColorDistance` (0 or more): how different (CIE76 delta E, as the player sees them)
+  home and away colors must look before one side falls back to its secondary color.
+
+The settings that switch these on and size them (`Captions`, `CaptionSize`, `Narration`,
+`ColorblindMode`) are in `ui_settings.json`. `UPSUIAccessibilitySubsystem::ValidateTuning` and
+`tools/validate_data.py` check it.
 
 ## Situational tuning schema (`FPSSituationalTuning`)
 

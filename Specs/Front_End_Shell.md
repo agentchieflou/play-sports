@@ -53,10 +53,27 @@ editor handoff: what exists in code, and what an editor session adds.
     player may remap with its key on the active device. Choose one, then press the new key or
     button; Back cancels, and the screen says what happened ("Juke is now B", or why the key
     was refused). See `Specs/Input_Architecture.md` section 6.
-  - The other audio volumes and the accessibility settings (reduced motion, camera shake,
-    flashes and pyro) are stored for the systems they concern, which don't exist yet: sound
-    classes, camera shake and pyro. They read the values with `GetNumber`/`GetBool` and hear
-    changes on `OnSettingChanged`.
+  - The other audio volumes and the motion settings (reduced motion, camera shake, flashes
+    and pyro) are stored for the systems they concern, which don't exist yet: sound classes,
+    camera shake and pyro. They read the values with `GetNumber`/`GetBool` and hear changes on
+    `OnSettingChanged`.
+- **Accessibility (Epic 103.2/103.3).** `UPSUIAccessibilitySubsystem` (world) owns what the
+  player reads and sees:
+  - Captions. Whoever speaks -- the commentary booth (Epic 96), the PA, a referee -- publishes
+    a `Speech` event on `UPSTelemetryBus` (speaker, text, channel, spoken length). With the
+    Captions setting on it becomes a caption, "Speaker: text", up for its spoken length or,
+    without one, its reading length (`Data/ui_accessibility.json`). `UPSUICaptionWidget` on
+    the local player draws the newest lines at the bottom of the screen at the Caption size
+    setting's font size.
+  - UI narration hooks. Each screen calls `Narrate` with its title and text as it opens, and
+    each option with its label and detail as it takes focus (`UPSMenuComponent::NarrateOption`).
+    With Menu narration on, `OnNarration` carries the text to a voice. No text-to-speech voice
+    is wired yet; a platform one subscribes there.
+  - Color vision. `UPSUIColorLibrary` makes a color safe for the Color vision setting:
+    `ResolveColor` shifts what a red, green or blue deficiency loses into channels the player
+    still sees, and `ResolveMatchupColors` falls back to a secondary color when home and away
+    still look alike. Team select's accents go through it today; Epic 37's team colors and
+    the Track A overlays are to call it as they arrive.
 
 ## 2. Not yet (other epics)
 
@@ -64,6 +81,10 @@ editor handoff: what exists in code, and what an editor session adds.
   `RosterJsonPath`, Franchise needs its hub (Track G) and Practice the gym map (Core 24).
 - Settings a slider would suit are stepped by choosing them until a designer widget gives
   them a slider (left/right on a focused option).
+- Narration has no voice: `OnNarration` fires, but nothing speaks it until a platform
+  text-to-speech hook subscribes.
+- Color vision covers team select only: the match's team colors (Epic 37) and the broadcast
+  overlays (Track A) don't exist yet.
 - Logos: `LogoPath` is empty for every team until an editor session imports logo textures; the
   abbreviation stands in.
 

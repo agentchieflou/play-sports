@@ -26,7 +26,8 @@ enum class EPSTelemetryEventType : uint8
     PreSnap,
     Timeout,
     Kick,
-    JumpSnap
+    JumpSnap,
+    Speech
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -476,6 +477,29 @@ struct FPSTelemetryJumpSnapEvent
     bool bOffside = false;
 };
 
+/** Someone said something the player should be able to read (Epic 103.3): the commentary booth
+ *  (Epic 96), the PA, a referee. UPSUIAccessibilitySubsystem captions it when captions are on. */
+USTRUCT(BlueprintType)
+struct FPSTelemetrySpeechEvent
+{
+    GENERATED_BODY()
+
+    /** Who is speaking, as the caption names them; empty for none. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Speaker;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Text;
+
+    /** Where it comes from: Commentary, PA, Referee... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Channel;
+
+    /** How long it is spoken; 0 lets the caption time it from its length. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float DurationSeconds = 0.f;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -513,6 +537,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapSignature, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutSignature, const FPSTelemetryTimeoutEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryKickSignature, const FPSTelemetryKickEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryJumpSnapSignature, const FPSTelemetryJumpSnapEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetrySpeechSignature, const FPSTelemetrySpeechEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -533,6 +558,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapMC, const FPSTelemetryPre
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTimeoutMC, const FPSTelemetryTimeoutEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryKickMC, const FPSTelemetryKickEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryJumpSnapMC, const FPSTelemetryJumpSnapEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySpeechMC, const FPSTelemetrySpeechEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -600,6 +626,9 @@ public:
     void PublishJumpSnap(const FPSTelemetryJumpSnapEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishSpeech(const FPSTelemetrySpeechEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -662,6 +691,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryJumpSnapSignature OnJumpSnap;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetrySpeechSignature OnSpeech;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -681,6 +713,7 @@ public:
     FPSTelemetryTimeoutMC OnTimeoutMC;
     FPSTelemetryKickMC OnKickMC;
     FPSTelemetryJumpSnapMC OnJumpSnapMC;
+    FPSTelemetrySpeechMC OnSpeechMC;
 
 private:
     UPROPERTY(Transient)

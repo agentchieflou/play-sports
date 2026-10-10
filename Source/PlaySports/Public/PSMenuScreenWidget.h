@@ -89,6 +89,9 @@ private:
 
     TWeakObjectPtr<UPSMenuComponent> OwnerMenu;
 
+    /** The option last narrated as focused (Epic 103.3). */
+    FName NarratedOption;
+
     float FadeSeconds = 0.f;
     float FadeElapsed = 0.f;
 };
