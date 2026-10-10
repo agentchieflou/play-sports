@@ -83,6 +83,7 @@ every CI build.
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
+| `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
@@ -608,6 +609,32 @@ Single object (Epic 75). Yard lines (1-99) count from the team's own goal line; 
 
 `tools/validate_data.py` checks it, including that each return scheme is a `KickReturn` play's
 formation.
+
+## Coaching staffs schema (`FPSCoachingLeague`)
+
+Single object (Epic 89), read by `UPSStaffManager`; the franchise save keeps the coaches and
+staffs after each carousel, while the schemes and tuning always come from here.
+- `Schemes[]`: `SchemeId`, `Label` (shown on the call screen and in the play-call reasons),
+  `bOffense`, `Formations` (the playbook formations the scheme runs on its side: they make the
+  team's playbook, plus every special-teams and clock play), `CategoryWeights` (`PlayCategory` ->
+  weight, 1 neutral: the CPU's lean), `FitWeights[]` (`Role`, `Attribute` -- `Speed`, `Agility`,
+  `Strength`, `Acceleration`, `Awareness` or `Stamina` -- and `Weight`: what the scheme asks of a
+  position), `Description`.
+- `Coaches[]`: `CoachId`, `DisplayName`, `Role` (`HeadCoach`, `OffensiveCoordinator`,
+  `DefensiveCoordinator`), `SchemeId` (a coordinator's on his side; a head coach's either side, the
+  scheme he brings), `PlayCalling` and `Development` (0-100), `Aggression` (0-1, a head coach's).
+  A coach on no staff is a free agent the carousel can hire.
+- `Staffs[]`: `TeamId` (a `sample_teams.json` team), `HeadCoachId`, `OffensiveCoordinatorId`,
+  `DefensiveCoordinatorId`, `HeadCoachSeasons`.
+- `Tuning`: scheme adherence `MinSchemeAdherence`/`MaxSchemeAdherence` (at play calling 0/100);
+  player fit `FitSpan`, `BestFitMultiplier`, `WorstFitMultiplier`, `DevelopmentMisfitRelief`,
+  `FitLabelThreshold`; the carousel's `FireWinPercentage`, `GraceSeasons`,
+  `CoordinatorFiresPerSide`, `CoordinatorSafeWinPercentage`, `PromoteWinPercentage`,
+  `PromotionBonus`, `SchemeMatchBonus`.
+
+`tools/validate_data.py` checks it, including that each scheme's formations are in the playbook on
+its side (an offense keeping a run and a pass, a defense a `Base` call).
+
 ## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
 
 Single object (Epic 26; how `UPSTelemetrySamplingSubsystem` records every pawn's position,

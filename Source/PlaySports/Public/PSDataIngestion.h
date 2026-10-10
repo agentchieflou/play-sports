@@ -31,6 +31,7 @@
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSSpecialTeamsData.h"
+#include "PSStaffData.h"
 #include "PSSessionTelemetryTypes.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSRouteRunning.h"
@@ -204,6 +205,12 @@ public:
      *  file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSpecialTeamsTuningFromJson(const FString& JsonFilePath, FPSSpecialTeamsTuning& OutTuning);
+
+    /** Loads the coaching league: schemes, coaches, staffs and tuning (Data/coaching_staffs.json,
+     *  Epic 89). False on a missing file, malformed JSON, or an unrecognized Role string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCoachingLeagueFromJson(const FString& JsonFilePath, FPSCoachingLeague& OutLeague);
+
     /** Loads the session telemetry tuning (Data/session_telemetry.json, Epic 117). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSessionTelemetryTuningFromJson(const FString& JsonFilePath, FPSSessionTelemetryTuning& OutTuning);

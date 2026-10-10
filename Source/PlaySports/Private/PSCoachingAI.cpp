@@ -142,7 +142,10 @@ float UPSCoachingAI::GetPlayWeight(const FPSPlayDefinition& Play, const FPSSitua
         Weight *= FMath::Max(*TendencyWeight, 0.01f);
         if (OutReasons && !FMath::IsNearlyEqual(*TendencyWeight, 1.f))
         {
-            OutReasons->Add(FString::Printf(TEXT("Team tendency (x%.1f)"), *TendencyWeight));
+            // A coordinator's scheme names itself (Epic 89).
+            OutReasons->Add(Tendency.Label.IsEmpty()
+                ? FString::Printf(TEXT("Team tendency (x%.1f)"), *TendencyWeight)
+                : FString::Printf(TEXT("%s scheme (x%.1f)"), *Tendency.Label, *TendencyWeight));
         }
     }
 
