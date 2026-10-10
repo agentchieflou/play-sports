@@ -9,6 +9,7 @@
 #include "PSQuickSimRunner.h"
 #include "PSRoster.h"
 #include "PSStaffManager.h"
+#include "PSStatsEngine.h"
 #include "Engine/DataTable.h"
 #include "Misc/Paths.h"
 
@@ -21,6 +22,15 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     FreeAgency = nullptr;
     LastRollover = FPSLeagueYearRollover();
     bSeasonEnded = false;
+}
+
+void UPSFranchiseFlow::SetStats(UPSStatsEngine* InStats)
+{
+    Stats = InStats;
+    if (Stats && Stats->GetSeason() <= 0)
+    {
+        Stats->StartSeason(Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear() : 1);
+    }
 }
 
 int32 UPSFranchiseFlow::SignLeagueContracts()
@@ -129,6 +139,11 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
     const int32 Week = Season->GetCurrentWeek();
     UPSQuickSimRunner* Runner = NewObject<UPSQuickSimRunner>(this);
     UPSMatchSetup* Match = NewObject<UPSMatchSetup>(this);
+    if (Stats)
+    {
+        // Every simulated play goes into the game's box score (Epic 92).
+        Runner->OnPlayResolved.AddUObject(Stats, &UPSStatsEngine::RecordPlay);
+    }
     for (const FPSWeekMatchup& Matchup : Season->GetMatchupsForWeek(Week))
     {
         const bool bUserGame = !UserTeamId.IsNone() && (Matchup.HomeTeamId == UserTeamId || Matchup.AwayTeamId == UserTeamId);
@@ -150,7 +165,15 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
         TArray<FPlayerAttributes> AwayPlayers = AwayRoster->GetFullRoster();
         Match->ApplyStaffs(Staffs, nullptr, HomePlayers, AwayPlayers);
 
+        if (Stats)
+        {
+            Stats->BeginGame(Week, Matchup.HomeTeamId, Matchup.AwayTeamId);
+        }
         const FPSQuickSimResult Result = Runner->SimulateGame(HomePlayers, AwayPlayers);
+        if (Stats)
+        {
+            Stats->FinishGame();
+        }
         if (Season->RecordGameResult(Week, Matchup.HomeTeamId, Matchup.AwayTeamId, Result.HomeScore, Result.AwayScore))
         {
             ++Played;
@@ -213,6 +236,11 @@ bool UPSFranchiseFlow::EndSeason()
         {
             UE_LOG(LogTemp, Display, TEXT("UPSFranchiseFlow: Carousel: %s"), *Event.Description);
         }
+    }
+
+    if (Stats)
+    {
+        Stats->EndSeason();
     }
 
     // The league year turns over (Epic 87): deals run out, CPU teams get under the new cap, and

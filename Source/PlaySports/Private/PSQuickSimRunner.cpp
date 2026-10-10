@@ -94,6 +94,10 @@ UPSPlaySimulation* UPSQuickSimRunner::MakeGameSimulation(const TArray<FPlayerAtt
     UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
     Sim->bQuickSimMode = true;
     Sim->InitializePlay(HomeRoster, AwayRoster);
+    Sim->OnPlayResolved.AddLambda([this](const FPSTelemetryPlayResultEvent& Event)
+    {
+        OnPlayResolved.Broadcast(Event);
+    });
     return Sim;
 }
 

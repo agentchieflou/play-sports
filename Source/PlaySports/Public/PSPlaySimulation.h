@@ -211,6 +211,16 @@ public:
     UFUNCTION()
     void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);
 
+    /** A pass in the air (Epic 92): who threw it to whom, for the play's result. */
+    UFUNCTION()
+    void OnBusThrowEvent(const FPSTelemetryThrowEvent& Event);
+
+    /** Every play's result as this simulation, the outcome authority, resolves it (Epic 92): the
+     *  situation at the snap, the result, the points and who threw, caught, ran and tackled.
+     *  Fires with or without a world, so quick-sim games are counted; with a world the result is
+     *  also published on the bus (PlayResult). */
+    FPSTelemetryPlayResultMC OnPlayResolved;
+
     /** A human kicker lined up or kicked (Epic 104.5, UPSKickMeterComponent). While one is lined
      *  up, the kick phase waits for him up to the event's HoldSeconds; his Roll then stands in
      *  for the CPU kicker's random number. Ignored outside a kick phase. */
@@ -278,6 +288,23 @@ private:
     bool IsBallDead() const;
 
     void ResolvePlayResult();
+
+    /** The play in progress (Epic 92): opened at the snap, filled in as players throw, catch and
+     *  tackle, announced (OnPlayResolved, the bus) when the play is resolved. */
+    FPSTelemetryPlayResultEvent PlayLog;
+    bool bPlayLogOpen = false;
+    int32 PlaysAnnounced = 0;
+
+    /** Starts the play log at the snap, from the situation. */
+    void OpenPlayLog();
+
+    /** The PlayerId of the player on either side with this display name (the bus names players
+     *  by it); None for nobody. */
+    FName FindPlayerIdByName(const FString& DisplayName) const;
+
+    /** Completes the play log with the play's result (AtSnap: the state the play was resolved
+     *  from) and announces it. */
+    void AnnouncePlayResult(const FPlayState& AtSnap, bool bTurnover);
 
     /** True when the kick phase resolves this frame: a human's kick has arrived, the wait for a
      *  lined-up human has run out, or (no human) the CPU kicker's time has come. */

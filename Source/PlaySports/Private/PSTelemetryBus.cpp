@@ -531,3 +531,33 @@ void UPSTelemetryBus::PublishVersus(const FPSTelemetryVersusEvent& Event)
     }
     OnVersusMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishPlayResult(const FPSTelemetryPlayResultEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPlayResultEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Description = FString::Printf(TEXT("PlayResult: play %d, %s %d yards (home %d, away %d)"),
+        Event.PlayNumber, *Event.Result, Event.YardsGained, Event.HomePoints, Event.AwayPoints);
+    RecordHistory(EPSTelemetryEventType::PlayResult, Description, JsonPayload);
+
+    if (OnPlayResult.IsBound())
+    {
+        OnPlayResult.Broadcast(Event);
+    }
+    OnPlayResultMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishRecordBroken(const FPSTelemetryRecordBrokenEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryRecordBrokenEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    RecordHistory(EPSTelemetryEventType::RecordBroken, FString::Printf(TEXT("RecordBroken: %s"), *Event.Description), JsonPayload);
+
+    if (OnRecordBroken.IsBound())
+    {
+        OnRecordBroken.Broadcast(Event);
+    }
+    OnRecordBrokenMC.Broadcast(Event);
+}

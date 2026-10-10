@@ -36,7 +36,39 @@ enum class EPSTelemetryEventType : uint8
     Pocket,
     DefensivePreSnap,
     OpponentAdjustment,
-    Versus
+    Versus,
+    PlayResult,
+    RecordBroken
+};
+
+/** What a statistic counts (Epic 92). Player categories first, then team ones. */
+UENUM(BlueprintType)
+enum class EPSStatCategory : uint8
+{
+    PassingYards,
+    PassingTouchdowns,
+    Completions,
+    InterceptionsThrown,
+    RushingYards,
+    RushingTouchdowns,
+    Receptions,
+    ReceivingYards,
+    ReceivingTouchdowns,
+    Tackles,
+    Sacks,
+    Interceptions,
+    /** A team's points in a game, or over a season or its history. */
+    TeamPoints,
+    TeamTotalYards
+};
+
+/** How far a statistic reaches: one game, one season, or a career (a team's history). */
+UENUM(BlueprintType)
+enum class EPSStatScope : uint8
+{
+    Game,
+    Season,
+    Career
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -889,6 +921,138 @@ struct FPSTelemetryVersusEvent
     FString Reason;
 };
 
+/** A play is over, as UPSPlaySimulation (the outcome authority) resolved it (Epic 92): the
+ *  situation at the snap, the result, the points it scored and who threw, caught, ran and
+ *  tackled. The statistics engine (UPSStatsEngine) records every play from it. Quick-sim games,
+ *  which have no world, announce it through UPSPlaySimulation::OnPlayResolved instead. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPlayResultEvent
+{
+    GENERATED_BODY()
+
+    /** 1 for the game's first play, kicks included. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PlayNumber = 0;
+
+    /** The home team had the ball (on a kick: kicked). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHomeOffense = true;
+
+    /** The situation at the snap. YardLine runs from the offense's own goal line (0) to the
+     *  opponent's (100). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Quarter = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float GameClockSeconds = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Down = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Distance = 10;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 YardLine = 20;
+
+    /** The EPlayResultType by name: Incomplete, Tackle, Touchdown, Safety, FieldGoalGood,
+     *  FieldGoalMissed, KickoffResult or PuntResult. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Result;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 YardsGained = 0;
+
+    /** A pass was thrown (a sack counts: the quarterback dropped back to throw). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bPass = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bComplete = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bInterception = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bSack = false;
+
+    /** The offense reached the line to gain, or scored. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bFirstDown = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bTurnoverOnDowns = false;
+
+    /** Points each team scored on the play (a touchdown with its try). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 HomePoints = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 AwayPoints = 0;
+
+    /** Who did what, by PlayerId; None when nobody did or the simulation doesn't know. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PasserId;
+
+    /** The pass's target, or its catcher. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName ReceiverId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName RusherId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName TacklerId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName InterceptorId;
+};
+
+/** A record in the record book fell (Epic 92): UPSStatsEngine announces it as the game that broke
+ *  it is finished. Epic 93's storylines and Track H's commentary take it from here. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryRecordBrokenEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSStatCategory Category = EPSStatCategory::PassingYards;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSStatScope Scope = EPSStatScope::Game;
+
+    /** A team record (TeamPoints, TeamTotalYards); otherwise a player's. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bTeamRecord = false;
+
+    /** The new holder: a PlayerId, or a TeamId for a team record. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName HolderId;
+
+    /** The holder's team. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName TeamId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Value = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PreviousHolderId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PreviousValue = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Season = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Week = 0;
+
+    /** "Game PassingYards record: HAW_QB_001 412 (was 398 by BER_QB_001)". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Description;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -943,6 +1107,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketSignature, const F
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDefensivePreSnapSignature, const FPSTelemetryDefensivePreSnapEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryOpponentAdjustmentSignature, const FPSTelemetryOpponentAdjustmentEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryVersusSignature, const FPSTelemetryVersusEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayResultSignature, const FPSTelemetryPlayResultEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecordBrokenSignature, const FPSTelemetryRecordBrokenEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -976,6 +1142,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketMC, const FPSTelemetryPock
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDefensivePreSnapMC, const FPSTelemetryDefensivePreSnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryOpponentAdjustmentMC, const FPSTelemetryOpponentAdjustmentEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryVersusMC, const FPSTelemetryVersusEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayResultMC, const FPSTelemetryPlayResultEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecordBrokenMC, const FPSTelemetryRecordBrokenEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1062,6 +1230,14 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishPocket(const FPSTelemetryPocketEvent& Event);
+
+    /** A play's result, from UPSPlaySimulation (Epic 92). */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPlayResult(const FPSTelemetryPlayResultEvent& Event);
+
+    /** A broken record, from UPSStatsEngine (Epic 92). */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishRecordBroken(const FPSTelemetryRecordBrokenEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishDefensivePreSnap(const FPSTelemetryDefensivePreSnapEvent& Event);
@@ -1185,6 +1361,12 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryVersusSignature OnVersus;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPlayResultSignature OnPlayResult;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryRecordBrokenSignature OnRecordBroken;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -1218,6 +1400,8 @@ public:
     FPSTelemetryDefensivePreSnapMC OnDefensivePreSnapMC;
     FPSTelemetryOpponentAdjustmentMC OnOpponentAdjustmentMC;
     FPSTelemetryVersusMC OnVersusMC;
+    FPSTelemetryPlayResultMC OnPlayResultMC;
+    FPSTelemetryRecordBrokenMC OnRecordBrokenMC;
 
 private:
     UPROPERTY(Transient)

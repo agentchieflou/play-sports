@@ -85,11 +85,11 @@ its own persistence or event capture.
 **Goal:** Every play feeds a queryable statistical universe — box scores, season leaders, career totals, records.
 **Depends on:** 26, Core 20
 
-- [ ] Stat event pipeline from telemetry (26) → per-play attribution (passer/rusher/receiver/tacklers)
-- [ ] Aggregation layers: game box score, season, career, franchise, league
-- [ ] Leaderboards and record book with broken-record events (feeds 93, Track H commentary)
-- [ ] Persistence in the save architecture (Epic 116) and query API for UI/overlays
-- [ ] Advanced derived metrics (per-attempt efficiencies, situational splits)
+- [x] Stat event pipeline from telemetry (26) → per-play attribution (passer/rusher/receiver/tacklers) *(`UPSPlaySimulation`, the outcome authority, announces every play as a `PlayResult` bus event (`FPSTelemetryPlayResultEvent`: the situation at the snap, the result, the points, and the passer, receiver, rusher, tackler and interceptor by PlayerId, from the Throw/Catch/Tackle events by display name, or the quick sim's rolled players) and through `OnPlayResolved` for world-less quick sims (`UPSQuickSimRunner::OnPlayResolved`). `UPSStatsEngine::RecordPlay` attributes each play once. A played game's tackles don't reach the bus yet (`UPSBallActionComponent` calls `RecordTackle` directly), so live runs and tacklers go unattributed; the quick sim throws every play)*
+- [x] Aggregation layers: game box score, season, career, franchise, league *(`FPSBoxScore` per game; season totals summed from this season's box scores and kept as `FPSSeasonStats` totals at `EndSeason`; `GetPlayerCareer`, `GetFranchiseTotals`, `GetLeagueTotals`. `UPSFranchiseFlow` records every simulated game and archives the season at its end; `APSGameMode::MatchStats` keeps a played game's box score from the bus)*
+- [x] Leaderboards and record book with broken-record events (feeds 93, Track H commentary) *(`GetLeaders` for any `EPSStatCategory` over single games, a season or careers (team categories over a team's history); the record book sets a first mark quietly, then announces a fall as a `RecordBroken` bus event and `OnRecordBroken`: a single-game record whenever beaten, a season or career record when a new holder passes it, or the season holder sets it again in a later season)*
+- [x] Persistence in the save architecture (Epic 116) and query API for UI/overlays *(`FPSStatBook` in `UPSFranchiseSaveGame::StatBook`: this season's box scores, past seasons' totals, the records; queries by game, player season, career, team season, franchise, league, leaders and records. No stats screen or overlay reads it yet (Tracks I and A))*
+- [x] Advanced derived metrics (per-attempt efficiencies, situational splits) *(`ComputePlayerMetrics`: completion and touchdown/interception percentages, yards per attempt, the NFL passer rating, yards per carry and catch, catch rate; `ComputeTeamMetrics` from the down and red-zone splits each team line keeps: third-down and red-zone touchdown rates, yards per play, field-goal percentage, turnover margin)*
 
 ### Epic 93: League Narrative & Storyline Generator
 
