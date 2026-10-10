@@ -21,12 +21,12 @@ Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog
 DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
 "MaxQueued" files against FInputBufferTuningRow, each buffered action a Boolean catalog action;
 "RushMoves" files against FPSRushMoveCatalog; "HotRouteSets" files against FPreSnapTuningRow, each
-route in the route library and each action a Boolean in the PreSnap context; "SituationTempos"
-files against FPSSituationalTuning, its route IDs against the route library; "KeyframeEvents"
-files against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header
-declares it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts"
-files against FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow;
-"Routes" files against the FPSRoute library (timing, fakes, option branches);
+route in the route library and each action a Boolean in the PreSnap context; "SituationTempos" files
+against FPSSituationalTuning, its route IDs against the route library; "KeyframeEvents" files
+against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header declares
+it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts" files against
+FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow; "Routes" files against the
+FPSRoute library (timing, fakes, option branches); "All22Rigs" files against FPSAll22CameraTuning;
 "ShellSafeties" files against FPSDefensivePreSnapTuning, each action a Boolean in the PreSnap
 context.
 
@@ -1286,6 +1286,56 @@ def validate_routes(path, payload):
                 err(path, f"Routes[{idx}].{field}: '{route.get(field)}' is itself an option route")
 
 
+ALL22_PLACEMENTS = {"Sideline", "EndZone"}
+ALL22_RIG_NUMBERS = ("HeightCm", "StandoffCm", "RailHalfLengthCm", "MinFieldOfView", "MaxFieldOfView")
+ALL22_TUNING_NUMBERS = ("FramingMarginCm", "PlayerHeightCm", "AspectRatio", "ReframeSpeed")
+
+
+def validate_all22_camera(path, payload):
+    """FPSAll22CameraTuning (Data/camera_all22.json, Epic 40); mirrors
+    UPSCameraFraming::ValidateTuning."""
+    rigs = payload.get("All22Rigs")
+    if not isinstance(rigs, list) or not rigs:
+        err(path, "'All22Rigs' must be a non-empty array: the film view needs at least one rig")
+        rigs = []
+    seen = set()
+    for idx, rig in enumerate(rigs):
+        where = f"All22Rigs[{idx}]"
+        if not isinstance(rig, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        rig_id = rig.get("RigId")
+        if not isinstance(rig_id, str) or not rig_id or rig_id in seen:
+            err(path, f"{where}.RigId: empty or used twice")
+        seen.add(rig_id)
+        if rig.get("Placement") not in ALL22_PLACEMENTS:
+            err(path, f"{where}.Placement: '{rig.get('Placement')}' is not an EPSAll22RigPlacement ({sorted(ALL22_PLACEMENTS)})")
+        for field in ALL22_RIG_NUMBERS:
+            value = rig.get(field)
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.{field}: '{value}' must be a number, 0 or more")
+        for field in ("HeightCm", "StandoffCm"):
+            if is_number(rig.get(field)) and rig[field] <= 0:
+                err(path, f"{where}.{field}: must be positive")
+        low, high = rig.get("MinFieldOfView"), rig.get("MaxFieldOfView")
+        if is_number(low) and is_number(high) and not 0 < low <= high < 170:
+            err(path, f"{where}: the zoom range must satisfy 0 < MinFieldOfView ({low}) <= MaxFieldOfView ({high}) < 170")
+        if not isinstance(rig.get("bTrackPlay"), bool):
+            err(path, f"{where}.bTrackPlay: must be true or false")
+        extra = set(rig) - set(ALL22_RIG_NUMBERS) - {"RigId", "Placement", "bTrackPlay"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSAll22RigDef exactly")
+    for field in ALL22_TUNING_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if is_number(payload.get("AspectRatio")) and payload["AspectRatio"] <= 0:
+        err(path, "AspectRatio must be positive")
+    extra = set(payload) - set(ALL22_TUNING_NUMBERS) - {"All22Rigs"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSAll22CameraTuning exactly")
+
+
 DEFENSIVE_PRESNAP_NUMBERS = ("TwoHighDepth", "TwoHighWidth", "SingleHighDepth", "RobberDepth", "RobberWidth",
                              "DeepSafetyDepth", "ShowBlitzDepth", "BlitzLookDepth", "BlitzLookWidth", "CreepDelaySeconds")
 DEFENSIVE_PRESNAP_FRACTIONS = ("CreepSpeedScale", "MaxDisguiseLeak", "DisguiseChanceConservative", "DisguiseChanceAggressive",
@@ -1423,6 +1473,10 @@ def main():
             validate_rush_moves(path, payload)
         if isinstance(payload, dict) and "Fronts" in payload:
             validate_run_fits(path, payload)
+        if isinstance(payload, dict) and "All22Rigs" in payload:
+            validate_all22_camera(path, payload)
+
+
         if isinstance(payload, dict) and "ShellSafeties" in payload:
             validate_defensive_presnap(path, payload, load_input_catalog())
     if errors:

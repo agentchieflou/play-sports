@@ -457,5 +457,5 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 - [ ] Autonomix: Python escape hatch — run agent-supplied scripts via `PythonScriptPlugin` with result capture
 - [ ] AgenticLink: MCP server exposing engine reflection (list actors, get/set properties, invoke `UFUNCTION`s) with transaction safety
 - [ ] Register the real server in `.mcp.json` + `.vscode/mcp.json`, and document the Antigravity global-config entry in `AGENTS.md`
-- [ ] Model router honoring the `.env` contract (`OLLAMA_HOST`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`) so bridge tasks can be delegated to free-tier models
+- [x] Model router honoring the `.env` contract (`OLLAMA_HOST`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`) so bridge tasks can be delegated to free-tier models — *consumes Epic 135's router rather than twinning it: an `OllamaClient` (`OLLAMA_HOST`, stdlib HTTP) and a `bridge` tier (Ollama, then Gemini low, then an OpenRouter `:free` model, each skipped when unconfigured), driven by `python -m tools.orchestrator delegate`. Tests use mocked HTTP; no live model was called*
 - [ ] Agent smoke test: an external agent connects over MCP, spawns an actor in the gym map, runs an Epic 24 test, reports results

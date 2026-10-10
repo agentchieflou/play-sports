@@ -24,6 +24,7 @@
 #include "PSSessionTelemetryTypes.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSRouteRunning.h"
+#include "PSCameraFraming.h"
 #include "PSDefenderPreSnapTypes.h"
 #include "PSDataIngestion.generated.h"
 
@@ -143,6 +144,11 @@ public:
      *  file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRunFitsFromJson(const FString& JsonFilePath, FPSRunFitCatalog& OutCatalog);
+
+    /** Loads the all-22 film camera rigs (Data/camera_all22.json, Epic 40). False on a
+     *  missing file, malformed JSON, or an unrecognized Placement. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadAll22CameraTuningFromJson(const FString& JsonFilePath, FPSAll22CameraTuning& OutTuning);
 
     /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
      *  missing file or malformed JSON. */

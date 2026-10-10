@@ -175,8 +175,8 @@ Antigravity does not read a repo-local MCP config — its config is global, at
 
 ### Free-tier / local model slots
 
-No bridge code wires these in yet — this is just the env-var contract future connector code (or
-each tool's own model picker) should read from `.env` (copy `.env.example`):
+The env-var contract every connector reads from `.env` (copy `.env.example`). The orchestrator's
+model router (`tools/orchestrator/models/`, Track P and Core 25) consumes all three:
 
 - `OLLAMA_HOST` — local Ollama instance (default `http://localhost:11434`), zero cost, works
   offline. Useful for CI or throwaway/parallel agent tasks.
@@ -186,9 +186,12 @@ each tool's own model picker) should read from `.env` (copy `.env.example`):
 - `OPENROUTER_API_KEY` — OpenRouter's free-tier community models via one API, for whichever
   provider isn't otherwise covered.
 
-Until a real router/bridge exists, the practical way to use these today is each tool's own
-bring-your-own-key model picker (e.g. VS Code Copilot Chat → Manage Models; Antigravity Settings →
-Customizations) rather than anything in this repo.
+To hand a task to a free-tier model, use `python -m tools.orchestrator delegate "<task>"`, or
+pipe the task on stdin. It walks the `bridge` chain: Ollama first, then Gemini's free tier, then
+an OpenRouter `:free` model. It skips any link whose host or key isn't set and prints the answer,
+with the model that gave it on stderr. `python -m tools.orchestrator models` shows the chain.
+Each tool's own bring-your-own-key model picker (VS Code Copilot Chat → Manage Models;
+Antigravity Settings → Customizations) still works alongside it.
 
 ## Roadmap
 
