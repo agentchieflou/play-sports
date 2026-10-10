@@ -45,6 +45,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
 | `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
 | `camera_all22.json` | `FPSAll22CameraTuning` (single object: `All22Rigs`, framing tuning) | `UPSDataIngestion::LoadAll22CameraTuningFromJson`, via `UPSCameraAll22Component` |
+| `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -543,3 +544,36 @@ Single object (Epic 40; the coaches film view, `UPSCameraAll22Component` on the 
   Widening is always immediate.
 
 `UPSCameraFraming::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Camera director schema (`FPSCameraDirectorTuning`)
+
+Single object (Epic 38; `UPSCameraDirectorComponent` on the broadcast camera cuts the game by itself):
+- `bDirectorEnabled`: off leaves the broadcast camera to its plain follow.
+- `Shots[]`, the vocabulary, each `Shot` once: `LosWide`, `All22High`, `TightFollow`, `EndZone`,
+  `SidelineReaction`.
+  - `All22High` and `EndZone` are taken by the Epic 40 rig named by `RigId`, which must be in
+    `camera_all22.json`.
+  - The others stand `DistanceCm` from their target toward the camera side, at `HeightCm`, with a
+    `FieldOfView` (0-170 degrees), aiming `AimHeightCm` above the field. The target is the ball
+    for `LosWide` and the live subject for the rest. `TightFollow` aims `LeadSeconds` ahead of
+    him along his run.
+- `CutRules[]`: `Trigger` (`PreSnap`, `Snap`, `Throw`, `Catch`, `Tackle`, `Fumble`, `Score`,
+  `PlayEnd`; each once, and `PreSnap` is required: it is the opening shot) to the `Shot` it asks
+  for.
+- `Interest`: how a player's interest is scored to pick the live subject. It is the sum of:
+  - `BallWeight` for holding the ball;
+  - `ProximityWeight` falling off to nothing at `ProximityRadiusCm` from the ball;
+  - `BreakawayWeight` for a breakaway: at least `BreakawaySpeedCms` with no opponent within
+    `BreakawayClearanceCm`;
+  - `BigHitWeight`, fading over `BigHitSeconds`, after a tackle, or a hit of at least
+    `BigHitDamage`.
+
+  `SwitchMargin` is how much a new subject must out-score the current one by.
+- `MinShotSeconds`: the shortest a shot runs before the director cuts away; an earlier ask waits,
+  and the latest one wins.
+- `FollowInterpSpeed`: how fast the camera eases after its target within a shot.
+- `CameraSide` (-1 or 1) and `NeutralBandCm`: the side of the line of action every shot stays on
+  (the 180-degree rule), and how close to the line a shot counts as on it.
+
+`UPSCameraDirectorComponent::ValidateTuning` and `tools/validate_data.py` check it, including the
+rigs.

@@ -1,5 +1,6 @@
 #include "PSBroadcastCamera.h"
 #include "PSCameraAll22Component.h"
+#include "PSCameraDirectorComponent.h"
 #include "PSPlayerController.h"
 
 APSBroadcastCamera::APSBroadcastCamera()
@@ -7,6 +8,7 @@ APSBroadcastCamera::APSBroadcastCamera()
     PrimaryActorTick.bCanEverTick = true;
 
     All22Component = CreateDefaultSubobject<UPSCameraAll22Component>(TEXT("All22Comp"));
+    DirectorComponent = CreateDefaultSubobject<UPSCameraDirectorComponent>(TEXT("DirectorComp"));
 
     TargetActor = nullptr;
     SidelineY = -2800.0f; // Standard sideline placement (field width is Y = +/- 2438.4 cm)
@@ -42,6 +44,13 @@ void APSBroadcastCamera::Tick(float DeltaTime)
     if (All22Component && All22Component->IsFilmViewActive())
     {
         All22Component->StepFraming(DeltaTime);
+        return;
+    }
+
+    // The director (Epic 38) cuts the broadcast by itself while it is enabled.
+    if (DirectorComponent && DirectorComponent->IsDirectorEnabled())
+    {
+        DirectorComponent->AdvanceTime(DeltaTime);
         return;
     }
 

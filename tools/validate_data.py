@@ -28,7 +28,8 @@ it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fro
 FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow; "Routes" files against the
 FPSRoute library (timing, fakes, option branches); "All22Rigs" files against FPSAll22CameraTuning;
 "JumpWindowSeconds" files against FDefensiveTechniqueTuningRow and "PowerFillSeconds" files against
-FKickMeterTuningRow, each named action a Boolean in its context.
+FKickMeterTuningRow, each named action a Boolean in its context; "CutRules" files against
+FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1460,6 +1461,121 @@ def validate_all22_camera(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSAll22CameraTuning exactly")
 
 
+DIRECTOR_SHOTS = ("LosWide", "All22High", "TightFollow", "EndZone", "SidelineReaction")
+DIRECTOR_RIG_SHOTS = {"All22High", "EndZone"}
+DIRECTOR_TRIGGERS = {"PreSnap", "Snap", "Throw", "Catch", "Tackle", "Fumble", "Score", "PlayEnd"}
+DIRECTOR_SHOT_NUMBERS = ("HeightCm", "DistanceCm", "FieldOfView", "AimHeightCm", "LeadSeconds")
+DIRECTOR_INTEREST_NUMBERS = ("BallWeight", "ProximityWeight", "ProximityRadiusCm", "BreakawayWeight", "BreakawaySpeedCms",
+                             "BreakawayClearanceCm", "BigHitWeight", "BigHitSeconds", "BigHitDamage", "SwitchMargin")
+DIRECTOR_NUMBERS = ("MinShotSeconds", "FollowInterpSpeed", "NeutralBandCm")
+
+
+def load_all22_rig_ids():
+    """Rig IDs in Data/camera_all22.json, or None when it is missing or broken."""
+    try:
+        rigs = json.loads((DATA_DIR / "camera_all22.json").read_text(encoding="utf-8")).get("All22Rigs")
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return None
+    if not isinstance(rigs, list):
+        return None
+    return {r.get("RigId") for r in rigs if isinstance(r, dict)}
+
+
+def validate_camera_director(path, payload, rig_ids):
+    """FPSCameraDirectorTuning (Data/camera_director.json, Epic 38); mirrors
+    UPSCameraDirectorComponent::ValidateTuning, plus the rigs cross-checked against
+    camera_all22.json."""
+    if not isinstance(payload.get("bDirectorEnabled"), bool):
+        err(path, "bDirectorEnabled: must be true or false")
+    shots = payload.get("Shots")
+    if not isinstance(shots, list):
+        err(path, "'Shots' must be an array")
+        shots = []
+    defined = set()
+    for idx, row in enumerate(shots):
+        where = f"Shots[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        shot = row.get("Shot")
+        if shot not in DIRECTOR_SHOTS:
+            err(path, f"{where}.Shot: '{shot}' is not an EPSDirectorShot ({list(DIRECTOR_SHOTS)})")
+        elif shot in defined:
+            err(path, f"{where}.Shot: '{shot}' is defined twice")
+        defined.add(shot)
+        rig = row.get("RigId", "")
+        if not isinstance(rig, str):
+            err(path, f"{where}.RigId: must be a string")
+        elif shot in DIRECTOR_RIG_SHOTS:
+            if not rig:
+                err(path, f"{where}.RigId: an all-22 shot needs a rig")
+            elif rig_ids is not None and rig not in rig_ids:
+                err(path, f"{where}.RigId: '{rig}' is not a rig in camera_all22.json")
+        for field in DIRECTOR_SHOT_NUMBERS:
+            value = row.get(field)
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.{field}: '{value}' must be a number, 0 or more")
+        if shot not in DIRECTOR_RIG_SHOTS:
+            for field in ("HeightCm", "DistanceCm"):
+                if is_number(row.get(field)) and row[field] <= 0:
+                    err(path, f"{where}.{field}: must be positive")
+            fov = row.get("FieldOfView")
+            if is_number(fov) and not 0 < fov < 170:
+                err(path, f"{where}.FieldOfView: {fov} must be in (0, 170)")
+        extra = set(row) - set(DIRECTOR_SHOT_NUMBERS) - {"Shot", "RigId"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSDirectorShotDef exactly")
+    missing = [shot for shot in DIRECTOR_SHOTS if shot not in defined]
+    if missing:
+        err(path, f"Shots: {missing} not defined")
+    rules = payload.get("CutRules")
+    if not isinstance(rules, list):
+        err(path, "'CutRules' must be an array")
+        rules = []
+    ruled = set()
+    for idx, row in enumerate(rules):
+        where = f"CutRules[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        trigger = row.get("Trigger")
+        if trigger not in DIRECTOR_TRIGGERS:
+            err(path, f"{where}.Trigger: '{trigger}' is not an EPSDirectorTrigger ({sorted(DIRECTOR_TRIGGERS)})")
+        elif trigger in ruled:
+            err(path, f"{where}.Trigger: '{trigger}' has two rules")
+        ruled.add(trigger)
+        if row.get("Shot") not in defined:
+            err(path, f"{where}.Shot: '{row.get('Shot')}' is not a defined shot")
+        extra = set(row) - {"Trigger", "Shot"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    if "PreSnap" not in ruled:
+        err(path, "CutRules: no rule for PreSnap, the director's opening shot")
+    interest = payload.get("Interest")
+    if not isinstance(interest, dict):
+        err(path, "'Interest' must be an object")
+        interest = {}
+    for field in DIRECTOR_INTEREST_NUMBERS:
+        value = interest.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"Interest.{field}: '{value}' must be a number, 0 or more")
+    for field in ("ProximityRadiusCm", "BreakawaySpeedCms", "BigHitSeconds"):
+        if is_number(interest.get(field)) and interest[field] <= 0:
+            err(path, f"Interest.{field}: must be positive")
+    extra = set(interest) - set(DIRECTOR_INTEREST_NUMBERS)
+    if extra:
+        err(path, f"Interest: unknown field(s) {sorted(extra)} - names must match FPSDirectorInterestTuning exactly")
+    for field in DIRECTOR_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if payload.get("CameraSide") not in (-1, 1) or isinstance(payload.get("CameraSide"), bool):
+        err(path, f"CameraSide: '{payload.get('CameraSide')}' must be -1 (the -Y sideline) or 1")
+    extra = set(payload) - set(DIRECTOR_NUMBERS) - {"bDirectorEnabled", "Shots", "CutRules", "Interest", "CameraSide"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCameraDirectorTuning exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1540,6 +1656,8 @@ def main():
             validate_all22_camera(path, payload)
         if isinstance(payload, dict) and "Settings" in payload and "Categories" in payload:
             validate_settings_catalog(path, payload)
+        if isinstance(payload, dict) and "CutRules" in payload:
+            validate_camera_director(path, payload, load_all22_rig_ids())
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:
