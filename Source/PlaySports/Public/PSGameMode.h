@@ -121,6 +121,9 @@ public:
     class APSPlayerPawn* FindPlayerPawnByRole(EPlayerRole PlayerRole) const;
 
 private:
+    /** Opens UPSPlayCallSubsystem's call window for the current down (Epic 102). */
+    void OpenPlayCallWindow();
+
     UFUNCTION()
     void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);
 

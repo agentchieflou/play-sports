@@ -10,7 +10,12 @@ Epic 101's shell absorbs and replaces it. (2026-10-09: Epic 101's screen stack, 
 mode select and pause menu landed as `UPSMenuComponent` on `APSPlayerController`, driven by
 `Data/ui_menus.json`, with a code-built default layout until Widget Blueprints exist; team
 select reads `Data/sample_teams.json` and rates teams from their rosters, and loading screens
-draw tips from `Data/loading_tips.json` — see `Specs/Front_End_Shell.md`.) Input bring-up (Enhanced Input, the player
+draw tips from `Data/loading_tips.json` — see `Specs/Front_End_Shell.md`. 2026-10-10: Epic 102
+part 1 made calls real — `UPSPlayCallSubsystem` owns each side's call, the CPU calls sides no
+human controls, a human calls from formation → play screens with text play descriptions, the
+offense snaps on the human's hike or the CPU's delay, and the snap distributes both calls through
+`UPSPlayOrchestrator`; see `Specs/Play_Call_Interface.md`. 102.1 waits on play art (Epic 35) and
+102.4 on defensive adjustments, so neither is ticked yet.) Input bring-up (Enhanced Input, the player
 controller, gamepad support) lives in Track M (`roadmap/controller-connectivity.md`); Epic
 104 builds feel on top of that substrate per the `Specs/Input_Architecture.md` contract, not
 new pawn code. UI reads game state from C1 bus subscriptions and the C2 single authority —

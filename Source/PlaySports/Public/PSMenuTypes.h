@@ -1,4 +1,4 @@
-// PSMenuTypes.h - Epic 101: the front-end menu catalog as authored in Data/ui_menus.json
+// PSMenuTypes.h - Epic 101/102: the menu catalog as authored in Data/ui_menus.json
 #pragma once
 
 #include "CoreMinimal.h"
@@ -14,7 +14,9 @@ enum class EPSMenuCommand : uint8
     StartFranchise,
     StartPractice,
     QuitToMainMenu,
-    QuitGame
+    QuitGame,
+    /** Call the play named by the option's Payload (Epic 102). */
+    CallPlay
 };
 
 /** Where a screen's options come from. */
@@ -26,7 +28,12 @@ enum class EPSMenuScreenContent : uint8
     /** One option per team (UPSUITeamCatalog), each starting Play Now with that team. */
     TeamSelect,
     /** Shown while travelling; its body is the loading tip. Left only by the travel. */
-    Loading
+    Loading,
+    /** One option per formation of the player's side (Epic 102), each opening the
+     *  PlayCallPlays screen for that formation. */
+    PlayCallFormations,
+    /** One option per play in the chosen formation, each calling that play. */
+    PlayCallPlays
 };
 
 /** How the screen stack changed; screen widgets use it to pick a transition. */
@@ -64,6 +71,10 @@ struct FPSMenuOptionDef
     /** Identity color for the option (team select); transparent means none. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
     FLinearColor AccentColor = FLinearColor::Transparent;
+
+    /** Optional second line under the label, e.g. a play's assignments. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
+    FString Detail;
 };
 
 /** One screen: its text, whether Back may leave it, and its options in display order. */
@@ -111,6 +122,10 @@ struct FPSMenuCatalog
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
     FName LoadingScreen;
 
+    /** The screen a play call opens on (Content = PlayCallFormations, Epic 102). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
+    FName PlayCallScreen;
+
     /** Fade-in time for a newly shown screen. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
     float TransitionSeconds = 0.f;
@@ -121,5 +136,11 @@ struct FPSMenuCatalog
     const FPSMenuScreenDef* FindScreen(FName ScreenId) const
     {
         return Screens.FindByPredicate([ScreenId](const FPSMenuScreenDef& Screen) { return Screen.ScreenId == ScreenId; });
+    }
+
+    /** The first screen with Content, or null. */
+    const FPSMenuScreenDef* FindScreenWithContent(EPSMenuScreenContent Content) const
+    {
+        return Screens.FindByPredicate([Content](const FPSMenuScreenDef& Screen) { return Screen.Content == Content; });
     }
 };

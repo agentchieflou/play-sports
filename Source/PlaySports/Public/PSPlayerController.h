@@ -1,4 +1,4 @@
-// PSPlayerController.h - Epic 126/127/128: the project player controller; owns all human input
+// PSPlayerController.h - Epic 126/127/128/102: the project player controller; owns all human input
 #pragma once
 
 #include "CoreMinimal.h"
@@ -13,6 +13,7 @@ class UPSInputConfig;
 class UPSInputDeviceComponent;
 class UPSForceFeedbackComponent;
 class UPSMenuComponent;
+class UPSPlayCallComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -35,7 +36,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * UPSTelemetryBus; HUD and camera read it there or from APSPlayerPawn::IsUserControlled().
  *
  * Rumble (Epic 128) is UPSForceFeedbackComponent's: it hears gameplay on the bus and plays
- * the authored pattern on this controller's gamepad.
+ * the authored pattern on this controller's gamepad. Play calling (Epic 102) is
+ * UPSPlayCallComponent's: it opens the play-call screens and hikes on Confirm.
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -64,6 +66,10 @@ public:
     /** The front-end shell and pause menu (Epic 101). */
     UFUNCTION(BlueprintPure, Category = "Menu")
     UPSMenuComponent* GetMenuComponent() const { return MenuComponent; }
+
+    /** The human side of play calling (Epic 102). */
+    UFUNCTION(BlueprintPure, Category = "PlayCall")
+    UPSPlayCallComponent* GetPlayCallComponent() const { return PlayCallComponent; }
 
     /** True while ContextId is on this controller's context stack. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -165,6 +171,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Menu")
     UPSMenuComponent* MenuComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "PlayCall")
+    UPSPlayCallComponent* PlayCallComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

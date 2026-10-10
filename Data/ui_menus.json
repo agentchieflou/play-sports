@@ -2,6 +2,7 @@
     "RootScreen": "MainMenu",
     "PauseScreen": "Pause",
     "LoadingScreen": "Loading",
+    "PlayCallScreen": "PlayCall",
     "TransitionSeconds": 0.15,
     "Screens": [
         {
@@ -86,6 +87,20 @@
             "Title": "Loading",
             "Content": "Loading",
             "bAllowBack": false,
+            "Options": []
+        },
+        {
+            "ScreenId": "PlayCall",
+            "Title": "Call a play",
+            "Body": "Pick a formation.",
+            "Content": "PlayCallFormations",
+            "bAllowBack": false,
+            "Options": []
+        },
+        {
+            "ScreenId": "PlayCallPlays",
+            "Title": "Plays",
+            "Content": "PlayCallPlays",
             "Options": []
         }
     ]

@@ -18,7 +18,8 @@ enum class EPSTelemetryEventType : uint8
     Death,
     Respawn,
     InputDeviceChange,
-    ControlChange
+    ControlChange,
+    PlayCall
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -53,6 +54,11 @@ struct FPSTelemetrySnapEvent
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     float GameClockSeconds = 0.f;
+
+    /** World-space spot of the ball at the snap, from the game mode that placed the
+     *  pawns; the origin play assignments resolve against (Epic 102). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector LineOfScrimmage = FVector::ZeroVector;
 };
 
 USTRUCT(BlueprintType)
@@ -246,6 +252,33 @@ struct FPSTelemetryControlChangeEvent
     bool bHumanControlled = false;
 };
 
+/** A side called its play for the coming snap (Epic 102). The call itself lives in
+ *  UPSPlayCallSubsystem; this announces it. A HUD shows only its own side's call. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPlayCallEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PlayId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString DisplayName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Formation;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayCategory;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bOffense = true;
+
+    /** True when a person chose it; false for the CPU's call. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHumanCall = false;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -276,6 +309,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeathSignature, const FP
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRespawnSignature, const FPSTelemetryRespawnEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryInputDeviceSignature, const FPSTelemetryInputDeviceEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeSignature, const FPSTelemetryControlChangeEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallSignature, const FPSTelemetryPlayCallEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -289,6 +323,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeathMC, const FPSTelemetryDeath
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRespawnMC, const FPSTelemetryRespawnEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryInputDeviceMC, const FPSTelemetryInputDeviceEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeMC, const FPSTelemetryControlChangeEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallMC, const FPSTelemetryPlayCallEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -335,6 +370,9 @@ public:
     void PublishControlChange(const FPSTelemetryControlChangeEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPlayCall(const FPSTelemetryPlayCallEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -376,6 +414,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryControlChangeSignature OnControlChange;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPlayCallSignature OnPlayCall;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -388,6 +429,7 @@ public:
     FPSTelemetryRespawnMC OnRespawnMC;
     FPSTelemetryInputDeviceMC OnInputDeviceChangeMC;
     FPSTelemetryControlChangeMC OnControlChangeMC;
+    FPSTelemetryPlayCallMC OnPlayCallMC;
 
 private:
     UPROPERTY(Transient)

@@ -43,6 +43,7 @@ keeps that mapping.
 | Glyphs | `Data/input_glyphs.json` → `UPSInputGlyphs` (owned by `UPSInputConfig`) | Which button picture stands for a key, per glyph set (Xbox, keyboard and mouse). |
 | Rumble | `Data/force_feedback.json` → `UPSForceFeedbackComponent` (on the controller) | Which gameplay events shake the gamepad, and how. |
 | Menus | `UPSMenuComponent` (on the controller, Epic 101) | Screen stack, UI input mode, Back keys read from the catalog's `Menu` context. |
+| Play calling | `UPSPlayCallComponent` (on the controller, Epic 102) | Opens the play-call screens for the player's side; Confirm on the field hikes. |
 
 ## 3. The context stack
 
@@ -70,7 +71,7 @@ as the Xbox glyph set labels them.
 | Move | Axis2D | World, OnField | W A S D, arrows | LS | `APSPlayerController::HandleMove` (relative to the control yaw) |
 | Look | Axis2D | World | Mouse | RS | nobody yet (Epic 143's camera) |
 | Sprint | Boolean | World, OnField | Shift | RT, L3 | the controller (pawn burst while held) |
-| Confirm | Boolean | OnField, Menu | Enter | A | `OnCatalogActionStarted`; menus via Slate |
+| Confirm | Boolean | OnField, Menu | Enter | A | `UPSPlayCallComponent` via `OnCatalogActionStarted`: hikes, or reopens the play-call screen (Epic 102); menus via Slate |
 | Cancel | Boolean | World, OnField, Menu | Esc | B | `OnCatalogActionStarted`; menu Back |
 | Pause | Boolean | OnField | P | Menu (Start) | the controller → `UPSMenuComponent::TogglePause` |
 | SwitchPlayer | Boolean | OnField | T | X, LB | the controller → `SwitchToBestPawn` |

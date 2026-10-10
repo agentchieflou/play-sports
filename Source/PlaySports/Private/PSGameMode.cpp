@@ -1,4 +1,5 @@
 #include "PSGameMode.h"
+#include "PSPlayCallSubsystem.h"
 #include "PSDataIngestion.h"
 #include "PSPlaySimulation.h"
 #include "Misc/Paths.h"
@@ -230,6 +231,9 @@ void APSGameMode::StartPlay()
                 Center->GainPossession();
                 UE_LOG(LogTemp, Display, TEXT("PSGameMode: Spawned ActiveBall and attached it to Center (%s) pre-snap."), *Center->GetName());
             }
+
+            // The first down's call window (Epic 102); later downs open on entering PreSnap.
+            OpenPlayCallWindow();
         }
         else
         {
@@ -284,7 +288,29 @@ void APSGameMode::Tick(float DeltaSeconds)
                 PhaseEvt.PlayClockSeconds = PlaySimulation->GetPlayState().PlayClockSeconds;
                 Bus->PublishPhaseChange(PhaseEvt);
             }
+
+            if (CurrentPhase == EPlayPhase::PreSnap)
+            {
+                OpenPlayCallWindow();
+            }
         }
+
+        // Epic 102: the play-call authority decides when the offense snaps -- after both
+        // calls are in, on the human's hike or after the CPU's delay.
+        UPSPlayCallSubsystem* PlayCall = GetWorld()->GetSubsystem<UPSPlayCallSubsystem>();
+        if (CurrentPhase == EPlayPhase::PreSnap && PlayCall && PlayCall->PollReadyToSnap(DeltaSeconds))
+        {
+            ExecuteSnap();
+        }
+    }
+}
+
+void APSGameMode::OpenPlayCallWindow()
+{
+    UPSPlayCallSubsystem* PlayCall = GetWorld() ? GetWorld()->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+    if (PlayCall && PlaySimulation && PlaySimulation->GetPlayState().Phase == EPlayPhase::PreSnap)
+    {
+        PlayCall->OpenPlayCall(UPSPlayCallSubsystem::MakeSituation(PlaySimulation->GetPlayState()));
     }
 }
 
@@ -316,6 +342,8 @@ void APSGameMode::ExecuteSnap()
         SnapEvt.Down              = PlaySimulation->GetPlayState().Down;
         SnapEvt.Distance          = PlaySimulation->GetPlayState().Distance;
         SnapEvt.GameClockSeconds  = PlaySimulation->GetPlayState().GameClockSeconds;
+        // The same yard-line-to-world mapping ResetPawnPositions places the pawns with.
+        SnapEvt.LineOfScrimmage   = FVector(PlaySimulation->GetPlayState().YardLine * 100.f, 0.f, 0.f);
         Bus->PublishSnap(SnapEvt);
     }
 
