@@ -8,7 +8,8 @@ localization gather collects them:
                          Comment). Code names its keys: UPSLocalization::GetText(TEXT("Key"))
                          and UPSLocalization::Format(TEXT("Key"), ...).
   Data/ui_text_data.csv  "PSUIData": generated from the UI data files' strings
-                         (ui_menus.json, ui_settings.json, loading_tips.json). Don't edit it;
+                         (ui_menus.json, ui_settings.json, loading_tips.json, and the
+                         scouting traits in player_dna.json). Don't edit it;
                          run this script with --write after changing one of those files.
 
   python tools/ui_text.py           check (exit 1 with the problems)
@@ -30,6 +31,7 @@ Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones
   Setting.<SettingId>.Label | Description | Unit
   Setting.<SettingId>.Choice<Index>
   Tip.<TipId>
+  Trait.<TraitId>.Label | Description     (PSPlayerDNA::TraitKey)
 """
 
 import csv
@@ -99,6 +101,15 @@ def data_rows():
     for tip in tips.get("Tips", []) if isinstance(tips, dict) else []:
         if isinstance(tip, dict):
             add(f"Tip.{tip.get('TipId', '')}", tip.get("Text"), "loading_tips.json: loading screen tip")
+
+    dna = _load("player_dna.json") or {}
+    for axis in dna.get("Axes", []) if isinstance(dna, dict) else []:
+        if not isinstance(axis, dict):
+            continue
+        for end in ("Low", "High"):
+            trait = axis.get(f"{end}Trait", "")
+            add(f"Trait.{trait}.Label", axis.get(f"{end}Label"), f"player_dna.json: the scouting trait at the {end.lower()} end of {axis.get('Axis', '')}")
+            add(f"Trait.{trait}.Description", axis.get(f"{end}Description"), f"player_dna.json: what the {trait} trait means")
     return rows
 
 
