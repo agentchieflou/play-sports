@@ -200,7 +200,6 @@ bool FPSAudioCueMappingTest::RunTest(const FString& Parameters)
     FPSTelemetryTackleEvent Sack;
     Sack.TacklerName = TEXT("DE_01");
     Sack.BallCarrierName = TEXT("QB_01");
-    Sack.YardsGained = -7;
     Sack.bIsSack = true;
     Bus->PublishTackle(Sack);
     TestEqual(TEXT("A sack sounds the tackle"), Audio->CountRequests(TEXT("Field.Pads.Tackle")), 1);

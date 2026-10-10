@@ -242,7 +242,6 @@ bool FPSCommentaryPlayDescriptionTest::RunTest(const FString& Parameters)
     FPSTelemetryTackleEvent Tackle;
     Tackle.TacklerName = TEXT("Wolves CB");
     Tackle.BallCarrierName = TEXT("Hawks WR");
-    Tackle.YardsGained = 31;
     const int32 BeforeTackle = Fixture.Published.Num();
     Bus->PublishTackle(Tackle);
     TestEqual(TEXT("A plain tackle waits for the play's result"), Fixture.Published.Num(), BeforeTackle);

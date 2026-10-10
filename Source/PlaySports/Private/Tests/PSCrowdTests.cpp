@@ -287,7 +287,6 @@ bool FPSCrowdHomeAwayTest::RunTest(const FString& Parameters)
     FPSTelemetryTackleEvent Sack;
     Sack.TacklerName = TEXT("HOM_DE");
     Sack.BallCarrierName = TEXT("AWY_QB");
-    Sack.YardsGained = -8;
     Sack.bIsSack = true;
     Bus->PublishTackle(Sack);
     TestEqual(TEXT("A home sack roars"), Crowd->GetLastReaction(), EPSCrowdReaction::Roar);

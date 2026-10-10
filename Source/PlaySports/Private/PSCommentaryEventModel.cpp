@@ -521,7 +521,8 @@ void UPSCommentaryEventModel::HandleTackle(const FPSTelemetryTackleEvent& Event)
         FPSTelemetryCommentaryEvent Moment = MakeMoment(EPSCommentaryMoment::Sack, EPSTelemetryEventType::Tackle);
         Moment.PrimaryName = Event.TacklerName;
         Moment.SecondaryName = Event.BallCarrierName;
-        Moment.Yards = Event.YardsGained;
+        // The sack's yards are the play's, which the simulation announces with its result (the
+        // PlayResult moment); the tackle itself carries none (#186).
         Moment.bHomeFavoured = !LastState.bHomeHasPossession;
         Publish(Moment);
     }
