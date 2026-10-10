@@ -98,10 +98,10 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Persistent broadcast-grade score bug (teams, score, quarter, clocks, timeouts, down/distance) plus a lower-third chyron system.
 **Depends on:** Core 5, Core 10, Core 12
 
-- [ ] Score bug widget consolidating game state (replaces/absorbs the Epic 5 debug HUD)
-- [ ] Possession + timeout pips, red-zone and two-minute state styling
-- [ ] Lower-third chyron queue (player stat lines, drive summaries) with priority/timing rules
-- [ ] Data-driven layout theme so Track C branding can reskin it per team/broadcast package
+- [x] Score bug widget consolidating game state (replaces/absorbs the Epic 5 debug HUD) *(`UPSOverlayScoreBugWidget`, built in code and shown by `APSHUD` by default, draws `UPSOverlayBroadcastSubsystem`'s model of `UPSPlaySimulation`'s new `GameState` bus event: teams, score, quarter, game and play clocks, down and distance. The sim announces only discrete changes; clocks run on in between. Look polish is an editor pass)*
+- [x] Possession + timeout pips, red-zone and two-minute state styling *(red zone and two-minute thresholds are theme data)*
+- [x] Lower-third chyron queue (player stat lines, drive summaries) with priority/timing rules *(`UPSOverlayChyronWidget`; per-kind priority and time on screen, cut-ins after a minimum time up, a queue limit and a gap. Fed by score alerts, drive summaries and play lines from the bus; `PushStatLine` is the door for Epic 92's box score, which doesn't exist yet)*
+- [x] Data-driven layout theme so Track C branding can reskin it per team/broadcast package *(`Data/broadcast_overlay.json`: colors, sizes, anchor, thresholds, chyron rules; known teams show their own abbreviation and color)*
 
 ### Epic 34: On-Field AR Paint
 

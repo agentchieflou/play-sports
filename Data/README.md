@@ -43,6 +43,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
+| `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -419,3 +420,23 @@ Single object (Epic 30; `UPSControlHandoffComponent`):
   next player in the same nearest-to-the-ball order instead of ranking again.
 - `PickLeftAction`, `PickRightAction`: the pre-snap direct-pick actions, each a Boolean action in
   the input catalog's `PreSnap` context.
+
+## Broadcast package schema (`FPSBroadcastOverlayTheme`)
+
+Single object (Epic 33; the score bug and the lower-third chyrons, `UPSOverlayBroadcastSubsystem`).
+Track C's branding reskins the broadcast by swapping this file:
+- `HomeLabel`, `AwayLabel`, `HomeColor`, `AwayColor`: a side whose team isn't known. With
+  `bUseTeamColors`, a known team (`sample_teams.json`) shows its own abbreviation and primary color.
+- Colors (`#RRGGBB`): `BarColor`, `TextColor`, `RedZoneColor` (the down-and-distance box in the
+  red zone), `TwoMinuteColor` (the clock in the two-minute state), `TimeoutColor` and
+  `TimeoutUsedColor` (the timeout pips), `ChyronColor`.
+- `Anchor` (`BottomCenter`, `TopCenter`, `TopLeft`), `ScoreFontSize`, `TextFontSize` (1 or more).
+- `RedZoneYardLine` (1-99, from the offense's goal line: 80 is the opponent's 20) and
+  `TwoMinuteSeconds` (the last this-many seconds of the 2nd and 4th quarters).
+- Chyron rules: `ChyronMaxQueued` (1 or more waiting; past it the lowest priority goes, oldest
+  first), `ChyronMinShowSeconds` (a higher priority chyron cuts in only after this),
+  `ChyronGapSeconds`, and `ChyronKinds[]`: one `Kind` each (`ScoreAlert`, `DriveSummary`,
+  `PlayStat`, `StatLine`, `Custom`) with its `Priority` (higher first) and `Seconds` on screen
+  (above 0).
+
+`UPSOverlayBroadcastSubsystem::ValidateTheme` and `tools/validate_data.py` check it.

@@ -21,6 +21,7 @@
 #include "PSTelemetrySamplingTypes.h"
 #include "PSOverlayReticle.h"
 #include "PSControlHandoffComponent.h"
+#include "PSOverlayBroadcastTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSDataIngestion.generated.h"
@@ -132,6 +133,12 @@ public:
     /** Loads the player-switch tuning (Data/control_handoff.json, Epic 30). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadControlHandoffTuningFromJson(const FString& JsonFilePath, FControlHandoffTuningRow& OutTuning);
+
+    /** Loads the broadcast package: score bug and chyron theme and rules
+     *  (Data/broadcast_overlay.json, Epic 33). False on a missing file, malformed JSON, or an
+     *  unrecognized Anchor or Kind. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadBroadcastOverlayThemeFromJson(const FString& JsonFilePath, FPSBroadcastOverlayTheme& OutTheme);
 
     /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */

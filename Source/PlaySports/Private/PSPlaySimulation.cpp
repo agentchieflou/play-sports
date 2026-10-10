@@ -1,4 +1,5 @@
 #include "PSPlaySimulation.h"
+#include "PSGameStateEvents.h"
 #include "PSRulesConfig.h"
 #include "PSGameMode.h"
 #include "PSPlayerPawn.h"
@@ -58,6 +59,7 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     ActivePenalty = EPSPenaltyType::None;
     bPenaltyDeclined = false;
     PhaseTimer = 0.f;
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::TriggerSnap()
@@ -85,6 +87,7 @@ void UPSPlaySimulation::TriggerSnap()
         PhaseTimer = 0.f;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
     }
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
@@ -92,6 +95,7 @@ void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
     CurrentState.Phase = NewPhase;
     PhaseTimer = 0.f;
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play phase overridden. Transited to: %s"), *UEnum::GetValueAsString(NewPhase));
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::RecordTackle(int32 YardsGained)
@@ -135,8 +139,7 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     CurrentState.GameTimeSeconds += DeltaSeconds;
     PhaseTimer += DeltaSeconds;
 
-    bool bShouldTickGameClock = (CurrentState.Phase != EPlayPhase::PreSnap) || CurrentState.bIsClockRunning;
-    if (bShouldTickGameClock && CurrentState.Phase != EPlayPhase::Scoring)
+    if (PSGameStateEvents::IsGameClockRunning(CurrentState))
     {
         CurrentState.GameClockSeconds -= DeltaSeconds;
         if (CurrentState.GameClockSeconds <= 0.f)
@@ -277,6 +280,7 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     default:
         break;
     }
+    PublishGameStateIfChanged();
 }
 
 FPlayState UPSPlaySimulation::GetPlayState() const
@@ -608,6 +612,9 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Drive complete. Plays: %d, Yards: %d, Result: %s"), 
             CurrentDriveSummary.Plays, CurrentDriveSummary.Yards, *CurrentDriveSummary.Result);
             
+        LastCompletedDrive = CurrentDriveSummary;
+        ++CompletedDrives;
+
         // Reset drive summary for next drive
         CurrentDriveSummary.Plays = 0;
         CurrentDriveSummary.Yards = 0;
@@ -687,6 +694,7 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Subscribed to TelemetryBus (C2)."));
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
@@ -727,6 +735,7 @@ void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
     // FPlayState in agreement so GetPlayState() callers see the right values).
     CurrentState.HomeScore = Event.HomeScore;
     CurrentState.AwayScore = Event.AwayScore;
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::OnBusPlayCallEvent(const FPSTelemetryPlayCallEvent& Event)
@@ -785,6 +794,25 @@ bool UPSPlaySimulation::CallTimeout(bool bHomeTeam)
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Timeout called by %s team. Timeouts remaining: %d"),
         bHomeTeam ? TEXT("Home") : TEXT("Away"), TimeoutsRemaining);
+    PublishGameStateIfChanged();
     return true;
+}
+
+void UPSPlaySimulation::PublishGameStateIfChanged()
+{
+    UPSTelemetryBus* Bus = CachedWorld ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Bus)
+    {
+        return;
+    }
+    const int32 MaxTimeouts = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
+    const FPSTelemetryGameStateEvent Event = PSGameStateEvents::MakeEvent(CurrentState, LastCompletedDrive, CompletedDrives, MaxTimeouts);
+    if (bHasPublishedGameState && Event.HasSameStateAs(LastPublishedGameState))
+    {
+        return;
+    }
+    LastPublishedGameState = Event;
+    bHasPublishedGameState = true;
+    Bus->PublishGameState(Event);
 }
 
