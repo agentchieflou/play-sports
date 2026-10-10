@@ -1,4 +1,5 @@
 #include "PSCommentaryEventModel.h"
+#include "PSFieldDimensions.h"
 #include "PSDataIngestion.h"
 #include "PSGameIntelligenceSubsystem.h"
 #include "PSGameStateEvents.h"
@@ -13,9 +14,6 @@
 
 namespace PSCommentaryEventModelPrivate
 {
-    /** Centimeters in a yard. */
-    constexpr float CmPerYard = 91.44f;
-
     /** A name shortened to Max characters. */
     FString Clip(const FString& Name, int32 Max)
     {
@@ -485,7 +483,7 @@ void UPSCommentaryEventModel::HandleThrow(const FPSTelemetryThrowEvent& Event)
     FPSTelemetryCommentaryEvent Moment = MakeMoment(EPSCommentaryMoment::Pass, EPSTelemetryEventType::Throw);
     Moment.PrimaryName = Event.PasserName;
     Moment.SecondaryName = Event.TargetReceiverName;
-    Moment.Magnitude = AirCm / PSCommentaryEventModelPrivate::CmPerYard;
+    Moment.Magnitude = PSField::CentimetresToYards(AirCm);
     Moment.Detail = AirCm >= GetTuning().DeepPassCm ? FName(TEXT("Deep")) : FName(TEXT("Short"));
     Publish(Moment);
 }
@@ -561,7 +559,7 @@ void UPSCommentaryEventModel::HandleBlownCoverage(const FPSTelemetryBlownCoverag
     FPSTelemetryCommentaryEvent Moment = MakeMoment(EPSCommentaryMoment::OpenReceiver, EPSTelemetryEventType::BlownCoverage);
     Moment.PrimaryName = Event.ReceiverName;
     Moment.SecondaryName = Event.HelperName;
-    Moment.Magnitude = Event.Separation / PSCommentaryEventModelPrivate::CmPerYard;
+    Moment.Magnitude = PSField::CentimetresToYards(Event.Separation);
     Publish(Moment);
 }
 
