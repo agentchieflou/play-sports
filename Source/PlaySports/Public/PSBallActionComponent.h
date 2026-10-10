@@ -50,7 +50,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "BallAction")
     void FumbleBall();
 
-    /** Resolve a physical tackle collision contest against an incoming defender */
+    /** Resolves a physical tackle contest against an incoming defender. A carrier it downs is
+     *  announced as a Tackle event on the telemetry bus (tackler, carrier, spot, yards, sack);
+     *  the play simulation records the play from that event. True when the tackle succeeded,
+     *  even if the carrier survived the hit or fumbled. */
     UFUNCTION(BlueprintCallable, Category = "BallAction")
     bool ResolveTackle(APSPlayerPawn* Defender);
 };
