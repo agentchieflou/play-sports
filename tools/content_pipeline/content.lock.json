@@ -1,0 +1,14 @@
+{
+    "Comment": "Written by the content pipeline (tools/content_pipeline, Specs/ADR_Content_Pipeline.md). Never edit it by hand: run the Content workflow and commit its generated-content artifact.",
+    "Steps": {
+        "game_map": {
+            "Outputs": {
+                "Content/Maps/GameMap.umap": "0ae93bef7f98857d3f8d15c285581718578c5b6169c89963ed49074f29af6221"
+            },
+            "Sources": {
+                "tools/content_pipeline/steps/game_map.py": "6b379225ddc9cd99f2af580a82aeb7cc7e705c074ba637c64814277a4eb1f5f4",
+                "tools/content_pipeline/ue_content.py": "a615429c9939a634b8c15828cacb26b126f9fe969190b1e5bfc185cda8a38451"
+            }
+        }
+    }
+}
