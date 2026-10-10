@@ -357,6 +357,10 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 - [x] Synchronized phase transitions: all agents react to snap/throw/turnover events from the play state machine
 - [ ] Broken-play adaptation: scramble drill, blown coverage reactions, blocked-kick chaos handling
 - [ ] Performance pass: 22 simultaneous behavior trees + physics at target frame rate
+  *Code-level pass done: `UPSAIFieldSnapshot` scans the field once a frame for every AI player
+  (it used to be several actor scans per decision), the decisions carry `stat PSAI` counters, and
+  `PlaySports.AI.Performance.OneFieldScanPerFrame` checks it. Still open: measuring the frame
+  rate on a device, with the procedure and budget in `Specs/Platform_Audit.md` section 6.*
 - [x] Determinism/replay hooks: seedable decisions so a play can be re-simulated for debugging
 
 ### Epic 18: Coaching & Play-Selection AI

@@ -11,7 +11,7 @@ build needs a Mac (Epic 131), and the CI runner is Windows (`Specs/ADR_CI_Enviro
 
 | Cost | Where | Scale |
 |---|---|---|
-| AI decisions | `UPSSkillPlayerAIComponent`, `UPSDefenderAIComponent` | Up to 22 players. Each decision reads every pawn on the field, so a full frame is about 22 × 22 pawn reads. |
+| AI decisions | `UPSSkillPlayerAIComponent`, `UPSDefenderAIComponent`, `UPSRushMoveComponent`, `UPSDefenderGapSubsystem` | Up to 22 players. The field is scanned once a frame (`UPSAIFieldSnapshot`, Epic 17.5) and shared; each decision then walks that list of 22 pawns a few times in memory. See section 6. |
 | Movement | `UFloatingPawnMovement` on every `APSPlayerPawn` | Kinematic, with no rigid-body simulation. Capsule overlaps drive tackles and blocks. |
 | Ball flight | `UProjectileMovementComponent` on `APSBall` | One ballistic projectile. |
 | UI | UMG HUD and menus built in code (Epics 5, 101, 102) | A few widgets that update each frame. |
@@ -104,3 +104,51 @@ cost on a device.
 | The AI decides at its tier's rate and steers in between | `PlaySports.Platform.AIDecidesAtTierRate` | — |
 | The profile's settings reach an iPhone | Nothing: Win64 CI never loads the IOS profile | A Mac build on the phone. Read `sg.*` and `t.MaxFPS` in the console, and check the engine's per-model profile doesn't override them. |
 | Frame time, memory and heat over a full game | Nothing | Xcode Instruments on the phone during a CPU-vs-CPU game: tune the tier numbers from those measurements |
+| The AI scans the field once a frame, however many players decide | `PlaySports.AI.Performance.OneFieldScanPerFrame` | — |
+| The AI's time per frame with 22 players | Nothing measured. `stat PSAI` shows it (section 6) | The device run in section 6 |
+
+## 6. AI performance pass (Epic 17.5)
+
+**What changed (code, verified headless).** Before this pass, each AI player's decision
+scanned every actor in the world several times. It looked for the ball carrier, the passer, the
+receivers and the nearest defender, and it copied each pawn's attribute row (strings included)
+to read its role. At 22 players that is about a hundred actor scans and thousands of row copies
+a frame.
+
+`UPSAIFieldSnapshot` (a world subsystem) now scans once a frame and keeps the pawn list and each
+pawn's role. Every AI system reads the field through it:
+- `UPSDefenderAIComponent`
+- `UPSSkillPlayerAIComponent`
+- `UPSRushMoveComponent`
+- `UPSDefenderGapSubsystem`
+
+Positions, velocities and possession are still read live, so nothing a decision sees is a frame
+old. A new frame, a pawn spawning, or a listed pawn being destroyed starts a new scan.
+`PlaySports.AI.Performance.OneFieldScanPerFrame` checks the contract: 22 players deciding twice
+in a frame scan once between them.
+
+**Players stay kinematic.** "Physics" in the roadmap story is `UFloatingPawnMovement` plus capsule
+overlaps; nothing is simulated (section 2). The gap accounting runs at the tier's
+`AIDecisionInterval`, like the players' decisions.
+
+**What is still to measure (needs a device, or at least a packaged Win64 build).** Nobody has
+measured the frame rate yet. Measure it with this procedure:
+1. Run a CPU-vs-CPU game: both sides called by the CPU, no human input, the default map.
+   - On Win64, run it in a Development build, not the editor.
+   - On the iPhone, run the Epic 131 build.
+2. Open the console and turn on `stat unit`, `stat game` and `stat PSAI`. Play at least one full
+   drive, so every play type runs: a run, a pass and a sack.
+3. Record the game-thread time and the `PSAI` counters at the snap, during the rush, and in
+   pursuit. The counters are:
+   - `Defender AI decision`
+   - `Skill player AI decision`
+   - `Field scan`
+4. Do it at each tier: the platform default on the phone, and `-PSTier=MobileBaseline` and
+   `-PSTier=MobileLow` on Win64 as a proxy.
+
+**Budget to check against.** These are proposed figures; nothing has measured them yet.
+- The whole AI should stay under 2 ms of game-thread time per frame on `MobileBaseline`. That is
+  an eighth of a 60 fps frame, which leaves room for movement, UI and the world kit.
+- If it doesn't, raise that tier's `AIDecisionInterval` before changing code.
+
+Record the measured numbers here, replacing this paragraph.
