@@ -86,6 +86,7 @@ every CI build.
 | `replay.json` | `FPSReplayTuning` (single object) | `UPSDataIngestion::LoadReplayTuningFromJson`, via `UPSReplaySubsystem` |
 | `highlights.json` | `FPSHighlightTuning` (single object) | `UPSDataIngestion::LoadHighlightTuningFromJson`, via `UPSHighlightSubsystem` |
 | `telestrator.json` | `FPSTelestratorTuning` (single object) | `UPSDataIngestion::LoadTelestratorTuningFromJson`, via `UPSTelestratorSubsystem` |
+| `photo_mode.json` | `FPSPhotoModeTuning` (single object) | `UPSDataIngestion::LoadPhotoModeTuningFromJson`, via `UPSPhotoModeSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
@@ -351,7 +352,10 @@ possesses a pawn.
   `Description`, optional `bRemappable` (default true). An action in a context with
   `bRemappable` false keeps its keys: the menus read `Menu`'s through Slate (Epic 103.4).
 - `Actions[]`: `ActionId` (unique), `ValueType` (`Boolean`, `Axis1D`, `Axis2D`, `Axis3D` --
-  the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`.
+  the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`,
+  optional `bTriggerWhenPaused` (default false; `UInputAction::bTriggerWhenPaused`). Enhanced
+  Input drops every other action while the game is paused, so the actions used over a paused
+  game set it: `Move`, `Pause` and the `Replay` buttons (a replay pauses the game under it).
 - `Bindings[]`: `Key` (an engine `EKeys` name such as `W`, `Mouse2D`, `Gamepad_Left2D`),
   optional `bSwizzleYX` (route a 1D key onto a 2D action's Y axis) and `bNegate`.
 
@@ -1365,6 +1369,29 @@ view):
 - `MaxMarks` (1 or more): the most marks on one frame.
 
 `UPSTelestratorSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Photo mode schema (`FPSPhotoModeTuning`)
+
+Single object (Epic 45; `UPSPhotoModeSubsystem`'s free camera, filters and photos):
+- The camera: `MoveCmPerSecond`, `RiseCmPerSecond`, `TurnDegreesPerSecond` (all above 0) and
+  `TurnStepDegrees` (0 or more: one press or swipe turns this much at once). `MaxPitchDegrees`
+  (above 0, below 90). `MaxDistanceCm` (above 0): how far it flies from where photo mode began.
+  `MinHeightCm`: the lowest world height it goes to.
+- Zoom, roll and focus: `MinFieldOfView` < `MaxFieldOfView` (degrees, within 0 to 180) and
+  `ZoomDegreesPerSecond`; `MaxRollDegrees` and `RollDegreesPerSecond`; `MinFocusCm` <
+  `MaxFocusCm`, `FocusDoublingsPerSecond`, and `DefaultFocusCm` between them (the focus when the
+  camera follows nobody).
+- `Apertures`: f-stops, ascending, stepped through by the aperture button; a leading 0 is depth
+  of field off. Photo mode starts on the first.
+- `Filters[]`: `FilterId` (unique) and what it changes, each defaulting to no change:
+  `Saturation` (0 is black and white), `Contrast` (both 0 or more, 1 unchanged), `Tint`
+  (`#RRGGBB`, multiplied in), `WhiteTemp` (K, 6500 unchanged), `Vignette` (0 to 1).
+- `Presets[]` (at least one): `PresetId` (unique) and `Filters`, a stack of filter ids. The
+  filter button steps through them; photo mode starts on the first.
+- `CaptureResolutionMultiplier` (1 or more) and `MaxCaptureDimension` (1 or more): a photo is the
+  viewport's size times the multiplier, its longer side at most the maximum.
+
+`UPSPhotoModeSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 
 ## Ball-flight overlay schema (`FPSBallFlightStyle`)
 

@@ -453,6 +453,10 @@ void UPSReplaySubsystem::StopReplay()
 
 void UPSReplaySubsystem::AdvanceReplay(float DeltaSeconds)
 {
+    if (bHeld)
+    {
+        return;
+    }
     const float Step = FMath::Max(0.f, DeltaSeconds);
     if (!IsReplaying())
     {
@@ -802,6 +806,15 @@ void UPSReplaySubsystem::SetPaused(bool bPaused)
         ShowPlayhead();
     }
     ReplayState = EPSReplayState::Playing;
+}
+
+void UPSReplaySubsystem::SetHeld(bool bInHeld)
+{
+    bHeld = bInHeld;
+    if (bHeld)
+    {
+        ScrubDirection = 0;
+    }
 }
 
 void UPSReplaySubsystem::TogglePause()
@@ -1203,7 +1216,7 @@ bool UPSReplaySubsystem::IsMenuOpen() const
 
 void UPSReplaySubsystem::HandleActionStarted(FName ActionId)
 {
-    if (!IsReplaying())
+    if (!IsReplaying() || bHeld)
     {
         return;
     }

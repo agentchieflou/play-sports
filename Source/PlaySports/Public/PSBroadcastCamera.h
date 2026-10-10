@@ -13,7 +13,9 @@ class UPSCameraSkycamComponent;
  * one thing drives it, first match wins: the debug free cam; the coaches film view (Epic 40,
  * its all-22 component, on the FilmView action); the camera director (Epic 38), which cuts
  * between its shots by itself; and otherwise the plain sideline follow of TargetActor. The
- * skycam (Epic 39) flies every tick whichever drives, so it is in position when cut to.
+ * skycam (Epic 39) flies every tick whichever drives, so it is in position when cut to. Photo
+ * mode (Epic 45, UPSPhotoModeSubsystem) flies it as the free cam, and hears its viewers'
+ * PhotoMode button from the moment they look through it.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSBroadcastCamera : public ACameraActor

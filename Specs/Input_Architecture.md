@@ -71,11 +71,22 @@ bind the same key.
 | `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | The strip attempt (Epic 104.5). X and LB still switch player from `OnField`. |
 | `Kicking` | 3 | `UPSPlayContextComponent`: a kickoff, punt or field goal, while the controlled player is on the kicking side (the offense) | The kick meter (Epic 104.5). It takes A from `OnField` while on. |
 | `Replay` | 4 | `UPSReplaySubsystem` (`APSPlayerController::SetModeContextActive`), on every player controller while a replay plays (Epic 41) | The replay's transport and camera. It takes A, B, X, Y, the bumpers and the D-pad's left and right from whatever the field has while on; Start still pauses, and the Move stick (from `OnField`) steers the free camera. |
+| `PhotoMode` | 5 | `UPSPhotoModeSubsystem` (`SetModeContextActive`), on every player controller while photo mode is on (Epic 45); it takes `Replay` off meanwhile and puts it back after | The free camera, its zoom, roll and focus, filters, guides, the UI toggle, capture and exit. It binds every pad button but Start, which still opens the pause menu over it. |
 
 The six gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
 one of them (`APSPlayerController::SetDepthContext`), on top of `OnField`. A mode context such as `Replay`
-sits over all of them and leaves them as they are (`SetModeContextActive`). An offensive player
+sits over all of them and leaves them as they are (`SetModeContextActive`); `PhotoMode` sits over
+`Replay` and takes it off while it is on, so a replay's buttons can't move the camera under it. An offensive player
 without the ball during the play has none, and neither does the receiving side during a kick.
+
+Paused input: Enhanced Input drops an action while the game is paused unless its `UInputAction`
+has `bTriggerWhenPaused`, which the catalog sets per action (`"bTriggerWhenPaused": true`). A
+replay pauses the game under it, so every `Replay` action sets it, and so do `Pause` (Start
+still opens the pause menu over a replay) and `Move` (the replay's free camera steers on it).
+Photo mode pauses the game too, so `PhotoMode` and every `PhotoMode` action set it.
+A `Move` while paused still reaches the controlled pawn's movement input, which the paused pawn
+uses on its first frame after the pause, clamped to one stick's worth. Menus are unaffected:
+their UI input mode sends keys to Slate, not to Enhanced Input.
 
 `APSPlayerController::ActiveInputContexts` is the stack. The controller mirrors it into the local
 player's `UEnhancedInputLocalPlayerSubsystem` when one exists. Headless test worlds have no local
@@ -89,7 +100,7 @@ as the Xbox glyph set labels them.
 
 | Action | Type | Contexts | Keyboard/mouse | Gamepad | Handled by |
 |---|---|---|---|---|---|
-| Move | Axis2D | World, OnField | W A S D, arrows | LS | `APSPlayerController::HandleMove` (relative to the control yaw) |
+| Move | Axis2D | World, OnField, PhotoMode | W A S D, arrows | LS | `APSPlayerController::HandleMove` (relative to the control yaw); in a replay and in photo mode it flies the free camera |
 | Look | Axis2D | World | Mouse | RS | nobody yet (Epic 143's camera) |
 | Sprint | Boolean | World, OnField | Shift | RT, L3 | the controller (pawn burst while held) |
 | Confirm | Boolean | OnField, Menu | Enter | A | `UPSPlayCallComponent` via `OnCatalogActionStarted`: hikes, or reopens the play-call screen (Epic 102); menus via Slate |
@@ -135,6 +146,19 @@ as the Xbox glyph set labels them.
 | ReplayScrubForward | Boolean | Replay | E | RB | the same: scrub forward while held |
 | ReplayCamera | Boolean | Replay | C | Y | the same: the director, the all-22 rigs, the skycam, the free camera (`Cameras` in `Data/replay.json`) |
 | ReplayExit | Boolean | Replay | Esc | B | the same: back to the game |
+| PhotoMode | Boolean | OnField, Replay | B | View, RS flick down | `UPSPhotoModeSubsystem` via `OnCatalogActionStarted` of each controller viewing through the broadcast camera: enters photo mode (Epic 45). Before the snap View is `Timeout` (PreSnap outranks OnField), so the flick down (and a swipe down on touch) is the way in there |
+| PhotoTurnLeft / PhotoTurnRight | Boolean | PhotoMode | J / L | RS flick left / right | the same: turn the camera, a step at once and then steadily while held |
+| PhotoTurnUp / PhotoTurnDown | Boolean | PhotoMode | I / K | RS flick up / down | the same: tilt it |
+| PhotoRise / PhotoLower | Boolean | PhotoMode | E / Q | RB / LB | the same: raise or lower it while held |
+| PhotoZoomIn / PhotoZoomOut | Boolean | PhotoMode | X / Z | RT / LT | the same: narrow or widen the field of view while held |
+| PhotoRollLeft / PhotoRollRight | Boolean | PhotoMode | , / . | D-pad Left / Right | the same: roll the horizon while held |
+| PhotoFocusNear / PhotoFocusFar | Boolean | PhotoMode | F / R | D-pad Down / Up | the same: move the focus while held |
+| PhotoAperture | Boolean | PhotoMode | C | X | the same: the next aperture (`Apertures` in `Data/photo_mode.json`; the first is depth of field off) |
+| PhotoFilter | Boolean | PhotoMode | V | View | the same: the next filter preset (`Presets`) |
+| PhotoGuides | Boolean | PhotoMode | G | R3 | the same: framing guide none → thirds → centre |
+| PhotoHideUI | Boolean | PhotoMode | H | Y | the same: hide or show the HUD, overlays and photo mode's controls |
+| PhotoCapture | Boolean | PhotoMode | Space | A | the same: a high-resolution screenshot |
+| PhotoExit | Boolean | PhotoMode | Esc | B | the same: back to the game or replay as it was |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
 every off-field context. On the field Y is taken: the tempo before the snap (the shell disguise on defense), slot 2 while

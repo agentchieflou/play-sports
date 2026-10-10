@@ -71,11 +71,11 @@ setting's choices in order and each assist a toggle in ui_settings.json (Epic 84
 "MeshRecognizeRadius" files against FPSDeceptionTuning (Epic 72): bite chances 0-1 with the floor
 under the ceiling, a discipline rating 0-100; "HardFailMultiplier" files against
 FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system, within its
-frame; "FocusAreas" files against FPSTrainingTuning (Epic 90): 0-1 fatigue, recovery and AI
-fields, the practice injury tuning, each focus area's roles, rating weights and play categories
-(each one opponent_model.json tracks on its side). Teams, the league config, the playbook, player
-rating ranges and every reference between files are tools/content_contracts.py's (Epic 125), run
-from here.
+frame; "FocusAreas" files against FPSTrainingTuning (Epic 90): 0-1 fatigue, recovery and AI fields,
+the practice injury tuning, each focus area's roles, rating weights and play categories (each one
+opponent_model.json tracks on its side); "CaptureResolutionMultiplier" files against
+FPSPhotoModeTuning (Epic 45). Teams, the league config, the playbook, player rating ranges and every
+reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -115,7 +115,8 @@ PLAYER_FIELDS = {
 
 INPUT_VALUE_TYPES = {"Boolean", "Axis1D", "Axis2D", "Axis3D"}
 INPUT_CONTEXT_FIELDS = {"ContextId": str, "Priority": int, "Description": str, "bRemappable": bool}
-INPUT_ACTION_FIELDS = {"ActionId": str, "ValueType": str, "Description": str, "Contexts": list, "Bindings": list}
+INPUT_ACTION_FIELDS = {"ActionId": str, "ValueType": str, "Description": str, "Contexts": list, "Bindings": list,
+                       "bTriggerWhenPaused": bool}
 INPUT_BINDING_FIELDS = {"Key": str, "bSwizzleYX": bool, "bNegate": bool}
 INPUT_REQUIRED = {"ContextId", "ActionId", "ValueType", "Contexts", "Bindings", "Key"}
 
@@ -1147,6 +1148,94 @@ def validate_telestrator(path, payload):
     extra = set(payload) - set(TELESTRATOR_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelestratorTuning exactly")
+
+
+PHOTO_MODE_NUMBERS = ("MoveCmPerSecond", "RiseCmPerSecond", "TurnDegreesPerSecond", "TurnStepDegrees", "MaxPitchDegrees",
+                      "MaxDistanceCm", "MinHeightCm", "MinFieldOfView", "MaxFieldOfView", "ZoomDegreesPerSecond",
+                      "MaxRollDegrees", "RollDegreesPerSecond", "MinFocusCm", "MaxFocusCm", "FocusDoublingsPerSecond",
+                      "DefaultFocusCm", "CaptureResolutionMultiplier")
+PHOTO_MODE_FIELDS = PHOTO_MODE_NUMBERS + ("Apertures", "Filters", "Presets", "MaxCaptureDimension")
+PHOTO_FILTER_FIELDS = ("FilterId", "Saturation", "Contrast", "Tint", "WhiteTemp", "Vignette")
+
+
+def validate_photo_mode(path, payload):
+    """FPSPhotoModeTuning (Data/photo_mode.json, Epic 45); mirrors UPSPhotoModeSubsystem::ValidateTuning."""
+    for field in PHOTO_MODE_NUMBERS:
+        if not is_number(payload.get(field)):
+            err(path, f"{field}: '{payload.get(field)}' must be a number")
+    num = {f: payload[f] for f in PHOTO_MODE_NUMBERS if is_number(payload.get(f))}
+    for field in ("MoveCmPerSecond", "RiseCmPerSecond", "TurnDegreesPerSecond", "MaxPitchDegrees", "MaxDistanceCm",
+                  "ZoomDegreesPerSecond", "MaxRollDegrees", "RollDegreesPerSecond", "FocusDoublingsPerSecond"):
+        if field in num and num[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    if num.get("TurnStepDegrees", 0) < 0:
+        err(path, "TurnStepDegrees: must be 0 or more")
+    if num.get("MaxPitchDegrees", 0) >= 90:
+        err(path, "MaxPitchDegrees: must be below 90")
+    lo, hi = num.get("MinFieldOfView"), num.get("MaxFieldOfView")
+    if lo is not None and hi is not None and not (0 < lo < hi < 180):
+        err(path, "the field of view needs 0 < MinFieldOfView < MaxFieldOfView < 180")
+    lo, hi, start = num.get("MinFocusCm"), num.get("MaxFocusCm"), num.get("DefaultFocusCm")
+    if None not in (lo, hi, start) and not (0 < lo < hi and lo <= start <= hi):
+        err(path, "the focus needs 0 < MinFocusCm < MaxFocusCm, with DefaultFocusCm between them")
+    if num.get("CaptureResolutionMultiplier", 1) < 1:
+        err(path, "CaptureResolutionMultiplier: must be 1 or more")
+    biggest = payload.get("MaxCaptureDimension")
+    if not isinstance(biggest, int) or isinstance(biggest, bool) or biggest < 1:
+        err(path, f"MaxCaptureDimension: '{biggest}' must be a whole number, 1 or more")
+
+    apertures = payload.get("Apertures")
+    if not isinstance(apertures, list) or not apertures or not all(is_number(a) for a in apertures):
+        err(path, "Apertures: must be a non-empty array of f-stops")
+    else:
+        for i, fstop in enumerate(apertures):
+            if fstop < 0 or (i > 0 and fstop <= apertures[i - 1]):
+                err(path, f"Apertures[{i}]: {fstop} must be 0 or more and above the one before")
+
+    filter_ids = set()
+    for i, row in enumerate(payload.get("Filters") or []):
+        where = f"Filters[{i}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        fid = row.get("FilterId")
+        if not isinstance(fid, str) or not fid or fid in filter_ids:
+            err(path, f"{where}: FilterId '{fid}' is empty or listed twice")
+        filter_ids.add(fid)
+        extra = set(row) - set(PHOTO_FILTER_FIELDS)
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSPhotoFilter exactly")
+        for field in ("Saturation", "Contrast"):
+            if field in row and (not is_number(row[field]) or row[field] < 0):
+                err(path, f"{where}.{field}: must be a number, 0 or more")
+        if "WhiteTemp" in row and (not is_number(row["WhiteTemp"]) or row["WhiteTemp"] <= 0):
+            err(path, f"{where}.WhiteTemp: must be a number above 0")
+        if "Vignette" in row and (not is_number(row["Vignette"]) or not 0 <= row["Vignette"] <= 1):
+            err(path, f"{where}.Vignette: must be a number from 0 to 1")
+        if "Tint" in row and not (isinstance(row["Tint"], str) and HEX_COLOR.match(row["Tint"])):
+            err(path, f"{where}.Tint: '{row['Tint']}' must be #RRGGBB")
+
+    presets = payload.get("Presets")
+    if not isinstance(presets, list) or not presets:
+        err(path, "Presets: must be a non-empty array")
+        presets = []
+    preset_ids = set()
+    for i, row in enumerate(presets):
+        where = f"Presets[{i}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        pid = row.get("PresetId")
+        if not isinstance(pid, str) or not pid or pid in preset_ids:
+            err(path, f"{where}: PresetId '{pid}' is empty or listed twice")
+        preset_ids.add(pid)
+        for fid in row.get("Filters") or []:
+            if fid not in filter_ids:
+                err(path, f"{where}: filter '{fid}' isn't in Filters")
+
+    extra = set(payload) - set(PHOTO_MODE_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPhotoModeTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -4158,6 +4247,8 @@ def main():
             validate_perf_harness(path, payload)
         if isinstance(payload, dict) and "FocusAreas" in payload:
             validate_training(path, payload, load_opponent_model_tracked())
+        if isinstance(payload, dict) and "CaptureResolutionMultiplier" in payload:
+            validate_photo_mode(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:
