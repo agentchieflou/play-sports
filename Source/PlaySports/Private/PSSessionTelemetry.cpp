@@ -102,6 +102,7 @@ void UPSSessionTelemetrySubsystem::Deinitialize()
         Bus->OnControlChangeMC.RemoveAll(this);
         Bus->OnPlayCallMC.RemoveAll(this);
         Bus->OnPumpFakeMC.RemoveAll(this);
+        Bus->OnPassRushMoveMC.RemoveAll(this);
     }
     BoundBus.Reset();
 
@@ -151,6 +152,7 @@ void UPSSessionTelemetrySubsystem::BindToBus(UPSTelemetryBus* Bus)
     Bus->OnControlChangeMC.AddWeakLambda(this, [this](const FPSTelemetryControlChangeEvent&) { RefreshCrashContext(); });
     Bus->OnPlayCallMC.AddWeakLambda(this, [this](const FPSTelemetryPlayCallEvent&) { RefreshCrashContext(); });
     Bus->OnPumpFakeMC.AddWeakLambda(this, [this](const FPSTelemetryPumpFakeEvent&) { RefreshCrashContext(); });
+    Bus->OnPassRushMoveMC.AddWeakLambda(this, [this](const FPSTelemetryPassRushEvent&) { RefreshCrashContext(); });
 }
 
 void UPSSessionTelemetrySubsystem::OnWorldBeginPlay(UWorld& InWorld)

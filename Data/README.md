@@ -35,6 +35,8 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
+| `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
@@ -247,6 +249,9 @@ budget as a field here; it never hardcodes a mobile case.
 - `Attribute` (`Agility`, `Strength` or `Speed`) and `MinAttribute` (0-100): the rating the move
   runs on, and the least that can do it.
 - `WindowSeconds`, `CooldownSeconds`, `StaminaCost`.
+- `CommitSeconds`: the move's commitment window (Epic 104.4). Once the move starts, no other move
+  starts for this long; a press that arrives meanwhile waits in the input buffer
+  (`input_buffer.json`). Track D's animations will own this number once they exist.
 - `TackleChanceScale`: what a tackle's chance is multiplied by during the window for a carrier
   rated 100; a lower rating gets proportionally less help.
 - `SpeedRetained` (0-1), `LateralSpeed`, `ForwardSpeed` (cm/s): the velocity change as the move
@@ -254,6 +259,46 @@ budget as a field here; it never hardcodes a mobile case.
 - `bGivesUp`: the slide. The next contact downs the carrier with no hit and no fumble.
 
 `UPSCarrierMoveComponent::ValidateCatalog` and `tools/validate_data.py` check it.
+
+## Input buffer schema (`FInputBufferTuningRow`)
+
+Single object (Epic 104.4; how long a press waits for a busy target, `Specs/Input_Architecture.md`
+section 6):
+- `MaxQueued` (1 or more): the most presses waiting at once. A newer press pushes out the oldest.
+- `Actions[]`, each a Boolean catalog action (once) with its `BufferSeconds`: a press waits this
+  long for its target (a carrier committed to a move or cooling down, a passer without the ball
+  yet), then is dropped. A press that meant nothing because its context was off counts in that
+  context if the context comes on within this long. Actions not listed pass straight through.
+
+`UPSInputBufferComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Pass-rush move schema (`FPSRushMoveCatalog`)
+
+Single object (Epic 70; how a CPU pass rusher beats the man blocking him):
+- `RushMoves[]`, one per move. Each has:
+  - `Move`: `Bull`, `Swim`, `Rip`, `Spin`, `Club` or `Split`, each once.
+  - `Attribute` and `BlockerAttribute` (`Strength`, `Agility`, `Speed` or `Awareness`): the
+    rusher's rating the move runs on and the blocker's rating that resists it.
+  - `MinAttribute` (0-100): below this rating the rusher doesn't have the move.
+  - `BaseWinChance` (0-1) and `RatingScalar`: the success curve, `BaseWinChance + (rusher rating -
+    blocker rating) * RatingScalar`, clamped to `WinChanceMin`..`WinChanceMax`.
+  - `MoveSeconds` (above 0), `StaminaCost`, and `WinBurstSpeed` (cm/s toward the passer on a win).
+  - `Response`: the blocker response that stops the move (`Anchor`, `Punch` or `Mirror`).
+    `Counters`: the response the move beats (or `None`), never its own `Response`.
+  - `DoubleTeamWinScale` (0-1): what the chance is multiplied by against two blockers.
+    `bDoubleTeamOnly`: the move is only used against a double team (the split).
+- `FirstMoveSeconds`, `RecoverySeconds`: from the engagement to the first move, and from a
+  stopped move to the next.
+- `CounterBonus` (0-1): added to a move's chance right after the blocker used the response it
+  counters (a blocker who anchored on a bull is spun off).
+- `WinChanceMin` <= `WinChanceMax` <= 1.
+- `HistoryPriorWeight` (above 0): how many tries the plan's estimate of a move is worth before
+  this blocker has seen it. The plan scores a move `(wins + HistoryPriorWeight * chance) /
+  (tries + HistoryPriorWeight)` over this game's tries against this blocker.
+- `DoubleTeamRadius` (cm): a free offensive lineman this close to the rusher is the second man
+  of a double team; a lineman engaged on him counts from anywhere.
+
+`PSRushMoves::ValidateCatalog` and `tools/validate_data.py` check it.
 
 ## Session telemetry schema (`FPSSessionTelemetryTuning`)
 

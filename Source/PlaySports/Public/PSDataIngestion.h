@@ -16,6 +16,8 @@
 #include "PSPassingComponent.h"
 #include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSInputBufferComponent.h"
+#include "PSRushMoveComponent.h"
 #include "PSSessionTelemetryTypes.h"
 #include "PSDataIngestion.generated.h"
 
@@ -98,6 +100,15 @@ public:
      *  missing file, malformed JSON, or an unrecognized Move. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
+
+    /** Loads the input buffer windows (Data/input_buffer.json, Epic 104.4). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadInputBufferTuningFromJson(const FString& JsonFilePath, FInputBufferTuningRow& OutTuning);
+
+    /** Loads the pass-rush move library (Data/pass_rush_moves.json, Epic 70). False on a
+     *  missing file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadRushMovesFromJson(const FString& JsonFilePath, FPSRushMoveCatalog& OutCatalog);
 
     /** Loads the session telemetry tuning (Data/session_telemetry.json, Epic 117). */
     UFUNCTION(BlueprintCallable, Category = "Data")
