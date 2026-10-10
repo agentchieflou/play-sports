@@ -94,7 +94,7 @@ storage and 10 GiB of LFS bandwidth a month**, reset each billing cycle.
 
 ```
 tools/content_pipeline/
-  pipeline.json      the steps: each one's Script, its Inputs (files it reads), its Outputs (assets it owns)
+  pipeline.json      the steps: each one's Script, its Inputs (files it reads), its Outputs (assets, or folders it owns whole)
   content.lock.json  written by the pipeline: digests of each step's sources and outputs when last built
   pipeline.py        no editor: the fast drift check, staging the artifact, applying it to a branch
   run_in_editor.py   the editor-side driver
@@ -121,7 +121,7 @@ arguments, so nothing depends on the editor's command-line quoting.
 
 **Triggers.** Manual dispatch (either mode, optionally chosen steps); pull requests and pushes
 to `main` that change `content.yml`, `tools/content_pipeline/**` or `Content/**`. A step whose
-inputs live elsewhere (146.5 reads `RawAssets/world/`) adds them to both path filters. A code-only
+inputs live elsewhere adds them to both path filters (the world kit's `RawAssets/world/**` and `tools/assets/world/**` are there). A code-only
 pull request never pays for the extra editor run on the shared runner.
 
 **Modes.**

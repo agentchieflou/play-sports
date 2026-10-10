@@ -79,7 +79,9 @@ def run():
     lock = pipeline.load_lock(repo)
     report = {"Mode": mode, "Succeeded": True, "Steps": []}
     for step in steps:
-        ctx = ue_content.StepContext(step["Id"], dry_run=(mode == "check"))
+        ctx = ue_content.StepContext(step["Id"], dry_run=(mode == "check"), repo=repo,
+                                     drift=pipeline.step_problems(repo, config, lock, step),
+                                     recorded_outputs=sorted(lock["Steps"].get(step["Id"], {}).get("Outputs", {})))
         entry = {"Id": step["Id"], "Changes": ctx.changes, "Saved": ctx.saved, "Error": None}
         try:
             _load_step_module(repo, step).build(ctx)

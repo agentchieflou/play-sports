@@ -18,8 +18,8 @@ name: Content
 #          no editor), then every step re-run in the editor without saving, which must find
 #          nothing to change.
 #
-# It runs only when the pipeline or Content/ changes (the paths below), so a code-only pull
-# request never pays for an extra editor run on the shared runner. ci.yml is separate.
+# It runs only when the pipeline, Content/ or a step's sources change (the paths below), so a
+# code-only pull request never pays for an extra editor run on the shared runner. ci.yml is separate.
 
 on:
   workflow_dispatch:
@@ -41,16 +41,21 @@ on:
       - .github/workflows/content.yml
       - tools/content_pipeline/**
       - Content/**
+      - RawAssets/world/**
+      - tools/assets/world/**
   push:
     branches: [main]
     paths:
       - .github/workflows/content.yml
       - tools/content_pipeline/**
       - Content/**
+      - RawAssets/world/**
+      - tools/assets/world/**
 
 concurrency:
   group: content-${{ github.ref }}
-  cancel-in-progress: false
+  # A pull request's newer push supersedes its older run, as in ci.yml; main's drift checks all run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -63,6 +68,7 @@ jobs:
     env:
       PS_CONTENT_MODE: ${{ github.event_name == 'push' && 'check' || inputs.mode || 'build' }}
       PS_CONTENT_STEPS: ${{ inputs.steps }}
+      PS_WORLD_KIT_DIR: ${{ github.workspace }}\Saved\WorldKit
     steps:
       - name: Checkout (with Git LFS)
         uses: actions/checkout@v4
@@ -88,6 +94,23 @@ jobs:
           if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
           & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$env:GITHUB_WORKSPACE\play-sports.uproject" -WaitMutex
           if ($LASTEXITCODE -ne 0) { throw "UnrealBuildTool failed with exit code $LASTEXITCODE" }
+
+      - name: Set up Node (the world kit's tools)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Make the world kit engine-ready
+        # Epic 142.2: RawAssets/world's WebP textures to PNG and its quantised geometry to floats,
+        # which Interchange needs, into Saved/WorldKit for the world_kit step.
+        shell: powershell
+        run: |
+          Push-Location tools/assets/world
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw "npm ci failed in tools/assets/world" }
+          node unreal.mjs ../../RawAssets/world ../../Saved/WorldKit
+          if ($LASTEXITCODE -ne 0) { throw "tools/assets/world/unreal.mjs failed" }
+          Pop-Location
 
       - name: Run the pipeline in the editor
         shell: powershell
