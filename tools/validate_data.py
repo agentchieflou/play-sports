@@ -18,7 +18,8 @@ FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotA
 against FPassingInputTuningRow, including that each named action is a Boolean in the input
 catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
-DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini.
+DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
+"RushMoves" files against FPSRushMoveCatalog.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -646,6 +647,77 @@ def validate_carrier_moves(path, payload, catalog):
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
 
 
+RUSH_MOVES = {"Bull", "Swim", "Rip", "Spin", "Club", "Split"}
+BLOCK_RESPONSES = {"Anchor", "Punch", "Mirror"}
+RUSH_ATTRIBUTES = {"Strength", "Agility", "Speed", "Awareness"}
+RUSH_MOVE_NUMBERS = ("MinAttribute", "BaseWinChance", "RatingScalar", "MoveSeconds", "StaminaCost", "WinBurstSpeed",
+                     "DoubleTeamWinScale")
+RUSH_CATALOG_NUMBERS = ("FirstMoveSeconds", "RecoverySeconds", "CounterBonus", "WinChanceMin", "WinChanceMax",
+                        "HistoryPriorWeight", "DoubleTeamRadius")
+
+
+def validate_rush_moves(path, payload):
+    """FPSRushMoveCatalog (Data/pass_rush_moves.json, Epic 70); mirrors
+    PSRushMoves::ValidateCatalog."""
+    for field in RUSH_CATALOG_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    low, high = payload.get("WinChanceMin"), payload.get("WinChanceMax")
+    if is_number(low) and is_number(high) and not low <= high <= 1:
+        err(path, f"WinChanceMin ({low}) <= WinChanceMax ({high}) <= 1 must hold")
+    if is_number(payload.get("CounterBonus")) and payload["CounterBonus"] > 1:
+        err(path, "CounterBonus is a chance: at most 1")
+    if is_number(payload.get("HistoryPriorWeight")) and payload["HistoryPriorWeight"] <= 0:
+        err(path, "HistoryPriorWeight must be positive")
+    extra = set(payload) - set(RUSH_CATALOG_NUMBERS) - {"RushMoves"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSRushMoveCatalog exactly")
+    moves = payload.get("RushMoves")
+    if not isinstance(moves, list) or not moves:
+        err(path, "'RushMoves' must be a non-empty array")
+        return
+    seen = set()
+    for idx, row in enumerate(moves):
+        where = f"RushMoves[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        move = row.get("Move")
+        if move not in RUSH_MOVES:
+            err(path, f"{where}.Move: '{move}' is not an EPSRushMove ({sorted(RUSH_MOVES)})")
+        elif move in seen:
+            err(path, f"{where}.Move: '{move}' is defined twice")
+        seen.add(move)
+        for field in ("Attribute", "BlockerAttribute"):
+            if row.get(field) not in RUSH_ATTRIBUTES:
+                err(path, f"{where}.{field}: '{row.get(field)}' must be one of {sorted(RUSH_ATTRIBUTES)}")
+        for field in RUSH_MOVE_NUMBERS:
+            value = row.get(field)
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.{field}: '{value}' must be a number, 0 or more")
+        if is_number(row.get("MinAttribute")) and row["MinAttribute"] > 100:
+            err(path, f"{where}.MinAttribute: ratings run 0-100")
+        for field in ("BaseWinChance", "DoubleTeamWinScale"):
+            if is_number(row.get(field)) and row[field] > 1:
+                err(path, f"{where}.{field}: at most 1")
+        if is_number(row.get("MoveSeconds")) and row["MoveSeconds"] <= 0:
+            err(path, f"{where}.MoveSeconds: must be positive")
+        response, counters = row.get("Response"), row.get("Counters")
+        if response not in BLOCK_RESPONSES:
+            err(path, f"{where}.Response: '{response}' must be one of {sorted(BLOCK_RESPONSES)} (what stops the move)")
+        if counters not in BLOCK_RESPONSES | {"None"}:
+            err(path, f"{where}.Counters: '{counters}' must be None or one of {sorted(BLOCK_RESPONSES)}")
+        elif counters == response:
+            err(path, f"{where}.Counters: a move can't counter the response that stops it")
+        if not isinstance(row.get("bDoubleTeamOnly"), bool):
+            err(path, f"{where}.bDoubleTeamOnly: must be true or false")
+        extra = set(row) - set(RUSH_MOVE_NUMBERS) - {"Move", "Attribute", "BlockerAttribute", "Response", "Counters",
+                                                     "bDoubleTeamOnly"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -700,6 +772,8 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "RushMoves" in payload:
+            validate_rush_moves(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:
