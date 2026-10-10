@@ -52,9 +52,9 @@ pass_rush_moves.json, and every player's optional "DNA" against its axes and his
 rating and guarantee bounds, offer ratios walk-away <= accept <= instant; "ShellSafeties" files
 against FPSDefensivePreSnapTuning (Epic 67), each action a Boolean in the DefensePreSnap context;
 "Hints" files against FPSHintCatalog (Epic 105.4); "PlaybackRates" files against FPSReplayTuning
-(Epic 41), each camera a named one or a rig in camera_all22.json. Teams, the league config, the
-playbook, player rating ranges and every reference between files are tools/content_contracts.py's
-(Epic 125), run from here.
+(Epic 41), each camera a named one or a rig in camera_all22.json; "DefenseNameFallback" files
+against FPSPersonnelPanelStyle (Epic 29). Teams, the league config, the playbook, player rating
+ranges and every reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -3024,6 +3024,78 @@ def validate_defensive_presnap(path, payload, catalog):
             err(path, f"{field}: '{action_id}' must be a Boolean action in the DefensePreSnap context")
 
 
+OFFENSE_ROLES = {"Quarterback", "RunningBack", "WideReceiver", "TightEnd", "OffensiveLineman"}
+DEFENSE_ROLES = {"DefensiveLineman", "Linebacker", "DefensiveBack"}
+PERSONNEL_PANEL_FIELDS = {"OffenseRoles", "DefenseRoles", "OffenseNameFormat", "DefenseNames", "DefenseNameFallback", "PanelColor",
+                          "TextColor", "FlashColor", "FontSize", "TitleFontSize", "ChangeFlashSeconds", "bShowInPlay"}
+
+
+def validate_personnel_panel(path, payload):
+    """FPSPersonnelPanelStyle (Data/personnel_panel.json, Epic 29); mirrors
+    UPSOverlayPersonnelSubsystem::ValidateStyle."""
+    for field, side_roles in (("OffenseRoles", OFFENSE_ROLES), ("DefenseRoles", DEFENSE_ROLES)):
+        rows = payload.get(field)
+        if not isinstance(rows, list) or not rows:
+            err(path, f"'{field}' must be a non-empty array")
+            continue
+        seen = set()
+        for idx, row in enumerate(rows):
+            where = f"{field}[{idx}]"
+            if not isinstance(row, dict):
+                err(path, f"{where}: must be an object")
+                continue
+            role = row.get("Role")
+            if role not in side_roles:
+                err(path, f"{where}.Role: '{role}' must be one of {sorted(side_roles)}")
+            elif role in seen:
+                err(path, f"{where}.Role: '{role}' is listed twice")
+            seen.add(role)
+            if not isinstance(row.get("Label"), str) or not row["Label"]:
+                err(path, f"{where}.Label: must be a non-empty string")
+            extra = set(row) - {"Role", "Label"}
+            if extra:
+                err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    backs = set()
+    names = payload.get("DefenseNames")
+    if not isinstance(names, list):
+        err(path, "'DefenseNames' must be an array")
+        names = []
+    for idx, row in enumerate(names):
+        where = f"DefenseNames[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        count = row.get("DefensiveBacks")
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            err(path, f"{where}.DefensiveBacks: '{count}' must be a whole number, 0 or more")
+        elif count in backs:
+            err(path, f"{where}.DefensiveBacks: {count} is named twice")
+        backs.add(count)
+        if not isinstance(row.get("Name"), str) or not row["Name"]:
+            err(path, f"{where}.Name: must be a non-empty string")
+        extra = set(row) - {"DefensiveBacks", "Name"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for field in ("OffenseNameFormat", "DefenseNameFallback"):
+        if not isinstance(payload.get(field), str) or not payload[field]:
+            err(path, f"{field}: must be a non-empty string")
+    for field in ("PanelColor", "TextColor", "FlashColor"):
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in ("FontSize", "TitleFontSize"):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            err(path, f"{field}: '{value}' must be a whole number, 1 or more")
+    flash = payload.get("ChangeFlashSeconds")
+    if not is_number(flash) or flash < 0:
+        err(path, f"ChangeFlashSeconds: '{flash}' must be a number, 0 or more")
+    if not isinstance(payload.get("bShowInPlay"), bool):
+        err(path, "bShowInPlay: must be true or false")
+    extra = set(payload) - PERSONNEL_PANEL_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPersonnelPanelStyle exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -3093,6 +3165,8 @@ def main():
             validate_control_handoff(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "ChyronKinds" in payload:
             validate_broadcast_overlay(path, payload)
+        if isinstance(payload, dict) and "DefenseNameFallback" in payload:
+            validate_personnel_panel(path, payload)
         if isinstance(payload, dict) and "UprightWidth" in payload:
             validate_ball_flight_overlay(path, payload)
         if isinstance(payload, dict) and "RoleLabels" in payload:

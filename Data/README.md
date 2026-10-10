@@ -91,6 +91,7 @@ every CI build.
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
 | `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
+| `personnel_panel.json` | `FPSPersonnelPanelStyle` (single object: the roles each panel counts, naming rules, colors) | `UPSDataIngestion::LoadPersonnelPanelStyleFromJson`, via `UPSOverlayPersonnelSubsystem` |
 | `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
 | `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
 | `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
@@ -934,6 +935,24 @@ Track C's branding reskins the broadcast by swapping this file:
   (above 0).
 
 `UPSOverlayBroadcastSubsystem::ValidateTheme` and `tools/validate_data.py` check it.
+
+## Personnel panel schema (`FPSPersonnelPanelStyle`)
+
+Single object (Epic 29; the offense and defense personnel panels, `UPSOverlayPersonnelSubsystem`,
+drawn by `UPSOverlayPersonnelWidget`). The counts are read live from the players on the field; a
+package `personnel_packages.json` lists with exactly those counts goes by its `DisplayName`, any
+other by the rules below.
+- `OffenseRoles[]`, `DefenseRoles[]`: the roles each panel counts, in order, each a `Role` of its
+  side with a `Label` ("RB 1 | TE 3 | WR 1").
+- `OffenseNameFormat`: an unlisted offensive package's name; `{Label}` stands for that role's
+  count (`"{RB}{TE} Personnel"` reads "13 Personnel").
+- `DefenseNames[]`: an unlisted defensive package's name by its `DefensiveBacks` (each count once),
+  and `DefenseNameFallback` for any other count (`"{DL}-{LB}-{DB}"`).
+- `PanelColor`, `TextColor`, `FlashColor` (`#RRGGBB`; a substitution flashes the panel and the
+  counts it changed toward `FlashColor` over `ChangeFlashSeconds`, 0 or more, on a Full tier),
+  `FontSize`, `TitleFontSize` (1 or more), `bShowInPlay` (false: before the snap only).
+
+`UPSOverlayPersonnelSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Position badge schema (`FPSOverlayBadgeStyle`)
 

@@ -92,6 +92,7 @@ Landed so far:
 |---|---|---|---|---|
 | Telemetry sampling, which overlays, trails and replay read (Epic 26) | `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` | 30 Hz, 0.25 ms a frame | 15 Hz, 0.15 ms | 10 Hz, 0.1 ms |
 | Broadcast overlays (Track A; first user: the Epic 30 reticle) | `OverlayDetail` | `Full`: animated | `Simplified`: no pulses or animated transitions | `Minimal`: score bug and the control reticle, static |
+| Personnel panels (Epic 29) | `OverlayDetail` | Shown, flashing on substitutions | Shown, no flash | Not shown |
 | Ball-flight indicators (Epic 32), on the same field | `OverlayDetail` | Arc that shortens behind the ball, landing spot, receiver lead, kick readout | Whole arc, static; landing spot, lead, readout | Landing spot and kick readout only |
 | Position badges (Epic 28), on the same field | `OverlayDetail` | Every group, fading in | Every group, no fade | The pass buttons only |
 | Player emphasis (Epic 36): custom-depth marks for outline, glow and dimming | `OverlayDetail` | Drawn, up to `MaxEmphasized` players | Drawn, up to `MaxEmphasized` players | Not drawn (requests kept) |

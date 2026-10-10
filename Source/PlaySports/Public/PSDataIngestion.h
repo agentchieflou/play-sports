@@ -26,6 +26,7 @@
 #include "PSOverlayReticle.h"
 #include "PSControlHandoffComponent.h"
 #include "PSOverlayBroadcastTypes.h"
+#include "PSOverlayPersonnelTypes.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSUIHintSubsystem.h"
 #include "PSOverlayBallFlightTypes.h"
@@ -201,6 +202,11 @@ public:
      *  unrecognized Anchor or Kind. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadBroadcastOverlayThemeFromJson(const FString& JsonFilePath, FPSBroadcastOverlayTheme& OutTheme);
+
+    /** Loads the personnel panels' style (Data/personnel_panel.json, Epic 29). False on a
+     *  missing file, malformed JSON, or an unrecognized Role. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPersonnelPanelStyleFromJson(const FString& JsonFilePath, FPSPersonnelPanelStyle& OutStyle);
 
     /** Loads the ball-flight overlay's look and rules (Data/ball_flight_overlay.json, Epic 32).
      *  False on a missing file or malformed JSON. */
