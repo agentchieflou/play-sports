@@ -8,7 +8,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "Async/Async.h"
 
-namespace
+namespace PSSaveSubsystemPrivate
 {
     constexpr uint32 SaveFileMagic = 0x50534156; // 'PSAV'
     constexpr int32 SaveFormatVersion = 1;
@@ -31,6 +31,16 @@ bool UPSSaveSubsystem::DoesSlotExist(const FString& SlotName) const
     return FPaths::FileExists(GetSlotPath(SlotName));
 }
 
+bool UPSSaveSubsystem::DeleteSlot(const FString& SlotName)
+{
+    IPlatformFile& FileSystem = FPlatformFileManager::Get().GetPlatformFile();
+    const FString Path = GetSlotPath(SlotName);
+    const FString BackupPath = Path + TEXT(".bak");
+    FileSystem.DeleteFile(*BackupPath);
+    FileSystem.DeleteFile(*Path);
+    return !FileSystem.FileExists(*Path) && !FileSystem.FileExists(*BackupPath);
+}
+
 bool UPSSaveSubsystem::SerializeToFileData(UPSSaveGame* SaveObject, TArray<uint8>& OutFileData) const
 {
     if (!SaveObject)
@@ -47,8 +57,8 @@ bool UPSSaveSubsystem::SerializeToFileData(UPSSaveGame* SaveObject, TArray<uint8
         return false;
     }
 
-    uint32 Magic = SaveFileMagic;
-    int32 FormatVersion = SaveFormatVersion;
+    uint32 Magic = PSSaveSubsystemPrivate::SaveFileMagic;
+    int32 FormatVersion = PSSaveSubsystemPrivate::SaveFormatVersion;
     uint32 PayloadCrc = FCrc::MemCrc32(Payload.GetData(), Payload.Num());
     int32 PayloadSize = Payload.Num();
 
@@ -63,7 +73,7 @@ bool UPSSaveSubsystem::SerializeToFileData(UPSSaveGame* SaveObject, TArray<uint8
 
 bool UPSSaveSubsystem::ValidateAndExtractPayload(const TArray<uint8>& FileData, TArray<uint8>& OutPayload)
 {
-    if (FileData.Num() <= HeaderBytes)
+    if (FileData.Num() <= PSSaveSubsystemPrivate::HeaderBytes)
     {
         return false;
     }
@@ -78,17 +88,17 @@ bool UPSSaveSubsystem::ValidateAndExtractPayload(const TArray<uint8>& FileData, 
     Reader << PayloadCrc;
     Reader << PayloadSize;
 
-    if (Magic != SaveFileMagic || FormatVersion != SaveFormatVersion)
+    if (Magic != PSSaveSubsystemPrivate::SaveFileMagic || FormatVersion != PSSaveSubsystemPrivate::SaveFormatVersion)
     {
         return false;
     }
-    if (PayloadSize <= 0 || FileData.Num() != HeaderBytes + PayloadSize)
+    if (PayloadSize <= 0 || FileData.Num() != PSSaveSubsystemPrivate::HeaderBytes + PayloadSize)
     {
         return false;
     }
 
     OutPayload.Reset(PayloadSize);
-    OutPayload.Append(FileData.GetData() + HeaderBytes, PayloadSize);
+    OutPayload.Append(FileData.GetData() + PSSaveSubsystemPrivate::HeaderBytes, PayloadSize);
 
     return FCrc::MemCrc32(OutPayload.GetData(), OutPayload.Num()) == PayloadCrc;
 }

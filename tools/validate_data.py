@@ -18,7 +18,8 @@ FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotA
 against FPassingInputTuningRow, including that each named action is a Boolean in the input
 catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
-DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini.
+DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
+"FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117).
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -599,6 +600,45 @@ CARRIER_MOVE_NUMBERS = ("MinAttribute", "WindowSeconds", "CooldownSeconds", "Sta
                         "SpeedRetained", "LateralSpeed", "ForwardSpeed")
 
 
+SESSION_TELEMETRY_FIELDS = {
+    "FrameTimeBucketMs": "number", "FrameTimeBucketCount": "int", "Percentiles": "list",
+    "MinSessionSeconds": "number", "MaxStoredSessions": "int", "CheckpointEveryPlays": "int",
+    "CrashBreadcrumbCount": "int",
+}
+
+
+def validate_session_telemetry(path, payload):
+    """FPSSessionTelemetryTuning (Data/session_telemetry.json, Epic 117); mirrors
+    UPSSessionTelemetrySubsystem::ValidateTuning."""
+    extra = set(payload) - set(SESSION_TELEMETRY_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSSessionTelemetryTuning exactly")
+    for field, kind in SESSION_TELEMETRY_FIELDS.items():
+        value = payload.get(field)
+        if kind == "number" and not is_number(value):
+            err(path, f"{field}: '{value}' must be a number")
+        elif kind == "int" and not (isinstance(value, int) and not isinstance(value, bool)):
+            err(path, f"{field}: '{value}' must be a whole number")
+        elif kind == "list" and not isinstance(value, list):
+            err(path, f"{field}: must be an array")
+    if is_number(payload.get("FrameTimeBucketMs")) and payload["FrameTimeBucketMs"] <= 0:
+        err(path, "FrameTimeBucketMs must be above 0")
+    for field, least in (("FrameTimeBucketCount", 1), ("MaxStoredSessions", 1), ("CheckpointEveryPlays", 0),
+                         ("CrashBreadcrumbCount", 0)):
+        value = payload.get(field)
+        if isinstance(value, int) and value < least:
+            err(path, f"{field} must be {least} or more")
+    if is_number(payload.get("MinSessionSeconds")) and payload["MinSessionSeconds"] < 0:
+        err(path, "MinSessionSeconds must not be negative")
+    percentiles = payload.get("Percentiles")
+    if isinstance(percentiles, list):
+        if not percentiles:
+            err(path, "Percentiles must name at least one percentile")
+        for value in percentiles:
+            if not is_number(value) or not 0 < value <= 100:
+                err(path, f"Percentiles: '{value}' must be a number in (0, 100]")
+
+
 def validate_carrier_moves(path, payload, catalog):
     """FPSCarrierMoveCatalog (Data/carrier_moves.json, Epic 104.2); mirrors
     UPSCarrierMoveComponent::ValidateCatalog plus the catalog cross-check."""
@@ -698,6 +738,8 @@ def main():
             validate_platform_tiers(path, payload)
         if isinstance(payload, dict) and "SlotActions" in payload:
             validate_passing_input(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "FrameTimeBucketMs" in payload:
+            validate_session_telemetry(path, payload)
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
     if errors:
