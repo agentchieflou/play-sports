@@ -311,6 +311,10 @@ private:
      *  catches no longer change the result. */
     bool IsBallDead() const;
 
+    /** A scrimmage play is under way: from the snap until the whistle (not before the snap, not
+     *  on a kick). Offensive holding is called only then. */
+    bool IsBallLive() const;
+
     /** A blocked kick's loose ball is being played out on the field (Epic 17.4). */
     bool bLooseBallLive = false;
 
