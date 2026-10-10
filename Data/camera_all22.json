@@ -1,0 +1,28 @@
+{
+    "All22Rigs": [
+        {
+            "RigId": "Sideline",
+            "Placement": "Sideline",
+            "HeightCm": 2700,
+            "StandoffCm": 5200,
+            "bTrackPlay": true,
+            "RailHalfLengthCm": 4572,
+            "MinFieldOfView": 30,
+            "MaxFieldOfView": 80
+        },
+        {
+            "RigId": "EndZone",
+            "Placement": "EndZone",
+            "HeightCm": 3000,
+            "StandoffCm": 6400,
+            "bTrackPlay": false,
+            "RailHalfLengthCm": 0,
+            "MinFieldOfView": 20,
+            "MaxFieldOfView": 80
+        }
+    ],
+    "FramingMarginCm": 300,
+    "PlayerHeightCm": 200,
+    "AspectRatio": 1.7778,
+    "ReframeSpeed": 2.0
+}
