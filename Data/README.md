@@ -112,6 +112,7 @@ every CI build.
 | `difficulty.json` | `FPSDifficultyCatalog` (single object: `DifficultyTiers`, the assists' setting IDs, `SuggestedPlayAccent`) | `UPSDataIngestion::LoadDifficultyCatalogFromJson`, via `UPSDifficultySubsystem` |
 | `perf_harness.json` | `FPSPerfHarnessTuning` (single object) | `UPSDataIngestion::LoadPerfHarnessTuningFromJson`, via `UPSPerfHarness`; also read by `tools/perf_budget.py` |
 | `game_intelligence.json` | `FPSGameIntelligenceTuning` (single object) | `UPSDataIngestion::LoadGameIntelligenceTuningFromJson`, via `UPSGameIntelligenceSubsystem`; its tasks are checked against `tools/orchestrator/routing.json` |
+| `league_narrative.json` | `FPSNarrativeTuning` (single object: storyline rules and `StorylineKinds`, award scoring, the vote, the digest's model task) | `UPSDataIngestion::LoadNarrativeTuningFromJson`, via `UPSLeagueNarrative` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1533,3 +1534,27 @@ the Epic 25 bridge):
   each request asks of the model.
 
 `UPSGameIntelligenceSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## League narrative schema (`FPSNarrativeTuning`)
+
+Single object (Epic 93; `UPSLeagueNarrative`, driven by `UPSFranchiseFlow`):
+- `StreakMin` (2 or more): wins or losses in a row that make a streak. `RookieSurgeTopN` (1 or more):
+  a rookie in a category's top this many is a story. `AwardRaceFromWeek` (1 or more) and
+  `AwardRaceMargin` (0 to 1): from that week, an MVP race whose second is within that share of the
+  leader is news.
+- `StorylineKinds[]`: exactly one `Weight` (0 or more) for each `Kind` (`WinStreak`, `LosingStreak`,
+  `RookieSurge`, `RevengeGame`, `RecordBroken`, `AwardRace`). The news and the broadcast lead with the
+  heaviest.
+- `MaxDigestItems`, `DigestsKept` (1 or more), `MaxBroadcastStorylines` (0 or more): a week's news
+  items, the digests kept in the save, a game's storyline chyrons.
+- `OffenseScoring[]`, `DefenseScoring[]` (`Category`, an `EPSStatCategory`, and `Weight`): award
+  scores. `MvpWinWeight` (0 or more): the MVP's score adds his team's winning share times it.
+- The season's vote: `VoterCount` (1 or more) voters, each seeing every score off by up to
+  `VoterNoise` (0 or more, under 1), rank `BallotPoints.Num()` players for those points (above 0,
+  never more for a lower place); `VotingSeed` with the season makes it repeatable.
+- `DigestTask` (a task in `tools/orchestrator/routing.json`), `DigestInstructions`,
+  `DigestContextChars` (512 or more): with Epic 82's bridge online, what a model is asked to write
+  each week, and the most characters of facts it gets.
+
+The news text itself is the string table's `Narrative.*` rows (`Data/ui_text.csv`).
+`UPSLeagueNarrative::ValidateTuning` and `tools/validate_data.py` check it.

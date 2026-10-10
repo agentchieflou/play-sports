@@ -72,8 +72,10 @@ setting's choices in order and each assist a toggle in ui_settings.json (Epic 84
 under the ceiling, a discipline rating 0-100; "HardFailMultiplier" files against
 FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system, within its
 frame; "PlayCallTimeoutSeconds" files against FPSGameIntelligenceTuning (Epic 82), each task one of
-tools/orchestrator/routing.json's. Teams, the league config, the playbook, player rating ranges and
-every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+tools/orchestrator/routing.json's; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one
+weight per EPSStorylineKind, award scoring by EPSStatCategory, a falling ballot, the digest's task one
+of routing.json's. Teams, the league config, the playbook, player rating ranges and every reference
+between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1175,6 +1177,85 @@ def validate_game_intelligence(path, payload):
         - set(GAME_INTELLIGENCE_COUNTS) - set(GAME_INTELLIGENCE_TASKS) - set(GAME_INTELLIGENCE_TEXTS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSGameIntelligenceTuning exactly")
+
+
+
+STORYLINE_KINDS = ("WinStreak", "LosingStreak", "RookieSurge", "RevengeGame", "RecordBroken", "AwardRace")
+STAT_CATEGORIES = ("PassingYards", "PassingTouchdowns", "Completions", "InterceptionsThrown", "RushingYards",
+                   "RushingTouchdowns", "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks",
+                   "Interceptions", "TeamPoints", "TeamTotalYards")
+NARRATIVE_COUNTS = ("RookieSurgeTopN", "AwardRaceFromWeek", "MaxDigestItems", "DigestsKept", "VoterCount")
+
+
+def validate_narrative(path, payload):
+    """FPSNarrativeTuning (Data/league_narrative.json, Epic 93); mirrors UPSLeagueNarrative::ValidateTuning."""
+    def whole(value):
+        return isinstance(value, int) and not isinstance(value, bool)
+
+    if not whole(payload.get("StreakMin")) or payload.get("StreakMin") < 2:
+        err(path, f"StreakMin: '{payload.get('StreakMin')}' must be a whole number, 2 or more")
+    for field in NARRATIVE_COUNTS:
+        if not whole(payload.get(field)) or payload.get(field) < 1:
+            err(path, f"{field}: '{payload.get(field)}' must be a whole number, 1 or more")
+    if not whole(payload.get("MaxBroadcastStorylines")) or payload.get("MaxBroadcastStorylines") < 0:
+        err(path, f"MaxBroadcastStorylines: '{payload.get('MaxBroadcastStorylines')}' must be a whole number, 0 or more")
+    margin = payload.get("AwardRaceMargin")
+    if not is_number(margin) or not 0 <= margin <= 1:
+        err(path, f"AwardRaceMargin: '{margin}' must be 0 to 1")
+    noise = payload.get("VoterNoise")
+    if not is_number(noise) or not 0 <= noise < 1:
+        err(path, f"VoterNoise: '{noise}' must be 0 or more, under 1")
+    if not is_number(payload.get("MvpWinWeight")) or payload.get("MvpWinWeight") < 0:
+        err(path, f"MvpWinWeight: '{payload.get('MvpWinWeight')}' must be a number, 0 or more")
+    if not whole(payload.get("VotingSeed")):
+        err(path, "VotingSeed must be a whole number")
+    kinds = payload.get("StorylineKinds")
+    if not isinstance(kinds, list):
+        err(path, "'StorylineKinds' must be an array")
+        kinds = []
+    for idx, entry in enumerate(kinds):
+        if not isinstance(entry, dict) or entry.get("Kind") not in STORYLINE_KINDS:
+            err(path, f"StorylineKinds[{idx}].Kind must be one of {list(STORYLINE_KINDS)}")
+        elif not is_number(entry.get("Weight")) or entry.get("Weight") < 0:
+            err(path, f"StorylineKinds[{idx}].Weight: '{entry.get('Weight')}' must be a number, 0 or more")
+    named = [entry.get("Kind") for entry in kinds if isinstance(entry, dict)]
+    for kind in STORYLINE_KINDS:
+        if named.count(kind) != 1:
+            err(path, f"StorylineKinds: '{kind}' must have exactly one entry")
+    for field in ("OffenseScoring", "DefenseScoring"):
+        weights = payload.get(field)
+        if not isinstance(weights, list) or not weights:
+            err(path, f"'{field}' must be a non-empty array")
+            continue
+        for idx, entry in enumerate(weights):
+            if not isinstance(entry, dict) or entry.get("Category") not in STAT_CATEGORIES:
+                err(path, f"{field}[{idx}].Category must be an EPSStatCategory ({list(STAT_CATEGORIES)})")
+            elif not is_number(entry.get("Weight")):
+                err(path, f"{field}[{idx}].Weight must be a number")
+    ballot = payload.get("BallotPoints")
+    if not isinstance(ballot, list) or not ballot or not all(whole(p) and p > 0 for p in ballot):
+        err(path, "BallotPoints must be a non-empty array of whole numbers above 0")
+    elif any(later > earlier for earlier, later in zip(ballot, ballot[1:])):
+        err(path, f"BallotPoints {ballot}: a lower place can't be worth more")
+    if not isinstance(payload.get("DigestInstructions"), str) or not payload.get("DigestInstructions").strip():
+        err(path, "DigestInstructions must be a non-empty string")
+    if not whole(payload.get("DigestContextChars")) or payload.get("DigestContextChars") < 512:
+        err(path, f"DigestContextChars: '{payload.get('DigestContextChars')}' must be a whole number, 512 or more")
+    task = payload.get("DigestTask")
+    try:
+        routes = json.loads(ROUTING_TABLE.read_text(encoding="utf-8")).get("tasks", {})
+    except (OSError, ValueError):
+        routes = None
+    if not isinstance(task, str) or not task:
+        err(path, "DigestTask must name a model-router task")
+    elif routes is not None and task not in routes:
+        err(path, f"DigestTask: '{task}' is not a task in tools/orchestrator/routing.json ({sorted(routes)})")
+    known = {"StreakMin", "AwardRaceMargin", "StorylineKinds", "MaxBroadcastStorylines", "OffenseScoring", "DefenseScoring",
+             "MvpWinWeight", "BallotPoints", "VoterNoise", "VotingSeed", "DigestTask", "DigestInstructions",
+             "DigestContextChars"} | set(NARRATIVE_COUNTS)
+    extra = set(payload) - known
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSNarrativeTuning exactly")
 
 
 TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks")
@@ -4054,6 +4135,8 @@ def main():
             validate_perf_harness(path, payload)
         if isinstance(payload, dict) and "PlayCallTimeoutSeconds" in payload:
             validate_game_intelligence(path, payload)
+        if isinstance(payload, dict) and "StorylineKinds" in payload:
+            validate_narrative(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

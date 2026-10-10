@@ -14,7 +14,9 @@ enum class EPSIntelRequestKind : uint8
     /** A finished game's drives, a sentence each. */
     DriveSummary,
     /** A finished game explained from its key plays. */
-    GameAnalysis
+    GameAnalysis,
+    /** A franchise week's league news written up from its storylines (Epic 93). */
+    NewsDigest
 };
 
 /** Where a request stands. */
