@@ -125,6 +125,7 @@ every CI build.
 | `audio_cues.json` | `FPSAudioTuning` (single object: `Cues`, `EventCues`, `LayerSettings`, `StartupLoops` and the moments' thresholds) | `UPSDataIngestion::LoadAudioTuningFromJson`, via `UPSAudioSubsystem`; its layers' settings are checked against `ui_settings.json` |
 | `crowd.json` | `FPSCrowdTuning` (single object: the excitement model, `Levels`, `CrowdReactions`) | `UPSDataIngestion::LoadCrowdTuningFromJson`, via `UPSCrowdExcitementSubsystem` |
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
+| `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1932,10 +1933,11 @@ into sound):
     `bScaleByIntensity` (its volume scales with the moment's force).
 - `EventCues[]`: `Trigger` (an `EPSAudioTrigger` other than `Manual`: `Snap`, `Cadence`,
   `Whistle`, `Tackle`, `Hit`, `Contact`, `Throw`, `Catch`, `Fumble`, `Kick`, `Score`,
-  `PlayResult`, `Flag`, `Timeout`, `GoalLine`, `CrowdLevel`, `CrowdReaction`, `QuarterEnd`),
+  `PlayResult`, `Flag`, `Timeout`, `GoalLine`, `CrowdLevel`, `CrowdReaction`, `QuarterEnd`, `Speech`),
   `Detail` (`None` for any, or what narrows the trigger: `Sack`, `Big`, `Deep`, `Interception`,
-  `Turnover`, a score's kind, a crowd level or reaction) and `CueId` (in `Cues`). Every rule that
-  matches plays.
+  `Turnover`, a score's kind, a crowd level or reaction, a spoken commentary line's `LineId`) and
+  `CueId` (in `Cues`). Every rule that matches plays. A recorded commentary line is a `Speech` rule
+  with its `LineId` (Epic 96); none is recorded yet.
 - `LayerSettings[]`: a `Layer` (once each) and the `SettingId` of a 0-100 slider in
   `ui_settings.json` that sets its volume. A layer without one plays at full volume.
 - `StartupLoops[]`: loops (in `Cues`) started when the match's world begins play: the stadium's
@@ -1979,6 +1981,13 @@ structured Commentary events):
 - `BigHitDamage`, `DeepPassCm`, `TwoMinuteWarningSeconds` (above 0): a big hit, a deep pass, and
   the two-minute warning's clock.
 - `MaxMomentsKept` (1 or more): moments (and model lines) kept.
+- Stakes (Epic 96.1), each 0-1, added and capped at 1: `LateQuarterStakes` from `LateGameQuarter`
+  (1 or more) on, `CloseGameStakes` within `CloseGameMargin` (0 or more) points,
+  `CriticalDownStakes` on third or fourth down, `RedZoneStakes` at or past `RedZoneYardLine`
+  (1-99), `ScoreStakes` for points, `TurnoverStakes` for a turnover.
+- Novelty (Epic 96.1): the first moment of its kind this game is 1, falling to 0 by its
+  `NoveltyHorizon`-th (1 or more); a play of `BigPlayYards` (1 or more) adds `BigPlayNovelty` (0-1);
+  a record is 1.
 - `bOfferToModels`, `ModelMoments[]` (each an `EPSCommentaryMoment` once): while Epic 82's bridge
   is online, these moments are offered to outside models as Commentary requests.
 - `ModelTask` (a task in `tools/orchestrator/routing.json`), `ModelInstructions` (not empty),
@@ -1986,3 +1995,39 @@ structured Commentary events):
   facts it gets.
 
 `UPSCommentaryEventModel::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Commentary booth schema (`FPSCommentaryLibrary`)
+
+Single object (Epic 96; `UPSCommentaryEngine`, the booth that speaks the commentary hooks' moments
+through the bus's caption event):
+- Pacing: a line takes its words over `WordsPerSecond` (above 0), within `MinLineSeconds` (above 0)
+  and `MaxLineSeconds` (at least that). A play-by-play line still waiting after `MaxDelaySeconds`,
+  or an analyst's after `ColorMaxDelaySeconds` (above 0), is dropped. A line cuts off the one being
+  said when its priority is at least `InterruptMargin` (0-100) higher; otherwise it waits in its
+  voice's queue of `QueueLength` (1 or more).
+- `ColorWindowDelaySeconds` (0 or more): the analyst speaks from this long after the play is over
+  until the snap, never over the play-by-play.
+- Selection: a line's score is its `Priority`, plus `StakesWeight` x the moment's stakes and
+  `NoveltyWeight` x its novelty, less `RepeatPenalty` x its uses this game (all 0 or more); lines
+  within `VarietyBand` (0 or more) of the best are picked among by a stream seeded with `Seed`.
+- Storylines (Epic 93): at most `MaxTalkingPointsPerGame` (0 or more) a game, at
+  `TalkingPointPriority` (0-100), `TalkingPointGapSeconds` (0 or more) apart, through the string
+  table's `Commentary.Storyline` (`{Headline}`, `{Body}`).
+- `bUseModelLines`, `ModelLinePriority` (0-100): an outside model's line for the play (Epic 82's
+  bridge) replaces the analyst's template line.
+- `MaxSpokenKept` (1 or more): spoken lines kept for the log.
+- `Lines[]`, each with a unique `LineId`, a `Voice` (`PlayByPlay` or `Color`), a `Moment` (an
+  `EPSCommentaryMoment`), a `Priority` (0-100) and, optionally:
+  - `CooldownSeconds`, `MaxPerGame`, `MaxPerSeason` (0 or more; 0 is no cap);
+  - conditions: `Detail` (the moment's; `None` or missing for any), `MinDown`/`MaxDown` (0-4),
+    `MinYards`/`MaxYards`, `MinStakes` (0-1), `bRequireFirstDown`, `bRequireTurnover`;
+  - `bNeedsPrimary`, `bNeedsSecondary`, `bNeedsTotal`: required when its text names `{Player}`,
+    `{Other}`, or `{Total}`/`{Stat}`, so a line is never said without them.
+
+Every moment has at least one `PlayByPlay` line. A line's text is `Data/ui_text.csv`'s
+`Commentary.Line.<LineId>`, naming only a moment's facts: `{Player}`, `{Other}`, `{Yards}`,
+`{Points}`, `{Down}`, `{Distance}`, `{Quarter}`, `{Clock}`, `{HomeScore}`, `{AwayScore}`, `{Total}`,
+`{Stat}` (a `Narrative.Stat.*` name) and `{Penalty}` (a `Commentary.Penalty.*` name). The voices'
+names are `Commentary.Voice.PlayByPlay` and `Commentary.Voice.Color`. The update rate is the
+platform tier's `AudioUpdateHz`. `UPSCommentaryEngine::ValidateLibrary` and `tools/validate_data.py`
+check it.

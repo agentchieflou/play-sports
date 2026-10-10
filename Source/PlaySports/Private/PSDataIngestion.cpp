@@ -1065,6 +1065,17 @@ bool UPSDataIngestion::LoadCommentaryHookTuningFromJson(const FString& JsonFileP
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
 }
 
+bool UPSDataIngestion::LoadCommentaryLibraryFromJson(const FString& JsonFilePath, FPSCommentaryLibrary& OutLibrary)
+{
+    const TSharedPtr<FJsonObject> ParsedJson = PSDataIngestionAudio::ReadObject(JsonFilePath);
+    if (!ParsedJson.IsValid())
+    {
+        return false;
+    }
+    OutLibrary.Lines.Reset();
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutLibrary, 0, 0);
+}
+
 bool UPSDataIngestion::LoadTelestratorTuningFromJson(const FString& JsonFilePath, FPSTelestratorTuning& OutTuning)
 {
     FString JsonString;

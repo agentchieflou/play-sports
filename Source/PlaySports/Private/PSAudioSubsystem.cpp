@@ -235,6 +235,7 @@ void UPSAudioSubsystem::BindToBus(UPSTelemetryBus* Bus)
     Bus->OnBoundaryCrossedMC.AddUObject(this, &UPSAudioSubsystem::HandleBoundaryCrossed);
     Bus->OnCrowdMC.AddUObject(this, &UPSAudioSubsystem::HandleCrowd);
     Bus->OnPreSnapMC.AddUObject(this, &UPSAudioSubsystem::HandlePreSnap);
+    Bus->OnSpeechMC.AddUObject(this, &UPSAudioSubsystem::HandleSpeech);
     BoundBus = Bus;
 }
 
@@ -258,6 +259,7 @@ void UPSAudioSubsystem::UnbindFromBus()
         Bus->OnBoundaryCrossedMC.RemoveAll(this);
         Bus->OnCrowdMC.RemoveAll(this);
         Bus->OnPreSnapMC.RemoveAll(this);
+        Bus->OnSpeechMC.RemoveAll(this);
     }
     BoundBus.Reset();
 }
@@ -409,6 +411,15 @@ void UPSAudioSubsystem::HandlePreSnap(const FPSTelemetryPreSnapEvent& Event)
 {
     PS_PERF_SCOPE(Audio);
     HandleMoment(PSAudioSubsystemPrivate::MakeMoment(EPSAudioTrigger::Cadence, PSAudioSubsystemPrivate::EnumName(Event.Action)));
+}
+
+void UPSAudioSubsystem::HandleSpeech(const FPSTelemetrySpeechEvent& Event)
+{
+    PS_PERF_SCOPE(Audio);
+    if (!Event.LineId.IsNone())
+    {
+        HandleMoment(PSAudioSubsystemPrivate::MakeMoment(EPSAudioTrigger::Speech, Event.LineId));
+    }
 }
 
 // --- Cues --------------------------------------------------------------------------------

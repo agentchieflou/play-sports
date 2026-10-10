@@ -3,6 +3,7 @@
 #include "PSGameIntelligenceSubsystem.h"
 #include "PSGameStateEvents.h"
 #include "PSPerfBudget.h"
+#include "PSStatsEngine.h"
 #include "Dom/JsonObject.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
@@ -60,6 +61,13 @@ namespace PSCommentaryEventModelPrivate
         if (Moment.Magnitude != 0.f)
         {
             Object->SetNumberField(TEXT("magnitude"), FMath::RoundToFloat(Moment.Magnitude * 10.f) / 10.f);
+        }
+        Object->SetNumberField(TEXT("stakes"), FMath::RoundToFloat(Moment.Stakes * 100.f) / 100.f);
+        Object->SetNumberField(TEXT("novelty"), FMath::RoundToFloat(Moment.Novelty * 100.f) / 100.f);
+        if (!Moment.PrimaryStat.IsNone())
+        {
+            Object->SetStringField(TEXT("playerStat"), Moment.PrimaryStat.ToString());
+            Object->SetNumberField(TEXT("playerGameTotal"), Moment.PrimaryGameTotal);
         }
         Object->SetBoolField(TEXT("firstDown"), Moment.bFirstDown);
         Object->SetBoolField(TEXT("turnover"), Moment.bTurnover);
@@ -162,6 +170,21 @@ TArray<FString> UPSCommentaryEventModel::ValidateTuning(const FPSCommentaryHookT
     {
         Problems.Add(TEXT("ModelContextChars must be 512 or more"));
     }
+    const float Weights[] = { InTuning.LateQuarterStakes, InTuning.CloseGameStakes, InTuning.CriticalDownStakes, InTuning.RedZoneStakes,
+        InTuning.ScoreStakes, InTuning.TurnoverStakes, InTuning.BigPlayNovelty };
+    for (const float Weight : Weights)
+    {
+        if (Weight < 0.f || Weight > 1.f)
+        {
+            Problems.Add(TEXT("The stakes and BigPlayNovelty must be 0-1"));
+            break;
+        }
+    }
+    if (InTuning.LateGameQuarter < 1 || InTuning.CloseGameMargin < 0 || InTuning.RedZoneYardLine < 1 || InTuning.RedZoneYardLine > 99
+        || InTuning.NoveltyHorizon < 1 || InTuning.BigPlayYards < 1)
+    {
+        Problems.Add(TEXT("LateGameQuarter, NoveltyHorizon and BigPlayYards must be 1 or more, CloseGameMargin 0 or more, RedZoneYardLine 1-99"));
+    }
     return Problems;
 }
 
@@ -209,6 +232,64 @@ void UPSCommentaryEventModel::UnbindFromBus()
         Bus->OnRecordBrokenMC.RemoveAll(this);
     }
     BoundBus.Reset();
+}
+
+void UPSCommentaryEventModel::SetStats(UPSStatsEngine* InStats)
+{
+    Stats = InStats;
+}
+
+float UPSCommentaryEventModel::ComputeStakes(const FPSTelemetryCommentaryEvent& Moment, const FPSCommentaryHookTuning& InTuning)
+{
+    float Stakes = 0.f;
+    Stakes += Moment.Quarter >= InTuning.LateGameQuarter ? InTuning.LateQuarterStakes : 0.f;
+    Stakes += FMath::Abs(Moment.HomeScore - Moment.AwayScore) <= InTuning.CloseGameMargin ? InTuning.CloseGameStakes : 0.f;
+    Stakes += Moment.Down >= 3 ? InTuning.CriticalDownStakes : 0.f;
+    Stakes += Moment.YardLine >= InTuning.RedZoneYardLine ? InTuning.RedZoneStakes : 0.f;
+    Stakes += Moment.Points > 0 ? InTuning.ScoreStakes : 0.f;
+    Stakes += Moment.bTurnover ? InTuning.TurnoverStakes : 0.f;
+    return FMath::Clamp(Stakes, 0.f, 1.f);
+}
+
+float UPSCommentaryEventModel::ComputeNovelty(const FPSTelemetryCommentaryEvent& Moment, int32 PriorOfKind, const FPSCommentaryHookTuning& InTuning)
+{
+    if (Moment.Moment == EPSCommentaryMoment::RecordBroken)
+    {
+        return 1.f;
+    }
+    const float Horizon = static_cast<float>(FMath::Max(1, InTuning.NoveltyHorizon));
+    float Novelty = 1.f - FMath::Min(1.f, static_cast<float>(FMath::Max(0, PriorOfKind)) / Horizon);
+    Novelty += FMath::Abs(Moment.Yards) >= InTuning.BigPlayYards ? InTuning.BigPlayNovelty : 0.f;
+    return FMath::Clamp(Novelty, 0.f, 1.f);
+}
+
+int32 UPSCommentaryEventModel::CountThisGame(EPSCommentaryMoment Kind) const
+{
+    const int32* Count = KindCounts.Find(Kind);
+    return Count ? *Count : 0;
+}
+
+int32 UPSCommentaryEventModel::GameTotalFor(FName PlayerId, EPSStatCategory Category, int32 InPlayNumber, int32 ThisPlay) const
+{
+    const UPSStatsEngine* StatsEngine = Stats.Get();
+    if (!StatsEngine || PlayerId.IsNone() || !StatsEngine->IsGameInProgress())
+    {
+        return -1;
+    }
+    const FPSBoxScore& Game = StatsEngine->GetCurrentGame();
+    const FPSPlayerStatLine* Line = Game.FindPlayer(PlayerId);
+    const int32 Recorded = Line ? Line->GetValue(Category) : 0;
+    // The statistics may hear the play after the booth does.
+    return Recorded + (Game.PlayCount < InPlayNumber ? ThisPlay : 0);
+}
+
+void UPSCommentaryEventModel::ResetGame()
+{
+    bHaveState = false;
+    bGameOver = false;
+    PlayNumber = 0;
+    KindCounts.Reset();
+    ResetPlay();
 }
 
 void UPSCommentaryEventModel::SetIntelligence(UPSGameIntelligenceSubsystem* InIntelligence)
@@ -277,9 +358,13 @@ FPSTelemetryCommentaryEvent UPSCommentaryEventModel::MakeMoment(EPSCommentaryMom
     return Moment;
 }
 
-void UPSCommentaryEventModel::Publish(const FPSTelemetryCommentaryEvent& Moment)
+void UPSCommentaryEventModel::Publish(FPSTelemetryCommentaryEvent Moment)
 {
     const FPSCommentaryHookTuning& Active = GetTuning();
+    // What the booth weighs (Epic 96.1): the stakes, and how new this is in this game.
+    Moment.Stakes = ComputeStakes(Moment, Active);
+    Moment.Novelty = ComputeNovelty(Moment, CountThisGame(Moment.Moment), Active);
+    KindCounts.FindOrAdd(Moment.Moment) += 1;
     Moments.Add(Moment);
     if (Moments.Num() > Active.MaxMomentsKept)
     {
@@ -341,10 +426,7 @@ void UPSCommentaryEventModel::HandleGameState(const FPSTelemetryGameStateEvent& 
     // A new game: the drive count went back, or the clock is back in regulation after a final.
     if (bHaveState && (Event.CompletedDrives < LastState.CompletedDrives || (bGameOver && Event.Quarter <= 4)))
     {
-        bHaveState = false;
-        bGameOver = false;
-        PlayNumber = 0;
-        ResetPlay();
+        ResetGame();
     }
     const bool bFirst = !bHaveState;
     const FPSTelemetryGameStateEvent Previous = LastState;
@@ -581,6 +663,40 @@ void UPSCommentaryEventModel::HandlePlayResult(const FPSTelemetryPlayResultEvent
         Moment.SecondaryId = Event.TacklerId;
     }
 
+    // The primary player's statistic this play adds to, and his game total with it (Epic 92).
+    EPSStatCategory Category = EPSStatCategory::RushingYards;
+    int32 ThisPlay = Event.YardsGained;
+    bool bHasStat = !Moment.PrimaryId.IsNone();
+    if (Event.bInterception)
+    {
+        Category = EPSStatCategory::Interceptions;
+        ThisPlay = 1;
+    }
+    else if (Event.bSack)
+    {
+        Category = EPSStatCategory::Sacks;
+        ThisPlay = 1;
+    }
+    else if (Event.bPass && Event.bComplete)
+    {
+        Category = EPSStatCategory::ReceivingYards;
+    }
+    else if (Event.bPass)
+    {
+        Category = EPSStatCategory::PassingYards;
+        ThisPlay = 0;
+    }
+    else
+    {
+        bHasStat = bHasStat && !Event.RusherId.IsNone();
+    }
+    const int32 Total = bHasStat ? GameTotalFor(Moment.PrimaryId, Category, Event.PlayNumber, ThisPlay) : -1;
+    if (Total >= 0)
+    {
+        Moment.PrimaryStat = FName(*StaticEnum<EPSStatCategory>()->GetNameStringByValue(static_cast<int64>(Category)));
+        Moment.PrimaryGameTotal = Total;
+    }
+
     const bool bHomeOff = Event.bHomeOffense;
     Moment.bHomeFavoured = Moment.Points > 0 ? Event.HomePoints > Event.AwayPoints
         : Moment.bTurnover ? !bHomeOff
@@ -595,6 +711,16 @@ void UPSCommentaryEventModel::HandlePlayResult(const FPSTelemetryPlayResultEvent
             : Event.Result == TEXT("FieldGoalGood") ? FName(TEXT("FieldGoalGood"))
             : Event.Result == TEXT("Safety") ? FName(TEXT("Safety"))
             : FName(*Event.Result);
+        // A touchdown counts in its scorer's touchdowns.
+        const bool bPassScore = Event.bPass && Event.bComplete && !Event.bInterception;
+        const bool bRunScore = !Event.bPass && !Event.RusherId.IsNone();
+        if (Moment.Points >= 6 && (bPassScore || bRunScore))
+        {
+            const EPSStatCategory Touchdowns = bPassScore ? EPSStatCategory::ReceivingTouchdowns : EPSStatCategory::RushingTouchdowns;
+            const int32 Scored = GameTotalFor(Score.PrimaryId, Touchdowns, Event.PlayNumber, 1);
+            Score.PrimaryStat = Scored >= 0 ? FName(*StaticEnum<EPSStatCategory>()->GetNameStringByValue(static_cast<int64>(Touchdowns))) : NAME_None;
+            Score.PrimaryGameTotal = FMath::Max(Scored, 0);
+        }
         Publish(Score);
     }
     ResetPlay();

@@ -998,6 +998,11 @@ struct FPSTelemetrySpeechEvent
     /** How long it is spoken; 0 lets the caption time it from its length. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     float DurationSeconds = 0.f;
+
+    /** The commentary line spoken (Epic 96's library), for its recorded voice-over; None for
+     *  anything else. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName LineId;
 };
 
 /** The quarterback's pocket play (Epic 71): an escape (the scramble drill's trigger), a
@@ -1558,6 +1563,23 @@ struct FPSTelemetryCommentaryEvent
     /** The Sequence of the bus event it describes. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     int32 SourceSequence = 0;
+
+    /** How much the moment matters, 0-1 (Epic 96): late in the game, a close score, a big down,
+     *  the red zone, points, a turnover. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Stakes = 0.f;
+
+    /** How unusual it is, 0-1 (Epic 96): the first of its kind this game, a big play, a record. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Novelty = 0.f;
+
+    /** The statistic the primary player's moment adds to (an EPSStatCategory by name; None
+     *  without one), and his total in it this game with this play (Epic 92's box score). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PrimaryStat;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PrimaryGameTotal = 0;
 };
 
 USTRUCT(BlueprintType)

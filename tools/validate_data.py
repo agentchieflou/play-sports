@@ -99,7 +99,11 @@ group, each rule's trigger an EPSAudioTrigger and its cue in the catalog, each l
 0-100 slider in ui_settings.json; "CrowdReactions" files against FPSCrowdTuning (Epic 23.2): every
 EPSCrowdLevel once with rising thresholds from Hush's 0, every EPSCrowdStimulus once with -1..1
 deltas; "ModelMoments" files against FPSCommentaryHookTuning (Epic 23.5), each moment an
-EPSCommentaryMoment and the task one of routing.json's. Teams, the league config, the playbook,
+EPSCommentaryMoment and the task one of routing.json's, the stakes and novelty weights 0-1 (Epic
+96.1); "InterruptMargin" files against FPSCommentaryLibrary (Epic 96): the booth's pacing, every
+line's voice, moment and conditions, its Commentary.Line.<LineId> text in Data/ui_text.csv naming
+only the facts it may and the players and totals it says it needs, a play-by-play line for every
+moment, and the voices', storyline's and fouls' rows. Teams, the league config, the playbook,
 player rating ranges and every reference between files are tools/content_contracts.py's (Epic 125),
 run from here.
 
@@ -1491,8 +1495,11 @@ def validate_crowd(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCrowdTuning exactly")
 
 
+COMMENTARY_STAKES = ("LateQuarterStakes", "CloseGameStakes", "CriticalDownStakes", "RedZoneStakes", "ScoreStakes",
+                     "TurnoverStakes", "BigPlayNovelty")
 COMMENTARY_HOOK_FIELDS = {"BigHitDamage", "DeepPassCm", "TwoMinuteWarningSeconds", "MaxMomentsKept", "bOfferToModels",
-                          "ModelMoments", "ModelTask", "ModelInstructions", "ModelContextChars"}
+                          "ModelMoments", "ModelTask", "ModelInstructions", "ModelContextChars", "LateGameQuarter",
+                          "CloseGameMargin", "RedZoneYardLine", "NoveltyHorizon", "BigPlayYards", *COMMENTARY_STAKES}
 
 
 def validate_commentary_hooks(path, payload):
@@ -1504,6 +1511,14 @@ def validate_commentary_hooks(path, payload):
             err(path, f"{field}: '{payload.get(field)}' must be a number above 0")
     if not whole_number(payload.get("MaxMomentsKept")) or payload.get("MaxMomentsKept") < 1:
         err(path, f"MaxMomentsKept: '{payload.get('MaxMomentsKept')}' must be a whole number, 1 or more")
+    for field in COMMENTARY_STAKES:
+        if not is_number(payload.get(field)) or not 0 <= payload.get(field) <= 1:
+            err(path, f"{field}: '{payload.get(field)}' must be 0-1")
+    for field, low, high in (("LateGameQuarter", 1, None), ("CloseGameMargin", 0, None), ("RedZoneYardLine", 1, 99),
+                             ("NoveltyHorizon", 1, None), ("BigPlayYards", 1, None)):
+        value = payload.get(field)
+        if not whole_number(value) or value < low or (high is not None and value > high):
+            err(path, f"{field}: '{value}' must be a whole number, {low} or more" + (f", at most {high}" if high else ""))
     if not isinstance(payload.get("bOfferToModels"), bool):
         err(path, "bOfferToModels must be true or false")
     offered = payload.get("ModelMoments")
@@ -1531,6 +1546,121 @@ def validate_commentary_hooks(path, payload):
     extra = set(payload) - COMMENTARY_HOOK_FIELDS
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCommentaryHookTuning exactly")
+
+
+COMMENTARY_LINE_PLACEHOLDERS = {"Player", "Other", "Yards", "Points", "Down", "Distance", "Quarter", "Clock", "HomeScore",
+                                "AwayScore", "Total", "Stat", "Penalty"}
+COMMENTARY_LINE_TYPES = {"LineId": str, "Voice": str, "Moment": str, "Priority": int, "CooldownSeconds": (int, float),
+                         "MaxPerGame": int, "MaxPerSeason": int, "Detail": str, "MinDown": int, "MaxDown": int,
+                         "MinYards": int, "MaxYards": int, "MinStakes": (int, float), "bRequireFirstDown": bool,
+                         "bRequireTurnover": bool, "bNeedsPrimary": bool, "bNeedsSecondary": bool, "bNeedsTotal": bool}
+COMMENTARY_LIBRARY_NUMBERS = {"WordsPerSecond": 0, "MinLineSeconds": 0, "MaxDelaySeconds": 0, "ColorMaxDelaySeconds": 0}
+COMMENTARY_LIBRARY_FIELDS = {"Seed", "WordsPerSecond", "MinLineSeconds", "MaxLineSeconds", "MaxDelaySeconds",
+                             "ColorMaxDelaySeconds", "InterruptMargin", "QueueLength", "ColorWindowDelaySeconds",
+                             "StakesWeight", "NoveltyWeight", "RepeatPenalty", "VarietyBand", "MaxTalkingPointsPerGame",
+                             "TalkingPointPriority", "TalkingPointGapSeconds", "bUseModelLines", "ModelLinePriority",
+                             "MaxSpokenKept", "Lines"}
+
+
+def placeholders(text):
+    return set(re.findall(r"\{(\w+)\}", text))
+
+
+def validate_commentary_lines(path, payload):
+    """FPSCommentaryLibrary (Data/commentary_lines.json, Epic 96); mirrors
+    UPSCommentaryEngine::ValidateLibrary, plus each line's text in Data/ui_text.csv."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ui_text
+    table, _ = ui_text.read_table(ui_text.UI_TEXT)
+    voices = header_enum("PSCommentaryTypes.h", "EPSCommentaryVoice") or []
+    moments = header_enum("PSTelemetryBus.h", "EPSCommentaryMoment") or []
+    penalties = [name for name in (header_enum("PSPlaySimulation.h", "EPSPenaltyType") or []) if name != "None"]
+    for field, low in COMMENTARY_LIBRARY_NUMBERS.items():
+        if not is_number(payload.get(field)) or payload.get(field) <= low:
+            err(path, f"{field}: '{payload.get(field)}' must be a number above {low}")
+    if is_number(payload.get("MinLineSeconds")) and (not is_number(payload.get("MaxLineSeconds"))
+                                                     or payload.get("MaxLineSeconds") < payload.get("MinLineSeconds")):
+        err(path, "MaxLineSeconds must be a number, at least MinLineSeconds")
+    for field in ("ColorWindowDelaySeconds", "TalkingPointGapSeconds", "StakesWeight", "NoveltyWeight", "RepeatPenalty",
+                  "VarietyBand"):
+        if not is_number(payload.get(field)) or payload.get(field) < 0:
+            err(path, f"{field}: '{payload.get(field)}' must be a number, 0 or more")
+    for field, low, high in (("InterruptMargin", 0, 100), ("QueueLength", 1, None), ("MaxSpokenKept", 1, None),
+                             ("MaxTalkingPointsPerGame", 0, None), ("TalkingPointPriority", 0, 100),
+                             ("ModelLinePriority", 0, 100)):
+        value = payload.get(field)
+        if not whole_number(value) or value < low or (high is not None and value > high):
+            err(path, f"{field}: '{value}' must be a whole number, {low}" + (f"-{high}" if high is not None else " or more"))
+    if not whole_number(payload.get("Seed")):
+        err(path, "Seed must be a whole number")
+    if not isinstance(payload.get("bUseModelLines"), bool):
+        err(path, "bUseModelLines must be true or false")
+    lines = payload.get("Lines")
+    if not isinstance(lines, list) or not lines:
+        err(path, "'Lines' must be a non-empty array")
+        lines = []
+    seen = set()
+    called = set()
+    for idx, line in enumerate(lines):
+        where = f"Lines[{idx}]"
+        if not isinstance(line, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        line_id = line.get("LineId")
+        if not isinstance(line_id, str) or not line_id or line_id in seen:
+            err(path, f"{where}.LineId: empty or used twice")
+            continue
+        seen.add(line_id)
+        where = f"{where} {line_id}"
+        for field, kind in COMMENTARY_LINE_TYPES.items():
+            if field in line and (not isinstance(line[field], kind) or (kind is int and isinstance(line[field], bool))):
+                err(path, f"{where}: {field} has the wrong type")
+        for field in ("LineId", "Voice", "Moment", "Priority"):
+            if field not in line:
+                err(path, f"{where}: needs {field}")
+        if set(line) - set(COMMENTARY_LINE_TYPES):
+            err(path, f"{where}: unknown field(s) {sorted(set(line) - set(COMMENTARY_LINE_TYPES))}")
+        if voices and line.get("Voice") not in voices:
+            err(path, f"{where}: Voice must be one of {voices}")
+        if moments and line.get("Moment") not in moments:
+            err(path, f"{where}: Moment must be one of {moments}")
+        if line.get("Voice") == "PlayByPlay":
+            called.add(line.get("Moment"))
+        priority = line.get("Priority")
+        if whole_number(priority) and not 0 <= priority <= 100:
+            err(path, f"{where}: Priority {priority} must be 0-100")
+        for field in ("CooldownSeconds", "MaxPerGame", "MaxPerSeason"):
+            if is_number(line.get(field, 0)) and line.get(field, 0) < 0:
+                err(path, f"{where}: {field} must be 0 or more")
+        min_down, max_down = line.get("MinDown", 0), line.get("MaxDown", 4)
+        min_yards, max_yards = line.get("MinYards", -100), line.get("MaxYards", 100)
+        stakes = line.get("MinStakes", 0)
+        if (whole_number(min_down) and whole_number(max_down) and not 0 <= min_down <= max_down <= 4) \
+                or (whole_number(min_yards) and whole_number(max_yards) and min_yards > max_yards) \
+                or (is_number(stakes) and not 0 <= stakes <= 1):
+            err(path, f"{where}: its conditions can't hold (downs 0-4, MinYards at most MaxYards, MinStakes 0-1)")
+        key = f"Commentary.Line.{line_id}"
+        if key not in table:
+            err(path, f"{where}: no '{key}' row in Data/ui_text.csv")
+            continue
+        used = placeholders(table[key])
+        if used - COMMENTARY_LINE_PLACEHOLDERS:
+            err(path, f"{where}: its text names {sorted(used - COMMENTARY_LINE_PLACEHOLDERS)}, not facts of a moment ({sorted(COMMENTARY_LINE_PLACEHOLDERS)})")
+        for needed, flag in ((("Player",), "bNeedsPrimary"), (("Other",), "bNeedsSecondary"), (("Total", "Stat"), "bNeedsTotal")):
+            if used & set(needed) and line.get(flag) is not True:
+                err(path, f"{where}: its text names {{{needed[0]}}}, so it needs {flag}: true (never said without it)")
+    for moment in moments:
+        if moment not in called:
+            err(path, f"Lines: no PlayByPlay line for the {moment} moment")
+    for key in ("Commentary.Voice.PlayByPlay", "Commentary.Voice.Color", "Commentary.Storyline",
+                *[f"Commentary.Penalty.{name}" for name in penalties]):
+        if key not in table:
+            err(path, f"no '{key}' row in Data/ui_text.csv (the booth says it)")
+    if "Commentary.Storyline" in table and placeholders(table["Commentary.Storyline"]) - {"Headline", "Body"}:
+        err(path, "Commentary.Storyline may name only {Headline} and {Body}")
+    extra = set(payload) - COMMENTARY_LIBRARY_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCommentaryLibrary exactly")
 
 
 TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks",
@@ -5451,6 +5581,8 @@ def main(root=None):
             validate_crowd(path, payload)
         if isinstance(payload, dict) and "ModelMoments" in payload:
             validate_commentary_hooks(path, payload)
+        if isinstance(payload, dict) and "InterruptMargin" in payload:
+            validate_commentary_lines(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()
