@@ -83,6 +83,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Touch")
     TArray<FPSTouchBindingDef> GetActiveControls();
 
+    /** What the touch HUD draws now (Epic 146.4): the stick and every button an active context
+     *  binds, each placed (GetControlPlacement), with the action and context it drives and
+     *  whether a finger holds it; the held stick also gives its finger's touch-down point and
+     *  current position. Empty while the layer stands down or before the viewport size is
+     *  known. */
+    UFUNCTION(BlueprintCallable, Category = "Touch")
+    TArray<FPSTouchControlView> GetControlViews();
+
+    /** The last swipe recognised and delivered (Direction None before the first). */
+    const FPSTouchSwipeView& GetLastSwipe() const { return LastSwipe; }
+
     /** Finger events in viewport pixels from the top left, with a clock in seconds. Public so
      *  headless tests can inject gestures. */
     void TouchStarted(int32 FingerId, const FVector2D& Position, double TimeSeconds);
@@ -131,6 +142,8 @@ private:
 
     /** Swipes finished since the last gather, delivered once. */
     TArray<FPSTouchActionSample> PendingSwipes;
+
+    FPSTouchSwipeView LastSwipe;
 
     TSharedPtr<FPSTouchPreProcessor> PreProcessor;
 };

@@ -1,0 +1,16 @@
+{
+    "RestOpacity": 0.4,
+    "PressedOpacity": 0.7,
+    "ControlColor": "#FFFFFF",
+    "PressedColor": "#7A8590",
+    "LabelColor": "#FFFFFF",
+    "RingWidth": 0.08,
+    "LabelSize": 0.42,
+    "StickIdleFade": 0.6,
+    "KnobRadius": 0.45,
+    "SwipeFlashSeconds": 0.25,
+    "SwipeArrowLength": 0.15,
+    "SwipeArrowWidth": 0.06,
+    "SwipeArrowHead": 0.3,
+    "CircleSegments": 40
+}
