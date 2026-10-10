@@ -29,7 +29,10 @@ FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow; "Routes" f
 FPSRoute library (timing, fakes, option branches); "All22Rigs" files against FPSAll22CameraTuning;
 "JumpWindowSeconds" files against FDefensiveTechniqueTuningRow and "PowerFillSeconds" files against
 FKickMeterTuningRow, each named action a Boolean in its context; "CutRules" files against
-FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json.
+FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json; "ReticleStates" files against
+FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuningRow, each pick
+action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files against
+FPSBroadcastOverlayTheme.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -578,6 +581,8 @@ def project_device_profiles():
 
 # Epic 26's sampler: its rate and per-frame budget are per tier.
 TIER_TELEMETRY_NUMBERS = ("TelemetrySampleRateHz", "TelemetrySampleBudgetMs")
+# EPSOverlayDetail: how much broadcast overlay a tier draws (Track A).
+OVERLAY_DETAILS = {"Full", "Simplified", "Minimal"}
 
 
 def validate_platform_tiers(path, payload):
@@ -607,7 +612,10 @@ def validate_platform_tiers(path, payload):
             value = tier.get(field)
             if not is_number(value) or value <= 0:
                 err(path, f"{where}.{field}: '{value}' must be a number above 0")
-        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", *TIER_TELEMETRY_NUMBERS}
+        if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
+            err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
+        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
+                             *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -957,6 +965,85 @@ def validate_kick_meter(path, payload, catalog):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FKickMeterTuningRow exactly")
     check_named_action(path, "KickAction", payload.get("KickAction"), "Kicking", catalog)
 
+
+RETICLE_STATES = ("PreSnap", "InPlay", "BallCarrier")
+RETICLE_STATE_NUMBERS = ("Radius", "Brightness", "PulseHz", "PulseAmount")
+RETICLE_STYLE_FIELDS = {"OffenseColor", "DefenseColor", "bUseTeamColor", "MeshPath", "MaterialPath", "ColorParameter",
+                        "MeshDiameter", "Thickness", "GroundClearance", "ReticleStates"}
+HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def validate_overlay_reticle(path, payload):
+    """FPSOverlayReticleStyle (Data/overlay_reticle.json, Epic 30); mirrors
+    UPSOverlayReticleComponent::ValidateStyle."""
+    for field in ("OffenseColor", "DefenseColor"):
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    if not isinstance(payload.get("bUseTeamColor"), bool):
+        err(path, "bUseTeamColor: must be true or false")
+    for field in ("MeshPath", "MaterialPath", "ColorParameter"):
+        if not isinstance(payload.get(field), str):
+            err(path, f"{field}: must be a string")
+    diameter = payload.get("MeshDiameter")
+    if not is_number(diameter) or diameter <= 0:
+        err(path, f"MeshDiameter: '{diameter}' must be a number above 0")
+    for field in ("Thickness", "GroundClearance"):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    extra = set(payload) - RETICLE_STYLE_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOverlayReticleStyle exactly")
+    states = payload.get("ReticleStates")
+    if not isinstance(states, list):
+        err(path, "'ReticleStates' must be an array")
+        return
+    seen = set()
+    for idx, row in enumerate(states):
+        where = f"ReticleStates[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        state = row.get("State")
+        if state not in RETICLE_STATES:
+            err(path, f"{where}.State: '{state}' must be one of {list(RETICLE_STATES)} (Hidden has no look)")
+        elif state in seen:
+            err(path, f"{where}.State: '{state}' is listed twice")
+        seen.add(state)
+        for field in RETICLE_STATE_NUMBERS:
+            value = row.get(field)
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.{field}: '{value}' must be a number, 0 or more")
+        if is_number(row.get("Radius")) and row["Radius"] <= 0:
+            err(path, f"{where}.Radius: must be above 0")
+        if is_number(row.get("PulseAmount")) and row["PulseAmount"] > 1:
+            err(path, f"{where}.PulseAmount: at most 1 (a fraction of Radius)")
+        extra = set(row) - set(RETICLE_STATE_NUMBERS) - {"State"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for state in RETICLE_STATES:
+        if state not in seen:
+            err(path, f"ReticleStates: no '{state}' entry")
+
+
+def validate_control_handoff(path, payload, catalog):
+    """FControlHandoffTuningRow (Data/control_handoff.json, Epic 30); mirrors
+    UPSControlHandoffComponent::ValidateTuning plus the catalog cross-check."""
+    window = payload.get("CycleWindowSeconds")
+    if not is_number(window) or window < 0:
+        err(path, f"CycleWindowSeconds: '{window}' must be a number, 0 or more")
+    left, right = payload.get("PickLeftAction"), payload.get("PickRightAction")
+    if not isinstance(left, str) or not isinstance(right, str) or not left or not right or left == right:
+        err(path, "PickLeftAction and PickRightAction must be two different action names")
+    elif catalog is not None:
+        actions = {a.get("ActionId"): a for a in catalog.get("Actions", []) if isinstance(a, dict)}
+        for field, action_id in (("PickLeftAction", left), ("PickRightAction", right)):
+            action = actions.get(action_id)
+            if action is None or action.get("ValueType") != "Boolean" or "PreSnap" not in (action.get("Contexts") or []):
+                err(path, f"{field}: '{action_id}' must be a Boolean action in input_actions.json's PreSnap context")
+    extra = set(payload) - {"CycleWindowSeconds", "PickLeftAction", "PickRightAction"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FControlHandoffTuningRow exactly")
 
 RECEIVER_ALIGNMENTS = {"Wide", "Slot", "Tight", "Backfield"}
 PRESNAP_NUMBERS = ("SlotMaxSplit", "MotionEndSplit", "MotionArrivalRadius", "ManTravelLateralRadius", "SlideAimOffset",
@@ -1576,6 +1663,72 @@ def validate_camera_director(path, payload, rig_ids):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCameraDirectorTuning exactly")
 
 
+BROADCAST_COLORS = ("HomeColor", "AwayColor", "BarColor", "TextColor", "RedZoneColor", "TwoMinuteColor", "TimeoutColor",
+                    "TimeoutUsedColor", "ChyronColor")
+BROADCAST_ANCHORS = {"BottomCenter", "TopCenter", "TopLeft"}
+CHYRON_KINDS = ("ScoreAlert", "DriveSummary", "PlayStat", "StatLine", "Custom")
+BROADCAST_FIELDS = {"HomeLabel", "AwayLabel", "bUseTeamColors", "Anchor", "ScoreFontSize", "TextFontSize", "RedZoneYardLine",
+                    "TwoMinuteSeconds", "ChyronMaxQueued", "ChyronMinShowSeconds", "ChyronGapSeconds", "ChyronKinds",
+                    *BROADCAST_COLORS}
+
+
+def validate_broadcast_overlay(path, payload):
+    """FPSBroadcastOverlayTheme (Data/broadcast_overlay.json, Epic 33); mirrors
+    UPSOverlayBroadcastSubsystem::ValidateTheme."""
+    for field in BROADCAST_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in ("HomeLabel", "AwayLabel"):
+        if not isinstance(payload.get(field), str) or not payload[field]:
+            err(path, f"{field}: must be a non-empty string")
+    if not isinstance(payload.get("bUseTeamColors"), bool):
+        err(path, "bUseTeamColors: must be true or false")
+    if payload.get("Anchor") not in BROADCAST_ANCHORS:
+        err(path, f"Anchor: '{payload.get('Anchor')}' must be one of {sorted(BROADCAST_ANCHORS)}")
+    for field in ("ScoreFontSize", "TextFontSize", "ChyronMaxQueued"):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            err(path, f"{field}: '{value}' must be a whole number, 1 or more")
+    red_zone = payload.get("RedZoneYardLine")
+    if not isinstance(red_zone, int) or isinstance(red_zone, bool) or not 1 <= red_zone <= 99:
+        err(path, f"RedZoneYardLine: '{red_zone}' must be a whole number from 1 to 99")
+    for field in ("TwoMinuteSeconds", "ChyronMinShowSeconds", "ChyronGapSeconds"):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    extra = set(payload) - BROADCAST_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSBroadcastOverlayTheme exactly")
+    kinds = payload.get("ChyronKinds")
+    if not isinstance(kinds, list):
+        err(path, "'ChyronKinds' must be an array")
+        return
+    seen = set()
+    for idx, row in enumerate(kinds):
+        where = f"ChyronKinds[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        kind = row.get("Kind")
+        if kind not in CHYRON_KINDS:
+            err(path, f"{where}.Kind: '{kind}' must be one of {list(CHYRON_KINDS)}")
+        elif kind in seen:
+            err(path, f"{where}.Kind: '{kind}' is listed twice")
+        seen.add(kind)
+        priority = row.get("Priority")
+        if not isinstance(priority, int) or isinstance(priority, bool):
+            err(path, f"{where}.Priority: '{priority}' must be a whole number")
+        seconds = row.get("Seconds")
+        if not is_number(seconds) or seconds <= 0:
+            err(path, f"{where}.Seconds: '{seconds}' must be a number above 0")
+        extra = set(row) - {"Kind", "Priority", "Seconds"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for kind in CHYRON_KINDS:
+        if kind not in seen:
+            err(path, f"ChyronKinds: no '{kind}' entry")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1634,6 +1787,12 @@ def main():
             validate_carrier_moves(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "KeyframeEvents" in payload:
             validate_telemetry_sampling(path, payload)
+        if isinstance(payload, dict) and "ReticleStates" in payload:
+            validate_overlay_reticle(path, payload)
+        if isinstance(payload, dict) and "CycleWindowSeconds" in payload:
+            validate_control_handoff(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "ChyronKinds" in payload:
+            validate_broadcast_overlay(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "PressRadius" in payload:

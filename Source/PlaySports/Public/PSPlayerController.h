@@ -22,6 +22,8 @@ class UPSInputBufferComponent;
 class UPSDefenseInputComponent;
 class UPSKickMeterComponent;
 class UPSSettingsComponent;
+class UPSControlHandoffComponent;
+class UPSOverlayReticleComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -54,6 +56,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * carries a press into a depth context that came on just after it (Epic 104.4). On defense,
  * UPSDefenseInputComponent times the jump at the snap and the strip; on a kick,
  * UPSKickMeterComponent is the kicker's meter (Epic 104.5).
+ *
+ * Control switching (Epic 30) is UPSControlHandoffComponent's: it picks who the switch and
+ * pre-snap pick buttons go to, and this controller moves control there. A handoff in either
+ * direction keeps the pawn's velocity, so neither the human nor the resuming AI starts from a
+ * standstill. UPSOverlayReticleComponent draws the selected-player reticle under the
+ * controlled pawn.
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -123,6 +131,14 @@ public:
      *  input config rebuilt its mapping contexts (a settings change or a remap). */
     UFUNCTION(BlueprintCallable, Category = "Input")
     void RefreshInputMappings();
+
+    /** Who the switch and pick buttons give control to (Epic 30). */
+    UFUNCTION(BlueprintPure, Category = "Possession")
+    UPSControlHandoffComponent* GetControlHandoffComponent() const { return ControlHandoffComponent; }
+
+    /** The selected-player reticle (Epic 30). */
+    UFUNCTION(BlueprintPure, Category = "Overlay")
+    UPSOverlayReticleComponent* GetOverlayReticleComponent() const { return OverlayReticleComponent; }
 
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -271,6 +287,12 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Settings")
     UPSSettingsComponent* SettingsComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Possession")
+    UPSControlHandoffComponent* ControlHandoffComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Overlay")
+    UPSOverlayReticleComponent* OverlayReticleComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

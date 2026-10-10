@@ -85,6 +85,7 @@ void UPSSkillPlayerAIComponent::BindToBus()
     Bus->OnSnapMC.AddUObject(this, &UPSSkillPlayerAIComponent::HandleSnap);
     Bus->OnThrowMC.AddUObject(this, &UPSSkillPlayerAIComponent::HandleThrow);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSSkillPlayerAIComponent::HandlePhaseChange);
+    Bus->OnControlChangeMC.AddUObject(this, &UPSSkillPlayerAIComponent::HandleControlChange);
     BoundBus = Bus;
 }
 
@@ -96,6 +97,7 @@ void UPSSkillPlayerAIComponent::UnbindFromBus()
         Bus->OnSnapMC.RemoveAll(this);
         Bus->OnThrowMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
+        Bus->OnControlChangeMC.RemoveAll(this);
     }
     BoundBus.Reset();
 }
@@ -191,13 +193,9 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
         return;
     }
 
-    APSOffenseController* Controller = GetOffenseController();
     if (bSnapPending)
     {
-        bSnapPending = false;
-        const bool bHasRoute = Controller && Controller->GetRouteWaypointCount() > 0;
-        Action = bHasRoute ? EPSSkillPlayerAction::RunRoute
-            : (Role == EPlayerRole::Quarterback ? EPSSkillPlayerAction::ReadDefense : EPSSkillPlayerAction::Block);
+        StartOpeningAction(Self);
     }
 
     // Whoever holds the ball carries it -- except a QB who hasn't decided what to do yet.
@@ -253,6 +251,65 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
         Self->AddMovementInput(Direction, 1.f);
     }
     DesiredDirection = Direction;
+}
+
+void UPSSkillPlayerAIComponent::StartOpeningAction(const APSPlayerPawn* Self)
+{
+    bSnapPending = false;
+    const APSOffenseController* Controller = GetOffenseController();
+    const bool bHasRoute = Controller && Controller->GetRouteWaypointCount() > 0;
+    Action = bHasRoute ? EPSSkillPlayerAction::RunRoute
+        : (Self->GetAttributes().Role == EPlayerRole::Quarterback ? EPSSkillPlayerAction::ReadDefense : EPSSkillPlayerAction::Block);
+}
+
+void UPSSkillPlayerAIComponent::HandleControlChange(const FPSTelemetryControlChangeEvent& Event)
+{
+    const APSPlayerPawn* Self = GetSelf();
+    if (!Event.bHumanControlled && Self && Self->GetAttributes().PlayerId == Event.PlayerId)
+    {
+        ResumeFromHuman();
+    }
+}
+
+void UPSSkillPlayerAIComponent::ResumeFromHuman()
+{
+    APSPlayerPawn* Self = GetSelf();
+    if (!Self)
+    {
+        return;
+    }
+
+    // Until the next decision the pawn keeps going the way the human was taking him.
+    FVector Heading = Self->GetVelocity();
+    Heading.Z = 0.f;
+    DesiredDirection = Heading.GetSafeNormal();
+
+    if (!bPlayLive)
+    {
+        return;
+    }
+    if (bSnapPending)
+    {
+        StartOpeningAction(Self);
+    }
+
+    // Waypoints the human already ran him past are skipped: he is past waypoint i when he is
+    // nearer the next one than waypoint i is.
+    APSOffenseController* Controller = GetOffenseController();
+    if (Action == EPSSkillPlayerAction::RunRoute && Controller)
+    {
+        const TArray<FVector>& Waypoints = Controller->GetRouteWaypoints();
+        const FVector Here = Self->GetActorLocation();
+        while (Waypoints.IsValidIndex(Controller->GetRouteWaypointIndex() + 1))
+        {
+            const int32 Index = Controller->GetRouteWaypointIndex();
+            if (FVector::Dist2D(Here, Waypoints[Index + 1]) >= FVector::Dist2D(Waypoints[Index], Waypoints[Index + 1]))
+            {
+                break;
+            }
+            Controller->AdvanceToNextWaypoint();
+        }
+    }
 }
 
 void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)

@@ -57,7 +57,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
   depth.
 - **Tier 2:** 89 coaching staffs, 19.5 personnel packages.
 - **Tier 3 / infra:** 125 content validation CLI, 24 test expansion.
-- **Overlay and camera code:** 30 selected-player indicator, 33 score bug (40 all-22 camera done).
+- **Overlay and camera code:** 30, 33, 38 and 40 are done.
   With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
   38, 41, 49, 78, 82, 85, 92, 96, 115.
 - **Editor or mixed, waiting for an editor session:** 2.1–2.2, 22, 23.
@@ -129,10 +129,10 @@ one CI run) rather than re-merging main into each PR after every landing.
     "27":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "16"]},
     "28":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
     "29":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["5", "19"]},
-    "30":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["3"]},
+    "30":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["3"]},
     "31":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "27", "16"]},
     "32":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["26", "7"]},
-    "33":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["5", "10", "12"]},
+    "33":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["5", "10", "12"]},
     "34":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "2", "10"]},
     "35":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["27", "31", "16"]},
     "36":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},

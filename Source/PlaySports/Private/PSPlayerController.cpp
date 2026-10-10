@@ -12,6 +12,8 @@
 #include "PSDefenseInputComponent.h"
 #include "PSKickMeterComponent.h"
 #include "PSSettingsComponent.h"
+#include "PSControlHandoffComponent.h"
+#include "PSOverlayReticleComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -19,6 +21,7 @@
 #include "PSPossessionComponent.h"
 #include "PSTelemetryBus.h"
 #include "AIController.h"
+#include "GameFramework/FloatingPawnMovement.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
@@ -27,6 +30,25 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
+
+namespace PSPlayerControllerPrivate
+{
+    FVector GetPawnVelocity(const APSPlayerPawn* PlayerPawn)
+    {
+        const UFloatingPawnMovement* Movement = PlayerPawn ? PlayerPawn->GetFloatingMovementComponent() : nullptr;
+        return Movement ? Movement->Velocity : FVector::ZeroVector;
+    }
+
+    /** Possessing a pawn restarts it, which stops it dead; a handoff puts its speed back so
+     *  whoever takes over carries on from where it was going (Epic 30). */
+    void RestorePawnVelocity(APSPlayerPawn* PlayerPawn, const FVector& Velocity)
+    {
+        if (UFloatingPawnMovement* Movement = PlayerPawn ? PlayerPawn->GetFloatingMovementComponent() : nullptr)
+        {
+            Movement->Velocity = Velocity;
+        }
+    }
+}
 
 APSPlayerController::APSPlayerController()
 {
@@ -54,6 +76,8 @@ APSPlayerController::APSPlayerController()
     DefenseInputComponent = CreateDefaultSubobject<UPSDefenseInputComponent>(TEXT("DefenseInputComp"));
     KickMeterComponent = CreateDefaultSubobject<UPSKickMeterComponent>(TEXT("KickMeterComp"));
     SettingsComponent = CreateDefaultSubobject<UPSSettingsComponent>(TEXT("SettingsComp"));
+    ControlHandoffComponent = CreateDefaultSubobject<UPSControlHandoffComponent>(TEXT("ControlHandoffComp"));
+    OverlayReticleComponent = CreateDefaultSubobject<UPSOverlayReticleComponent>(TEXT("OverlayReticleComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()
@@ -192,6 +216,7 @@ bool APSPlayerController::TakeControlOf(APSPlayerPawn* Target)
     }
 
     DisplacedAIController = Cast<AAIController>(Target->GetController());
+    const FVector TargetVelocity = PSPlayerControllerPrivate::GetPawnVelocity(Target);
     Possess(Target);
     if (GetPawn() != Target)
     {
@@ -199,6 +224,7 @@ bool APSPlayerController::TakeControlOf(APSPlayerPawn* Target)
         DisplacedAIController = nullptr;
         return false;
     }
+    PSPlayerControllerPrivate::RestorePawnVelocity(Target, TargetVelocity);
 
     ViewThroughBroadcastCamera();
     PublishControlChange(Target, true);
@@ -234,6 +260,7 @@ void APSPlayerController::ReturnControlledPawnToAI()
 
     AAIController* ResumingAI = DisplacedAIController;
     DisplacedAIController = nullptr;
+    const FVector ReleasedVelocity = PSPlayerControllerPrivate::GetPawnVelocity(Released);
 
     UnPossess();
     if (IsValid(ResumingAI) && !ResumingAI->GetPawn())
@@ -244,6 +271,8 @@ void APSPlayerController::ReturnControlledPawnToAI()
     {
         Released->SpawnDefaultController();
     }
+    // Restored before the change is announced, so the AI resumes at the pawn's real speed.
+    PSPlayerControllerPrivate::RestorePawnVelocity(Released, ReleasedVelocity);
 
     PublishControlChange(Released, false);
 }
@@ -272,43 +301,15 @@ void APSPlayerController::HandleDeferredDefaultControl()
 
 bool APSPlayerController::SwitchToBestPawn(const FVector& BallLocation)
 {
-    APSPlayerPawn* Current = Cast<APSPlayerPawn>(GetPawn());
-    const EPSTeamSide Side = Current ? Current->TeamSide : HumanSide;
-
-    APSPlayerPawn* Best = nullptr;
-    float BestDistanceSq = TNumericLimits<float>::Max();
-    for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
+    // The switch order is UPSControlHandoffComponent's: our ball carrier first, then the
+    // non-downed teammates nearest the ball.
+    if (!ControlHandoffComponent)
     {
-        APSPlayerPawn* Candidate = *It;
-        if (Candidate->TeamSide != Side)
-        {
-            continue;
-        }
-
-        // The possession component is the authority on who has the ball (rule 6): a
-        // carrier on our side always gets control.
-        const UPSPossessionComponent* Possession = Candidate->GetPossessionComponent();
-        if (Possession && Possession->HasPossession())
-        {
-            Best = Candidate;
-            break;
-        }
-
-        const UPSHealthComponent* Health = Candidate->GetHealthComponent();
-        if (Candidate == Current || (Health && Health->IsDowned()))
-        {
-            continue;
-        }
-
-        const float DistanceSq = FVector::DistSquared(Candidate->GetActorLocation(), BallLocation);
-        if (DistanceSq < BestDistanceSq)
-        {
-            BestDistanceSq = DistanceSq;
-            Best = Candidate;
-        }
+        return false;
     }
-
-    if (!Best || Best == Current)
+    const TArray<APSPlayerPawn*> Ranked = ControlHandoffComponent->RankSwitchCandidates(BallLocation);
+    APSPlayerPawn* Best = Ranked.Num() > 0 ? Ranked[0] : nullptr;
+    if (!Best || Best == GetPawn())
     {
         return false;
     }
@@ -353,10 +354,10 @@ void APSPlayerController::HandleSprintCompleted(const FInputActionValue& Value)
 
 void APSPlayerController::HandleSwitchPlayer(const FInputActionValue& Value)
 {
-    TActorIterator<APSBall> BallIt(GetWorld());
-    if (BallIt)
+    // Repeated presses cycle on through the nearest-to-the-ball order (Epic 30).
+    if (ControlHandoffComponent)
     {
-        SwitchToBestPawn(BallIt->GetActorLocation());
+        ControlHandoffComponent->SwitchPlayer();
     }
 }
 

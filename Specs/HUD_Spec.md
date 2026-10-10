@@ -1,5 +1,13 @@
 # Specification: Core HUD and Scoreboard UMG
 
+> **Superseded in code by Epic 33 (2026-10-10).** `APSHUD` now shows the broadcast package by
+> default: `UPSOverlayScoreBugWidget` and `UPSOverlayChyronWidget`, built in code. Both draw
+> `UPSOverlayBroadcastSubsystem`, which follows `UPSPlaySimulation`'s `GameState` bus events;
+> the look is `Data/broadcast_overlay.json`. A Widget Blueprint is now only a reskin: assign it
+> to `ScoreboardWidgetClass` / `ChyronWidgetClass` and draw from the `OnScoreBugChanged` /
+> `OnChyronChanged` events. The binding below, which casts to `APSGameMode`, is retired
+> (Architecture rule 5).
+
 This document defines the requirements, design, and binding logic for creating the HUD user interface in the level editor Content Browser.
 
 ## HUD Class Setup

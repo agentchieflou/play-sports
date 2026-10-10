@@ -261,6 +261,15 @@ private:
     float HumanKickHoldSeconds = 0.f;
     float HumanKickRoll = -1.f;
 
+    /** Announces the game state on the bus (Epic 33) when any of it changed other than the
+     *  running clocks, which listeners run on themselves between announcements. */
+    void PublishGameStateIfChanged();
+
+    FPSTelemetryGameStateEvent LastPublishedGameState;
+    bool bHasPublishedGameState = false;
+    FDriveSummary LastCompletedDrive;
+    int32 CompletedDrives = 0;
+
     /** Ends a spike or a kneel at the snap: nothing physical decides it. */
     void ResolveClockPlay();
 };

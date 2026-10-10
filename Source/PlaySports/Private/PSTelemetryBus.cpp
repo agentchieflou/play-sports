@@ -400,3 +400,19 @@ void UPSTelemetryBus::PublishRouteRunning(const FPSTelemetryRouteEvent& Event)
     }
     OnRouteRunningMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishGameState(const FPSTelemetryGameStateEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryGameStateEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("GameState: Q%d %.0f s, %s, down %d & %d at %d, %d-%d"),
+        Event.Quarter, Event.GameClockSeconds, *Event.Phase, Event.Down, Event.Distance, Event.YardLine, Event.HomeScore, Event.AwayScore);
+    RecordHistory(EPSTelemetryEventType::GameState, Description, JsonPayload);
+
+    if (OnGameState.IsBound())
+    {
+        OnGameState.Broadcast(Event);
+    }
+    OnGameStateMC.Broadcast(Event);
+}

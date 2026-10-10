@@ -49,6 +49,9 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
+| `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
+| `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
+| `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -256,6 +259,9 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
     profile (`Windows`, `IOS`, ...) or one declared in `Config/DefaultDeviceProfiles.ini`;
   - `AIDecisionInterval`: seconds between each AI player's decisions, 0 for every frame. The AI
     steers every frame in between.
+  - `OverlayDetail`: `Full` (everything, animated), `Simplified` (no animated transitions or
+    pulses) or `Minimal` (the score bug and the control reticle, static). Track A's overlays
+    read it.
   - `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` (above 0): how often the telemetry
     sampler (Epic 26) records every pawn, and what one recording may cost in ms before the
     sampler halves its rate.
@@ -577,3 +583,48 @@ Single object (Epic 38; `UPSCameraDirectorComponent` on the broadcast camera cut
 
 `UPSCameraDirectorComponent::ValidateTuning` and `tools/validate_data.py` check it, including the
 rigs.
+
+## Selected-player reticle schema (`FPSOverlayReticleStyle`)
+
+Single object (Epic 30; the ring under the player the human controls, drawn by
+`APSOverlayReticle`):
+- `OffenseColor`, `DefenseColor` (`#RRGGBB`): the ring's color by side, used when the human's
+  team isn't known or `bUseTeamColor` is false. With `bUseTeamColor`, the team picked at team
+  select gives its `PrimaryColor` (`sample_teams.json`).
+- `MeshPath`, `MaterialPath`, `ColorParameter`: the ring's mesh, its material and the material's
+  vector parameter the color goes into. Engine basic shapes until an editor session authors the
+  broadcast hexagon (`Specs/Overlay_Reticle_Spec.md`).
+- `MeshDiameter` (above 0, cm across at scale 1), `Thickness`, `GroundClearance` (cm, 0 or more).
+- `ReticleStates[]`: one look each for `PreSnap`, `InPlay` and `BallCarrier`: `Radius` (cm, above
+  0), `Brightness` (multiplies the color), `PulseHz` and `PulseAmount` (0-1, how far the radius
+  swells; pulses only on a tier whose `OverlayDetail` is `Full`).
+
+`UPSOverlayReticleComponent::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Player-switch schema (`FControlHandoffTuningRow`)
+
+Single object (Epic 30; `UPSControlHandoffComponent`):
+- `CycleWindowSeconds` (0 or more): a switch press this soon after the last one moves on to the
+  next player in the same nearest-to-the-ball order instead of ranking again.
+- `PickLeftAction`, `PickRightAction`: the pre-snap direct-pick actions, each a Boolean action in
+  the input catalog's `PreSnap` context.
+
+## Broadcast package schema (`FPSBroadcastOverlayTheme`)
+
+Single object (Epic 33; the score bug and the lower-third chyrons, `UPSOverlayBroadcastSubsystem`).
+Track C's branding reskins the broadcast by swapping this file:
+- `HomeLabel`, `AwayLabel`, `HomeColor`, `AwayColor`: a side whose team isn't known. With
+  `bUseTeamColors`, a known team (`sample_teams.json`) shows its own abbreviation and primary color.
+- Colors (`#RRGGBB`): `BarColor`, `TextColor`, `RedZoneColor` (the down-and-distance box in the
+  red zone), `TwoMinuteColor` (the clock in the two-minute state), `TimeoutColor` and
+  `TimeoutUsedColor` (the timeout pips), `ChyronColor`.
+- `Anchor` (`BottomCenter`, `TopCenter`, `TopLeft`), `ScoreFontSize`, `TextFontSize` (1 or more).
+- `RedZoneYardLine` (1-99, from the offense's goal line: 80 is the opponent's 20) and
+  `TwoMinuteSeconds` (the last this-many seconds of the 2nd and 4th quarters).
+- Chyron rules: `ChyronMaxQueued` (1 or more waiting; past it the lowest priority goes, oldest
+  first), `ChyronMinShowSeconds` (a higher priority chyron cuts in only after this),
+  `ChyronGapSeconds`, and `ChyronKinds[]`: one `Kind` each (`ScoreAlert`, `DriveSummary`,
+  `PlayStat`, `StatLine`, `Custom`) with its `Priority` (higher first) and `Seconds` on screen
+  (above 0).
+
+`UPSOverlayBroadcastSubsystem::ValidateTheme` and `tools/validate_data.py` check it.

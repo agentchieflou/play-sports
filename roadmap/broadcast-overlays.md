@@ -65,10 +65,10 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** A reticle (the hexagon under the QB in the reference) marks the controlled player, with clean control switching.
 **Depends on:** Core 3
 
-- [ ] Ground-projected reticle decal under the controlled pawn, team-colored
-- [ ] Control switching (nearest-to-ball cycling, direct pick pre-snap) moving possession of input
-- [ ] Reticle state variants: pre-snap, in-play, ball-carrier emphasis
-- [ ] AI takeover of the previously controlled pawn without behavior pops
+- [x] Ground-projected reticle decal under the controlled pawn, team-colored *(`APSOverlayReticle`, driven by `UPSOverlayReticleComponent` on the controller: a flat ring attached at the controlled pawn's feet, in the human's team color (team select) or the side's. The look is `Data/overlay_reticle.json`; until an editor session authors the hexagon it is an engine disc (`Specs/Overlay_Reticle_Spec.md`))*
+- [x] Control switching (nearest-to-ball cycling, direct pick pre-snap) moving possession of input *(`UPSControlHandoffComponent`: SwitchPlayer cycles through the nearest-to-the-ball order within `CycleWindowSeconds` (the side's carrier always first); pre-snap `PickPlayerLeft`/`PickPlayerRight` (Q/E, a right-stick flick) and `PickPlayer` by ID)*
+- [x] Reticle state variants: pre-snap, in-play, ball-carrier emphasis *(per-state radius, brightness and pulse from data; the pulse runs only where the tier's new `OverlayDetail` is `Full`)*
+- [x] AI takeover of the previously controlled pawn without behavior pops *(a handoff keeps the pawn's velocity both ways (possession used to stop it dead); the AI that takes a player back holds his heading until it decides, takes up the opening action if the human had him from before the snap, and skips route waypoints he is already past; a defender notes a throw made while a human had him)*
 
 ### Epic 31: Defensive Assignment Iconography
 
@@ -98,10 +98,10 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Persistent broadcast-grade score bug (teams, score, quarter, clocks, timeouts, down/distance) plus a lower-third chyron system.
 **Depends on:** Core 5, Core 10, Core 12
 
-- [ ] Score bug widget consolidating game state (replaces/absorbs the Epic 5 debug HUD)
-- [ ] Possession + timeout pips, red-zone and two-minute state styling
-- [ ] Lower-third chyron queue (player stat lines, drive summaries) with priority/timing rules
-- [ ] Data-driven layout theme so Track C branding can reskin it per team/broadcast package
+- [x] Score bug widget consolidating game state (replaces/absorbs the Epic 5 debug HUD) *(`UPSOverlayScoreBugWidget`, built in code and shown by `APSHUD` by default, draws `UPSOverlayBroadcastSubsystem`'s model of `UPSPlaySimulation`'s new `GameState` bus event: teams, score, quarter, game and play clocks, down and distance. The sim announces only discrete changes; clocks run on in between. Look polish is an editor pass)*
+- [x] Possession + timeout pips, red-zone and two-minute state styling *(red zone and two-minute thresholds are theme data)*
+- [x] Lower-third chyron queue (player stat lines, drive summaries) with priority/timing rules *(`UPSOverlayChyronWidget`; per-kind priority and time on screen, cut-ins after a minimum time up, a queue limit and a gap. Fed by score alerts, drive summaries and play lines from the bus; `PushStatLine` is the door for Epic 92's box score, which doesn't exist yet)*
+- [x] Data-driven layout theme so Track C branding can reskin it per team/broadcast package *(`Data/broadcast_overlay.json`: colors, sizes, anchor, thresholds, chyron rules; known teams show their own abbreviation and color)*
 
 ### Epic 34: On-Field AR Paint
 

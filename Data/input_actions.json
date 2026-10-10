@@ -416,6 +416,26 @@
                 { "Key": "O" },
                 { "Key": "Gamepad_Special_Left" }
             ]
+        },
+        {
+            "ActionId": "PickPlayerLeft",
+            "ValueType": "Boolean",
+            "Description": "Before the snap, take control of the nearest teammate to the left across the field: a flick of the right stick (Epic 30, UPSControlHandoffComponent).",
+            "Contexts": ["PreSnap", "DefensePreSnap"],
+            "Bindings": [
+                { "Key": "Q" },
+                { "Key": "Gamepad_RightStick_Left" }
+            ]
+        },
+        {
+            "ActionId": "PickPlayerRight",
+            "ValueType": "Boolean",
+            "Description": "Before the snap, take control of the nearest teammate to the right across the field (Epic 30, UPSControlHandoffComponent).",
+            "Contexts": ["PreSnap", "DefensePreSnap"],
+            "Bindings": [
+                { "Key": "E" },
+                { "Key": "Gamepad_RightStick_Right" }
+            ]
         }
     ]
 }
