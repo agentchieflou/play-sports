@@ -115,9 +115,9 @@ bool FPSFieldDimensionsDataTest::RunTest(const FString& Parameters)
         bAllAgree &= Line.Equals(PSField::YardLineToWorld(YardLine)) && PSField::WorldToSpot(Line) == YardLine;
     }
     TestTrue(TEXT("Every yard line is the field's, and reads back as itself"), bAllAgree);
-    TestEqual(TEXT("The offense's goal line is X = 0"), PSGameStateEvents::LineOfScrimmageFor(0).X, PSField::GoalLineX(false));
-    TestEqual(TEXT("...the far one 100 yards on"), PSGameStateEvents::LineOfScrimmageFor(100).X, PSField::GoalLineX(true));
-    TestEqual(TEXT("The 50 is midfield"), PSGameStateEvents::LineOfScrimmageFor(50).X, PSField::MidfieldX());
+    TestEqual(TEXT("The offense's goal line is X = 0"), static_cast<double>(PSGameStateEvents::LineOfScrimmageFor(0).X), static_cast<double>(PSField::GoalLineX(false)), 0.01);
+    TestEqual(TEXT("...the far one 100 yards on"), static_cast<double>(PSGameStateEvents::LineOfScrimmageFor(100).X), static_cast<double>(PSField::GoalLineX(true)), 0.01);
+    TestEqual(TEXT("The 50 is midfield"), static_cast<double>(PSGameStateEvents::LineOfScrimmageFor(50).X), static_cast<double>(PSField::MidfieldX()), 0.01);
     TestEqual(TEXT("A spot in an end zone stays on the field"), PSField::WorldToSpot(PSField::YardLineToWorld(-4.f)), 0);
     TestEqual(TEXT("...at either end"), PSField::WorldToSpot(PSField::YardLineToWorld(104.f)), 100);
     TestEqual(TEXT("Half a yard rounds to the next"), PSField::WorldToSpot(PSField::YardLineToWorld(36.5f)), 37);
@@ -162,10 +162,11 @@ bool FPSFieldGridAgreesTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Spawning again makes no more"), Grid->SpawnBoundaryVolumes().Num(), 6);
 
     const FPSFieldDimensions& Field = PSField::GetDimensions();
-    const float Tolerance = 0.01f;
-    const float FarGoalX = PSGameStateEvents::LineOfScrimmageFor(100).X;
-    const float NearGoalX = PSGameStateEvents::LineOfScrimmageFor(0).X;
-    const float EndZoneDepth = PSField::YardsToCentimetres(Field.EndZoneDepthYards);
+    const double Tolerance = 0.01;
+    const double FarGoalX = PSGameStateEvents::LineOfScrimmageFor(100).X;
+    const double NearGoalX = PSGameStateEvents::LineOfScrimmageFor(0).X;
+    const double EndZoneDepth = PSField::YardsToCentimetres(Field.EndZoneDepthYards);
+    const double SidelineY = PSField::SidelineY();
     FVector Center;
     FVector Extent;
 
@@ -174,15 +175,15 @@ bool FPSFieldGridAgreesTest::RunTest(const FString& Parameters)
     AActor* NearEndZone = FindVolume(Volumes, TEXT("EndZoneA"), [](const FVector&) { return true; });
     if (TestTrue(TEXT("The far end zone"), FarEndZone && GetBox(FarEndZone, Center, Extent)))
     {
-        TestEqual(TEXT("...its goal line is the game mode's 100"), Center.X - Extent.X, FarGoalX, Tolerance);
-        TestEqual(TEXT("...its end line the end zone's depth beyond"), Center.X + Extent.X, FarGoalX + EndZoneDepth, Tolerance);
-        TestEqual(TEXT("...sideline to sideline"), Extent.Y, PSField::SidelineY(), Tolerance);
+        TestEqual(TEXT("...its goal line is the game mode's 100"), static_cast<double>(Center.X - Extent.X), FarGoalX, Tolerance);
+        TestEqual(TEXT("...its end line the end zone's depth beyond"), static_cast<double>(Center.X + Extent.X), FarGoalX + EndZoneDepth, Tolerance);
+        TestEqual(TEXT("...sideline to sideline"), static_cast<double>(Extent.Y), SidelineY, Tolerance);
         TestFalse(TEXT("...the far end zone"), Cast<APSEndZoneVolume>(FarEndZone)->bIsEndZoneA);
     }
     if (TestTrue(TEXT("The near end zone"), NearEndZone && GetBox(NearEndZone, Center, Extent)))
     {
-        TestEqual(TEXT("...its goal line is the game mode's 0"), Center.X + Extent.X, NearGoalX, Tolerance);
-        TestEqual(TEXT("...its end line behind it"), Center.X - Extent.X, NearGoalX - EndZoneDepth, Tolerance);
+        TestEqual(TEXT("...its goal line is the game mode's 0"), static_cast<double>(Center.X + Extent.X), NearGoalX, Tolerance);
+        TestEqual(TEXT("...its end line behind it"), static_cast<double>(Center.X - Extent.X), NearGoalX - EndZoneDepth, Tolerance);
     }
 
     // The sidelines and end lines: out of bounds starts where the field stops.
@@ -191,12 +192,12 @@ bool FPSFieldGridAgreesTest::RunTest(const FString& Parameters)
     AActor* FarEndLine = FindVolume(Volumes, TEXT("OutOfBounds"), [FarGoalX](const FVector& At) { return At.X > FarGoalX; });
     if (TestTrue(TEXT("Both sidelines"), LeftSideline && RightSideline && GetBox(RightSideline, Center, Extent)))
     {
-        TestEqual(TEXT("...out of bounds from half the field's width"), Center.Y - Extent.Y, PSField::SidelineY(), Tolerance);
+        TestEqual(TEXT("...out of bounds from half the field's width"), static_cast<double>(Center.Y - Extent.Y), SidelineY, Tolerance);
         TestTrue(TEXT("...along the whole field, end zones included"), Center.X - Extent.X <= PSField::EndLineX(false) && Center.X + Extent.X >= PSField::EndLineX(true));
     }
     if (TestTrue(TEXT("The far end line"), FarEndLine && GetBox(FarEndLine, Center, Extent)))
     {
-        TestEqual(TEXT("...out of bounds from the end line"), Center.X - Extent.X, FarGoalX + EndZoneDepth, Tolerance);
+        TestEqual(TEXT("...out of bounds from the end line"), static_cast<double>(Center.X - Extent.X), FarGoalX + EndZoneDepth, Tolerance);
     }
 
     // The grid's own coordinates are the game mode's.
@@ -205,14 +206,14 @@ bool FPSFieldGridAgreesTest::RunTest(const FString& Parameters)
     float YardLine = 0.f;
     float Lateral = 0.f;
     Grid->GetFieldCoordinateFromWorldPosition(PSGameStateEvents::LineOfScrimmageFor(62), YardLine, Lateral);
-    TestTrue(TEXT("...and reads back as the 62, mid-field"), FMath::IsNearlyEqual(YardLine, 62.f, Tolerance) && FMath::IsNearlyEqual(Lateral, MiddleLateral, Tolerance));
+    TestTrue(TEXT("...and reads back as the 62, mid-field"), FMath::IsNearlyEqual(YardLine, 62.f, 0.01f) && FMath::IsNearlyEqual(Lateral, MiddleLateral, 0.01f));
     bool bEndZoneA = false;
     TestTrue(TEXT("Behind the offense's goal line is End Zone A"), Grid->IsLocationInEndZone(PSField::YardLineToWorld(-5.f), bEndZoneA) && bEndZoneA);
     TestTrue(TEXT("Past the far goal line is End Zone B"), Grid->IsLocationInEndZone(PSField::YardLineToWorld(105.f), bEndZoneA) && !bEndZoneA);
     TestFalse(TEXT("The 99 is on the field"), Grid->IsLocationInEndZone(PSGameStateEvents::LineOfScrimmageFor(99), bEndZoneA));
     TestTrue(TEXT("Past the end line is out"), Grid->IsLocationOutOfBounds(PSField::YardLineToWorld(111.f)));
     TestTrue(TEXT("...and past a sideline"), Grid->IsLocationOutOfBounds(PSField::YardLineToWorld(40.f, MiddleLateral + 1.f)));
-    TestEqual(TEXT("From the 30 the far goal line is 70 yards"), Grid->GetDistanceToGoalLine(PSGameStateEvents::LineOfScrimmageFor(30), true), 70.f, Tolerance);
+    TestEqual(TEXT("From the 30 the far goal line is 70 yards"), static_cast<double>(Grid->GetDistanceToGoalLine(PSGameStateEvents::LineOfScrimmageFor(30), true)), 70.0, Tolerance);
 
     // A carrier crossing them is reported on the game mode's yard lines.
     TArray<FPSTelemetryBoundaryCrossedEvent> Crossings;
@@ -243,7 +244,7 @@ bool FPSFieldGridAgreesTest::RunTest(const FString& Parameters)
     if (TestNotNull(TEXT("Broadcast camera"), Camera))
     {
         Camera->SnapToScrimmage(80.f);
-        TestEqual(TEXT("The camera shoots the 80 where the game mode lines up"), Camera->GetActorLocation().X, PSGameStateEvents::LineOfScrimmageFor(80).X, Tolerance);
+        TestEqual(TEXT("The camera shoots the 80 where the game mode lines up"), static_cast<double>(Camera->GetActorLocation().X), static_cast<double>(PSGameStateEvents::LineOfScrimmageFor(80).X), Tolerance);
         TestTrue(TEXT("...and follows the whole field"), Camera->MinX <= PSField::EndLineX(false) + Tolerance && Camera->MaxX >= PSField::EndLineX(true) - Tolerance);
     }
 
