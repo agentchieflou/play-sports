@@ -90,7 +90,8 @@ PLAYER_FIELDS = {
 
 INPUT_VALUE_TYPES = {"Boolean", "Axis1D", "Axis2D", "Axis3D"}
 INPUT_CONTEXT_FIELDS = {"ContextId": str, "Priority": int, "Description": str, "bRemappable": bool}
-INPUT_ACTION_FIELDS = {"ActionId": str, "ValueType": str, "Description": str, "Contexts": list, "Bindings": list}
+INPUT_ACTION_FIELDS = {"ActionId": str, "ValueType": str, "Description": str, "Contexts": list, "Bindings": list,
+                       "bTriggerWhenPaused": bool}
 INPUT_BINDING_FIELDS = {"Key": str, "bSwizzleYX": bool, "bNegate": bool}
 INPUT_REQUIRED = {"ContextId", "ActionId", "ValueType", "Contexts", "Bindings", "Key"}
 

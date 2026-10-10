@@ -49,6 +49,12 @@ struct FPSInputActionDef
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
     TArray<FPSInputKeyBinding> Bindings;
+
+    /** The action still triggers while the game is paused (UInputAction::bTriggerWhenPaused).
+     *  Enhanced Input drops every other action then, so anything used over a paused game (a
+     *  replay's buttons, the Move stick steering its free camera, Pause) needs it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    bool bTriggerWhenPaused = false;
 };
 
 /** A situation (on-field, world walking, ...) with its mapping-context priority. */

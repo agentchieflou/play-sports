@@ -241,7 +241,10 @@ possesses a pawn.
   `Description`, optional `bRemappable` (default true). An action in a context with
   `bRemappable` false keeps its keys: the menus read `Menu`'s through Slate (Epic 103.4).
 - `Actions[]`: `ActionId` (unique), `ValueType` (`Boolean`, `Axis1D`, `Axis2D`, `Axis3D` --
-  the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`.
+  the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`,
+  optional `bTriggerWhenPaused` (default false; `UInputAction::bTriggerWhenPaused`). Enhanced
+  Input drops every other action while the game is paused, so the actions used over a paused
+  game set it: `Move`, `Pause` and the `Replay` buttons (a replay pauses the game under it).
 - `Bindings[]`: `Key` (an engine `EKeys` name such as `W`, `Mouse2D`, `Gamepad_Left2D`),
   optional `bSwizzleYX` (route a 1D key onto a 2D action's Y axis) and `bNegate`.
 

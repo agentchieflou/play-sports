@@ -58,6 +58,7 @@
             "ValueType": "Axis2D",
             "Description": "Move relative to the control rotation's yaw. X is right, Y is forward.",
             "Contexts": ["World", "OnField"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "W", "bSwizzleYX": true },
                 { "Key": "S", "bSwizzleYX": true, "bNegate": true },
@@ -116,6 +117,7 @@
             "ValueType": "Boolean",
             "Description": "Pause the game and open the pause menu (Epic 101). On the field Start pauses; off the field it opens the look picker.",
             "Contexts": ["OnField"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "P" },
                 { "Key": "Gamepad_Special_Right" }
@@ -448,6 +450,7 @@
             "ValueType": "Boolean",
             "Description": "Pause the replay, or play it on (from its end, from the start). A, as A confirms everywhere.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "SpaceBar" },
                 { "Key": "Gamepad_FaceButton_Bottom" }
@@ -458,6 +461,7 @@
             "ValueType": "Boolean",
             "Description": "Step the replay's speed through Data/replay.json's PlaybackRates: real time, half, quarter.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "Z" },
                 { "Key": "Gamepad_FaceButton_Left" }
@@ -468,6 +472,7 @@
             "ValueType": "Boolean",
             "Description": "Hold the replay and step back one captured frame.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "Comma" },
                 { "Key": "Gamepad_DPad_Left" }
@@ -478,6 +483,7 @@
             "ValueType": "Boolean",
             "Description": "Hold the replay and step on one captured frame.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "Period" },
                 { "Key": "Gamepad_DPad_Right" }
@@ -488,6 +494,7 @@
             "ValueType": "Boolean",
             "Description": "While held, scrub the replay backward at ScrubSecondsPerSecond.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "Q" },
                 { "Key": "Gamepad_LeftShoulder" }
@@ -498,6 +505,7 @@
             "ValueType": "Boolean",
             "Description": "While held, scrub the replay forward at ScrubSecondsPerSecond.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "E" },
                 { "Key": "Gamepad_RightShoulder" }
@@ -508,6 +516,7 @@
             "ValueType": "Boolean",
             "Description": "Step the replay's camera through Data/replay.json's Cameras: the director, the all-22 rigs, the skycam, the free camera (which circles the ball on the Move stick). Y, as Y toggles the camera off the field.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "C" },
                 { "Key": "Gamepad_FaceButton_Top" }
@@ -518,6 +527,7 @@
             "ValueType": "Boolean",
             "Description": "Leave the replay and go back to the game. B, as B cancels everywhere.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "Escape" },
                 { "Key": "Gamepad_FaceButton_Right" }

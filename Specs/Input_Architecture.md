@@ -76,6 +76,14 @@ one of them (`APSPlayerController::SetDepthContext`), on top of `OnField`. A mod
 sits over all of them and leaves them as they are (`SetModeContextActive`). An offensive player
 without the ball during the play has none, and neither does the receiving side during a kick.
 
+Paused input: Enhanced Input drops an action while the game is paused unless its `UInputAction`
+has `bTriggerWhenPaused`, which the catalog sets per action (`"bTriggerWhenPaused": true`). A
+replay pauses the game under it, so every `Replay` action sets it, and so do `Pause` (Start
+still opens the pause menu over a replay) and `Move` (the replay's free camera steers on it).
+A `Move` while paused still reaches the controlled pawn's movement input, which the paused pawn
+uses on its first frame after the pause, clamped to one stick's worth. Menus are unaffected:
+their UI input mode sends keys to Slate, not to Enhanced Input.
+
 `APSPlayerController::ActiveInputContexts` is the stack. The controller mirrors it into the local
 player's `UEnhancedInputLocalPlayerSubsystem` when one exists. Headless test worlds have no local
 player, so tests observe the stack itself. The controller is the only code that talks to the
