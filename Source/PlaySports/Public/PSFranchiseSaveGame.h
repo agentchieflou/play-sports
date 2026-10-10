@@ -11,6 +11,7 @@
 #include "PSLockerRoomData.h"
 #include "PSDraftData.h"
 #include "PSTrainingData.h"
+#include "PSLegacyData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -80,4 +81,9 @@ public:
      *  UPSDraft). No prospects in a save from before the draft. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSDraftState Draft;
+
+    /** Every finished season, every retired player and the hall of fame (Epic 94;
+     *  UPSLeagueHistory). Empty in a save from before the league's history. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSLeagueHistoryState History;
 };

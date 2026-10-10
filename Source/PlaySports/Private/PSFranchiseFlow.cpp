@@ -7,6 +7,7 @@
 #include "PSLockerRoom.h"
 #include "PSLeagueData.h"
 #include "PSLeagueGenerator.h"
+#include "PSLeagueHistory.h"
 #include "PSMatchSetup.h"
 #include "PSOwnerEconomy.h"
 #include "PSPlayerAttributes.h"
@@ -395,6 +396,11 @@ bool UPSFranchiseFlow::EndSeason()
         }
     }
 
+    // The season being finished, numbered as the statistics (else the contracts) number it,
+    // before either moves on.
+    const int32 FinishedSeason = Stats && Stats->GetSeason() > 0 ? Stats->GetSeason()
+        : Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear()
+        : LeagueHistory && LeagueHistory->GetSeasons().Num() > 0 ? LeagueHistory->GetSeasons().Last().Season + 1 : 1;
     if (Stats)
     {
         Stats->EndSeason();
@@ -403,6 +409,12 @@ bool UPSFranchiseFlow::EndSeason()
     {
         // The off-season heals everyone (Epic 90).
         Preparation->EndSeason();
+    }
+    if (LeagueHistory)
+    {
+        // Epic 94: the season goes into the archive, then the hall of fame votes.
+        LeagueHistory->ArchiveSeason(FinishedSeason, Season->GetSortedStandings(), Stats);
+        LeagueHistory->RunHallOfFameVote(FinishedSeason);
     }
     if (Economy)
     {

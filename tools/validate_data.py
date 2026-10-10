@@ -80,8 +80,10 @@ pools and the real-person NameBlocklist, which every roster's DisplayNames are c
 "PeakAgeStart" files against FPSProgressionTuning (the age curve; Epic 122); a player's optional
 "Age" is a whole number; "CombineDrills" files against FPSDraftTuning (Epic 86): positive
 uncertainties and costs, 0-1 shares and guarantees, each drill reading a rating, a rookie deal no
-longer than contracts.json's MaxContractYears. Teams, the league config, the playbook, player rating
-ranges and every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+longer than contracts.json's MaxContractYears; "HallOfFame" files against FPSLegacyTuning (Epic 94):
+the hall of fame's waits and score, each threshold and archived leader a player stat category,
+listed once. Teams, the league config, the playbook, player rating ranges and every reference
+between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -4283,6 +4285,62 @@ def validate_draft(path, payload, max_contract_years):
             err(path, f"{where}: unknown field(s) {sorted(set(drill) - DRAFT_DRILL_FIELDS)} - names must match FPSCombineDrill exactly")
 
 
+PLAYER_STAT_CATEGORIES = {
+    "PassingYards", "PassingTouchdowns", "Completions", "InterceptionsThrown", "RushingYards", "RushingTouchdowns",
+    "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks", "Interceptions",
+}
+HALL_OF_FAME_INT_FIELDS = ("WaitSeasons", "MinSeasons", "MaxInducteesPerSeason")
+
+
+def validate_legacy(path, payload):
+    """FPSLegacyTuning (Data/legacy.json, Epic 94); mirrors UPSLeagueHistory::ValidateTuning."""
+    extra = set(payload) - {"HallOfFame", "LeaderCategories"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSLegacyTuning exactly")
+    hall = payload.get("HallOfFame")
+    if not isinstance(hall, dict):
+        err(path, "'HallOfFame' must be an FPSHallOfFameTuning object")
+    else:
+        for field in HALL_OF_FAME_INT_FIELDS:
+            value = hall.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                err(path, f"HallOfFame.{field}: '{value}' must be a whole number, 0 or more")
+        if hall.get("MaxInducteesPerSeason") == 0:
+            err(path, "HallOfFame.MaxInducteesPerSeason: must be at least 1")
+        score = hall.get("InductionScore")
+        if not is_number(score) or score <= 0:
+            err(path, f"HallOfFame.InductionScore: '{score}' must be a number above 0")
+        thresholds = hall.get("Thresholds")
+        if not isinstance(thresholds, list) or not thresholds:
+            err(path, "HallOfFame.Thresholds: a non-empty array, or nobody is ever voted in")
+            thresholds = []
+        seen = set()
+        for idx, threshold in enumerate(thresholds):
+            where = f"HallOfFame.Thresholds[{idx}]"
+            if not isinstance(threshold, dict):
+                err(path, f"{where}: not an object")
+                continue
+            category = threshold.get("Category")
+            if category not in PLAYER_STAT_CATEGORIES or category in seen:
+                err(path, f"{where}.Category: '{category}' must be a player EPSStatCategory, listed once")
+            seen.add(category)
+            value = threshold.get("CareerValue")
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                err(path, f"{where}.CareerValue: '{value}' must be a whole number, 1 or more")
+            if set(threshold) - {"Category", "CareerValue"}:
+                err(path, f"{where}: unknown field(s) {sorted(set(threshold) - {'Category', 'CareerValue'})}")
+        known = set(HALL_OF_FAME_INT_FIELDS) | {"InductionScore", "Thresholds"}
+        if set(hall) - known:
+            err(path, f"HallOfFame: unknown field(s) {sorted(set(hall) - known)} - names must match FPSHallOfFameTuning exactly")
+    leaders = payload.get("LeaderCategories")
+    if not isinstance(leaders, list):
+        err(path, "'LeaderCategories' must be an array of player EPSStatCategory names")
+    else:
+        for idx, category in enumerate(leaders):
+            if category not in PLAYER_STAT_CATEGORIES or category in leaders[:idx]:
+                err(path, f"LeaderCategories[{idx}]: '{category}' must be a player EPSStatCategory, listed once")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -4539,6 +4597,8 @@ def main(root=None):
             validate_photo_mode(path, payload)
         if isinstance(payload, dict) and "CombineDrills" in payload:
             validate_draft(path, payload, load_contract_max_years())
+        if isinstance(payload, dict) and "HallOfFame" in payload:
+            validate_legacy(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()

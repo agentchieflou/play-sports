@@ -53,6 +53,7 @@
 #include "PSLockerRoomData.h"
 #include "PSDraftData.h"
 #include "PSTrainingData.h"
+#include "PSLegacyData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSDefenderPreSnapTypes.h"
@@ -342,6 +343,12 @@ public:
      *  unknown Role; UPSWeeklyPreparation::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadTrainingTuningFromJson(const FString& JsonFilePath, FPSTrainingTuning& OutTuning);
+
+    /** Loads the league's history rules: the hall of fame's thresholds and the archived season
+     *  leaders (Data/legacy.json, Epic 94). False on a missing file, malformed JSON or an unknown
+     *  category; UPSLeagueHistory::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadLegacyTuningFromJson(const FString& JsonFilePath, FPSLegacyTuning& OutTuning);
 
     /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
      *  missing file or malformed JSON. */

@@ -1,0 +1,23 @@
+{
+    "HallOfFame": {
+        "WaitSeasons": 3,
+        "MinSeasons": 4,
+        "InductionScore": 1.0,
+        "MaxInducteesPerSeason": 3,
+        "Thresholds": [
+            { "Category": "PassingYards", "CareerValue": 40000 },
+            { "Category": "PassingTouchdowns", "CareerValue": 300 },
+            { "Category": "RushingYards", "CareerValue": 10000 },
+            { "Category": "RushingTouchdowns", "CareerValue": 90 },
+            { "Category": "Receptions", "CareerValue": 850 },
+            { "Category": "ReceivingYards", "CareerValue": 11000 },
+            { "Category": "ReceivingTouchdowns", "CareerValue": 80 },
+            { "Category": "Tackles", "CareerValue": 1300 },
+            { "Category": "Sacks", "CareerValue": 110 },
+            { "Category": "Interceptions", "CareerValue": 50 }
+        ]
+    },
+    "LeaderCategories": [
+        "PassingYards", "PassingTouchdowns", "RushingYards", "Receptions", "ReceivingYards", "Tackles", "Sacks", "Interceptions"
+    ]
+}

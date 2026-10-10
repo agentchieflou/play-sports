@@ -20,6 +20,7 @@ class UPSOwnerEconomy;
 class UPSMatchSetup;
 class UPSRoster;
 class UPSStaffManager;
+class UPSLeagueHistory;
 class UPSStatsEngine;
 class UPSWeeklyPreparation;
 
@@ -40,7 +41,8 @@ class UPSWeeklyPreparation;
  *    ends.
  *  - EndSeason: the off-season, once per season. The coaching carousel
  *    (UPSStaffManager::RunCarousel) runs on the final standings, the statistics engine (Epic 92)
- *    archives the season, the owner economy (Epic 95) closes the books; then, with a contract manager
+ *    archives the season, the league's history (Epic 94) keeps its standings and leaders and votes
+ *    in a hall of fame class, the owner economy (Epic 95) closes the books; then, with a contract manager
  *    (UPSContractManager, Epic 87), the league year rolls over, CPU teams over the new cap cut
  *    back under it, and free agency (UPSFreeAgency) opens with every player whose deal ran out or
  *    who was cut. The player's team bids there; GetFreeAgency()->AdvanceDay() runs its days.
@@ -140,6 +142,15 @@ public:
     /** Everything that has happened in practice, in order. */
     UFUNCTION(BlueprintPure, Category = "Franchise")
     const TArray<FPSTrainingEvent>& GetTrainingEvents() const { return TrainingEvents; }
+
+    /** The league's history (Epic 94): each season's end archives the final standings and the
+     *  season's leaders (from the statistics engine when there is one), then holds the hall of
+     *  fame vote. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetLeagueHistory(UPSLeagueHistory* InHistory) { LeagueHistory = InHistory; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSLeagueHistory* GetLeagueHistory() const { return LeagueHistory; }
 
     /** Every team's books for the season that just ended (empty before then). */
     UFUNCTION(BlueprintPure, Category = "Franchise")
@@ -253,6 +264,9 @@ private:
 
     UPROPERTY(Transient)
     UPSDraft* Draft = nullptr;
+
+    UPROPERTY(Transient)
+    UPSLeagueHistory* LeagueHistory = nullptr;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;
