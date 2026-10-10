@@ -49,7 +49,8 @@ enum class EPSTelemetryEventType : uint8
     Commentary,
     Trade,
     BallGrounded,
-    Lineup
+    Lineup,
+    Lifecycle
 };
 
 /** What a statistic counts (Epic 92). Player categories first, then team ones. */
@@ -1702,6 +1703,47 @@ struct FPSTelemetryCommentaryEvent
     int32 PrimaryGameTotal = 0;
 };
 
+/** Something the platform did to the running game (Epic 152, UPSPlatformServices): the same four
+ *  on every platform, whatever the platform calls them. */
+UENUM(BlueprintType)
+enum class EPSPlatformLifecycle : uint8
+{
+    /** The game is about to stop running: backgrounded on a phone, suspended or Quick Resumed
+     *  away on a console. Anything unsaved must be written now. */
+    Suspend,
+    /** The game runs again after a suspend. */
+    Resume,
+    /** The game runs but the player can't see or reach it (a console's guide or a system
+     *  overlay is over it). */
+    Constrained,
+    /** The player has the game again after a constrained spell. */
+    Unconstrained
+};
+
+/** The platform suspended, resumed or constrained the game (UPSPlatformServices, Epic 152). A
+ *  live game pauses on a suspend or a constrain (UPSAutoPauseSubsystem); it stays paused on a
+ *  resume, until the player resumes it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryLifecycleEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSPlatformLifecycle Lifecycle = EPSPlatformLifecycle::Suspend;
+
+    /** Whether the game is suspended after this event. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bSuspended = false;
+
+    /** Whether the game is constrained after this event. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bConstrained = false;
+
+    /** The platform implementation that reported it (UPSPlatformBackend::GetBackendName). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Backend;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -1769,6 +1811,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentarySignature, con
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeSignature, const FPSTelemetryTradeEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedSignature, const FPSTelemetryBallGroundedEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLineupSignature, const FPSTelemetryLineupEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLifecycleSignature, const FPSTelemetryLifecycleEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -1815,6 +1858,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentaryMC, const FPSTelemetry
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeMC, const FPSTelemetryTradeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedMC, const FPSTelemetryBallGroundedEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLineupMC, const FPSTelemetryLineupEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLifecycleMC, const FPSTelemetryLifecycleEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1938,6 +1982,10 @@ public:
     /** A side lined up for its call, from UPSPersonnelManager. */
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishLineup(const FPSTelemetryLineupEvent& Event);
+
+    /** The platform suspended, resumed or constrained the game, from UPSPlatformServices. */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishLifecycle(const FPSTelemetryLifecycleEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishRecognition(const FPSTelemetryRecognitionEvent& Event);
@@ -2106,6 +2154,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryLineupSignature OnLineup;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryLifecycleSignature OnLifecycle;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -2152,6 +2203,7 @@ public:
     FPSTelemetryTradeMC OnTradeMC;
     FPSTelemetryBallGroundedMC OnBallGroundedMC;
     FPSTelemetryLineupMC OnLineupMC;
+    FPSTelemetryLifecycleMC OnLifecycleMC;
 
 private:
     UPROPERTY(Transient)

@@ -735,3 +735,18 @@ void UPSTelemetryBus::PublishLineup(const FPSTelemetryLineupEvent& Event)
     }
     OnLineupMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishLifecycle(const FPSTelemetryLifecycleEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryLifecycleEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    RecordHistory(EPSTelemetryEventType::Lifecycle, FString::Printf(TEXT("Lifecycle: %s (%s)"),
+        *UEnum::GetValueAsString(Event.Lifecycle), *Event.Backend.ToString()), JsonPayload);
+
+    if (OnLifecycle.IsBound())
+    {
+        OnLifecycle.Broadcast(Event);
+    }
+    OnLifecycleMC.Broadcast(Event);
+}
