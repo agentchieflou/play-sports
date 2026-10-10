@@ -8,6 +8,7 @@
 #include "PSStatsData.h"
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
+#include "PSTrainingData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -62,4 +63,9 @@ public:
      *  a save from before the locker room. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSLockerRoomState LockerRoom;
+
+    /** Every player's freshness and injury, and each team's practice and gameplan (Epic 90;
+     *  UPSWeeklyPreparation). Empty in a save from before weekly preparation. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSTrainingState Training;
 };
