@@ -43,7 +43,7 @@ These groups can run at the same time (see the scope note under the table):
 | G5 | Bridge track | 25: 25.3 MCP server and 25.5 router done; 25.1–25.2 Autonomix and 25.6 smoke test need an editor, 25.4 registration waits on the owner (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 17.4 (scramble drill and blown coverage done; live blocked-kick chaos is open), 17.5's device measurement (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
-| G9 | Front end and input feel (Track I) | 106's broadcast overlays → 105.1–105.3 (101 and 104 done; 103.1, 103.3, 103.4, 103.5 and 105.4 done; 103.2 waits on Epic 37 and the overlay palettes; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
+| G9 | Front end and input feel (Track I) | 105.1–105.3 (101, 104 and 106 done; 103.1, 103.3, 103.4, 103.5 and 105.4 done; 103.2 waits on Epic 37 and the overlay palettes; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
 Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
 (`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G8's and G9's track scopes on
@@ -205,7 +205,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "103": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101"], "open_stories": ["103.2 colorblind-safe modes (library done; waits on Epic 37 team colors and the overlay palettes)"]},
     "104": {"track": "I", "mode": "code", "status": "done", "depends_on": ["3", "6", "126", "127"]},
     "105": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101", "104", "24"], "open_stories": ["105.1 free-practice mode", "105.2 tutorial sequence", "105.3 skill drills with scoring"]},
-    "106": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101"], "open_stories": ["106.1 string-table pass: the broadcast overlays", "106.3 pseudo-localization pass: the broadcast overlays"]},
+    "106": {"track": "I", "mode": "code", "status": "done", "depends_on": ["101"]},
     "107": {"track": "J", "mode": "code", "status": "done", "depends_on": ["104", "102"]},
     "108": {"track": "J", "mode": "code", "status": "open", "depends_on": ["17", "115"]},
     "109": {"track": "J", "mode": "code", "status": "open", "depends_on": ["108", "107"]},
