@@ -29,7 +29,9 @@ FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus heade
 "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts" files against
 FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow; "Routes" files against the
 FPSRoute library (timing, fakes, option branches); "Settings" files against FPSSettingsCatalog and
-"CaptionWordsPerSecond" files against FPSUIAccessibilityTuning (Epic 103).
+"CaptionWordsPerSecond" files against FPSUIAccessibilityTuning (Epic 103). The UI string
+tables (Data/ui_text.csv, Data/ui_text_data.csv) and the UI code's text are checked by
+tools/ui_text.py (Epic 106).
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1434,6 +1436,15 @@ def validate_routes(path, payload):
                 err(path, f"Routes[{idx}].{field}: '{route.get(field)}' is itself an option route")
 
 
+def validate_ui_text():
+    """Data/ui_text.csv, Data/ui_text_data.csv and the UI code's text (Epic 106); the checks
+    live in tools/ui_text.py, which also regenerates ui_text_data.csv."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ui_text
+    for path, message in ui_text.problems():
+        err(path, message)
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1514,6 +1525,7 @@ def main():
             validate_ui_accessibility(path, payload)
         if isinstance(payload, dict) and "Fronts" in payload:
             validate_run_fits(path, payload)
+    validate_ui_text()
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

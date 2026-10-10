@@ -56,6 +56,11 @@
             "Description": "A move or pass pressed a moment early still happens when it can."
         },
         {
+            "SettingId": "Units", "Category": "Gameplay", "Label": "Units", "Kind": "Choice",
+            "Choices": ["Feet and pounds", "Centimeters and kilograms"], "Default": 0,
+            "Description": "How players' heights and weights are shown."
+        },
+        {
             "SettingId": "Vibration", "Category": "Controls", "Label": "Vibration", "Kind": "Toggle", "Default": 1,
             "Description": "The controller rumbles on hits, catches and scores."
         },

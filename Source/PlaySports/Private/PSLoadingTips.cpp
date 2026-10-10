@@ -1,5 +1,6 @@
 #include "PSLoadingTips.h"
 #include "PSDataIngestion.h"
+#include "PSLocalization.h"
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
 
@@ -72,7 +73,8 @@ FString UPSLoadingTips::NextTip(FName Context)
     {
         return FString();
     }
-    return Catalog.Tips[Bag.Pop()].Text;
+    const FPSLoadingTipDef& Tip = Catalog.Tips[Bag.Pop()];
+    return UPSLocalization::GetDataText(UPSLocalization::TipKey(Tip.TipId), Tip.Text).ToString();
 }
 
 TArray<FString> UPSLoadingTips::Validate() const

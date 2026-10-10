@@ -42,6 +42,8 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `kick_meter.json` | `FKickMeterTuningRow` (single object) | `UPSDataIngestion::LoadKickMeterTuningFromJson`, via `UPSKickMeterComponent` |
 | `ui_settings.json` | `FPSSettingsCatalog` (single object: `Categories`, `Settings`) | `UPSDataIngestion::LoadSettingsCatalogFromJson`, via `UPSSettingsSubsystem` |
 | `ui_accessibility.json` | `FPSUIAccessibilityTuning` (single object) | `UPSDataIngestion::LoadUIAccessibilityTuningFromJson`, via `UPSUIAccessibilitySubsystem` |
+| `ui_text.csv` | UE string table `PSUI` (CSV: `Key`, `SourceString`, `Comment`) | `UPSLocalization::RegisterStringTables` (`LOCTABLE_FROMFILE_GAME`) |
+| `ui_text_data.csv` | UE string table `PSUIData`, **generated** by `tools/ui_text.py` | same |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
 | `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
@@ -415,6 +417,41 @@ Single object (Epic 103.2/103.3; captions and color vision, `Specs/Front_End_She
 The settings that switch these on and size them (`Captions`, `CaptionSize`, `Narration`,
 `ColorblindMode`) are in `ui_settings.json`. `UPSUIAccessibilitySubsystem::ValidateTuning` and
 `tools/validate_data.py` check it.
+
+## UI text tables (`ui_text.csv`, `ui_text_data.csv`)
+
+Epic 106: everything the UI shows comes from one of two UE string tables, so a translation is
+UE's gather, translate and compile, and needs no code change. `UPSLocalization`
+(`Source/PlaySports/Public/PSLocalization.h`) registers both tables and is the only way UI code
+reads them.
+
+- `ui_text.csv` (table `PSUI`) is written by hand: the code's own text. Columns are `Key`,
+  `SourceString` and `Comment` (for translators). Patterns use FText's `{Name}` placeholders.
+  Code names keys literally: `UPSLocalization::GetText(TEXT("Menu.ResetToDefaults"))`,
+  `UPSLocalization::Format(TEXT("Menu.Option"), Arguments)`. Families the code builds:
+  `Input.Action.<ActionId>` (one per remappable action), `Input.Context.<ContextId>`,
+  `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`.
+- `ui_text_data.csv` (table `PSUIData`) is **generated** from the user-facing strings of
+  `ui_menus.json`, `ui_settings.json` and `loading_tips.json`. Don't edit it. After changing one
+  of those files, run `python tools/ui_text.py --write`. Keys: `Menu.<ScreenId>.Title|Body`,
+  `Menu.<ScreenId>.<OptionId>.Label|Detail`, `Setting.Category.<CategoryId>`,
+  `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`, `Tip.<TipId>`.
+- Not translated, shown through `UPSLocalization::Verbatim`: team, player and formation names,
+  button glyph labels (`input_glyphs.json`), and the engine's key names.
+- UI strings may not contain backslashes, because the string table import reads them as
+  escapes. A real newline is fine.
+
+`tools/validate_data.py` (through `tools/ui_text.py`) fails on any of these:
+- a stale `ui_text_data.csv`;
+- a key the code names that isn't in `ui_text.csv`;
+- a remappable action, or one of its contexts, without a name row;
+- duplicate or empty keys, or unbalanced placeholders;
+- FText built from a raw string in UI code (`Private/PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`,
+  `PSSettings*`).
+
+The `Units` setting (`ui_settings.json`, Gameplay) picks feet and pounds or centimeters and
+kilograms for `WeightKg`/`HeightCm` wherever they are shown (`UPSLocalization::FormatWeight`,
+`FormatHeight`). Team select shows each roster's average size in those units.
 
 ## Situational tuning schema (`FPSSituationalTuning`)
 

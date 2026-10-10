@@ -135,7 +135,10 @@ public:
     /** The captions up at Now, oldest first, at most CaptionMaxLines. */
     TArray<FPSCaptionLine> GetActiveCaptions(float Now) const;
 
-    /** How a caption reads: "Speaker: text", or the text alone. */
+    /** How a caption reads: "Speaker: text", or the text alone. The speaker and text come
+     *  from whoever spoke, already in the player's language; the pattern from
+     *  Data/ui_text.csv (Epic 106). */
+    static FText FormatCaptionText(const FPSCaptionLine& Line);
     static FString FormatCaption(const FPSCaptionLine& Line);
 
     /** The UI narration hook: says Text when the Narration setting is on. */

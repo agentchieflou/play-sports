@@ -1,5 +1,6 @@
 #include "PSMenuScreenWidget.h"
 #include "PSMenuComponent.h"
+#include "PSLocalization.h"
 #include "PSPlayCallSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -66,10 +67,11 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
     UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Column"));
     Background->SetContent(Column);
 
+    // The screen arrives localized (UPSMenuComponent::GetPresentedScreen, Epic 106).
     auto AddText = [this, Column](const FString& Text, int32 FontSize, const FMargin& TextPadding)
     {
         UTextBlock* Block = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-        Block->SetText(FText::FromString(Text));
+        Block->SetText(UPSLocalization::FromLocalized(Text));
         FSlateFontInfo Font = Block->GetFont();
         Font.Size = FontSize;
         Block->SetFont(Font);
@@ -105,7 +107,7 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
         }
 
         UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-        Label->SetText(FText::FromString(Option.Label));
+        Label->SetText(UPSLocalization::FromLocalized(Option.Label));
         FSlateFontInfo Font = Label->GetFont();
         Font.Size = PSMenuStyle::OptionFontSize;
         Label->SetFont(Font);
@@ -119,7 +121,7 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
             UVerticalBox* Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
             Lines->AddChildToVerticalBox(Label);
             UTextBlock* Detail = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-            Detail->SetText(FText::FromString(Option.Detail));
+            Detail->SetText(UPSLocalization::FromLocalized(Option.Detail));
             FSlateFontInfo DetailFont = Detail->GetFont();
             DetailFont.Size = PSMenuStyle::DetailFontSize;
             Detail->SetFont(DetailFont);
@@ -241,6 +243,8 @@ void UPSMenuScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
     const UPSPlayCallSubsystem* PlayCall = (ClockText && World) ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
     if (PlayCall && PlayCall->GetPlayClockSeconds() >= 0.f)
     {
-        ClockText->SetText(FText::FromString(FString::Printf(TEXT("Play clock  %d"), FMath::CeilToInt(PlayCall->GetPlayClockSeconds()))));
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Seconds"), FText::AsNumber(FMath::CeilToInt(PlayCall->GetPlayClockSeconds())));
+        ClockText->SetText(UPSLocalization::Format(TEXT("Menu.PlayClock"), Arguments));
     }
 }
