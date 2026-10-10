@@ -64,13 +64,19 @@ def field(obj, *names):
     """obj[name] for the first of names present (any case); None when none is."""
     if not isinstance(obj, dict):
         return None
+    lowered = None
     for name in names:
         if isinstance(name, (list, tuple)):
             found = field(obj, *name)
             if found is not None:
                 return found
             continue
-        value = obj.get(str(name).lower())
+        key = str(name).lower()
+        value = obj.get(key)
+        if value is None:
+            if lowered is None:
+                lowered = {str(k).lower(): v for k, v in obj.items()}
+            value = lowered.get(key)
         if value is not None:
             return value
     return None
@@ -233,6 +239,9 @@ def stage(out, recordings=None, synthetic=False, schema=None, log=print, standal
                 log(f"stage: {name}: {warning}")
             s = summarize(doc)
             log(f"stage: {name}: {s['frames']} frames, {s['players']} players, {s['duration']} s, events {s['events']}")
+            problems = entry.get("problems")
+            if isinstance(problems, list) and problems:
+                log(f"stage: {name}: the recorder reports {len(problems)} problem(s), shown on the page: " + " ".join(map(str, problems)))
             files["recordings/" + name.replace("\\", "/")] = path
     if synthetic:
         for path in sorted((VIEWER / "sample").glob(schema["synthetic"]["filePrefix"] + "*.json")):

@@ -121,7 +121,7 @@
         "_header": "Source/PlaySports/Public/PSTelemetryBus.h"
     },
     "playerInfo": {
-        "about": "Who each pawn is, found by PlayerId in the recording's optional top-level Participants (lane S4's additive extension: each pawn's team, role, display name and an optional JerseyNumber), in any other array of objects with a PlayerId at the top of the recording or its InitialState, in the rosters (FPlayerAttributes) and in the pawn snapshots. The first non-empty value wins, in that order. Aliases are matched in any case. Without a jersey number a player is labelled by role and index (WR2).",
+        "about": "Who each pawn is, found by PlayerId in the recording's optional top-level Participants (lane S4's additive extension, PR #205: { playerId, displayName, teamId, teamSide, role, jerseyNumber (1-99, 0 none) }, everyone the frames name), in any other array of objects with a PlayerId at the top of the recording or its InitialState, in the rosters (FPlayerAttributes) and in the pawn snapshots. The first non-empty value wins, in that order. Aliases are matched in any case. Without a jersey number a player is labelled by role and index (WR2).",
         "lists": ["Participants"],
         "id": ["PlayerId", "Id"],
         "displayName": ["DisplayName", "Name", "PlayerName"],
@@ -133,7 +133,7 @@
         "weightKg": ["WeightKg"]
     },
     "teamInfo": {
-        "about": "The recording's optional top-level Teams (lane S4's additive extension). A team's side comes from its own field when it has one, else from the participants who play for it. Colours fall back to Data/sample_teams.json by TeamId, name or abbreviation, then to the viewer's offense blue and defense red.",
+        "about": "The recording's optional top-level Teams (lane S4's additive extension, PR #205: { teamId, displayName, abbreviation, primaryColor, secondaryColor, bHome }, home first). A team's side comes from its own field when it has one, else from the participants who play for it. Colours fall back to Data/sample_teams.json by TeamId, name or abbreviation, then to the viewer's offense blue and defense red.",
         "lists": ["Teams"],
         "teamId": ["TeamId", "Id"],
         "displayName": ["DisplayName", "Name", "TeamName"],
@@ -141,24 +141,64 @@
         "primaryColor": ["PrimaryColor", "PrimaryColour", "Color", "Colour"],
         "secondaryColor": ["SecondaryColor", "SecondaryColour"],
         "side": ["TeamSide", "Side"],
-        "offense": ["bOffense", "bIsOffense"]
+        "offense": ["bOffense", "bIsOffense"],
+        "home": ["bHome"]
+    },
+    "extensions": {
+        "about": "Top-level recording fields lane S4 adds (PR #205) that the C++ on main may not have yet. The test checks them against C++ once they are UPROPERTYs of FPSReplayRecording.",
+        "recording": ["Teams", "Participants"]
     },
     "index": {
-        "about": "The demo index (index.json) beside the recordings: a list of plays, either the whole document or under one of listKeys. Only 'file' is needed; anything missing is read from the recording itself (its PlayCall and PlayResult events, its frames and its header).",
+        "about": "The demo index (index.json) beside the recordings, as lane S4 writes it (PR #205): { generatedAtUtc, gameBuildVersion, frameRateHz, method, plays[] }. Plays may also be the whole document or under another of listKeys. Only 'file' is needed; anything missing is read from the recording itself (its PlayCall and PlayResult events, its frames and its header). Times (snapTime, whistleTime) are on the frames' clock; problems[] empty means the recorder's sanity checks passed.",
         "listKeys": ["Plays", "Demos", "Entries", "Items", "Recordings"],
+        "meta": {
+            "generatedAtUtc": ["GeneratedAtUtc"],
+            "gameBuildVersion": ["GameBuildVersion"],
+            "frameRateHz": ["FrameRateHz"],
+            "method": ["Method"]
+        },
         "fields": {
             "file": ["File", "FileName", "Path", "Recording"],
-            "name": ["Name", "Title", "DisplayName", "Label"],
-            "offenseCall": ["OffenseCall", "OffensiveCall", "OffensePlay", "OffenseCallName", "Offense"],
-            "defenseCall": ["DefenseCall", "DefensiveCall", "DefensePlay", "DefenseCallName", "Defense"],
-            "result": ["Result", "Outcome"],
-            "yards": ["Yards", "YardsGained"],
-            "durationSeconds": ["DurationSeconds", "Duration", "Seconds"],
+            "name": ["Title", "Name", "DisplayName", "Label"],
+            "demoId": ["DemoId"],
+            "intent": ["Intent"],
+            "wantedOutcome": ["WantedOutcome"],
+            "calledBy": ["CalledBy"],
+            "offenseCall": ["OffensePlayName", "OffenseCall", "OffensiveCall", "OffensePlay", "OffenseCallName", "Offense"],
+            "defenseCall": ["DefensePlayName", "DefenseCall", "DefensiveCall", "DefensePlay", "DefenseCallName", "Defense"],
+            "offenseFormation": ["OffenseFormation"],
+            "defenseFormation": ["DefenseFormation"],
+            "outcome": ["Outcome"],
+            "result": ["Result"],
+            "yards": ["YardsGained", "Yards"],
+            "firstDown": ["bFirstDown"],
+            "endedBy": ["EndedBy"],
+            "down": ["Down"],
+            "distance": ["Distance"],
+            "yardLine": ["YardLine"],
+            "durationSeconds": ["DurationSeconds", "Duration"],
+            "playSeconds": ["PlaySeconds"],
+            "snapTime": ["SnapTime"],
+            "whistleTime": ["WhistleTime"],
             "seed": ["Seed", "RandomSeed"],
-            "offenseTeam": ["OffenseTeam", "OffenseTeamId"],
-            "defenseTeam": ["DefenseTeam", "DefenseTeamId"],
+            "seedsTried": ["SeedsTried"],
+            "offenseTeam": ["OffenseTeamId", "OffenseTeam"],
+            "defenseTeam": ["DefenseTeamId", "DefenseTeam"],
+            "homeTeam": ["HomeTeamId"],
+            "groundZ": ["GroundZ"],
+            "pawnHalfHeightCm": ["PawnHalfHeightCm"],
+            "playerSpeedLimitCmPerSec": ["PlayerSpeedLimitCmPerSec"],
+            "ballSpeedLimitCmPerSec": ["BallSpeedLimitCmPerSec"],
+            "maxPlayerSpeedCmPerSec": ["MaxPlayerSpeedCmPerSec"],
+            "fastestPlayerId": ["FastestPlayerId"],
+            "maxBallSpeedCmPerSec": ["MaxBallSpeedCmPerSec"],
+            "ballTravelCm": ["BallTravelCm"],
+            "frameCount": ["FrameCount"],
+            "problems": ["Problems"],
             "synthetic": ["Synthetic"]
-        }
+        },
+        "numbers": ["yards", "down", "distance", "yardLine", "durationSeconds", "playSeconds", "snapTime", "whistleTime", "seed", "seedsTried", "groundZ", "pawnHalfHeightCm", "playerSpeedLimitCmPerSec", "ballSpeedLimitCmPerSec", "maxPlayerSpeedCmPerSec", "maxBallSpeedCmPerSec", "ballTravelCm", "frameCount"],
+        "flags": ["firstDown", "synthetic"]
     },
     "units": {
         "about": "The engine's sizes the viewer draws with, from the code that sets them. tools/tests/test_replay_viewer.py checks each against its source.",

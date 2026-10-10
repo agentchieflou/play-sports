@@ -59,7 +59,9 @@ const S = {
     model: null,
     R: null,
     plays: [],
+    indexMeta: null,
     sourceNote: "",
+    groundZ: 0,
     current: -1,
     replay: null,
     views: [],
@@ -222,8 +224,10 @@ function kitsFor(replay, entry)
     {
         // The recording's own Teams first, then the index, then the players' team ids; colours
         // the recording doesn't carry come from Data/sample_teams.json.
-        const own = replay.teams.find((t) => t.side === side) || null;
         const named = side === "Offense" ? entry && entry.offenseTeam : entry && entry.defenseTeam;
+        const own = replay.teams.find((t) => t.side === side)
+            || (named ? replay.teams.find((t) => [t.teamId, t.abbreviation, t.name].some((v) => v && v.toLowerCase() === String(named).toLowerCase())) : null)
+            || null;
         const fromPlayers = replay.players.find((p) => p.side === side && p.teamId);
         const catalog = (own && (findTeam(own.teamId) || findTeam(own.abbreviation) || findTeam(own.name)))
             || findTeam(named) || findTeam(fromPlayers && fromPlayers.teamId);
@@ -677,9 +681,10 @@ async function loadIndex()
         if (found)
         {
             const base = url.slice(0, url.lastIndexOf("/") + 1);
-            const entries = L.parseIndex(found.doc, S.schema);
+            const { meta, plays: entries } = L.readIndex(found.doc, S.schema);
             if (entries.length)
             {
+                S.indexMeta = meta;
                 S.plays = entries.map((e) => ({ entry: e, url: base + e.file, text: null }));
                 S.sourceNote = `Recordings from ${base}index.json`;
                 return;
@@ -689,20 +694,44 @@ async function loadIndex()
     const sample = await firstJson(["sample/SYNTHETIC_index.json"]);
     if (sample)
     {
-        S.plays = L.parseIndex(sample.doc, S.schema).map((e) => ({ entry: { ...e, synthetic: true }, url: "sample/" + e.file, text: null }));
+        const { meta, plays: entries } = L.readIndex(sample.doc, S.schema);
+        S.indexMeta = meta;
+        S.plays = entries.map((e) => ({ entry: { ...e, synthetic: true }, url: "sample/" + e.file, text: null }));
         S.sourceNote = "No recordings were found next to this page (recordings/index.json), so it shows the synthetic test sample.";
         return;
     }
     S.plays = [];
 }
 
+function signed(n)
+{
+    return `${n >= 0 ? "+" : "\u2212"}${Math.abs(n)}`;
+}
+
+/** What the play came to, from the index: its outcome (or result) and yards. */
+function outcomeText(e)
+{
+    const what = e.outcome && e.outcome !== "None" ? e.outcome : e.result;
+    if (!what)
+    {
+        return "";
+    }
+    const yards = e.yards === null || e.yards === undefined || (e.yards === 0 && /incomplet/i.test(what)) ? "" : ` ${signed(e.yards)} yd`;
+    return what + yards;
+}
+
 function playTitle(play, k)
 {
     const e = play.entry;
-    const parts = [e.name || e.file.replace(/\.json$/i, "").replace(/_/g, " ")];
-    if (e.result)
+    const parts = [e.name || e.demoId || e.file.replace(/\.json$/i, "").replace(/_/g, " ")];
+    const outcome = outcomeText(e);
+    if (outcome)
     {
-        parts.push(e.yards === null || e.yards === undefined ? e.result : `${e.result} ${e.yards >= 0 ? "+" : ""}${e.yards}`);
+        parts.push(outcome);
+    }
+    if (e.endedBy === "PhaseClock")
+    {
+        parts.push("ended by clock");
     }
     return `${k + 1}. ${parts.join(" · ")}`;
 }
@@ -757,6 +786,15 @@ async function selectPlay(k)
     if (token !== S.loadToken)
     {
         return;
+    }
+    // The ground under the recording: the index's when it gives one, else a capsule's half-height
+    // below where the players stand.
+    S.groundZ = play.entry.groundZ !== null && play.entry.groundZ !== undefined ? play.entry.groundZ
+        : replay.standZ - (play.entry.pawnHalfHeightCm || S.schema.units.capsuleHalfHeightCm);
+    if (play.entry.endedBy === "PhaseClock")
+    {
+        // No tackle, landing or boundary ended it: the phase clock did.
+        replay.events.filter((e) => e.type === "Whistle").forEach((e) => { e.label = "Whistle: ended by clock"; });
     }
     S.replay = replay;
     S.kits = kitsFor(replay, play.entry);
@@ -820,7 +858,7 @@ function buildBallTrail(replay)
         {
             continue;
         }
-        toScene(v, replay.ball.pos[i * 3], replay.ball.pos[i * 3 + 1], replay.ball.pos[i * 3 + 2]);
+        toScene(v, replay.ball.pos[i * 3], replay.ball.pos[i * 3 + 1], replay.ball.pos[i * 3 + 2] - S.groundZ);
         pts.push(v.x, Math.max(0.05, v.y), v.z);
     }
     while (pts.length < 6)
@@ -877,28 +915,46 @@ function renderHud(play, replay)
 {
     const hud = $("hud");
     hud.innerHTML = "";
-    const add = (text, cls) =>
+    const add = (text, cls, onClick) =>
     {
-        const el = document.createElement("span");
+        const el = document.createElement(onClick ? "button" : "span");
         el.className = "chip" + (cls ? " " + cls : "");
         el.textContent = text;
+        if (onClick)
+        {
+            el.type = "button";
+            el.addEventListener("click", onClick);
+        }
         hud.appendChild(el);
+        return el;
     };
+    const e = play.entry;
     const ps = replay.playState;
-    if (ps && ps.down > 0)
+    const down = e.down || (ps && ps.down);
+    if (down > 0)
     {
-        const spot = ps.yardLine <= 50 ? `own ${ps.yardLine}` : `opp ${100 - ps.yardLine}`;
-        add(`${ordinal(ps.down)} & ${ps.distance} · ${spot}`);
+        const distance = e.distance ?? (ps && ps.distance);
+        const yardLine = e.yardLine ?? (ps && ps.yardLine);
+        const spot = yardLine <= 50 ? `own ${yardLine}` : `opp ${100 - yardLine}`;
+        add(`${ordinal(down)} & ${distance} · ${spot}`);
     }
     const r = replay.result;
-    const resultText = r && r.result ? `${r.sack ? "Sack" : r.interception ? "Interception" : r.result}${r.yards !== null ? ` ${r.yards >= 0 ? "+" : ""}${r.yards} yd` : ""}`
-        : play.entry.result ? `${play.entry.result}${play.entry.yards !== null ? ` ${play.entry.yards >= 0 ? "+" : ""}${play.entry.yards} yd` : ""}` : "";
+    const resultText = outcomeText(e) || (r && r.result ? `${r.sack ? "Sack" : r.interception ? "Interception" : r.result}${r.yards !== null ? ` ${signed(r.yards)} yd` : ""}` : "");
     if (resultText)
     {
         add(resultText, "result");
     }
-    const off = (replay.calls.offense && replay.calls.offense.name) || play.entry.offenseCall;
-    const def = (replay.calls.defense && replay.calls.defense.name) || play.entry.defenseCall;
+    if (e.endedBy === "PhaseClock")
+    {
+        add("Ended by clock", "quiet");
+    }
+    if (Array.isArray(e.problems))
+    {
+        const n = e.problems.length;
+        add(n ? `Sanity: ${n} issue${n === 1 ? "" : "s"}` : "Sanity OK", n ? "bad" : "ok", openAbout);
+    }
+    const off = e.offenseCall || (replay.calls.offense && replay.calls.offense.name);
+    const def = e.defenseCall || (replay.calls.defense && replay.calls.defense.name);
     if (off || def)
     {
         add([off, def].filter(Boolean).join(" vs "), "quiet calls");
@@ -998,6 +1054,31 @@ function renderAbout(play, replay)
     const def = replay.calls.defense;
     add("Offense call", off ? [off.name, off.formation].filter(Boolean).join(", ") : play.entry.offenseCall);
     add("Defense call", def ? [def.name, def.front, def.coverage].filter(Boolean).join(", ") : play.entry.defenseCall);
+    const e = play.entry;
+    add("Asked for", [e.intent, e.wantedOutcome ? `wanted ${e.wantedOutcome}` : "", e.calledBy ? `called by ${e.calledBy}` : ""].filter(Boolean).join(", "));
+    add("Outcome", outcomeText(e) ? `${outcomeText(e)}${e.firstDown ? ", first down" : ""}` : null);
+    const endings = { Tackle: "a tackle", BallGrounded: "the ball landing", BoundaryCrossed: "crossing a boundary", LooseBall: "a loose ball", PhaseClock: "the phase clock (no tackle, landing or boundary)" };
+    add("Ended by", e.endedBy ? endings[e.endedBy] || e.endedBy : null);
+    if (e.seedsTried)
+    {
+        add("Seeds tried", e.seedsTried);
+    }
+    const nameOf = (id) => (replay.players.find((p) => p.id === id) || { name: id }).name;
+    if (e.maxPlayerSpeedCmPerSec)
+    {
+        add("Fastest player", `${(e.maxPlayerSpeedCmPerSec / 100).toFixed(1)} m/s${e.fastestPlayerId ? `, ${nameOf(e.fastestPlayerId)}` : ""}${e.playerSpeedLimitCmPerSec ? ` (limit ${(e.playerSpeedLimitCmPerSec / 100).toFixed(1)})` : ""}`);
+    }
+    if (e.maxBallSpeedCmPerSec)
+    {
+        add("Fastest ball", `${(e.maxBallSpeedCmPerSec / 100).toFixed(1)} m/s${e.ballTravelCm ? `, travelled ${(e.ballTravelCm / 100).toFixed(1)} m` : ""}`);
+    }
+    if (Array.isArray(e.problems))
+    {
+        add("Sanity", e.problems.length ? e.problems.join(" ") : "The recorder's checks found no problems.");
+    }
+    const m = S.indexMeta || {};
+    add("Method", m.method);
+    add("Index made", m.generatedAtUtc);
     $("about-synthetic").hidden = !replay.synthetic;
     const warn = $("about-warnings");
     warn.hidden = !replay.warnings.length;
@@ -1073,7 +1154,7 @@ function update(force)
         v.ay = lerpAt(r.acc[s], i, j, a, 1);
         const yaw = lerpAngle(r.yaw[s][i], r.yaw[s][j], a);
         v.yaw = yaw;
-        toScene(v.at, x, y, z - S.schema.units.capsuleHalfHeightCm);
+        toScene(v.at, x, y, Math.max(0, z - r.standZ));
         v.holder.position.copy(v.at);
         v.holder.rotation.y = -yaw * DEG - Math.PI / 2;
         const phase = S.phases[s][i] + (S.phases[s][j] - S.phases[s][i]) * a;
@@ -1120,7 +1201,7 @@ function update(force)
         const bvx = lerpAt(r.ball.vel, bi, bj, ba, 0);
         const bvy = lerpAt(r.ball.vel, bi, bj, ba, 1);
         const bvz = lerpAt(r.ball.vel, bi, bj, ba, 2);
-        toScene(tmpA, bx, by, bz);
+        toScene(tmpA, bx, by, bz - S.groundZ);
         const carrierView = carrier >= 0 ? S.views[carrier] : null;
         if (carrierView && tmpA.distanceTo(tmpB.set(carrierView.at.x, tmpA.y, carrierView.at.z)) < 1.2)
         {
@@ -1671,12 +1752,13 @@ $("layers").addEventListener("click", (ev) =>
 });
 $("card-close").addEventListener("click", () => followPlayer(-1));
 $("play-select").addEventListener("change", (ev) => selectPlay(Number(ev.target.value)));
-$("about-open").addEventListener("click", () =>
+function openAbout()
 {
     $("about").showModal();
     $("about-title").focus();
     $("about").scrollTop = 0;
-});
+}
+$("about-open").addEventListener("click", openAbout);
 $("about-close").addEventListener("click", () => $("about").close());
 window.addEventListener("keydown", (ev) =>
 {

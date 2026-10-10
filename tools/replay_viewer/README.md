@@ -57,21 +57,32 @@ matched in any case. The viewer needs a header with a `FormatVersion` of 1 or mo
 with `Time` and `Pawns` (`PlayerId`, `Location`); everything else is optional. A version newer
 than 2 plays with a note that unknown fields are ignored.
 
-Who each player is comes from, in order: the recording's optional top-level `Participants` (lane
-S4's additive extension: team, role, display name, `JerseyNumber`), the rosters in
-`InitialState`, and the pawn snapshots. Without a jersey number a player is labelled by role and
-index (`OL3`, `WR2`, `QB`). Kits come from the recording's optional `Teams` (colours, or the team's
-entry in `Data/sample_teams.json`), else offense blue and defense red.
+Who each player is comes from, in order: the recording's optional top-level `participants` (lane
+S4's additive extension, PR #205: `playerId, displayName, teamId, teamSide, role, jerseyNumber`,
+0 meaning none), the rosters in `initialState`, and the pawn snapshots. Without a jersey number a
+player is labelled by role and index (`OL3`, `WR2`, `QB`). Kits come from the recording's optional
+`teams` (`teamId, displayName, abbreviation, primaryColor, secondaryColor, bHome`; a team's side is
+read off its participants), else the team's entry in `Data/sample_teams.json`, else offense blue
+and defense red.
 
-**The index** (`index.json`) is a list of plays, either the whole document or under `Plays`:
+Players stand on the ground at the height the recording has them standing (the median of their
+capsule centres), so a ground or capsule that sits a little off zero still puts feet on the turf.
+The ball is drawn over the index's `groundZ` (or a capsule's half-height below the players).
 
-```json
-{ "Plays": [ { "File": "inside_run_seed7.json", "Name": "Inside run, 6 yards",
-               "OffenseCall": "Inside Zone", "DefenseCall": "Cover 2", "Result": "Tackle",
-               "Yards": 6, "DurationSeconds": 6.4, "Seed": 7 } ] }
-```
+**The index** (`index.json`) is lane S4's: `{ generatedAtUtc, gameBuildVersion, frameRateHz,
+method, plays[] }`. From each play the page uses:
 
-Only `File` is needed; the aliases each field accepts are in `replay_schema.json` (`index`).
+- `file`, and `title` for the play selector with `outcome` and `yardsGained` (`Run +6 yd`);
+- `endedBy`: `PhaseClock` (no tackle, landing or boundary) is said plainly, "ended by clock", on
+  the selector, the HUD and the whistle;
+- `problems[]` as a sanity badge (`Sanity OK`, or the count, listed in About);
+- `offensePlayName`, `defensePlayName`, `down`, `distance`, `yardLine`, `offenseTeamId`,
+  `defenseTeamId`, `groundZ`;
+- for the About panel: `intent`, `wantedOutcome`, `calledBy`, `seed`, `seedsTried`,
+  `maxPlayerSpeedCmPerSec` with `fastestPlayerId`, `maxBallSpeedCmPerSec`, `ballTravelCm`, the
+  speed limits, and the index's `method`.
+
+Only `file` is needed; the aliases each field accepts are in `replay_schema.json` (`index`).
 Anything missing is read from the recording: the calls from its `PlayCall` events, the result
 from its `PlayResult`, the duration from its frames.
 
@@ -96,8 +107,10 @@ from its `PlayResult`, the duration from its frames.
 ## The synthetic sample
 
 `sample/SYNTHETIC_*.json` are two hand-made plays (a handoff run and a short pass) for building
-the viewer before real recordings existed. They are shaped like the C++ output but were drawn from
-waypoints by `sample/make_synthetic_sample.py`; nothing in them comes from the game. Every file is
+the viewer before real recordings existed. They are shaped like the C++ output and S4's
+extensions (made-up "Synthetic" teams with jersey numbers) but were drawn from waypoints by
+`sample/make_synthetic_sample.py`; nothing in them comes from the game. Their index has no
+`problems[]`, so no sanity badge: the recorder's checks never ran on them. Every file is
 named `SYNTHETIC_*`, says so in its `GameBuildVersion`, and is marked in its index, and the page
 shows a red banner over them. The page falls back to them only when it finds no
 `recordings/index.json`.

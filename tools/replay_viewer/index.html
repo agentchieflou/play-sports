@@ -184,6 +184,9 @@ button { cursor: pointer; }
 .chip.result { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 .chip.quiet { font-weight: 500; color: var(--muted); }
 .chip.calls { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.chip.ok { color: var(--ev-catch); border-color: currentColor; }
+.chip.bad { background: var(--warn-bg); color: var(--warn-ink); border-color: transparent; }
+button.chip { pointer-events: auto; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; }
 .status {
     position: absolute;
     inset: auto 12px 12px 12px;

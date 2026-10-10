@@ -225,9 +225,10 @@ export function isSynthetic(schema, fileName, doc, entry)
     return !!(entry && entry.synthetic);
 }
 
-/** The demo index as a list of { file, name, offenseCall, defenseCall, result, yards,
- *  durationSeconds, seed, offenseTeam, defenseTeam, synthetic }; missing values are null. */
-export function parseIndex(doc, schema)
+/** The demo index as { meta, plays }: meta is { generatedAtUtc, gameBuildVersion, frameRateHz,
+ *  method } (null each when absent); each play has every key of the schema's index.fields (null
+ *  when absent), numbers as numbers, flags as booleans and problems as a list of strings. */
+export function readIndex(doc, schema)
 {
     const spec = schema.index;
     let list = Array.isArray(doc) ? doc : field(doc, spec.listKeys);
@@ -236,35 +237,62 @@ export function parseIndex(doc, schema)
         // Any one array of objects with a file in it.
         list = Object.values(doc || {}).find((v) => Array.isArray(v) && v.some((e) => field(e, spec.fields.file) !== undefined)) || [];
     }
-    const out = [];
+    const meta = {};
+    for (const [key, aliases] of Object.entries(spec.meta))
+    {
+        const value = Array.isArray(doc) ? undefined : field(doc, aliases);
+        meta[key] = value === undefined || typeof value === "object" ? null : value;
+    }
+    const numbers = new Set(spec.numbers);
+    const flags = new Set(spec.flags);
+    const plays = [];
     for (const entry of list)
     {
+        const row = {};
+        for (const key of Object.keys(spec.fields))
+        {
+            row[key] = null;
+        }
         if (typeof entry === "string")
         {
-            out.push({ file: entry, name: null, offenseCall: null, defenseCall: null, result: null, yards: null, durationSeconds: null, seed: null, offenseTeam: null, defenseTeam: null, synthetic: false });
-            continue;
+            row.file = entry;
         }
-        const row = {};
-        for (const [key, aliases] of Object.entries(spec.fields))
+        else
         {
-            let value = field(entry, aliases);
-            if (value !== undefined && typeof value === "object")
+            for (const [key, aliases] of Object.entries(spec.fields))
             {
-                // A call given as an object: its display name.
-                value = field(value, "DisplayName", "Name", "PlayId") ?? null;
+                let value = field(entry, aliases);
+                if (key === "problems")
+                {
+                    row.problems = Array.isArray(value) ? value.map((v) => (typeof v === "string" ? v : JSON.stringify(v))) : null;
+                    continue;
+                }
+                if (value !== undefined && value !== null && typeof value === "object")
+                {
+                    // A call or a team given as an object: its name.
+                    value = Array.isArray(value) ? undefined : field(value, "DisplayName", "Name", "PlayId", "TeamId");
+                }
+                if (value === undefined || value === null || value === "")
+                {
+                    continue;
+                }
+                row[key] = numbers.has(key) ? num(value, null) : flags.has(key) ? bool(value) : String(value);
             }
-            row[key] = value === undefined ? null : value;
         }
         if (!row.file)
         {
             continue;
         }
-        row.yards = row.yards === null ? null : num(row.yards, null);
-        row.durationSeconds = row.durationSeconds === null ? null : num(row.durationSeconds, null);
-        row.synthetic = bool(row.synthetic);
-        out.push(row);
+        row.synthetic = row.synthetic === true;
+        plays.push(row);
     }
-    return out;
+    return { meta, plays };
+}
+
+/** The demo index's plays (readIndex(doc, schema).plays). */
+export function parseIndex(doc, schema)
+{
+    return readIndex(doc, schema).plays;
 }
 
 function median(values)
@@ -343,7 +371,7 @@ const PAYLOAD_LABEL = {
  *  'hidden' ones only the list. */
 const EVENT_KIND = {
     Snap: "key", Throw: "key", Catch: "key", Tackle: "key", Fumble: "key", Score: "key", PlayResult: "key",
-    Kick: "key", LooseBall: "key", BoundaryCrossed: "key", BallGrounded: "minor", PumpFake: "minor",
+    Kick: "key", LooseBall: "key", BoundaryCrossed: "key", BallGrounded: "key", PumpFake: "minor",
     Damage: "minor", PassRushMove: "minor", PhaseChange: "hidden", GameState: "hidden", PlayCall: "hidden"
 };
 
@@ -535,6 +563,23 @@ export function buildReplay(doc, schema, options = {})
             hasBall[s][i] = bool(field(p, "bHasBall")) ? 1 : 0;
         }
     });
+
+    // How high a standing pawn's location is (its capsule centre over the ground): the median of
+    // the recorded heights. The page stands players on the ground from it, so a recording whose
+    // ground or capsule sits a little differently still draws feet on the turf.
+    const heights = [];
+    const stride = Math.max(1, Math.floor(F / 60));
+    for (let s = 0; s < P; s++)
+    {
+        for (let i = 0; i < F; i += stride)
+        {
+            if (present[s][i])
+            {
+                heights.push(pos[s][i * 3 + 2]);
+            }
+        }
+    }
+    const standZ = heights.length ? median(heights) : schema.units.capsuleHalfHeightCm;
 
     // A pawn missing from some frames holds its nearest captured pose there.
     for (let s = 0; s < P; s++)
@@ -761,7 +806,7 @@ export function buildReplay(doc, schema, options = {})
     const units = schema.units;
     const replay = {
         header, playState, times, start, end, duration: end - start,
-        sampleRateHz: step > 0 ? 1 / step : 0, keyframeCount, players, teams, pos, vel, acc, yaw, hasBall, present, ball,
+        sampleRateHz: step > 0 ? 1 / step : 0, keyframeCount, players, teams, standZ, pos, vel, acc, yaw, hasBall, present, ball,
         events, calls, result, carrier, warnings, eventClock,
         synthetic: isSynthetic(schema, options.fileName, doc, options.entry)
     };
@@ -829,6 +874,7 @@ export function readTeams(doc, schema, players)
             abbreviation: abbreviation === undefined ? null : String(abbreviation),
             primaryColor: colour(field(t, spec.primaryColor)),
             secondaryColor: colour(field(t, spec.secondaryColor)),
+            home: field(t, spec.home) === undefined ? null : bool(field(t, spec.home)),
             side
         });
     }

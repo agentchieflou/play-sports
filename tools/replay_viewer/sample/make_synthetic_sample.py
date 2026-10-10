@@ -10,6 +10,9 @@ They are shaped like UPSReplayFormat::SerializeToJson output: the C++ field name
 letter lower-cased (FJsonObjectConverter's StandardizeCase), enums by name, FVectors as {x, y, z},
 events with their payloads as JSON strings, frames at the saved-clip rate (Data/replay.json,
 SaveFrameRateHz 15) on the sampler's clock, with keyframes at the snap, throw, catch and tackle.
+Like lane S4's demos (PR #205) they carry the optional top-level teams and participants (made-up
+"Synthetic" teams with jersey numbers), and the index has S4's fields, except problems[]: the
+recorder's sanity checks never ran on these.
 
 Run from the repo root: python tools/replay_viewer/sample/make_synthetic_sample.py
 """
@@ -54,6 +57,18 @@ LINEUP = [
     ("SYN_DB_02", "DB", "Defense", (LOS_X + 600, 2050), 87, 183),
     ("SYN_DB_03", "DB", "Defense", (LOS_X + 1300, -1050), 92, 185),
     ("SYN_DB_04", "DB", "Defense", (LOS_X + 1300, 1050), 93, 186),
+]
+
+
+JERSEYS = {
+    "SYN_QB_01": 12, "SYN_RB_01": 28, "SYN_WR_01": 11, "SYN_WR_02": 81, "SYN_WR_03": 17, "SYN_TE_01": 87,
+    "SYN_OL_LT": 72, "SYN_OL_LG": 66, "SYN_OL_C": 60, "SYN_OL_RG": 64, "SYN_OL_RT": 75,
+    "SYN_DL_01": 91, "SYN_DL_02": 97, "SYN_DL_03": 94, "SYN_DL_04": 99, "SYN_LB_01": 54, "SYN_LB_02": 52,
+    "SYN_LB_03": 50, "SYN_DB_01": 24, "SYN_DB_02": 21, "SYN_DB_03": 33, "SYN_DB_04": 31,
+}
+TEAMS = [
+    {"teamId": "SYN_HOME", "displayName": "Synthetic Home", "abbreviation": "SYNTH", "primaryColor": "#1F5FA8", "secondaryColor": "#E8EDF2", "bHome": True},
+    {"teamId": "SYN_AWAY", "displayName": "Synthetic Away", "abbreviation": "TEST", "primaryColor": "#B3302A", "secondaryColor": "#F2EAD9", "bHome": False},
 ]
 
 
@@ -192,6 +207,11 @@ def build_play(name, paths, ball_at, carrier_at, events, duration, keyframe_time
         },
         "events": records,
         "frames": frames,
+        "teams": TEAMS,
+        "participants": [{
+            "playerId": pid, "displayName": display_name(pid, role_key), "teamId": "SYN_HOME" if side == "Offense" else "SYN_AWAY",
+            "teamSide": side, "role": ROLES[role_key], "jerseyNumber": JERSEYS[pid],
+        } for pid, role_key, side, _, _, _ in LINEUP],
     }
 
 
@@ -380,16 +400,29 @@ def short_pass():
 
 def main():
     plays = [
-        ("SYNTHETIC_handoff_run.json", handoff_run(), "SYNTHETIC handoff run (hand-made test data)", "Inside Zone Right (synthetic)", "Cover 2 Base (synthetic)", "Tackle", 5),
-        ("SYNTHETIC_short_pass.json", short_pass(), "SYNTHETIC short pass (hand-made test data)", "Quick Slant (synthetic)", "Cover 3 Sky (synthetic)", "Tackle", 15),
+        ("SYNTHETIC_handoff_run.json", handoff_run(), "SyntheticInsideRun", "InsideRun", "SYNTHETIC handoff run, 5 yards (hand-made)",
+         "Inside Zone Right (synthetic)", "Cover 2 Base (synthetic)", "Run", 5, False),
+        ("SYNTHETIC_short_pass.json", short_pass(), "SyntheticQuickPass", "QuickPass", "SYNTHETIC quick slant, 15 yards (hand-made)",
+         "Quick Slant (synthetic)", "Cover 3 Sky (synthetic)", "Completion", 15, True),
     ]
-    index = {"plays": []}
-    for file_name, doc, name, offense, defense, result, yards in plays:
+    index = {
+        "generatedAtUtc": "2026.10.10-00.00.00",
+        "gameBuildVersion": "SYNTHETIC sample, hand-made, not the game",
+        "frameRateHz": RATE_HZ,
+        "method": "SYNTHETIC: hand-made waypoints (tools/replay_viewer/sample/make_synthetic_sample.py), not the simulation",
+        "plays": [],
+    }
+    for file_name, doc, demo_id, intent, title, offense, defense, outcome, yards, first_down in plays:
         (OUT / file_name).write_text(json.dumps(doc, separators=(",", ":")) + "\n", encoding="utf-8")
         frames = doc["frames"]
+        events = {e["eventType"]: e["timestampSeconds"] for e in doc["events"]}
         index["plays"].append({
-            "file": file_name, "name": name, "offenseCall": offense, "defenseCall": defense, "result": result,
-            "yards": yards, "durationSeconds": round(frames[-1]["time"] - frames[0]["time"], 3), "seed": 0, "synthetic": True,
+            "demoId": demo_id, "intent": intent, "title": title, "file": file_name, "seed": 0, "wantedOutcome": outcome,
+            "calledBy": "SYNTHETIC", "homeTeamId": "SYN_HOME", "awayTeamId": "SYN_AWAY", "offenseTeamId": "SYN_HOME", "defenseTeamId": "SYN_AWAY",
+            "offensePlayName": offense, "defensePlayName": defense, "down": 1, "distance": 10, "yardLine": 35,
+            "outcome": outcome, "result": "Tackle", "yardsGained": yards, "bFirstDown": first_down, "endedBy": "Tackle",
+            "snapTime": events["Snap"], "whistleTime": events["PlayResult"], "playSeconds": round(events["PlayResult"] - events["Snap"], 3),
+            "frameCount": len(frames), "frameRateHz": RATE_HZ, "eventCount": len(doc["events"]), "synthetic": True,
         })
     (OUT / "SYNTHETIC_index.json").write_text(json.dumps(index, indent=4) + "\n", encoding="utf-8")
 

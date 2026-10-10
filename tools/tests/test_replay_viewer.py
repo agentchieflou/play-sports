@@ -112,10 +112,28 @@ class ShapeChecker:
         if not ok:
             self.problems.append(f"{path}: {value!r} is not a {cpp_type}")
 
+    def extension(self, items, spec, path):
+        """An additive field lane S4 adds (PR #205) before the C++ on main has it: each element's
+        keys must be names the schema reads, spelled as the converter spells them."""
+        if not isinstance(items, list):
+            self.problems.append(f"{path}: expected an array")
+            return
+        known = {standardize(alias) for key, aliases in spec.items() if isinstance(aliases, list) and key != "lists" for alias in aliases}
+        for i, item in enumerate(items):
+            for key in item:
+                if key not in known:
+                    self.problems.append(f"{path}[{i}].{key}: not a field the viewer's schema names")
+
     def struct(self, obj, struct_name, path):
         props = STRUCTS[struct_name]
         by_key = {standardize(name): (name, t, transient) for name, (t, transient) in props.items()}
+        extensions = {}
+        if struct_name == "FPSReplayRecording":
+            extensions = {standardize(n): spec for n, spec in (("Teams", SCHEMA["teamInfo"]), ("Participants", SCHEMA["playerInfo"]))}
         for key, value in obj.items():
+            if key not in by_key and key in extensions:
+                self.extension(value, extensions[key], f"{path}.{key}")
+                continue
             if key not in by_key:
                 self.problems.append(f"{path}.{key}: not a UPROPERTY of {struct_name} as FJsonObjectConverter spells it")
                 continue
@@ -157,6 +175,11 @@ class ContractTests(unittest.TestCase):
         for enum_name, spec in SCHEMA["enums"].items():
             for value in spec["values"]:
                 self.assertIn(value, ENUMS[enum_name], f"{enum_name}::{value}")
+
+    def test_extensions_are_the_ones_the_schema_names(self):
+        self.assertEqual(SCHEMA["extensions"]["recording"], ["Teams", "Participants"])
+        self.assertEqual(SCHEMA["playerInfo"]["lists"], ["Participants"])
+        self.assertEqual(SCHEMA["teamInfo"]["lists"], ["Teams"])
 
     def test_known_format_version_is_the_cpp_one(self):
         header = (PUBLIC / "PSReplayFormat.h").read_text(encoding="utf-8")
@@ -226,10 +249,14 @@ class SyntheticSampleTests(unittest.TestCase):
         files = sorted(p.name for p in sample.glob("*.json"))
         self.assertTrue(files)
         self.assertTrue(all(name.startswith(prefix) for name in files), files)
-        index = stage.parse_index(stage.parse((sample / (prefix + "index.json")).read_text(encoding="utf-8")), SCHEMA)
+        index_doc = stage.parse((sample / (prefix + "index.json")).read_text(encoding="utf-8"))
+        self.assertIn(SCHEMA["synthetic"]["buildMarker"], stage.field(index_doc, "Method"))
+        index = stage.parse_index(index_doc, SCHEMA)
         self.assertEqual(len(index), 2)
         for entry in index:
             self.assertIs(entry["synthetic"], True)
+            self.assertIsNone(entry["problems"], "the recorder's checks never ran on hand-made plays")
+            self.assertTrue(entry["name"].startswith("SYNTHETIC"))
             doc = stage.parse((sample / entry["file"]).read_text(encoding="utf-8"))
             build = stage.field(stage.field(doc, "Header"), "GameBuildVersion")
             self.assertIn(SCHEMA["synthetic"]["buildMarker"], build.upper())
@@ -260,7 +287,10 @@ class StageTests(unittest.TestCase):
         folder.mkdir()
         for name in names:
             shutil.copyfile(FIXTURE, folder / name)
-        (folder / "index.json").write_text(json.dumps({"Plays": [{"File": n, "Result": "Tackle", "Yards": -1} for n in names]}), encoding="utf-8")
+        plays = [{"demoId": "BlitzSack", "title": "Sack for a loss of 1", "file": n, "outcome": "Sack", "result": "Tackle",
+                  "yardsGained": -1, "endedBy": "Tackle", "problems": []} for n in names]
+        index = {"generatedAtUtc": "2026.10.10-18.00.00", "gameBuildVersion": "test-build", "frameRateHz": 30, "method": "test", "plays": plays}
+        (folder / "index.json").write_text(json.dumps(index), encoding="utf-8")
         return folder
 
     def test_stages_real_recordings_with_the_viewer_data_and_model(self):
@@ -272,6 +302,12 @@ class StageTests(unittest.TestCase):
             self.assertTrue((out / published).is_file(), published)
             self.assertIn(published, files)
         self.assertFalse((out / "sample").exists(), "the synthetic sample is not staged with real recordings")
+
+    def test_reads_the_demo_index_as_lane_s4_writes_it(self):
+        index = stage.parse_index(json.loads((self.recordings(["01_BlitzSack.json"]) / "index.json").read_text(encoding="utf-8")), SCHEMA)
+        self.assertEqual(len(index), 1)
+        self.assertEqual((index[0]["file"], index[0]["name"], index[0]["outcome"], index[0]["yards"], index[0]["problems"]),
+                         ("01_BlitzSack.json", "Sack for a loss of 1", "Sack", -1, []))
 
     def test_refuses_synthetic_files_as_the_games_recordings(self):
         with self.assertRaises(stage.StageError):
@@ -359,11 +395,12 @@ class JsLoaderTests(unittest.TestCase):
         on another clock are moved onto the frames' by their keyframes."""
         doc = json.loads(FIXTURE.read_text(encoding="utf-8"))
         doc["participants"] = [
-            {"playerId": "QB_01", "teamId": "Hawks", "teamSide": "Offense", "role": "Quarterback", "displayName": "R. Talon", "jerseyNumber": 7},
-            {"playerId": "DB_01", "teamId": "Bears", "teamSide": "Defense", "role": "DefensiveBack", "displayName": "K. Maul", "jerseyNumber": 24},
+            {"playerId": "QB_01", "displayName": "R. Talon", "teamId": "Hawks", "teamSide": "Offense", "role": "Quarterback", "jerseyNumber": 7},
+            {"playerId": "DB_01", "displayName": "K. Maul", "teamId": "Bears", "teamSide": "Defense", "role": "DefensiveBack", "jerseyNumber": 0},
         ]
-        doc["teams"] = [{"teamId": "Hawks", "displayName": "Harbor Hawks", "abbreviation": "HAW", "primaryColor": "#0B5E8A"},
-                        {"teamId": "Bears", "displayName": "Blackridge Bears", "abbreviation": "BER"}]
+        doc["teams"] = [{"teamId": "Hawks", "displayName": "Harbor Hawks", "abbreviation": "HAW", "primaryColor": "#0B5E8A", "secondaryColor": "#F2B705", "bHome": True},
+                        {"teamId": "Bears", "displayName": "Blackridge Bears", "abbreviation": "BER", "primaryColor": "#3A2A1E", "secondaryColor": "#C9A227", "bHome": False}]
+        self.assertEqual(ShapeChecker().recording(doc), [])
         for event in doc["events"]:
             event["timestampSeconds"] += 100.0  # the world's clock, not the sampler's
         path = Path(tempfile.mkdtemp()) / "participants.json"
@@ -374,16 +411,42 @@ class JsLoaderTests(unittest.TestCase):
             shutil.rmtree(path.parent, ignore_errors=True)
         players = {p["id"]: p for p in out["players"]}
         self.assertEqual((players["QB_01"]["name"], players["QB_01"]["jersey"], players["QB_01"]["teamId"]), ("R. Talon", "7", "Hawks"))
-        self.assertEqual(players["DB_01"]["jersey"], "24")
-        sides = {t["teamId"]: t["side"] for t in out["teams"]}
-        self.assertEqual(sides, {"Hawks": "Offense", "Bears": "Defense"})
+        self.assertIsNone(players["DB_01"]["jersey"], "jersey number 0 means none")
+        self.assertEqual(players["DB_01"]["name"], "K. Maul")
+        sides = {t["teamId"]: (t["side"], t["home"]) for t in out["teams"]}
+        self.assertEqual(sides, {"Hawks": ("Offense", True), "Bears": ("Defense", False)})
         self.assertEqual(out["teams"][0]["primaryColor"], "#0B5E8A")
         self.assertEqual(out["eventClock"], "shifted by keyframes")
         snap = next(e for e in out["timeline"] if e["type"] == "Snap")
         self.assertAlmostEqual(snap["t"], 0.0, places=3)
 
+    def test_js_reads_the_demo_index(self):
+        index = {"generatedAtUtc": "2026.10.10-18.00.00", "gameBuildVersion": "b", "frameRateHz": 30, "method": "live world, fixed step",
+                 "plays": [{"demoId": "DeepPass", "title": "Deep pass complete for 31", "file": "04_DeepPass.json", "seed": 11, "seedsTried": 3,
+                            "offensePlayName": "Four Verticals", "defensePlayName": "Cover 1", "outcome": "Completion", "result": "Tackle",
+                            "yardsGained": 31, "bFirstDown": True, "endedBy": "PhaseClock", "groundZ": 0, "problems": ["ball speed 3100 over 3000"]}]}
+        path = Path(tempfile.mkdtemp()) / "index.json"
+        try:
+            path.write_text(json.dumps(index), encoding="utf-8")
+            out = self.run_loader("--index", path)[str(path)]
+        finally:
+            shutil.rmtree(path.parent, ignore_errors=True)
+        self.assertEqual(out["meta"]["method"], "live world, fixed step")
+        play = out["plays"][0]
+        self.assertEqual((play["file"], play["name"], play["offenseCall"], play["defenseCall"]), ("04_DeepPass.json", "Deep pass complete for 31", "Four Verticals", "Cover 1"))
+        self.assertEqual((play["outcome"], play["yards"], play["firstDown"], play["endedBy"], play["seed"]), ("Completion", 31, True, "PhaseClock", 11))
+        self.assertEqual(play["problems"], ["ball speed 3100 over 3000"])
+        self.assertEqual(play["groundZ"], 0)
+
     def test_labels_fall_back_to_role_and_index(self):
-        out = self.run_loader(VIEWER / "sample" / "SYNTHETIC_handoff_run.json")
+        doc = json.loads((VIEWER / "sample" / "SYNTHETIC_handoff_run.json").read_text(encoding="utf-8"))
+        del doc["participants"]
+        path = Path(tempfile.mkdtemp()) / "no_participants.json"
+        try:
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            out = self.run_loader(path)
+        finally:
+            shutil.rmtree(path.parent, ignore_errors=True)
         players = next(iter(out.values()))["players"]
         linemen = sorted(p["roleIndex"] for p in players if p["role"] == "OffensiveLineman")
         self.assertEqual(linemen, [1, 2, 3, 4, 5])
