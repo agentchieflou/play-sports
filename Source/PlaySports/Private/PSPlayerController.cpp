@@ -9,6 +9,9 @@
 #include "PSCarrierInputComponent.h"
 #include "PSPreSnapInputComponent.h"
 #include "PSInputBufferComponent.h"
+#include "PSDefenseInputComponent.h"
+#include "PSKickMeterComponent.h"
+#include "PSSettingsComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -48,6 +51,9 @@ APSPlayerController::APSPlayerController()
     CarrierInputComponent = CreateDefaultSubobject<UPSCarrierInputComponent>(TEXT("CarrierInputComp"));
     PreSnapInputComponent = CreateDefaultSubobject<UPSPreSnapInputComponent>(TEXT("PreSnapInputComp"));
     InputBufferComponent = CreateDefaultSubobject<UPSInputBufferComponent>(TEXT("InputBufferComp"));
+    DefenseInputComponent = CreateDefaultSubobject<UPSDefenseInputComponent>(TEXT("DefenseInputComp"));
+    KickMeterComponent = CreateDefaultSubobject<UPSKickMeterComponent>(TEXT("KickMeterComp"));
+    SettingsComponent = CreateDefaultSubobject<UPSSettingsComponent>(TEXT("SettingsComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()
@@ -467,5 +473,24 @@ void APSPlayerController::PopInputContext(FName ContextId)
     if (Context && Subsystem)
     {
         Subsystem->RemoveMappingContext(Context);
+    }
+}
+
+void APSPlayerController::RefreshInputMappings()
+{
+    UPSInputConfig* Config = GetInputConfig();
+    UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+    if (!Config || !Subsystem)
+    {
+        return;
+    }
+    // The rebuilt mapping contexts replace the ones the subsystem holds.
+    Subsystem->ClearAllMappings();
+    for (const FName& ContextId : ActiveInputContexts)
+    {
+        if (UInputMappingContext* Context = Config->FindContext(ContextId))
+        {
+            Subsystem->AddMappingContext(Context, Config->GetContextPriority(ContextId));
+        }
     }
 }

@@ -1,0 +1,87 @@
+{
+    "Categories": [
+        { "CategoryId": "Video", "Label": "Video" },
+        { "CategoryId": "Audio", "Label": "Audio" },
+        { "CategoryId": "Gameplay", "Label": "Gameplay" },
+        { "CategoryId": "Controls", "Label": "Controls" },
+        { "CategoryId": "Accessibility", "Label": "Accessibility" }
+    ],
+    "Settings": [
+        {
+            "SettingId": "WindowMode", "Category": "Video", "Label": "Window mode", "Kind": "Choice",
+            "Choices": ["Fullscreen", "Borderless", "Windowed"], "Default": 1,
+            "Description": "How the game fills the screen."
+        },
+        {
+            "SettingId": "ResolutionScale", "Category": "Video", "Label": "Resolution scale", "Kind": "Slider",
+            "Min": 50, "Max": 100, "Step": 10, "Unit": "%", "Default": 100,
+            "Description": "Renders fewer pixels and scales up: faster, softer."
+        },
+        {
+            "SettingId": "Quality", "Category": "Video", "Label": "Graphics quality", "Kind": "Choice",
+            "Choices": ["Low", "Medium", "High", "Epic"], "Default": 2,
+            "Description": "The engine's overall scalability level."
+        },
+        {
+            "SettingId": "VSync", "Category": "Video", "Label": "VSync", "Kind": "Toggle", "Default": 1,
+            "Description": "Waits for the display, so the picture never tears."
+        },
+        {
+            "SettingId": "FrameRateLimit", "Category": "Video", "Label": "Frame rate cap", "Kind": "Choice",
+            "Choices": ["30", "60", "120", "None"], "Values": [30, 60, 120, 0], "Default": 1,
+            "Description": "The most frames a second the game draws."
+        },
+        {
+            "SettingId": "MasterVolume", "Category": "Audio", "Label": "Master volume", "Kind": "Slider",
+            "Min": 0, "Max": 100, "Step": 10, "Unit": "%", "Default": 100,
+            "Description": "Everything the game plays."
+        },
+        {
+            "SettingId": "MusicVolume", "Category": "Audio", "Label": "Music volume", "Kind": "Slider",
+            "Min": 0, "Max": 100, "Step": 10, "Unit": "%", "Default": 80,
+            "Description": "Menu and stadium music."
+        },
+        {
+            "SettingId": "EffectsVolume", "Category": "Audio", "Label": "Effects volume", "Kind": "Slider",
+            "Min": 0, "Max": 100, "Step": 10, "Unit": "%", "Default": 100,
+            "Description": "Hits, whistles, the crowd."
+        },
+        {
+            "SettingId": "CommentaryVolume", "Category": "Audio", "Label": "Commentary volume", "Kind": "Slider",
+            "Min": 0, "Max": 100, "Step": 10, "Unit": "%", "Default": 100,
+            "Description": "The booth."
+        },
+        {
+            "SettingId": "InputBuffering", "Category": "Gameplay", "Label": "Input buffering", "Kind": "Toggle", "Default": 1,
+            "Description": "A move or pass pressed a moment early still happens when it can."
+        },
+        {
+            "SettingId": "Vibration", "Category": "Controls", "Label": "Vibration", "Kind": "Toggle", "Default": 1,
+            "Description": "The controller rumbles on hits, catches and scores."
+        },
+        {
+            "SettingId": "VibrationStrength", "Category": "Controls", "Label": "Vibration strength", "Kind": "Slider",
+            "Min": 25, "Max": 100, "Step": 25, "Unit": "%", "Default": 100,
+            "Description": "How hard it rumbles."
+        },
+        {
+            "SettingId": "StickDeadZone", "Category": "Controls", "Label": "Stick dead zone", "Kind": "Choice",
+            "Choices": ["Small", "Standard", "Large"], "Values": [0.5, 1.0, 1.5], "Default": 1,
+            "Description": "How far a stick moves before it counts: smaller for a tight stick, larger for a worn one."
+        },
+        {
+            "SettingId": "ReducedMotion", "Category": "Accessibility", "Label": "Reduced motion", "Kind": "Toggle", "Default": 0,
+            "Description": "Cameras cut instead of swinging and nothing shakes the view."
+        },
+        {
+            "SettingId": "CameraShake", "Category": "Accessibility", "Label": "Camera shake", "Kind": "Slider",
+            "Min": 0, "Max": 100, "Step": 25, "Unit": "%", "Default": 100,
+            "Description": "How hard big hits shake the camera."
+        },
+        {
+            "SettingId": "FlashIntensity", "Category": "Accessibility", "Label": "Flashes and pyro", "Kind": "Slider",
+            "Min": 0, "Max": 100, "Step": 25, "Unit": "%", "Default": 100,
+            "Description": "How bright stadium pyro and screen flashes get."
+        }
+    ]
+}

@@ -19,6 +19,9 @@ class UPSPassingComponent;
 class UPSCarrierInputComponent;
 class UPSPreSnapInputComponent;
 class UPSInputBufferComponent;
+class UPSDefenseInputComponent;
+class UPSKickMeterComponent;
+class UPSSettingsComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -48,7 +51,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * UPSPassingComponent throws to receiver slots when the controlled QB passes, and
  * UPSCarrierInputComponent turns the move buttons into the carrier's moves. Both hear their
  * buttons through UPSInputBufferComponent, which holds a press while its target is busy and
- * carries a press into a depth context that came on just after it (Epic 104.4).
+ * carries a press into a depth context that came on just after it (Epic 104.4). On defense,
+ * UPSDefenseInputComponent times the jump at the snap and the strip; on a kick,
+ * UPSKickMeterComponent is the kicker's meter (Epic 104.5).
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -101,6 +106,23 @@ public:
     /** Buffers catalog presses whose target is busy (Epic 104.4). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSInputBufferComponent* GetInputBufferComponent() const { return InputBufferComponent; }
+
+    /** The human defender's jump at the snap and strip button (Epic 104.5). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSDefenseInputComponent* GetDefenseInputComponent() const { return DefenseInputComponent; }
+
+    /** The human kicker's meter (Epic 104.5). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSKickMeterComponent* GetKickMeterComponent() const { return KickMeterComponent; }
+
+    /** Applies the player's settings to this controller's input and rumble (Epic 103). */
+    UFUNCTION(BlueprintPure, Category = "Settings")
+    UPSSettingsComponent* GetSettingsComponent() const { return SettingsComponent; }
+
+    /** Re-applies the context stack to the local player's Enhanced Input subsystem after the
+     *  input config rebuilt its mapping contexts (a settings change or a remap). */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    void RefreshInputMappings();
 
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -240,6 +262,15 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSInputBufferComponent* InputBufferComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSDefenseInputComponent* DefenseInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSKickMeterComponent* KickMeterComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Settings")
+    UPSSettingsComponent* SettingsComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

@@ -303,6 +303,39 @@ void UPSTelemetryBus::PublishPassRushMove(const FPSTelemetryPassRushEvent& Event
     OnPassRushMoveMC.Broadcast(Event);
 }
 
+void UPSTelemetryBus::PublishKick(const FPSTelemetryKickEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryKickEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Description = Event.bLiningUp
+        ? FString::Printf(TEXT("Kick: %s lines up for the %s"), *Event.KickerName, *Event.KickType)
+        : FString::Printf(TEXT("Kick: %s's %s, power %.2f, accuracy %.2f (roll %.2f)"), *Event.KickerName, *Event.KickType, Event.Power, Event.Accuracy, Event.Roll);
+    RecordHistory(EPSTelemetryEventType::Kick, Description, JsonPayload);
+
+    if (OnKick.IsBound())
+    {
+        OnKick.Broadcast(Event);
+    }
+    OnKickMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishJumpSnap(const FPSTelemetryJumpSnapEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryJumpSnapEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Description = FString::Printf(TEXT("JumpSnap: %s moved %.2fs before the snap%s"),
+        *Event.DefenderName, Event.LeadSeconds, Event.bOffside ? TEXT(", offside") : TEXT(""));
+    RecordHistory(EPSTelemetryEventType::JumpSnap, Description, JsonPayload);
+
+    if (OnJumpSnap.IsBound())
+    {
+        OnJumpSnap.Broadcast(Event);
+    }
+    OnJumpSnapMC.Broadcast(Event);
+}
+
 void UPSTelemetryBus::PublishPreSnap(const FPSTelemetryPreSnapEvent& Event)
 {
     FString JsonPayload;

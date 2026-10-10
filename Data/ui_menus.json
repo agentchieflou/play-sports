@@ -79,7 +79,14 @@
         {
             "ScreenId": "Settings",
             "Title": "Settings",
-            "Body": "Display, audio, controls and accessibility settings arrive with Epic 103.",
+            "Content": "Settings",
+            "Options": []
+        },
+        {
+            "ScreenId": "SettingsCategory",
+            "Title": "Settings",
+            "Body": "Choose a setting to change it.",
+            "Content": "SettingsCategory",
             "Options": []
         },
         {

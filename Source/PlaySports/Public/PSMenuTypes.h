@@ -1,4 +1,4 @@
-// PSMenuTypes.h - Epic 101/102: the menu catalog as authored in Data/ui_menus.json
+// PSMenuTypes.h - Epic 101/102/103: the menu catalog as authored in Data/ui_menus.json
 #pragma once
 
 #include "CoreMinimal.h"
@@ -18,7 +18,11 @@ enum class EPSMenuCommand : uint8
     /** Call the play named by the option's Payload (Epic 102). */
     CallPlay,
     /** Apply the defensive adjustment named by the Payload (none clears it) and close. */
-    ApplyAdjustment
+    ApplyAdjustment,
+    /** Move the setting named by the Payload on a step (Epic 103): flip, next choice, slider up. */
+    StepSetting,
+    /** Put the settings of the category named by the Payload back to their defaults. */
+    ResetSettings
 };
 
 /** Where a screen's options come from. */
@@ -41,7 +45,13 @@ enum class EPSMenuScreenContent : uint8
     /** The player's starred plays for their side. */
     PlayCallFavorites,
     /** After a human defense calls: optional pre-snap adjustments over the call. */
-    PlayCallAdjustments
+    PlayCallAdjustments,
+    /** One option per settings category (Epic 103), each opening the SettingsCategory screen
+     *  for it. */
+    Settings,
+    /** The chosen category's settings, each showing its value and stepping it when chosen,
+     *  then a reset to defaults. */
+    SettingsCategory
 };
 
 /** How the screen stack changed; screen widgets use it to pick a transition. */

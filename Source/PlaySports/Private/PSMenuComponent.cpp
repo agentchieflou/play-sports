@@ -8,6 +8,7 @@
 #include "PSPlayCallSubsystem.h"
 #include "PSLoadingTips.h"
 #include "PSLoadingScreenSubsystem.h"
+#include "PSSettingsSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Blueprint/UserWidget.h"
@@ -107,6 +108,10 @@ TArray<FString> UPSMenuComponent::ValidateCatalog(const FPSMenuCatalog& InCatalo
         {
             Errors.Add(TEXT("A PlayCallScreen needs a screen with Content PlayCallPlays to list a formation's plays"));
         }
+    }
+    if (InCatalog.FindScreenWithContent(EPSMenuScreenContent::Settings) && !InCatalog.FindScreenWithContent(EPSMenuScreenContent::SettingsCategory))
+    {
+        Errors.Add(TEXT("A Settings screen needs a screen with Content SettingsCategory to list a category's settings"));
     }
     if (InCatalog.TransitionSeconds < 0.f)
     {
@@ -340,12 +345,22 @@ bool UPSMenuComponent::ToggleFavoriteOption(FName OptionId)
     PlayCall->ToggleFavorite(Option->Payload);
 
     // Redraw so the star shows, keeping the player's place on the screen.
+    RedrawKeepingFocus(OptionId);
+    return true;
+}
+
+void UPSMenuComponent::RedrawKeepingFocus(FName OptionId)
+{
     ShowTopScreen();
     if (ActiveWidget)
     {
         ActiveWidget->FocusOption(OptionId, GetOwningPlayer());
     }
-    return true;
+}
+
+UPSSettingsSubsystem* UPSMenuComponent::GetSettings() const
+{
+    return SettingsOverride ? SettingsOverride : UPSSettingsSubsystem::Get(this);
 }
 
 bool UPSMenuComponent::IsBackKey(const FKey& Key)
@@ -441,6 +456,20 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
             PlayCall->SetDefensiveAdjustment(Payload);
         }
         Resume();
+        break;
+    case EPSMenuCommand::StepSetting:
+        if (UPSSettingsSubsystem* Settings = GetSettings())
+        {
+            Settings->StepSetting(Payload);
+            RedrawKeepingFocus(Payload);
+        }
+        break;
+    case EPSMenuCommand::ResetSettings:
+        if (UPSSettingsSubsystem* Settings = GetSettings())
+        {
+            Settings->ResetToDefaults(Payload);
+            RedrawKeepingFocus(TEXT("Reset"));
+        }
         break;
     default:
         break;
@@ -583,6 +612,51 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
         {
             Presented.Body = PlayCall->BuildAdjustmentScreenBody();
             Presented.Options.Append(PlayCall->BuildAdjustmentOptions());
+        }
+    }
+    else if (UPSSettingsSubsystem* Settings = Presented.Content == EPSMenuScreenContent::Settings || Presented.Content == EPSMenuScreenContent::SettingsCategory ? GetSettings() : nullptr)
+    {
+        const FPSSettingsCatalog& SettingsCatalog = Settings->GetCatalog();
+        if (Presented.Content == EPSMenuScreenContent::Settings)
+        {
+            const FPSMenuScreenDef* CategoryScreen = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::SettingsCategory);
+            for (const FPSSettingCategoryDef& Category : SettingsCatalog.Categories)
+            {
+                FPSMenuOptionDef Option;
+                Option.OptionId = Category.CategoryId;
+                Option.Label = Category.Label;
+                Option.TargetScreen = CategoryScreen ? CategoryScreen->ScreenId : NAME_None;
+                Option.Payload = Category.CategoryId;
+                Presented.Options.Add(Option);
+            }
+        }
+        else
+        {
+            const FName CategoryId = ScreenPayloads.FindRef(ScreenId);
+            if (const FPSSettingCategoryDef* Category = SettingsCatalog.FindCategory(CategoryId))
+            {
+                Presented.Title = Category->Label;
+            }
+            for (const FPSSettingDef& Def : SettingsCatalog.Settings)
+            {
+                if (Def.Category != CategoryId)
+                {
+                    continue;
+                }
+                FPSMenuOptionDef Option;
+                Option.OptionId = Def.SettingId;
+                Option.Label = FString::Printf(TEXT("%s: %s"), *Def.Label, *Settings->FormatValue(Def.SettingId));
+                Option.Command = EPSMenuCommand::StepSetting;
+                Option.Payload = Def.SettingId;
+                Option.Detail = Def.Description;
+                Presented.Options.Add(Option);
+            }
+            FPSMenuOptionDef Reset;
+            Reset.OptionId = TEXT("Reset");
+            Reset.Label = TEXT("Reset to defaults");
+            Reset.Command = EPSMenuCommand::ResetSettings;
+            Reset.Payload = CategoryId;
+            Presented.Options.Add(Reset);
         }
     }
     return Presented;

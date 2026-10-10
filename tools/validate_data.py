@@ -26,7 +26,9 @@ against FPSSituationalTuning, its route IDs against the route library; "Keyframe
 against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header declares
 it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts" files against
 FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow; "Routes" files against the
-FPSRoute library (timing, fakes, option branches); "All22Rigs" files against FPSAll22CameraTuning.
+FPSRoute library (timing, fakes, option branches); "All22Rigs" files against FPSAll22CameraTuning;
+"JumpWindowSeconds" files against FDefensiveTechniqueTuningRow and "PowerFillSeconds" files against
+FKickMeterTuningRow, each named action a Boolean in its context.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -184,9 +186,10 @@ def validate_input_catalog(path, payload):
                     err(path, f"{where}: key '{key}' is already bound to '{owner}' in context '{cid}'")
 
 
-MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay", "ApplyAdjustment"}
+MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay", "ApplyAdjustment",
+                 "StepSetting", "ResetSettings"}
 MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays", "PlayCallRecent",
-                 "PlayCallFavorites", "PlayCallAdjustments"}
+                 "PlayCallFavorites", "PlayCallAdjustments", "Settings", "SettingsCategory"}
 TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -226,6 +229,9 @@ def validate_menu_catalog(path, payload):
             err(path, f"PlayCallScreen '{play_call}' must have Content PlayCallFormations")
         if not any(screen.get("Content") == "PlayCallPlays" for screen in by_id.values()):
             err(path, "a PlayCallScreen needs a screen with Content PlayCallPlays to list a formation's plays")
+    contents = {screen.get("Content") for screen in by_id.values()}
+    if "Settings" in contents and "SettingsCategory" not in contents:
+        err(path, "a Settings screen needs a screen with Content SettingsCategory to list a category's settings")
     if payload.get("TransitionSeconds", 0) < 0:
         err(path, "TransitionSeconds must not be negative")
     for sid, screen in by_id.items():
@@ -892,6 +898,65 @@ def validate_rush_moves(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
 
 
+DEFENSIVE_TECHNIQUE_NUMBERS = ("JumpWindowSeconds", "GetOffSpeed", "StripWindowSeconds", "StripCooldownSeconds",
+                               "StripTackleScale", "StripFumbleChance")
+
+
+def check_named_action(path, field, action_id, context, catalog):
+    """The catalog action a tuning file names must be a Boolean action in context."""
+    if not isinstance(action_id, str) or not action_id:
+        err(path, f"{field}: must name a catalog action")
+        return
+    if catalog is None:
+        return
+    actions = {a.get("ActionId"): a for a in catalog.get("Actions", []) if isinstance(a, dict)}
+    action = actions.get(action_id)
+    if action is None:
+        err(path, f"{field}: '{action_id}' is not an action in input_actions.json")
+    elif action.get("ValueType") != "Boolean" or context not in (action.get("Contexts") or []):
+        err(path, f"{field}: '{action_id}' must be a Boolean action in the {context} context")
+
+
+def validate_defensive_techniques(path, payload, catalog):
+    """FDefensiveTechniqueTuningRow (Data/defensive_techniques.json, Epic 104.5); mirrors
+    UPSDefenderTechniqueComponent::ValidateTuning plus the catalog cross-check."""
+    for field in DEFENSIVE_TECHNIQUE_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("StripTackleScale", "StripFumbleChance"):
+        if is_number(payload.get(field)) and payload[field] > 1:
+            err(path, f"{field}: at most 1")
+    extra = set(payload) - set(DEFENSIVE_TECHNIQUE_NUMBERS) - {"JumpSnapAction", "StripAction"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FDefensiveTechniqueTuningRow exactly")
+    check_named_action(path, "JumpSnapAction", payload.get("JumpSnapAction"), "DefensePreSnap", catalog)
+    check_named_action(path, "StripAction", payload.get("StripAction"), "Defense", catalog)
+
+
+KICK_METER_SECONDS = ("LineUpSeconds", "PowerFillSeconds", "AccuracySweepSeconds")
+KICK_METER_WEIGHTS = ("PowerWeight", "AccuracyWeight")
+
+
+def validate_kick_meter(path, payload, catalog):
+    """FKickMeterTuningRow (Data/kick_meter.json, Epic 104.5); mirrors
+    UPSKickMeterComponent::ValidateTuning plus the catalog cross-check."""
+    for field in KICK_METER_SECONDS:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a positive number")
+    for field in KICK_METER_WEIGHTS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if all(is_number(payload.get(f)) for f in KICK_METER_WEIGHTS) and sum(payload[f] for f in KICK_METER_WEIGHTS) <= 0:
+        err(path, "PowerWeight and AccuracyWeight can't both be 0")
+    extra = set(payload) - set(KICK_METER_SECONDS) - set(KICK_METER_WEIGHTS) - {"KickAction"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FKickMeterTuningRow exactly")
+    check_named_action(path, "KickAction", payload.get("KickAction"), "Kicking", catalog)
+
+
 RECEIVER_ALIGNMENTS = {"Wide", "Slot", "Tight", "Backfield"}
 PRESNAP_NUMBERS = ("SlotMaxSplit", "MotionEndSplit", "MotionArrivalRadius", "ManTravelLateralRadius", "SlideAimOffset",
                    "BoxWidth", "BoxDepth", "CpuReadMinAwareness")
@@ -985,6 +1050,67 @@ def validate_presnap_tuning(path, payload, catalog, route_ids):
         - {"HotRouteSets", "BlitzHotRoute"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPreSnapTuningRow exactly")
+
+
+SETTING_KINDS = {"Toggle", "Choice", "Slider"}
+
+
+def validate_settings_catalog(path, payload):
+    """FPSSettingsCatalog (Data/ui_settings.json, Epic 103); mirrors
+    UPSSettingsSubsystem::ValidateCatalog."""
+    categories = payload.get("Categories")
+    settings = payload.get("Settings")
+    if not isinstance(categories, list) or not isinstance(settings, list):
+        err(path, "'Categories' and 'Settings' must be arrays")
+        return
+    category_ids = set()
+    for idx, row in enumerate(categories):
+        cid = row.get("CategoryId") if isinstance(row, dict) else None
+        if not isinstance(cid, str) or not cid or cid in category_ids:
+            err(path, f"Categories[{idx}].CategoryId: empty or used twice")
+        category_ids.add(cid)
+        if isinstance(row, dict) and not isinstance(row.get("Label"), str):
+            err(path, f"Categories[{idx}].Label: must be text")
+    setting_ids = set()
+    allowed = {"SettingId", "Category", "Label", "Kind", "Choices", "Values", "Min", "Max", "Step", "Unit", "Default", "Description"}
+    for idx, row in enumerate(settings):
+        where = f"Settings[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        sid = row.get("SettingId")
+        if not isinstance(sid, str) or not sid or sid in setting_ids:
+            err(path, f"{where}.SettingId: empty or used twice")
+        setting_ids.add(sid)
+        if row.get("Category") not in category_ids:
+            err(path, f"{where}.Category: '{row.get('Category')}' is not a category")
+        kind = row.get("Kind", "Toggle")
+        default = row.get("Default", 0)
+        extra = set(row) - allowed
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+        if kind not in SETTING_KINDS:
+            err(path, f"{where}.Kind: '{kind}' is not one of {sorted(SETTING_KINDS)}")
+        elif not is_number(default):
+            err(path, f"{where}.Default: must be a number")
+        elif kind == "Toggle" and default not in (0, 1):
+            err(path, f"{where}.Default: a toggle's default is 0 or 1")
+        elif kind == "Choice":
+            choices = row.get("Choices", [])
+            values = row.get("Values", [])
+            if not isinstance(choices, list) or len(choices) < 2:
+                err(path, f"{where}.Choices: a choice needs at least two")
+                choices = []
+            if values and (not isinstance(values, list) or len(values) != len(choices) or not all(is_number(v) for v in values)):
+                err(path, f"{where}.Values: empty, or one number per choice")
+            if default != int(default) or not 0 <= default < max(len(choices), 1):
+                err(path, f"{where}.Default: the index of one of its Choices")
+        elif kind == "Slider":
+            low, high, step = row.get("Min", 0), row.get("Max", 1), row.get("Step", 1)
+            if not all(is_number(v) for v in (low, high, step)) or step <= 0 or high <= low:
+                err(path, f"{where}: a slider needs Min below Max and a positive Step")
+            elif not low <= default <= high:
+                err(path, f"{where}.Default: outside Min..Max")
 
 
 TEMPOS = ("Huddle", "NoHuddle", "HurryUp", "MilkClock")
@@ -1402,12 +1528,18 @@ def main():
             validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
         if isinstance(payload, dict) and "MaxQueued" in payload:
             validate_input_buffer(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "JumpWindowSeconds" in payload:
+            validate_defensive_techniques(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "PowerFillSeconds" in payload:
+            validate_kick_meter(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "RushMoves" in payload:
             validate_rush_moves(path, payload)
         if isinstance(payload, dict) and "Fronts" in payload:
             validate_run_fits(path, payload)
         if isinstance(payload, dict) and "All22Rigs" in payload:
             validate_all22_camera(path, payload)
+        if isinstance(payload, dict) and "Settings" in payload and "Categories" in payload:
+            validate_settings_catalog(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

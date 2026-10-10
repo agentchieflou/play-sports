@@ -271,6 +271,9 @@ void APSGameMode::Tick(float DeltaSeconds)
                 case EPlayPhase::PassRush:            return TEXT("PassRush");
                 case EPlayPhase::BallCarrierMovement: return TEXT("BallCarrierMovement");
                 case EPlayPhase::Scoring:             return TEXT("Scoring");
+                case EPlayPhase::Kickoff:             return TEXT("Kickoff");
+                case EPlayPhase::Punt:                return TEXT("Punt");
+                case EPlayPhase::FieldGoal:           return TEXT("FieldGoal");
                 default:                              return TEXT("Unknown");
                 }
             };
