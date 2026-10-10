@@ -150,8 +150,8 @@
         {
             "ActionId": "ViewToggle",
             "ValueType": "Boolean",
-            "Description": "Toggle the camera. Y toggles the camera in every context: third and first person in the world; on the field, broadcast, then the all-22 film rigs, then back (Epic 40, UPSCameraAll22Component). The pass and carrier-move contexts outrank it during the play.",
-            "Contexts": ["World", "OnField"],
+            "Description": "Toggle third and first person. Y toggles the camera in every context.",
+            "Contexts": ["World"],
             "Bindings": [
                 { "Key": "V" },
                 { "Key": "Gamepad_FaceButton_Top" }
@@ -165,6 +165,16 @@
             "Bindings": [
                 { "Key": "C" },
                 { "Key": "Gamepad_Special_Right" }
+            ]
+        },
+        {
+            "ActionId": "FilmView",
+            "ValueType": "Boolean",
+            "Description": "Step the camera from the broadcast view through the all-22 coaches film rigs and back (Epic 40, UPSCameraAll22Component). View and F belong to no pass, move or pre-snap button, so a press around the snap never cuts the camera.",
+            "Contexts": ["OnField"],
+            "Bindings": [
+                { "Key": "F" },
+                { "Key": "Gamepad_Special_Left" }
             ]
         },
         {

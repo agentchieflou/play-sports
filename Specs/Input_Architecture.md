@@ -90,8 +90,9 @@ as the Xbox glyph set labels them.
 | SwitchPlayer | Boolean | OnField | T | X, LB | the controller → `SwitchToBestPawn` |
 | Interact | Boolean | World | E, Enter | A | `OnCatalogActionStarted` |
 | Secondary | Boolean | World | T | X | `OnCatalogActionStarted` |
-| ViewToggle | Boolean | World, OnField | V | Y | `OnCatalogActionStarted`. On the field: `UPSCameraAll22Component` on the broadcast camera steps broadcast → all-22 sideline → all-22 end zone → broadcast (Epic 40). It hears only the controller viewing through that camera. In the world: nobody yet (Epic 143's third/first person) |
+| ViewToggle | Boolean | World | V | Y | `OnCatalogActionStarted` |
 | Picker | Boolean | World | C | Menu (Start) | `OnCatalogActionStarted` (Epic 143) |
+| FilmView | Boolean | OnField | F | View | `UPSCameraAll22Component` on the broadcast camera, via `OnCatalogActionStarted` of the controller viewing through it: broadcast → all-22 sideline → all-22 end zone → broadcast (Epic 40) |
 | PassTarget1-5 | Boolean | Passing | 1-5 | X, Y, B, RB, A | `UPSPassingComponent`: throws on release to receiver slots 1-5, left to right across the field. A tap throws touch, a hold throws a bullet, and the Move stick places the ball. |
 | PumpFake | Boolean | Passing | Q | LB | `UPSPassingComponent`: publishes `PumpFake`; low-Awareness coverage freezes |
 | Juke | Boolean | BallCarrier | Z | X | `UPSCarrierInputComponent` → `UPSCarrierMoveComponent::TryMove`; a cut toward the Move stick's side |
@@ -102,13 +103,13 @@ as the Xbox glyph set labels them.
 | Slide | Boolean | BallCarrier | Left Ctrl | LB | the same: give yourself up (down at the next contact, no hit, no fumble) |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
-every context. On the field ViewToggle sits in `OnField`, so during the play the depth contexts
-outrank it where they share its buttons: Y throws to slot 2 while passing, and Y and V hurdle
-and stiff-arm with the ball. On a pad the camera toggles before the snap, after the whistle, or
-when the human has no ball. Start opens the character sheet off the field and pauses on it
-(Epic 101). The look picker is an off-field screen, so the two never meet in one context. On the
-keyboard the pause key is P, because Escape is already Cancel on the field and PIE uses Escape
-to stop.
+every off-field context. On the field Y is a pass button (slot 2) and the hurdle. A camera
+toggle on Y would cut the camera when Y is pressed around the snap, and it would stop the input
+buffer from carrying that press into the throw. So the film view (Epic 40) is on View and F,
+which no pass, move or pre-snap button uses. Start opens the character sheet off the field and
+pauses on it (Epic 101). The look picker is an off-field screen, so the two never meet in one
+context. On the keyboard the pause key is P, because Escape is already Cancel on the field and
+PIE uses Escape to stop.
 
 Not in the catalog yet, from the browser world's mapping: the debug "frame figures" key (F3 or
 \`, which has no gamepad binding) and dialogue navigation (Tab/Enter, D-pad/A), which needs a
@@ -298,7 +299,7 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.BufferWaitsOutCommitment` | A move pressed during another's commitment, or near the end of its cooldown, fires as soon as it can; the newest press wins; an early press is dropped; letting the player go empties the buffer (Epic 104.4). |
 | `PlaySports.Input.BufferHoldsPassForTheBall` | A pass button pressed before the ball arrives throws once it does; a stale press throws nothing; a hold is timed from the press; leaving Passing drops a waiting press (Epic 104.4). |
 | `PlaySports.Input.BufferCarriesPressIntoNewContext` | A pass key pressed the frame before Passing comes on throws on release; the hike key and a stale press are not replayed (Epic 104.4). |
-| `PlaySports.Camera.All22ToggleThroughCatalog` | ViewToggle is on the field with a key and a Y glyph, and steps the film view on the viewing controller only (Epic 40). |
+| `PlaySports.Camera.All22ToggleThroughCatalog` | FilmView is on the field with a key and a View glyph. Its keys are free in every context stacked over the field. It steps the film view on the viewing controller only (Epic 40). |
 
 What CI cannot show is how the input feels in a player's hands: real rumble strength on a pad,
 glyph icons (none are imported yet; the labels stand in), and the menu flow on a gamepad. Those

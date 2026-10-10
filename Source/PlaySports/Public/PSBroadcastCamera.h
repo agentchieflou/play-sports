@@ -9,7 +9,7 @@ class UPSCameraAll22Component;
 /**
  * APSBroadcastCamera tracks the play from a sideline perspective. It is the game's one view:
  * the player controller looks through it, and its all-22 component (Epic 40) turns it into the
- * coaches film view on the ViewToggle action.
+ * coaches film view on the FilmView action.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSBroadcastCamera : public ACameraActor

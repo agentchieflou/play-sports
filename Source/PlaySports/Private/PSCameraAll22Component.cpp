@@ -16,7 +16,7 @@
 UPSCameraAll22Component::UPSCameraAll22Component()
 {
     PrimaryComponentTick.bCanEverTick = false;
-    ToggleActionId = TEXT("ViewToggle");
+    ToggleActionId = TEXT("FilmView");
 }
 
 FString UPSCameraAll22Component::GetDefaultTuningPath()

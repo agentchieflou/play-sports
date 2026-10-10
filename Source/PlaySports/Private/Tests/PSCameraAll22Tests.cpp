@@ -9,9 +9,9 @@
 //   2. The framing: both rigs hold all 22 from either end of the field and in either direction,
 //      a pile zooms to the tightest angle, a spread-out field backs the rig away, and the end-zone
 //      rig stands behind the offense.
-//   3. The toggle: ViewToggle (a catalog action on the field, drawn by the Xbox glyph set) steps
-//      broadcast -> sideline -> end zone -> broadcast on the controller looking through the
-//      camera, and leaving film view restores the broadcast view.
+//   3. The toggle: FilmView (a catalog action on the field, drawn by the Xbox glyph set, on keys
+//      no depth context uses) steps broadcast -> sideline -> end zone -> broadcast on the
+//      controller looking through the camera, and leaving film view restores the broadcast view.
 //   4. The reframing: every step of a breakaway holds all 22, and the frame closes in gently once
 //      play bunches up.
 //   5. The snap: the end-zone rig takes the end behind the offense at the snap.
@@ -392,8 +392,25 @@ bool FPSCameraAll22ToggleTest::RunTest(const FString& Parameters)
         Toggle && Toggle->ValueType == EInputActionValueType::Boolean && Toggle->Contexts.Contains(OnField));
     FPSInputGlyph Glyph;
     TestTrue(TEXT("The Xbox glyph set draws its pad button"), Input->GetGlyphForAction(ToggleId, OnField, EPSInputDevice::Gamepad, Glyph));
-    TestEqual(TEXT("...Y, the camera button in every context"), Glyph.Label, FString(TEXT("Y")));
+    TestEqual(TEXT("...the View button"), Glyph.Label, FString(TEXT("View")));
     TestTrue(TEXT("The keyboard set draws its key"), Input->GetGlyphForAction(ToggleId, OnField, EPSInputDevice::KeyboardMouse, Glyph));
+
+    // Its keys mean nothing in the contexts stacked over the field, so it works in each of them
+    // and a pass or move press around the snap can never cut the camera (nor stop the input
+    // buffer carrying that press into the throw or move, Epic 104.4).
+    for (const FPSInputContextDef& ContextDef : Input->Catalog.Contexts)
+    {
+        if (ContextDef.ContextId == OnField || Input->GetContextPriority(ContextDef.ContextId) <= Input->GetContextPriority(OnField)
+            || ContextDef.ContextId == FName(TEXT("Menu")))
+        {
+            continue;
+        }
+        for (const FKey& Key : Input->GetKeysFor(ToggleId, OnField))
+        {
+            const FName Taken = Input->FindActionForKey(Key, ContextDef.ContextId);
+            TestTrue(*FString::Printf(TEXT("%s is free in %s (it is %s there)"), *Key.ToString(), *ContextDef.ContextId.ToString(), *Taken.ToString()), Taken.IsNone());
+        }
+    }
 
     UWorld* World = CreateTestWorld();
     if (!TestNotNull(TEXT("Test world"), World))
