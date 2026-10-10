@@ -57,7 +57,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
   depth.
 - **Tier 2:** 89 coaching staffs, 19.5 personnel packages.
 - **Tier 3 / infra:** 24.1 gym map (editor; 24.2–24.5, 117 and 125 done).
-- **Overlay and camera code:** 30, 33, 38 and 40 are done.
+- **Overlay and camera code:** 30, 33, 38, 39 and 40 are done.
   With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
   38, 41, 49, 78, 82, 85, 92, 96, 115.
 - **Editor or mixed, waiting for an editor session:** 2.1–2.2, 22, 23.
@@ -138,7 +138,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "36":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
     "37":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["28", "29", "33", "34"]},
     "38":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["4", "26"]},
-    "39":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["38"]},
+    "39":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["38"]},
     "40":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["4"]},
     "41":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["C1", "26", "38", "17"]},
     "42":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["41"]},
