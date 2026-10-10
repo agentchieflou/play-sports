@@ -43,7 +43,7 @@ These groups can run at the same time (see the scope note under the table):
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 17.4–17.5 (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
-| G9 | Front end and input feel (Track I) | 104.5 → 103 → 106 → 105 (101 done; 102 done but 102.1's play art, which waits on Epic 35; 104.1–104.4 done) | Claude Code |
+| G9 | Front end and input feel (Track I) | 103.2–103.5 → 106 → 105 (101 and 104 done; 103.1 settings done; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
 Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
 (`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G8's and G9's track scopes on
@@ -116,7 +116,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "14":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"]},
     "15":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["9", "14"]},
     "16":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["14"]},
-    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation", "17.5 performance pass"]},
+    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation", "17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
     "18":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "17"]},
     "19":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["1"], "open_stories": ["19.5 substitution and personnel packages"]},
     "20":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["12", "19"]},
@@ -202,8 +202,8 @@ one CI run) rather than re-merging main into each PR after every landing.
     "100": {"track": "H", "mode": "mixed", "status": "open", "depends_on": ["96", "97", "98"]},
     "101": {"track": "I", "mode": "code", "status": "done", "depends_on": ["5"]},
     "102": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["16", "101"]},
-    "103": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101"]},
-    "104": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["3", "6", "126", "127"], "open_stories": ["104.5 kick meter and defensive inputs"]},
+    "103": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101"], "open_stories": ["103.2 colorblind-safe modes", "103.3 subtitles and captions", "103.4 input remapping", "103.5 motion and flash reduction"]},
+    "104": {"track": "I", "mode": "code", "status": "done", "depends_on": ["3", "6", "126", "127"]},
     "105": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101", "104", "24"]},
     "106": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101"]},
     "107": {"track": "J", "mode": "code", "status": "open", "depends_on": ["104", "102"]},
