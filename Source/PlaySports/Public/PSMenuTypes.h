@@ -16,7 +16,9 @@ enum class EPSMenuCommand : uint8
     QuitToMainMenu,
     QuitGame,
     /** Call the play named by the option's Payload (Epic 102). */
-    CallPlay
+    CallPlay,
+    /** Apply the defensive adjustment named by the Payload (none clears it) and close. */
+    ApplyAdjustment
 };
 
 /** Where a screen's options come from. */
@@ -35,7 +37,11 @@ enum class EPSMenuScreenContent : uint8
     /** One option per play in the chosen formation, each calling that play. */
     PlayCallPlays,
     /** The plays the player called most recently for their side, each calling it again. */
-    PlayCallRecent
+    PlayCallRecent,
+    /** The player's starred plays for their side. */
+    PlayCallFavorites,
+    /** After a human defense calls: optional pre-snap adjustments over the call. */
+    PlayCallAdjustments
 };
 
 /** How the screen stack changed; screen widgets use it to pick a transition. */

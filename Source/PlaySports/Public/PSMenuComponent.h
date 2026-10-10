@@ -96,6 +96,15 @@ public:
      *  screen (so Start toggles it closed), all from the input catalog. */
     bool IsBackKey(const FKey& Key);
 
+    /** Keys that star the focused play on the play-call screens: the Favorite action in the
+     *  Menu context (Epic 102.3). */
+    bool IsFavoriteKey(const FKey& Key);
+
+    /** Stars or unstars the play behind OptionId on the top play-call screen and redraws it.
+     *  False when the option doesn't call a play. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    bool ToggleFavoriteOption(FName OptionId);
+
     /** Travel options a command uses ("mode=PlayNow?team=Hawks", "game=Menu"); empty when
      *  the command does not travel. Payload is the chosen team for Play Now. */
     FString BuildTravelOptions(EPSMenuCommand Command, FName Payload = NAME_None) const;
@@ -123,6 +132,9 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
     FName PauseActionId;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
+    FName FavoriteActionId;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Menu")
     FName GameplayContextId;

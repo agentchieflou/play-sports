@@ -5,6 +5,9 @@
 #include "PSPlayOrchestrator.h"
 #include "PSPlayerPawn.h"
 #include "PSPlaySimulation.h"
+#include "PSProfileSaveGame.h"
+#include "PSSaveSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Engine/DataTable.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -128,6 +131,11 @@ FString UPSPlayCallSubsystem::GetDefaultTuningPath()
     return PSPlayCallPrivate::DataPath(TEXT("play_call.json"));
 }
 
+FString UPSPlayCallSubsystem::GetDefaultAdjustmentsPath()
+{
+    return PSPlayCallPrivate::DataPath(TEXT("defensive_adjustments.json"));
+}
+
 bool UPSPlayCallSubsystem::LoadPlaybook(const FString& PlaysJsonPath, const FString& RoutesJsonPath)
 {
     bPlaybookLoaded = true;
@@ -249,17 +257,23 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildPlayOptions(const FString& F
     TArray<FPSMenuOptionDef> Options;
     for (const FPSPlayDefinition& Play : GetPlaysInFormation(Formation, bOffense))
     {
-        FPSMenuOptionDef Option;
-        Option.OptionId = Play.PlayId;
-        Option.Label = bOffense
+        Options.Add(MakePlayOption(Play, bOffense
             ? FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *PSPlayCallPrivate::SplitCategory(Play.PlayCategory))
-            : FString::Printf(TEXT("%s    %s %s"), *Play.DisplayName, *Play.Front, *Play.CoverageShell);
-        Option.Detail = DescribePlay(Play);
-        Option.Command = EPSMenuCommand::CallPlay;
-        Option.Payload = Play.PlayId;
-        Options.Add(Option);
+            : FString::Printf(TEXT("%s    %s %s"), *Play.DisplayName, *Play.Front, *Play.CoverageShell)));
     }
     return Options;
+}
+
+FPSMenuOptionDef UPSPlayCallSubsystem::MakePlayOption(const FPSPlayDefinition& Play, const FString& Label)
+{
+    FPSMenuOptionDef Option;
+    Option.OptionId = Play.PlayId;
+    // Starred plays are marked wherever they are listed.
+    Option.Label = IsFavorite(Play.PlayId) ? FString::Printf(TEXT("* %s"), *Label) : Label;
+    Option.Detail = DescribePlay(Play);
+    Option.Command = EPSMenuCommand::CallPlay;
+    Option.Payload = Play.PlayId;
+    return Option;
 }
 
 TArray<FPSPlaySuggestion> UPSPlayCallSubsystem::RankPlays(bool bOffense)
@@ -302,15 +316,234 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildRecentOptions(bool bOffense)
         {
             continue;
         }
+        Options.Add(MakePlayOption(Play, FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *Play.Formation)));
+    }
+    return Options;
+}
+
+TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildFavoriteOptions(bool bOffense)
+{
+    TArray<FPSMenuOptionDef> Options;
+    for (const FName PlayId : GetFavorites(bOffense))
+    {
+        FPSPlayDefinition Play;
+        if (FindPlay(PlayId, Play))
+        {
+            Options.Add(MakePlayOption(Play, FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *Play.Formation)));
+        }
+    }
+    return Options;
+}
+
+const TArray<FPSDefensiveAdjustmentDef>& UPSPlayCallSubsystem::GetAdjustments()
+{
+    if (!bAdjustmentsLoaded)
+    {
+        LoadAdjustmentsFromJson(GetDefaultAdjustmentsPath());
+    }
+    return AdjustmentCatalog.Adjustments;
+}
+
+bool UPSPlayCallSubsystem::LoadAdjustmentsFromJson(const FString& JsonFilePath)
+{
+    bAdjustmentsLoaded = true;
+    UPSDataIngestion* Ingestion = NewObject<UPSDataIngestion>(this);
+    FPSDefensiveAdjustmentCatalog Loaded;
+    if (!Ingestion->LoadDefensiveAdjustmentsFromJson(JsonFilePath, Loaded))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlayCallSubsystem: Could not load defensive adjustments from %s."), *JsonFilePath);
+        return false;
+    }
+    for (const FString& Problem : ValidateAdjustments(Loaded))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlayCallSubsystem: %s"), *Problem);
+    }
+    AdjustmentCatalog = MoveTemp(Loaded);
+    return true;
+}
+
+TArray<FString> UPSPlayCallSubsystem::ValidateAdjustments(const FPSDefensiveAdjustmentCatalog& InCatalog)
+{
+    TArray<FString> Problems;
+    TSet<FName> Seen;
+    for (const FPSDefensiveAdjustmentDef& Adjustment : InCatalog.Adjustments)
+    {
+        const FString Id = Adjustment.AdjustmentId.ToString();
+        if (Adjustment.AdjustmentId.IsNone() || Seen.Contains(Adjustment.AdjustmentId))
+        {
+            Problems.Add(FString::Printf(TEXT("Adjustment '%s': empty or duplicate AdjustmentId."), *Id));
+        }
+        Seen.Add(Adjustment.AdjustmentId);
+        if (Adjustment.Label.IsEmpty())
+        {
+            Problems.Add(FString::Printf(TEXT("Adjustment '%s' has no Label."), *Id));
+        }
+        if (Adjustment.Role != EPlayerRole::DefensiveLineman && Adjustment.Role != EPlayerRole::Linebacker && Adjustment.Role != EPlayerRole::DefensiveBack)
+        {
+            Problems.Add(FString::Printf(TEXT("Adjustment '%s': %s is not a defender."), *Id, *UEnum::GetValueAsString(Adjustment.Role)));
+        }
+        const EPSAssignmentKind Kind = Adjustment.Kind;
+        if (Kind != EPSAssignmentKind::PassRush && Kind != EPSAssignmentKind::Blitz && Kind != EPSAssignmentKind::RunFit
+            && Kind != EPSAssignmentKind::ManCoverage && Kind != EPSAssignmentKind::ZoneCoverage)
+        {
+            Problems.Add(FString::Printf(TEXT("Adjustment '%s': %s is not a defensive assignment."), *Id, *UEnum::GetValueAsString(Kind)));
+        }
+    }
+    return Problems;
+}
+
+bool UPSPlayCallSubsystem::SetDefensiveAdjustment(FName AdjustmentId)
+{
+    if (!bWindowOpen || !DefenseCall.IsSet())
+    {
+        return false;
+    }
+    if (!AdjustmentId.IsNone() && !GetAdjustments().ContainsByPredicate([AdjustmentId](const FPSDefensiveAdjustmentDef& Def) { return Def.AdjustmentId == AdjustmentId; }))
+    {
+        return false;
+    }
+    DefensiveAdjustment = AdjustmentId;
+    UE_LOG(LogTemp, Display, TEXT("UPSPlayCallSubsystem: Defensive adjustment: %s."), AdjustmentId.IsNone() ? TEXT("none") : *AdjustmentId.ToString());
+    return true;
+}
+
+bool UPSPlayCallSubsystem::GetDefensivePlayToRun(FPSPlayDefinition& OutPlay)
+{
+    if (!FindPlay(DefenseCall.PlayId, OutPlay))
+    {
+        return false;
+    }
+    const FName AdjustmentId = DefensiveAdjustment;
+    const FPSDefensiveAdjustmentDef* Adjustment = GetAdjustments().FindByPredicate([AdjustmentId](const FPSDefensiveAdjustmentDef& Def) { return Def.AdjustmentId == AdjustmentId; });
+    if (Adjustment)
+    {
+        for (FPSPlayAssignment& Assignment : OutPlay.Assignments)
+        {
+            if (Assignment.Role == Adjustment->Role)
+            {
+                Assignment.Kind = Adjustment->Kind;
+            }
+        }
+    }
+    return true;
+}
+
+TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildAdjustmentOptions()
+{
+    TArray<FPSMenuOptionDef> Options;
+    FPSMenuOptionDef AsCalled;
+    AsCalled.OptionId = TEXT("NoAdjustment");
+    AsCalled.Label = TEXT("No adjustment");
+    AsCalled.Detail = TEXT("Play the call as it is");
+    AsCalled.Command = EPSMenuCommand::ApplyAdjustment;
+    Options.Add(AsCalled);
+
+    for (const FPSDefensiveAdjustmentDef& Adjustment : GetAdjustments())
+    {
         FPSMenuOptionDef Option;
-        Option.OptionId = Play.PlayId;
-        Option.Label = FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *Play.Formation);
-        Option.Detail = DescribePlay(Play);
-        Option.Command = EPSMenuCommand::CallPlay;
-        Option.Payload = Play.PlayId;
+        Option.OptionId = Adjustment.AdjustmentId;
+        Option.Label = Adjustment.Label;
+        Option.Detail = Adjustment.Description;
+        Option.Command = EPSMenuCommand::ApplyAdjustment;
+        Option.Payload = Adjustment.AdjustmentId;
         Options.Add(Option);
     }
     return Options;
+}
+
+FString UPSPlayCallSubsystem::BuildAdjustmentScreenBody() const
+{
+    // The offense's formation is visible at the line; its play is not.
+    const FPSPlayDefinition* Offense = OffenseCall.IsSet()
+        ? Plays.FindByPredicate([this](const FPSPlayDefinition& Play) { return Play.PlayId == OffenseCall.PlayId; })
+        : nullptr;
+    return Offense ? FString::Printf(TEXT("Offense lines up in %s"), *Offense->Formation) : FString(TEXT("Offense hasn't lined up yet"));
+}
+
+UPSSaveSubsystem* UPSPlayCallSubsystem::GetSaveSubsystem() const
+{
+    const UWorld* World = GetWorld();
+    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+    return GameInstance ? GameInstance->GetSubsystem<UPSSaveSubsystem>() : nullptr;
+}
+
+void UPSPlayCallSubsystem::EnsureFavoritesLoaded()
+{
+    if (bFavoritesLoaded)
+    {
+        return;
+    }
+    bFavoritesLoaded = true;
+
+    UPSSaveSubsystem* Saves = GetSaveSubsystem();
+    const FString Slot = UPSProfileSaveGame::GetDefaultSlotName();
+    if (Saves && Saves->DoesSlotExist(Slot))
+    {
+        if (const UPSProfileSaveGame* Profile = Cast<UPSProfileSaveGame>(Saves->LoadFromSlot(Slot)))
+        {
+            FavoritePlays = Profile->FavoritePlays;
+        }
+    }
+}
+
+void UPSPlayCallSubsystem::SaveFavorites()
+{
+    UPSSaveSubsystem* Saves = GetSaveSubsystem();
+    if (!Saves)
+    {
+        return;
+    }
+
+    // Keep whatever else the profile holds; only the favourites change.
+    const FString Slot = UPSProfileSaveGame::GetDefaultSlotName();
+    UPSProfileSaveGame* Profile = Saves->DoesSlotExist(Slot) ? Cast<UPSProfileSaveGame>(Saves->LoadFromSlot(Slot)) : nullptr;
+    if (!Profile)
+    {
+        Profile = NewObject<UPSProfileSaveGame>(this);
+    }
+    Profile->FavoritePlays = FavoritePlays;
+    if (!Saves->SaveToSlot(Profile, Slot))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlayCallSubsystem: Could not save favourite plays to %s."), *Slot);
+    }
+}
+
+bool UPSPlayCallSubsystem::IsFavorite(FName PlayId)
+{
+    EnsureFavoritesLoaded();
+    return FavoritePlays.Contains(PlayId);
+}
+
+bool UPSPlayCallSubsystem::ToggleFavorite(FName PlayId)
+{
+    FPSPlayDefinition Play;
+    if (!FindPlay(PlayId, Play))
+    {
+        return false;
+    }
+    EnsureFavoritesLoaded();
+    const bool bNowFavorite = FavoritePlays.Remove(PlayId) == 0;
+    if (bNowFavorite)
+    {
+        FavoritePlays.Add(PlayId);
+    }
+    SaveFavorites();
+    return bNowFavorite;
+}
+
+TArray<FName> UPSPlayCallSubsystem::GetFavorites(bool bOffense)
+{
+    EnsureFavoritesLoaded();
+    TArray<FName> Favorites;
+    for (const FName PlayId : FavoritePlays)
+    {
+        FPSPlayDefinition Play;
+        if (FindPlay(PlayId, Play) && Play.bIsOffensivePlay == bOffense)
+        {
+            Favorites.Add(PlayId);
+        }
+    }
+    return Favorites;
 }
 
 FString UPSPlayCallSubsystem::BuildCallScreenBody(bool bOffense) const
@@ -422,6 +655,7 @@ void UPSPlayCallSubsystem::OpenPlayCall(const FPSSituationContext& InSituation)
     Situation = InSituation;
     OffenseCall = FPSPlayCall();
     DefenseCall = FPSPlayCall();
+    DefensiveAdjustment = NAME_None;
     TimeSinceCallsComplete = 0.f;
     bSnapRequested = false;
     bWindowOpen = true;
@@ -567,6 +801,7 @@ void UPSPlayCallSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
     {
         OffenseCall = FPSPlayCall();
         DefenseCall = FPSPlayCall();
+        DefensiveAdjustment = NAME_None;
         Situation.Down = Event.Down;
         Situation.Distance = Event.Distance;
         Situation.YardLine = Event.YardLine;
@@ -608,13 +843,15 @@ void UPSPlayCallSubsystem::Distribute(const FVector& LineOfScrimmage)
         OnFieldPawns.Add(*It);
     }
 
-    for (const bool bOffense : { true, false })
+    FPSPlayDefinition OffensePlay;
+    if (FindPlay(OffenseCall.PlayId, OffensePlay))
     {
-        FPSPlayDefinition Play;
-        if (FindPlay(GetCall(bOffense).PlayId, Play))
-        {
-            Orchestrator->DistributePlayCall(Play, OnFieldPawns, RoutesTable, LineOfScrimmage);
-        }
+        Orchestrator->DistributePlayCall(OffensePlay, OnFieldPawns, RoutesTable, LineOfScrimmage);
+    }
+    FPSPlayDefinition DefensePlay;
+    if (GetDefensivePlayToRun(DefensePlay))
+    {
+        Orchestrator->DistributePlayCall(DefensePlay, OnFieldPawns, RoutesTable, LineOfScrimmage);
     }
 }
 

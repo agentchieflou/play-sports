@@ -1,0 +1,8 @@
+{
+    "Adjustments": [
+        { "AdjustmentId": "SendLinebacker", "Label": "Send the linebacker", "Description": "LBs blitz the passer", "Role": "Linebacker", "Kind": "Blitz" },
+        { "AdjustmentId": "LinebackersPlayRun", "Label": "Linebackers play the run", "Description": "LBs fit their gaps", "Role": "Linebacker", "Kind": "RunFit" },
+        { "AdjustmentId": "ManUp", "Label": "Man up", "Description": "DBs play man coverage", "Role": "DefensiveBack", "Kind": "ManCoverage" },
+        { "AdjustmentId": "DropToZone", "Label": "Drop to zone", "Description": "DBs play zone coverage", "Role": "DefensiveBack", "Kind": "ZoneCoverage" }
+    ]
+}

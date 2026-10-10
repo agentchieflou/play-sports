@@ -67,6 +67,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPlayCallTuningFromJson(const FString& JsonFilePath, FPlayCallTuningRow& OutTuning);
 
+    /** Loads the pre-snap defensive adjustments (Data/defensive_adjustments.json, Epic 102).
+     *  False on a missing file, malformed JSON, or an unrecognized Role or Kind string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadDefensiveAdjustmentsFromJson(const FString& JsonFilePath, FPSDefensiveAdjustmentCatalog& OutCatalog);
+
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
      *  numeric attributes. OutErrors entries are "Row N: <field> <problem>" so

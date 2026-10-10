@@ -16,8 +16,9 @@ human controls, a human calls from formation → play screens with text play des
 offense snaps on the human's hike or the CPU's delay, and the snap distributes both calls through
 `UPSPlayOrchestrator`; see `Specs/Play_Call_Interface.md`. Part 2 added the coaching AI's
 ranked suggestion with its reasons, recent plays and a tendency readout, and the live play clock
-with a quick-call. 102.1 waits on play art (Epic 35), 102.3 on favourite starring and 102.4 on
-defensive adjustments, so those stay unticked.) Input bring-up (Enhanced Input, the player
+with a quick-call; part 3 added favourite plays (kept in the profile save) and pre-snap
+defensive adjustments. Only 102.1 stays unticked: its play art waits on Epic 35, which depends on
+Track A's overlays (27, 31).) Input bring-up (Enhanced Input, the player
 controller, gamepad support) lives in Track M (`roadmap/controller-connectivity.md`); Epic
 104 builds feel on top of that substrate per the `Specs/Input_Architecture.md` contract, not
 new pawn code. UI reads game state from C1 bus subscriptions and the C2 single authority —
@@ -43,8 +44,8 @@ never direct sim/GameMode reads.
 
 - [ ] Play-call screen: formation → concept browsing with play-art previews (reuses Track A art pipeline, 35)
 - [x] Suggestion surfaces: situation-aware recommendations (Core 18) with reasoning shown
-- [ ] Recent/favorite plays and tendency self-awareness readout (what you've been calling — ties to 78)
-- [ ] Defensive call flow (front + coverage + adjustments) with the same speed bar
+- [x] Recent/favorite plays and tendency self-awareness readout (what you've been calling — ties to 78)
+- [x] Defensive call flow (front + coverage + adjustments) with the same speed bar
 - [x] Time pressure: play-clock integration, quick-call fallback
 
 ### Epic 103: Settings & Accessibility

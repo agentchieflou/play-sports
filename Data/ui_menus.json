@@ -108,6 +108,19 @@
             "Title": "Recent plays",
             "Content": "PlayCallRecent",
             "Options": []
+        },
+        {
+            "ScreenId": "PlayCallFavorites",
+            "Title": "Favorite plays",
+            "Body": "X or F stars and unstars a play on any play list.",
+            "Content": "PlayCallFavorites",
+            "Options": []
+        },
+        {
+            "ScreenId": "PlayCallAdjustments",
+            "Title": "Adjust",
+            "Content": "PlayCallAdjustments",
+            "Options": []
         }
     ]
 }

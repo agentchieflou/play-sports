@@ -12,7 +12,8 @@ carrying "StickDeadZoneLower" against FInputTuningRow's ranges; files carrying
 identity fields (colors, abbreviation) on "Teams" files; "Tips" files against
 FPSLoadingTipCatalog; "Cues" + "MasterIntensity" files against FPSForceFeedbackTuning;
 "GlyphSets" files against FPSInputGlyphCatalog, including that every key the input
-catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRow.
+catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRow;
+"Adjustments" files against FPSDefensiveAdjustmentCatalog.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -170,8 +171,9 @@ def validate_input_catalog(path, payload):
                     err(path, f"{where}: key '{key}' is already bound to '{owner}' in context '{cid}'")
 
 
-MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay"}
-MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays", "PlayCallRecent"}
+MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay", "ApplyAdjustment"}
+MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays", "PlayCallRecent",
+                 "PlayCallFavorites", "PlayCallAdjustments"}
 TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -434,6 +436,34 @@ def validate_play_call_tuning(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPlayCallTuningRow exactly")
 
 
+DEFENSIVE_ROLES = {"DefensiveLineman", "Linebacker", "DefensiveBack"}
+DEFENSIVE_KINDS = {"PassRush", "Blitz", "RunFit", "ManCoverage", "ZoneCoverage"}
+
+
+def validate_defensive_adjustments(path, payload):
+    """FPSDefensiveAdjustmentCatalog (Data/defensive_adjustments.json); mirrors
+    UPSPlayCallSubsystem::ValidateAdjustments."""
+    adjustments = payload.get("Adjustments")
+    if not isinstance(adjustments, list):
+        err(path, "'Adjustments' must be an array")
+        return
+    seen = set()
+    for idx, adjustment in enumerate(adjustments):
+        aid = adjustment.get("AdjustmentId") if isinstance(adjustment, dict) else None
+        where = f"Adjustments[{idx}] '{aid}'"
+        if not aid or aid in seen:
+            err(path, f"{where}: empty or duplicate AdjustmentId")
+        seen.add(aid)
+        if not isinstance(adjustment, dict):
+            continue
+        if not str(adjustment.get("Label", "")).strip():
+            err(path, f"{where}: no Label")
+        if adjustment.get("Role") not in DEFENSIVE_ROLES:
+            err(path, f"{where}.Role: '{adjustment.get('Role')}' is not a defender ({sorted(DEFENSIVE_ROLES)})")
+        if adjustment.get("Kind") not in DEFENSIVE_KINDS:
+            err(path, f"{where}.Kind: '{adjustment.get('Kind')}' is not a defensive assignment ({sorted(DEFENSIVE_KINDS)})")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -472,6 +502,8 @@ def main():
             validate_loading_tips(path, payload)
         if isinstance(payload, dict) and "Cues" in payload and "MasterIntensity" in payload:
             validate_force_feedback(path, payload)
+        if isinstance(payload, dict) and "Adjustments" in payload:
+            validate_defensive_adjustments(path, payload)
         if isinstance(payload, dict) and "CpuSnapDelaySeconds" in payload:
             validate_play_call_tuning(path, payload)
         if isinstance(payload, dict) and "GlyphSets" in payload:

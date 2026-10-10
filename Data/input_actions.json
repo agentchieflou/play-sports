@@ -86,6 +86,16 @@
             ]
         },
         {
+            "ActionId": "Favorite",
+            "ValueType": "Boolean",
+            "Description": "Star or unstar the focused play on the play-call screens (Epic 102). Menus read it through Slate, like Back.",
+            "Contexts": ["Menu"],
+            "Bindings": [
+                { "Key": "F" },
+                { "Key": "Gamepad_FaceButton_Left" }
+            ]
+        },
+        {
             "ActionId": "SwitchPlayer",
             "ValueType": "Boolean",
             "Description": "Take control of the ball carrier, or the teammate nearest the ball (Epic 127). Shares T / X with the world's take-over; LB is the shoulder-button alternative.",
