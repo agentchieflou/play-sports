@@ -19,11 +19,11 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Builds on:** `UPSTelemetryBus` (Phase 1.5 C1 — the bus itself, event stream, ring buffer, and subscription API live there)
 **Depends on:** C1, Core 3, 6
 
-- [ ] Per-tick snapshot channel (position, velocity, acceleration, facing per pawn) with sampling-rate control
-- [ ] Snapshot history windows aligned to C1's event ring buffer (trail/replay queries join both)
-- [ ] Snapshot-vs-event correlation API (e.g. "positions of all 22 at the moment of the catch event")
-- [ ] Performance budget: sampling cost measured under Epic 114's counters, degradable rate
-- [ ] Automation test: scripted movement produces expected snapshot stream, correlation query correctness
+- [x] Per-tick snapshot channel (position, velocity, acceleration, facing per pawn) with sampling-rate control *(`UPSTelemetrySamplingSubsystem`, a tickable world subsystem: every `APSPlayerPawn` plus the ball, offense first, at the tier's `TelemetrySampleRateHz`; `SetSampleRateHz`/`SetSamplingEnabled`, headless step `AdvanceTime`)*
+- [x] Snapshot history windows aligned to C1's event ring buffer (trail/replay queries join both) *(bus events now carry a `Sequence`; scheduled frames sit in a `HistorySeconds` ring, and event keyframes and event times live exactly as long as their event stays in the bus's history. `GetFramesBetween`, `GetPawnTrail`, `SampleAt`, `GetFramesBetweenEvents`, `GetEventsBetween`)*
+- [x] Snapshot-vs-event correlation API (e.g. "positions of all 22 at the moment of the catch event") *(`GetFrameAtLatestEvent(Catch)`: the keyframe captured as the event is published, before any subscriber reacts; other events get a frame blended at their time)*
+- [x] Performance budget: sampling cost measured under Epic 114's counters, degradable rate *(each frame's cost is timed and shown by `stat PSTelemetrySampling`, ready for 114's harness, which doesn't exist yet; runs over the tier's `TelemetrySampleBudgetMs` halve the rate, runs well under double it back)*
+- [x] Automation test: scripted movement produces expected snapshot stream, correlation query correctness *(`PlaySports.TelemetrySampling.*`, `PlaySports.TelemetryBus.EventSequenceAndLookup`)*
 
 ### Epic 27: Pre-Snap Route Visualization Overlay
 

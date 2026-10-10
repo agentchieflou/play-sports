@@ -37,6 +37,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
+| `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -232,6 +233,9 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
     profile (`Windows`, `IOS`, ...) or one declared in `Config/DefaultDeviceProfiles.ini`;
   - `AIDecisionInterval`: seconds between each AI player's decisions, 0 for every frame. The AI
     steers every frame in between.
+  - `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` (above 0): how often the telemetry
+    sampler (Epic 26) records every pawn, and what one recording may cost in ms before the
+    sampler halves its rate.
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -283,3 +287,19 @@ Single object (Epic 70; how a CPU pass rusher beats the man blocking him):
 
 `PSRushMoves::ValidateCatalog` and `tools/validate_data.py` check it.
 
+## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
+
+Single object (Epic 26; how `UPSTelemetrySamplingSubsystem` records every pawn's position,
+velocity, acceleration and facing for overlays, trails and replay). The sampling rate and the
+per-frame budget are per platform tier (`TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` in
+`platform_tiers.json`), never in this file:
+- `HistorySeconds` (above 0): how much the ring of scheduled frames covers at full rate. The
+  fastest tier's rate x `HistorySeconds` is at most 10000 frames.
+- `KeyframeEvents`: `EPSTelemetryEventType` names (`Snap`, `Catch`, ...), each once. Each such
+  bus event captures every pawn the instant it is published; the keyframe lives as long as its
+  event stays in the bus's history.
+- `DegradeAfterSamples` frames in a row over the tier's budget halve the rate, at most
+  `MaxDegradeLevel` times (0 to 8); `RecoverAfterSamples` frames in a row under
+  `RecoverBelowFraction` (above 0, at most 1) of it double the rate back.
+
+`UPSTelemetrySamplingSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
