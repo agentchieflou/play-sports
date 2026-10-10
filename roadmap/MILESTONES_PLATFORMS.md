@@ -61,7 +61,7 @@ the CI runner, which already runs the editor headlessly for tests.
 ## Shared ladder: S0, out of the editor (all three platforms wait on it)
 
 - [ ] **S0.1:** CI packages a cooked Win64 build on every push to main (145.1, 145.2)
-- [ ] **S0.2:** the packaged build plays a scripted full game headlessly and exits with a score (145.3)
+- [x] **S0.2:** the packaged build plays a scripted full game headlessly and exits with a score (145.3)
 - [ ] **S0.3:** the content pipeline ADR is written for the owner's Git LFS decision, and the headless editor pipeline runs in CI (146.1, 146.2)
 - [ ] **S0.4:** the field level is the default map (146.3, closes 2.1–2.2), and the widget Blueprints are generated (146.4)
 - [ ] **S0.5:** the world kit is imported (146.5, closes 142's editor stories)

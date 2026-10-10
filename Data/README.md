@@ -27,6 +27,12 @@ checks the references between files:
 
 `report` prints its warnings in the CI log; they do not fail the build. `--strict` makes them fail.
 
+**Packaged builds (Epic 145):** a packaged build carries this whole folder as loose files at the
+same place under its project directory (`PlaySports.Build.cs`), so a loader's
+`FPaths::ProjectDir() / "Data/<file>"` resolves there unchanged. A new loader adds its default
+file to the list in `Source/PlaySports/Private/PSDataPaths.cpp`; `tools/tests/test_data_staging.py`
+fails until it does, and the packaged smoke test (`-PSSmokeTest`) checks the build carries it.
+
 The import is the content commandlet (Epic 21):
 
 ```

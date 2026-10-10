@@ -46,8 +46,8 @@ JsonUtilities` (see `PlaySports.Build.cs`). Implemented systems, all real (not s
 ### `Plugins/Autonomix`
 
 "Headless AI bridge for T3D injection and Unreal Python operations" (Core 25.1, 25.2). The module
-(`Developer` type, `PostEngineInit`, never in a shipping build) serves its tools through
-AgenticLink's one MCP server (`FAgenticLinkToolProviders`), each opt-in by its own switch on top of
+(`Editor` type, `PostEngineInit`: editor targets only, never in a packaged game) serves its tools
+through AgenticLink's one MCP server (`FAgenticLinkToolProviders`), each opt-in by its own switch on top of
 `-AgenticLinkMcp`: `import_t3d` (`FAutonomixT3D`, `-AutonomixT3D`) spawns actors from T3D text or
 changes the ones it names, as one undoable transaction; `run_python` (`FAutonomixPython`,
 `-AutonomixPython`) runs a script through the Python Editor Script Plugin and returns its result and
@@ -71,13 +71,18 @@ that name with no link to the plugin (Epic 82's `UPSGameIntelligenceSubsystem`; 
 `python -m tools.orchestrator game-hooks`). Headless tests: `PlaySports.AgenticLink.*`.
 
 AgenticLink's server is off unless its switch is given, and Autonomix's tools are off unless
-theirs are.
+theirs are. Both plugins' modules are `Editor` type, so a packaged game carries neither (Epic 145).
 
 ### `Data/`
 
 `sample_players.json` — example payload for `PSDataIngestion`, two rows (`QB_001`, `OL_001`)
 matching the `FPlayerAttributes` field names exactly (`PlayerId`, `DisplayName`, `Role`,
 `WeightKg`, `HeightCm`, `Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`).
+
+A packaged build stages all of `Data/` as loose files at the same place under its project
+directory (`PlaySports.Build.cs`), so loaders keep reading `FPaths::ProjectDir() / "Data/..."`.
+A loader's default data file must be listed in `PSDataPaths.cpp` (`tools/tests/test_data_staging.py`
+checks the source against it; the packaged smoke test checks the build carries every one).
 
 ### `RawAssets/` and `tools/assets/` (the world kit, imported 2026-10-08)
 

@@ -17,6 +17,11 @@ struct FPSQuickSimResult
 
     UPROPERTY(BlueprintReadOnly)
     int32 AwayScore = 0;
+
+    /** The game was played to the end of the fourth quarter; false when the runner's step cap
+     *  (MaxPlaysPerGame) stopped it first. */
+    UPROPERTY(BlueprintReadOnly)
+    bool bFinished = false;
 };
 
 /** Resolves a non-played schedule game headlessly by driving UPSPlaySimulation's
