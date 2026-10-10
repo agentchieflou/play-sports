@@ -39,9 +39,10 @@ enum class EPSMatchMode : uint8
  *  - Without options (a level opened in the editor), the league's first two teams play.
  *  - At kickoff (ApplyStaffs) both teams' coaching staffs take over (Epic 89): each team's plan
  *    goes to the play-call authority, and each team's players play at their scheme fit.
- *  - The field (LoadFieldPlayers, ApplyStaffsToField): the game mode spawns the home team's
- *    offense against the away team's defense, each from its own team's roster and at its own
- *    staff's scheme fit.
+ *  - The field (LoadFieldPlayers): the game mode's field roster holds both teams' players, each
+ *    from its own team's roster and at its own staff's scheme fit; UPSFieldSides puts the team
+ *    with the ball on offense. Without team rosters, one roster plays both sides
+ *    (ApplyStaffsToField).
  */
 UCLASS(BlueprintType)
 class PLAYSPORTS_API UPSMatchSetup : public UObject
@@ -89,19 +90,19 @@ public:
     bool ApplyStaffs(const UPSStaffManager* Staffs, UPSPlayCallSubsystem* PlayCall, TArray<FPlayerAttributes>& HomePlayers, TArray<FPlayerAttributes>& AwayPlayers) const;
 
     /**
-     * The players who take the field at kickoff, with the home team on offense (it has the ball
-     * first): the home team's offensive players, then the away team's defensive players (sides
-     * by APSFieldGrid::GetSideForRole), each from its own team's roster (LoadTeamPlayers), at
-     * their own ratings. False, with OutPlayers untouched, when the teams aren't set or either
-     * team's roster can't be read; the game mode then keeps its RosterJsonPath players.
+     * The players both teams bring to the field: every player of the home team and of the away
+     * team, each from its own team's roster (LoadTeamPlayers), at their own ratings. Both play
+     * on both sides of the ball as possession changes (UPSFieldSides). False, with both lists
+     * untouched, when the teams aren't set or either team's roster can't be read; the game mode
+     * then keeps its RosterJsonPath players.
      */
-    bool LoadFieldPlayers(const FString& TeamsJsonPath, TArray<FPlayerAttributes>& OutPlayers) const;
+    bool LoadFieldPlayers(const FString& TeamsJsonPath, TArray<FPlayerAttributes>& OutHomePlayers, TArray<FPlayerAttributes>& OutAwayPlayers) const;
 
     /**
-     * ApplyStaffs for the players on the field, both sides in one list: the offense plays at the
-     * home team's scheme fit and the defense at the away team's, in place and in order. The game
-     * mode applies it to the roster rows its pawns point at, so the pawns and the play
-     * simulation's copies of them play at the same ratings.
+     * ApplyStaffs for one roster playing both sides, when the teams' own rosters can't be read:
+     * its offense plays at the home team's scheme fit and its defense at the away team's, in
+     * place and in order. The game mode applies it to the roster rows its pawns point at, so
+     * the pawns and the play simulation's copies of them play at the same ratings.
      */
     bool ApplyStaffsToField(const UPSStaffManager* Staffs, UPSPlayCallSubsystem* PlayCall, TArray<FPlayerAttributes>& Players) const;
 

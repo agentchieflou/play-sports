@@ -25,7 +25,8 @@ class UWorld;
  *    the incoming player's roster row, so every pawn is always a rostered player.
  *  - When a side calls a play (the bus's PlayCall), the package for the play's formation
  *    comes on: per role, the first players on the depth chart who can play. Players already
- *    on the field keep their pawns; only the changes move, and the side lines up again
+ *    on the field keep their pawns; only the changes move, an incoming player taking an
+ *    outgoing player's pawn of his own role when there is one, and the side lines up again
  *    through APSFieldGrid::ComputeLineup.
  *  - At every new play (BeginNewPlay) both sides' packages are refilled: a ball carrier who
  *    must sit out (UPSRoster::IsAvailableForPlay) and a player whose stamina fell below the
@@ -81,7 +82,7 @@ public:
 
     /** The players to spawn at kickoff, as pointers to the roster's rows: each side's default
      *  package, in roster order, offense first. A side whose default package the roster can't
-     *  fill fields every player it has on that side. */
+     *  fill fields every player on its depth chart. */
     TArray<const FPlayerAttributes*> GetStartingLineup() const;
 
     /** Takes over the on-field pawns (spawned from GetStartingLineup); each side's default

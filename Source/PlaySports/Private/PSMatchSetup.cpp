@@ -241,7 +241,7 @@ bool UPSMatchSetup::ApplyStaffs(const UPSStaffManager* Staffs, UPSPlayCallSubsys
     return Staffs->FindStaff(HomeTeamId) != nullptr && Staffs->FindStaff(AwayTeamId) != nullptr;
 }
 
-bool UPSMatchSetup::LoadFieldPlayers(const FString& TeamsJsonPath, TArray<FPlayerAttributes>& OutPlayers) const
+bool UPSMatchSetup::LoadFieldPlayers(const FString& TeamsJsonPath, TArray<FPlayerAttributes>& OutHomePlayers, TArray<FPlayerAttributes>& OutAwayPlayers) const
 {
     TArray<FPlayerAttributes> HomePlayers;
     TArray<FPlayerAttributes> AwayPlayers;
@@ -250,23 +250,16 @@ bool UPSMatchSetup::LoadFieldPlayers(const FString& TeamsJsonPath, TArray<FPlaye
         return false;
     }
 
-    TArray<FPlayerAttributes> FieldPlayers = HomePlayers.FilterByPredicate([](const FPlayerAttributes& Player)
-    {
-        return APSFieldGrid::GetSideForRole(Player.Role) == EPSTeamSide::Offense;
-    });
-    FieldPlayers.Append(AwayPlayers.FilterByPredicate([](const FPlayerAttributes& Player)
-    {
-        return APSFieldGrid::GetSideForRole(Player.Role) == EPSTeamSide::Defense;
-    }));
-    UE_LOG(LogTemp, Display, TEXT("UPSMatchSetup: On the field, the %s offense against the %s defense (%d players)."),
-        *HomeTeamId.ToString(), *AwayTeamId.ToString(), FieldPlayers.Num());
-    OutPlayers = MoveTemp(FieldPlayers);
+    UE_LOG(LogTemp, Display, TEXT("UPSMatchSetup: On the field, the %s (%d players) against the %s (%d players)."),
+        *HomeTeamId.ToString(), HomePlayers.Num(), *AwayTeamId.ToString(), AwayPlayers.Num());
+    OutHomePlayers = MoveTemp(HomePlayers);
+    OutAwayPlayers = MoveTemp(AwayPlayers);
     return true;
 }
 
 bool UPSMatchSetup::ApplyStaffsToField(const UPSStaffManager* Staffs, UPSPlayCallSubsystem* PlayCall, TArray<FPlayerAttributes>& Players) const
 {
-    // The offense is the home team's, the defense the away team's: each side at its staff's fit.
+    // One roster on both sides: its offense at the home team's fit, its defense at the away team's.
     TArray<FPlayerAttributes> Offense;
     TArray<FPlayerAttributes> Defense;
     for (const FPlayerAttributes& Player : Players)

@@ -250,9 +250,12 @@ TArray<const FPlayerAttributes*> UPSPersonnelManager::GetStartingLineup() const
                 bOffense ? TEXT("offense's") : TEXT("defense's"), *DefaultId.ToString(), bOffense ? TEXT("offensive") : TEXT("defensive"));
         }
 
+        // Short of the package, every player on the side's depth chart starts (with both teams
+        // on the roster, only the side's own team: UPSFieldSides).
         for (const FPlayerAttributes& Player : Roster->GetFullRoster())
         {
-            if (PSPersonnel::IsOffense(Player.Role) == bOffense && (!bFilled || Starters.Contains(Player.PlayerId)))
+            if (PSPersonnel::IsOffense(Player.Role) == bOffense
+                && (bFilled ? Starters.Contains(Player.PlayerId) : Roster->GetDepthChartForRole(Player.Role).Contains(Player.PlayerId)))
             {
                 Lineup.Add(&Player);
             }
@@ -420,18 +423,42 @@ bool UPSPersonnelManager::ApplyPackageToSide(bool bOffense, FName PackageId)
             *Package->PackageId.ToString(), Outgoing.Num(), Incoming.Num());
     }
 
+    // An incoming player takes the pawn of an outgoing player of his own role when there is
+    // one: the pawn keeps its spot, and the snapper the ball, through a like-for-like swap (a
+    // tired player's backup; the other team coming on after a change of possession).
+    TArray<APSPlayerPawn*> IncomingPawns;
+    IncomingPawns.Init(nullptr, Incoming.Num());
+    for (int32 IncomingIndex = 0; IncomingIndex < Incoming.Num(); ++IncomingIndex)
+    {
+        const FPlayerAttributes* Row = Roster->FindPlayerPtr(Incoming[IncomingIndex]);
+        const int32 SameRole = Row ? Outgoing.IndexOfByPredicate([Row](const APSPlayerPawn* Pawn) { return Pawn->GetAttributes().Role == Row->Role; }) : INDEX_NONE;
+        if (SameRole != INDEX_NONE)
+        {
+            IncomingPawns[IncomingIndex] = Outgoing[SameRole];
+            Outgoing.RemoveAt(SameRole);
+        }
+    }
+    for (int32 IncomingIndex = 0; IncomingIndex < Incoming.Num() && Outgoing.Num() > 0; ++IncomingIndex)
+    {
+        if (!IncomingPawns[IncomingIndex])
+        {
+            IncomingPawns[IncomingIndex] = Outgoing[0];
+            Outgoing.RemoveAt(0);
+        }
+    }
+
     FPSTelemetryPersonnelEvent Change;
     Change.bOffense = bOffense;
     Change.PackageId = Package->PackageId;
     Change.PackageName = Package->DisplayName;
-    const int32 SwapCount = FMath::Min(Outgoing.Num(), Incoming.Num());
-    for (int32 SwapIndex = 0; SwapIndex < SwapCount; ++SwapIndex)
+    for (int32 IncomingIndex = 0; IncomingIndex < Incoming.Num(); ++IncomingIndex)
     {
-        const FName Leaving = Outgoing[SwapIndex]->GetAttributes().PlayerId;
-        if (PutPlayerOnPawn(*Outgoing[SwapIndex], Incoming[SwapIndex]))
+        APSPlayerPawn* Pawn = IncomingPawns[IncomingIndex];
+        const FName Leaving = Pawn ? Pawn->GetAttributes().PlayerId : NAME_None;
+        if (Pawn && PutPlayerOnPawn(*Pawn, Incoming[IncomingIndex]))
         {
             Change.PlayersOut.Add(Leaving);
-            Change.PlayersIn.Add(Incoming[SwapIndex]);
+            Change.PlayersIn.Add(Incoming[IncomingIndex]);
         }
     }
 

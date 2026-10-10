@@ -18,6 +18,7 @@
 #include "PSBroadcastCamera.h"
 #include "PSRoster.h"
 #include "PSPersonnelManager.h"
+#include "PSFieldSides.h"
 #include "PSHealthComponent.h"
 #include "PSRulesConfig.h"
 #include "PSPlayerLeveling.h"
@@ -28,6 +29,7 @@
 #include "PSVersusSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
+#include "Algo/Transform.h"
 
 static bool LoadMovementTuningFromJson(const FString& JsonFilePath, FMovementTuningRow& OutTuning)
 {
@@ -67,6 +69,7 @@ APSGameMode::APSGameMode()
     BroadcastCamera = nullptr;
     ActiveRoster = nullptr;
     PersonnelManager = nullptr;
+    FieldSides = nullptr;
     CurrentPlayIndex = 0;
     ExtraDefenderPawn = nullptr;
     PlayerLeveling = nullptr;
@@ -158,29 +161,54 @@ void APSGameMode::StartPlay()
                     RosterRows.Add(*Player);
                 }
             }
-            // The match's teams take the field (UPSMatchSetup): the home offense against the away
-            // defense, each from its own team's roster; RosterJsonPath's players only without
-            // them. Kickoff (Epic 89): both staffs' plans go to the play-call authority and every
-            // player plays at his team's scheme fit, in the rows the pawns point at -- the
-            // simulation's copies below are the same players at the same ratings.
-            MatchSetup->LoadFieldPlayers(UPSUITeamCatalog::GetDefaultTeamsPath(), RosterRows);
+            // The match's teams take the field (UPSMatchSetup): both teams' players, each from
+            // its own team's roster, are on the roster for the whole game; RosterJsonPath's
+            // players only without them. Kickoff (Epic 89): both staffs' plans go to the
+            // play-call authority and every player plays at his team's scheme fit, in the rows
+            // the pawns point at -- the simulation's copies below are the same players at the
+            // same ratings.
             StaffManager = NewObject<UPSStaffManager>(this);
             StaffManager->LoadFromJson(UPSStaffManager::GetDefaultDataPath());
-            MatchSetup->ApplyStaffsToField(StaffManager, GetWorld()->GetSubsystem<UPSPlayCallSubsystem>(), RosterRows);
+            UPSPlayCallSubsystem* PlayCallSubsystem = GetWorld()->GetSubsystem<UPSPlayCallSubsystem>();
+            TArray<FPlayerAttributes> HomePlayers;
+            TArray<FPlayerAttributes> AwayPlayers;
+            TArray<FName> HomePlayerIds;
+            const bool bTeamsOnField = MatchSetup->LoadFieldPlayers(UPSUITeamCatalog::GetDefaultTeamsPath(), HomePlayers, AwayPlayers);
+            if (bTeamsOnField)
+            {
+                MatchSetup->ApplyStaffs(StaffManager, PlayCallSubsystem, HomePlayers, AwayPlayers);
+                RosterRows = HomePlayers;
+                RosterRows.Append(AwayPlayers);
+                Algo::Transform(HomePlayers, HomePlayerIds, [](const FPlayerAttributes& Player) { return Player.PlayerId; });
+            }
+            else
+            {
+                MatchSetup->ApplyStaffsToField(StaffManager, PlayCallSubsystem, RosterRows);
+            }
             ActiveRoster = NewObject<UPSRoster>(this);
             ActiveRoster->InitializeRoster(RosterRows);
             ActiveRoster->BuildDefaultDepthChart();
+            // The team with the ball lines up on offense, at kickoff and after every change of
+            // possession (UPSFieldSides, following the simulation's GameState).
+            FieldSides = NewObject<UPSFieldSides>(this);
+            FieldSides->Initialize(ActiveRoster, HomePlayerIds);
+            FieldSides->BindToBus(GetWorld()->GetSubsystem<UPSTelemetryBus>());
             PersonnelManager = NewObject<UPSPersonnelManager>(this);
             PersonnelManager->Initialize(ActiveRoster);
             PersonnelManager->LoadCatalogFromJson(UPSPersonnelManager::GetDefaultCatalogPath());
             const TArray<const FPlayerAttributes*> Starters = PersonnelManager->GetStartingLineup();
 
-            TArray<FPlayerAttributes> OffenseRoster;
-            TArray<FPlayerAttributes> DefenseRoster;
-            for (const FPlayerAttributes* Player : Starters)
+            // The simulation holds each team's players and swaps them when the ball changes hands,
+            // as in a quick sim; without teams, the one roster's offense and defense starters.
+            TArray<FPlayerAttributes> OffenseRoster = HomePlayers;
+            TArray<FPlayerAttributes> DefenseRoster = AwayPlayers;
+            if (!bTeamsOnField)
             {
-                TArray<FPlayerAttributes>& SideRoster = APSFieldGrid::GetSideForRole(Player->Role) == EPSTeamSide::Offense ? OffenseRoster : DefenseRoster;
-                SideRoster.Add(*Player);
+                for (const FPlayerAttributes* Player : Starters)
+                {
+                    TArray<FPlayerAttributes>& SideRoster = APSFieldGrid::GetSideForRole(Player->Role) == EPSTeamSide::Offense ? OffenseRoster : DefenseRoster;
+                    SideRoster.Add(*Player);
+                }
             }
 
             PlaySimulation = NewObject<UPSPlaySimulation>(this);
