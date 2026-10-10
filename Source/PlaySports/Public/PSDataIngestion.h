@@ -41,6 +41,7 @@
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
 #include "PSReplayTypes.h"
+#include "PSPhotoModeTypes.h"
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
 #include "PSPocketComponent.h"
@@ -263,6 +264,12 @@ public:
      *  missing file or malformed JSON; UPSReplaySubsystem::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadReplayTuningFromJson(const FString& JsonFilePath, FPSReplayTuning& OutTuning);
+
+    /** Loads photo mode's camera, filters and capture size (Data/photo_mode.json, Epic 45).
+     *  False on a missing file or malformed JSON; UPSPhotoModeSubsystem::ValidateTuning checks
+     *  the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPhotoModeTuningFromJson(const FString& JsonFilePath, FPSPhotoModeTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

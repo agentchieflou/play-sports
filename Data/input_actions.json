@@ -50,6 +50,11 @@
             "ContextId": "DefensePreSnap",
             "Priority": 3,
             "Description": "Before the snap while the human plays defense (Epic 104.5): PreSnap's offensive calls mean nothing to a defender, so he has his own buttons. JumpSnap binds here; X and LB still switch player from OnField."
+        },
+        {
+            "ContextId": "PhotoMode",
+            "Priority": 5,
+            "Description": "Photo mode is on (Epic 45): UPSPhotoModeSubsystem pushes it on every player controller over whatever they had, and takes the Replay context off meanwhile. The Move stick flies the free camera; every other button here is photo mode's, except Start, which still opens the pause menu."
         }
     ],
     "Actions": [
@@ -57,7 +62,7 @@
             "ActionId": "Move",
             "ValueType": "Axis2D",
             "Description": "Move relative to the control rotation's yaw. X is right, Y is forward.",
-            "Contexts": ["World", "OnField"],
+            "Contexts": ["World", "OnField", "PhotoMode"],
             "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "W", "bSwizzleYX": true },
@@ -527,6 +532,216 @@
             "ValueType": "Boolean",
             "Description": "Leave the replay and go back to the game. B, as B cancels everywhere.",
             "Contexts": ["Replay"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Escape" },
+                { "Key": "Gamepad_FaceButton_Right" }
+            ]
+        },
+        {
+            "ActionId": "PhotoMode",
+            "ValueType": "Boolean",
+            "Description": "Enter photo mode from the field or a replay (Epic 45): the game or replay holds still and the camera flies free. Before the snap View calls a timeout instead (PreSnap outranks OnField), so a flick of the right stick down enters it too.",
+            "Contexts": ["OnField", "Replay"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "B" },
+                { "Key": "Gamepad_Special_Left" },
+                { "Key": "Gamepad_RightStick_Down" }
+            ]
+        },
+        {
+            "ActionId": "PhotoTurnLeft",
+            "ValueType": "Boolean",
+            "Description": "Turn photo mode's camera left: a step at once, then steadily while held.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "J" },
+                { "Key": "Gamepad_RightStick_Left" }
+            ]
+        },
+        {
+            "ActionId": "PhotoTurnRight",
+            "ValueType": "Boolean",
+            "Description": "Turn photo mode's camera right: a step at once, then steadily while held.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "L" },
+                { "Key": "Gamepad_RightStick_Right" }
+            ]
+        },
+        {
+            "ActionId": "PhotoTurnUp",
+            "ValueType": "Boolean",
+            "Description": "Tilt photo mode's camera up: a step at once, then steadily while held.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "I" },
+                { "Key": "Gamepad_RightStick_Up" }
+            ]
+        },
+        {
+            "ActionId": "PhotoTurnDown",
+            "ValueType": "Boolean",
+            "Description": "Tilt photo mode's camera down: a step at once, then steadily while held.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "K" },
+                { "Key": "Gamepad_RightStick_Down" }
+            ]
+        },
+        {
+            "ActionId": "PhotoRise",
+            "ValueType": "Boolean",
+            "Description": "While held, raise photo mode's camera.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "E" },
+                { "Key": "Gamepad_RightShoulder" }
+            ]
+        },
+        {
+            "ActionId": "PhotoLower",
+            "ValueType": "Boolean",
+            "Description": "While held, lower photo mode's camera, no lower than MinHeightCm.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Q" },
+                { "Key": "Gamepad_LeftShoulder" }
+            ]
+        },
+        {
+            "ActionId": "PhotoZoomIn",
+            "ValueType": "Boolean",
+            "Description": "While held, narrow the field of view.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "X" },
+                { "Key": "Gamepad_RightTrigger" }
+            ]
+        },
+        {
+            "ActionId": "PhotoZoomOut",
+            "ValueType": "Boolean",
+            "Description": "While held, widen the field of view.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Z" },
+                { "Key": "Gamepad_LeftTrigger" }
+            ]
+        },
+        {
+            "ActionId": "PhotoRollLeft",
+            "ValueType": "Boolean",
+            "Description": "While held, tilt the camera's horizon to the left (roll).",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Comma" },
+                { "Key": "Gamepad_DPad_Left" }
+            ]
+        },
+        {
+            "ActionId": "PhotoRollRight",
+            "ValueType": "Boolean",
+            "Description": "While held, tilt the camera's horizon to the right (roll).",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "Period" },
+                { "Key": "Gamepad_DPad_Right" }
+            ]
+        },
+        {
+            "ActionId": "PhotoFocusNear",
+            "ValueType": "Boolean",
+            "Description": "While held, bring the focus nearer (depth of field).",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "F" },
+                { "Key": "Gamepad_DPad_Down" }
+            ]
+        },
+        {
+            "ActionId": "PhotoFocusFar",
+            "ValueType": "Boolean",
+            "Description": "While held, push the focus farther (depth of field).",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "R" },
+                { "Key": "Gamepad_DPad_Up" }
+            ]
+        },
+        {
+            "ActionId": "PhotoAperture",
+            "ValueType": "Boolean",
+            "Description": "Step through Data/photo_mode.json's apertures; the first is depth of field off.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "C" },
+                { "Key": "Gamepad_FaceButton_Left" }
+            ]
+        },
+        {
+            "ActionId": "PhotoFilter",
+            "ValueType": "Boolean",
+            "Description": "Step through Data/photo_mode.json's filter presets.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "V" },
+                { "Key": "Gamepad_Special_Left" }
+            ]
+        },
+        {
+            "ActionId": "PhotoGuides",
+            "ValueType": "Boolean",
+            "Description": "Step the framing guide: none, thirds, centre.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "G" },
+                { "Key": "Gamepad_RightThumbstick" }
+            ]
+        },
+        {
+            "ActionId": "PhotoHideUI",
+            "ValueType": "Boolean",
+            "Description": "Hide or show the HUD, the overlays and photo mode's own controls.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "H" },
+                { "Key": "Gamepad_FaceButton_Top" }
+            ]
+        },
+        {
+            "ActionId": "PhotoCapture",
+            "ValueType": "Boolean",
+            "Description": "Take the photo: a high-resolution screenshot, to Photo in the screenshots folder.",
+            "Contexts": ["PhotoMode"],
+            "bTriggerWhenPaused": true,
+            "Bindings": [
+                { "Key": "SpaceBar" },
+                { "Key": "Gamepad_FaceButton_Bottom" }
+            ]
+        },
+        {
+            "ActionId": "PhotoExit",
+            "ValueType": "Boolean",
+            "Description": "Leave photo mode: the camera, the game or replay and the UI go back as they were. B, as B cancels everywhere.",
+            "Contexts": ["PhotoMode"],
             "bTriggerWhenPaused": true,
             "Bindings": [
                 { "Key": "Escape" },

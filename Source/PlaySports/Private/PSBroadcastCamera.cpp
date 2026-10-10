@@ -2,7 +2,9 @@
 #include "PSCameraAll22Component.h"
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
+#include "PSPhotoModeSubsystem.h"
 #include "PSPlayerController.h"
+#include "Engine/World.h"
 
 APSBroadcastCamera::APSBroadcastCamera()
 {
@@ -145,6 +147,12 @@ void APSBroadcastCamera::BecomeViewTarget(APlayerController* PC)
     {
         All22Component->BindToController(Cast<APSPlayerController>(PC));
     }
+    // Whoever looks through this camera can stop the game to photograph it (Epic 45).
+    UWorld* World = GetWorld();
+    if (UPSPhotoModeSubsystem* PhotoMode = World ? World->GetSubsystem<UPSPhotoModeSubsystem>() : nullptr)
+    {
+        PhotoMode->BindController(Cast<APSPlayerController>(PC));
+    }
 }
 
 void APSBroadcastCamera::EndViewTarget(APlayerController* PC)
@@ -152,6 +160,11 @@ void APSBroadcastCamera::EndViewTarget(APlayerController* PC)
     if (All22Component)
     {
         All22Component->UnbindFromController(Cast<APSPlayerController>(PC));
+    }
+    UWorld* World = GetWorld();
+    if (UPSPhotoModeSubsystem* PhotoMode = World ? World->GetSubsystem<UPSPhotoModeSubsystem>() : nullptr)
+    {
+        PhotoMode->UnbindController(Cast<APSPlayerController>(PC));
     }
     Super::EndViewTarget(PC);
 }

@@ -80,6 +80,7 @@ every CI build.
 | `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
 | `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
 | `replay.json` | `FPSReplayTuning` (single object) | `UPSDataIngestion::LoadReplayTuningFromJson`, via `UPSReplaySubsystem` |
+| `photo_mode.json` | `FPSPhotoModeTuning` (single object) | `UPSDataIngestion::LoadPhotoModeTuningFromJson`, via `UPSPhotoModeSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
@@ -977,6 +978,29 @@ replay re-poses the field is per platform tier (`ReplayPoseRateHz` in `platform_
   on it, the automatic ones included.
 
 `UPSReplaySubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Photo mode schema (`FPSPhotoModeTuning`)
+
+Single object (Epic 45; `UPSPhotoModeSubsystem`'s free camera, filters and photos):
+- The camera: `MoveCmPerSecond`, `RiseCmPerSecond`, `TurnDegreesPerSecond` (all above 0) and
+  `TurnStepDegrees` (0 or more: one press or swipe turns this much at once). `MaxPitchDegrees`
+  (above 0, below 90). `MaxDistanceCm` (above 0): how far it flies from where photo mode began.
+  `MinHeightCm`: the lowest world height it goes to.
+- Zoom, roll and focus: `MinFieldOfView` < `MaxFieldOfView` (degrees, within 0 to 180) and
+  `ZoomDegreesPerSecond`; `MaxRollDegrees` and `RollDegreesPerSecond`; `MinFocusCm` <
+  `MaxFocusCm`, `FocusDoublingsPerSecond`, and `DefaultFocusCm` between them (the focus when the
+  camera follows nobody).
+- `Apertures`: f-stops, ascending, stepped through by the aperture button; a leading 0 is depth
+  of field off. Photo mode starts on the first.
+- `Filters[]`: `FilterId` (unique) and what it changes, each defaulting to no change:
+  `Saturation` (0 is black and white), `Contrast` (both 0 or more, 1 unchanged), `Tint`
+  (`#RRGGBB`, multiplied in), `WhiteTemp` (K, 6500 unchanged), `Vignette` (0 to 1).
+- `Presets[]` (at least one): `PresetId` (unique) and `Filters`, a stack of filter ids. The
+  filter button steps through them; photo mode starts on the first.
+- `CaptureResolutionMultiplier` (1 or more) and `MaxCaptureDimension` (1 or more): a photo is the
+  viewport's size times the multiplier, its longer side at most the maximum.
+
+`UPSPhotoModeSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 
 ## Ball-flight overlay schema (`FPSBallFlightStyle`)
 

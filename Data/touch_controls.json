@@ -39,7 +39,32 @@
                 { "ControlId": "ButtonUpperLeft", "ActionId": "ReplayScrubBack" },
                 { "ControlId": "ButtonUpperRight", "ActionId": "ReplayScrubForward" },
                 { "ControlId": "ButtonTop", "ActionId": "ReplayCamera" },
-                { "ControlId": "ButtonRight", "ActionId": "ReplayExit" }
+                { "ControlId": "ButtonRight", "ActionId": "ReplayExit" },
+                { "ControlId": "ButtonView", "ActionId": "PhotoMode" }
+            ]
+        },
+        {
+            "ContextId": "PhotoMode",
+            "Bindings": [
+                { "ControlId": "Stick", "ActionId": "Move" },
+                { "ControlId": "SwipeLeft", "ActionId": "PhotoTurnLeft" },
+                { "ControlId": "SwipeRight", "ActionId": "PhotoTurnRight" },
+                { "ControlId": "SwipeUp", "ActionId": "PhotoTurnUp" },
+                { "ControlId": "SwipeDown", "ActionId": "PhotoTurnDown" },
+                { "ControlId": "ButtonUpperRight", "ActionId": "PhotoRise" },
+                { "ControlId": "ButtonUpperLeft", "ActionId": "PhotoLower" },
+                { "ControlId": "Sprint", "ActionId": "PhotoZoomIn" },
+                { "ControlId": "TriggerLeft", "ActionId": "PhotoZoomOut" },
+                { "ControlId": "DPadLeft", "ActionId": "PhotoRollLeft" },
+                { "ControlId": "DPadRight", "ActionId": "PhotoRollRight" },
+                { "ControlId": "DPadDown", "ActionId": "PhotoFocusNear" },
+                { "ControlId": "DPadUp", "ActionId": "PhotoFocusFar" },
+                { "ControlId": "ButtonLeft", "ActionId": "PhotoAperture" },
+                { "ControlId": "ButtonView", "ActionId": "PhotoFilter" },
+                { "ControlId": "ButtonRightStick", "ActionId": "PhotoGuides" },
+                { "ControlId": "ButtonTop", "ActionId": "PhotoHideUI" },
+                { "ControlId": "ButtonBottom", "ActionId": "PhotoCapture" },
+                { "ControlId": "ButtonRight", "ActionId": "PhotoExit" }
             ]
         },
         {
@@ -52,7 +77,9 @@
                 { "ControlId": "ButtonLeft", "ActionId": "SwitchPlayer" },
                 { "ControlId": "ButtonUpperLeft", "ActionId": "SwitchPlayer" },
                 { "ControlId": "Pause", "ActionId": "Pause" },
-                { "ControlId": "ButtonRightStick", "ActionId": "FilmView" }
+                { "ControlId": "ButtonRightStick", "ActionId": "FilmView" },
+                { "ControlId": "ButtonView", "ActionId": "PhotoMode" },
+                { "ControlId": "SwipeDown", "ActionId": "PhotoMode" }
             ]
         },
         {
