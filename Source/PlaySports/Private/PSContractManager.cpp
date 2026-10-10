@@ -628,6 +628,63 @@ FPSCapPreview UPSContractManager::CutPlayer(FName PlayerId, bool bSpreadDeadMone
     return Preview;
 }
 
+bool UPSContractManager::ApplyRetirement(FPSContractLedger& InOutLedger, FName PlayerId, FString& OutProblem) const
+{
+    using namespace PSContractManagerPrivate;
+
+    const int32 Index = InOutLedger.Contracts.IndexOfByPredicate([PlayerId](const FPSContract& Contract) { return Contract.PlayerId == PlayerId; });
+    if (Index == INDEX_NONE)
+    {
+        OutProblem = TEXT("He has no contract");
+        return false;
+    }
+
+    // He forfeits the guarantees he hasn't earned; the bonus already paid is charged as a cut
+    // spreads it: this year's share now, the later years' next year.
+    const FPSContract Retired = InOutLedger.Contracts[Index];
+    const int32 Year = InOutLedger.LeagueYear;
+    int32 ThisYear = 0;
+    int32 Later = 0;
+    for (const FPSContractYear& ContractYear : Retired.Years)
+    {
+        if (ContractYear.LeagueYear == Year)
+        {
+            ThisYear += ContractYear.ProratedBonus;
+        }
+        else if (ContractYear.LeagueYear > Year)
+        {
+            Later += ContractYear.ProratedBonus;
+        }
+    }
+    InOutLedger.Contracts.RemoveAt(Index);
+    AddDeadMoney(InOutLedger, Retired.TeamId, PlayerId, Year, ThisYear);
+    AddDeadMoney(InOutLedger, Retired.TeamId, PlayerId, Year + 1, Later);
+    return true;
+}
+
+FPSCapPreview UPSContractManager::PreviewRetirement(FName PlayerId) const
+{
+    FPSContractLedger After;
+    return PreviewMove(PlayerId, [this, PlayerId](FPSContractLedger& Working, FString& Problem)
+    {
+        return ApplyRetirement(Working, PlayerId, Problem);
+    }, After);
+}
+
+FPSCapPreview UPSContractManager::RetirePlayer(FName PlayerId)
+{
+    FPSContractLedger After;
+    const FPSCapPreview Preview = PreviewMove(PlayerId, [this, PlayerId](FPSContractLedger& Working, FString& Problem)
+    {
+        return ApplyRetirement(Working, PlayerId, Problem);
+    }, After);
+    if (Preview.bValid)
+    {
+        Ledger = MoveTemp(After);
+    }
+    return Preview;
+}
+
 FPSCapPreview UPSContractManager::PreviewRestructure(FName PlayerId, int32 Amount) const
 {
     FPSContractLedger After;

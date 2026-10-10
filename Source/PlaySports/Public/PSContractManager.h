@@ -171,6 +171,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Contracts")
     FPSCapPreview CutPlayer(FName PlayerId, bool bSpreadDeadMoney);
 
+    /** PlayerId retiring (Epic 94): his deal ends, and the guarantees he hasn't earned end with it;
+     *  only the bonus already paid stays on his team's cap as dead money, this year's share this
+     *  year and the later years' next year. */
+    UFUNCTION(BlueprintPure, Category = "Contracts")
+    FPSCapPreview PreviewRetirement(FName PlayerId) const;
+
+    /** Retires PlayerId's contract as PreviewRetirement shows. The caller takes him off the roster. */
+    UFUNCTION(BlueprintCallable, Category = "Contracts")
+    FPSCapPreview RetirePlayer(FName PlayerId);
+
     /** Turning up to Amount of this year's base salary (keeping the minimum) into a bonus spread
      *  over his remaining years: this year's cap hit falls, later years' rise. */
     UFUNCTION(BlueprintPure, Category = "Contracts")
@@ -217,6 +227,7 @@ private:
     FPSCapPreview PreviewMove(FName PlayerId, TFunctionRef<bool(FPSContractLedger&, FString&)> Move, FPSContractLedger& OutAfter) const;
 
     bool ApplyCut(FPSContractLedger& InOutLedger, FName PlayerId, bool bSpreadDeadMoney, FString& OutProblem) const;
+    bool ApplyRetirement(FPSContractLedger& InOutLedger, FName PlayerId, FString& OutProblem) const;
     bool ApplyRestructure(FPSContractLedger& InOutLedger, FName PlayerId, int32 Amount, FString& OutProblem) const;
     bool ApplyExtension(FPSContractLedger& InOutLedger, FName PlayerId, const FPSContractOffer& Extension, FString& OutProblem) const;
 
