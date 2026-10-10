@@ -1,30 +1,28 @@
 #!/usr/bin/env python
 """Data contract validator for play-sports (Epic 113).
 
-Validates every JSON file under Data/ : parseability always; files carrying a
-"Players" array additionally against the FPlayerAttributes contract
-(Source/PlaySports/Public/PSPlayerAttributes.h) - exact field names, numeric
-types, valid EPlayerRole values, unique non-empty PlayerId; files carrying
-"Contexts" + "Actions" against the input catalog contract (FPSInputCatalog,
-Source/PlaySports/Public/PSInputConfigTypes.h; Specs/Input_Architecture.md); files
-carrying "StickDeadZoneLower" against FInputTuningRow's ranges; files carrying
-"Screens" + "RootScreen" against the menu catalog rules (FPSMenuCatalog); team
-identity fields (colors, abbreviation) on "Teams" files; "Tips" files against
-FPSLoadingTipCatalog; "Cues" + "MasterIntensity" files against FPSForceFeedbackTuning;
-"GlyphSets" files against FPSInputGlyphCatalog, including that every key the input
-catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRow;
+Validates every JSON file under Data/ : parseability always; files carrying a "Players" array
+additionally against the FPlayerAttributes contract (Source/PlaySports/Public/PSPlayerAttributes.h)
+- exact field names, numeric types, valid EPlayerRole values, unique non-empty PlayerId; files
+carrying "Contexts" + "Actions" against the input catalog contract (FPSInputCatalog,
+Source/PlaySports/Public/PSInputConfigTypes.h; Specs/Input_Architecture.md); files carrying
+"StickDeadZoneLower" against FInputTuningRow's ranges; files carrying "Screens" + "RootScreen"
+against the menu catalog rules (FPSMenuCatalog); team identity fields (colors, abbreviation) on
+"Teams" files; "Tips" files against FPSLoadingTipCatalog; "Cues" + "MasterIntensity" files against
+FPSForceFeedbackTuning; "GlyphSets" files against FPSInputGlyphCatalog, including that every key the
+input catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRow;
 "Adjustments" files against FPSDefensiveAdjustmentCatalog; "OpenSeparation" files against
 FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotActions" files
-against FPassingInputTuningRow, including that each named action is a Boolean in the input
-catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
-Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
-DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
-"MaxQueued" files against FInputBufferTuningRow, each buffered action a Boolean catalog action;
-"RushMoves" files against FPSRushMoveCatalog; "HotRouteSets" files against FPreSnapTuningRow, each
-route in the route library and each action a Boolean in the PreSnap context; "SituationTempos" files
-against FPSSituationalTuning, its route IDs against the route library; "KeyframeEvents" files
-against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header declares
-it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts" files against
+against FPassingInputTuningRow, including that each named action is a Boolean in the input catalog's
+Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a Boolean in the
+BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's DeviceProfile defined
+by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini; "MaxQueued" files against
+FInputBufferTuningRow, each buffered action a Boolean catalog action; "RushMoves" files against
+FPSRushMoveCatalog; "HotRouteSets" files against FPreSnapTuningRow, each route in the route library
+and each action a Boolean in the PreSnap context; "SituationTempos" files against
+FPSSituationalTuning, its route IDs against the route library; "KeyframeEvents" files against
+FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header declares it;
+"FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts" files against
 FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow; "Routes" files against the
 FPSRoute library (timing, fakes, option branches); "All22Rigs" files against FPSAll22CameraTuning;
 "JumpWindowSeconds" files against FDefensiveTechniqueTuningRow and "PowerFillSeconds" files against
@@ -32,8 +30,9 @@ FKickMeterTuningRow, each named action a Boolean in its context; "CutRules" file
 FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json; "ReticleStates" files against
 FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuningRow, each pick
 action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files against
-FPSBroadcastOverlayTheme. Teams, the league config, the playbook, player rating ranges and every
-reference between files are tools/content_contracts.py's (Epic 125), run from here.
+FPSBroadcastOverlayTheme; "Settings" files against FPSSettingsCatalog (Epic 103.1). Teams, the
+league config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
