@@ -71,6 +71,7 @@
 #include "PSPerfTypes.h"
 #include "PSPlayArtTypes.h"
 #include "PSGameIntelligenceTypes.h"
+#include "PSNarrativeTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -434,6 +435,12 @@ public:
      *  rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadGameIntelligenceTuningFromJson(const FString& JsonFilePath, FPSGameIntelligenceTuning& OutTuning);
+
+    /** Loads the league narrative's rules, award scoring and vote (Data/league_narrative.json,
+     *  Epic 93). False on a missing file or malformed JSON; UPSLeagueNarrative::ValidateTuning
+     *  checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadNarrativeTuningFromJson(const FString& JsonFilePath, FPSNarrativeTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

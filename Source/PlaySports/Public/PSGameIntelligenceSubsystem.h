@@ -141,6 +141,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "GameIntelligence")
     bool AnswerRequest(int32 RequestId, const FString& Answer, FString& OutReason);
 
+    /** A free-text request from another system (Epic 93's news digest): Context (compact JSON
+     *  the caller kept within its own budget) for the model-router Task, answered with any text.
+     *  Nothing waits on it. Returns its id, or 0 when the bridge is offline or a field is empty;
+     *  the answer arrives on OnRequestAnsweredMC. */
+    int32 OpenTextRequest(EPSIntelRequestKind Kind, const FString& Task, const FString& Instructions, const FString& Context);
+
     /** Every request still kept, oldest first. */
     const TArray<FPSIntelRequest>& GetRequests() const { return Requests; }
 

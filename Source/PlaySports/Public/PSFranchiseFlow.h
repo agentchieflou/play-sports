@@ -16,6 +16,7 @@ class UPSDraft;
 class UPSFranchiseSeason;
 class UPSFreeAgency;
 class UPSLeagueGenerator;
+class UPSLeagueNarrative;
 class UPSLockerRoom;
 class UPSOwnerEconomy;
 class UPSPlayerAging;
@@ -40,8 +41,10 @@ class UPSWeeklyPreparation;
  *    recorded in the season and, with a statistics engine (Epic 92), every play in its box
  *    score.
  *  - AdvanceWeek: on to the next week; once the last week's games are all played, the season
- *    ends.
- *  - EndSeason: the off-season, once per season. The coaching carousel
+ *    ends. With a narrative (Epic 93) the week just played is closed first: its storylines,
+ *    honors and news digest.
+ *  - EndSeason: the off-season, once per season. The narrative's season awards are voted (Epic
+ *    93) while the season's box scores are still open. The coaching carousel
  *    (UPSStaffManager::RunCarousel) runs on the final standings, the statistics engine (Epic 92)
  *    archives the season, the league's history (Epic 94) keeps its standings and leaders, veterans
  *    retire and everyone else ages a year (Epic 94), the hall of fame votes, the owner economy
@@ -76,6 +79,14 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSStatsEngine* GetStats() const { return Stats; }
+
+    /** The league's storylines, news and awards (Epic 93): each week's close and the season's
+     *  awards. It reads the statistics engine set here (SetStats). */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetNarrative(UPSLeagueNarrative* InNarrative);
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSLeagueNarrative* GetNarrative() const { return Narrative; }
 
     /** The league's business (Epic 95): every simulated game's gate and fans, and the books at
      *  the season's end (with the contract manager's payroll when there is one). */
@@ -262,6 +273,9 @@ private:
 
     UPROPERTY(Transient)
     UPSOwnerEconomy* Economy = nullptr;
+
+    UPROPERTY(Transient)
+    UPSLeagueNarrative* Narrative = nullptr;
 
     UPROPERTY(Transient)
     TArray<FPSEconomySeasonReport> EconomyReports;

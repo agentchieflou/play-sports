@@ -1,4 +1,5 @@
 #include "PSFranchiseFlow.h"
+#include "PSLeagueNarrative.h"
 #include "PSContractManager.h"
 #include "PSDataIngestion.h"
 #include "PSDraft.h"
@@ -35,12 +36,25 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     bSeasonEnded = false;
 }
 
+void UPSFranchiseFlow::SetNarrative(UPSLeagueNarrative* InNarrative)
+{
+    Narrative = InNarrative;
+    if (Narrative)
+    {
+        Narrative->SetStats(Stats);
+    }
+}
+
 void UPSFranchiseFlow::SetStats(UPSStatsEngine* InStats)
 {
     Stats = InStats;
     if (Stats && Stats->GetSeason() <= 0)
     {
         Stats->StartSeason(Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear() : 1);
+    }
+    if (Narrative)
+    {
+        Narrative->SetStats(Stats);
     }
 }
 
@@ -376,6 +390,11 @@ bool UPSFranchiseFlow::AdvanceWeek()
     {
         return false;
     }
+    // The week just played becomes news (Epic 93).
+    if (Narrative)
+    {
+        Narrative->CloseWeek(Season, Season->GetCurrentWeek());
+    }
     EvaluateLockerRooms(false);
     Season->AdvanceWeek();
     return Season->GetCurrentWeek() > GetFinalWeek() && EndSeason();
@@ -403,6 +422,11 @@ bool UPSFranchiseFlow::EndSeason()
     const int32 FinishedSeason = Stats && Stats->GetSeason() > 0 ? Stats->GetSeason()
         : Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear()
         : LeagueHistory && LeagueHistory->GetSeasons().Num() > 0 ? LeagueHistory->GetSeasons().Last().Season + 1 : 1;
+    // The season's awards are voted on its box scores, before the stats engine archives them.
+    if (Narrative)
+    {
+        Narrative->AwardSeason(Season);
+    }
     if (Stats)
     {
         Stats->EndSeason();

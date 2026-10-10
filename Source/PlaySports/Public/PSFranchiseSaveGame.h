@@ -12,6 +12,7 @@
 #include "PSDraftData.h"
 #include "PSTrainingData.h"
 #include "PSLegacyData.h"
+#include "PSNarrativeTypes.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -86,4 +87,9 @@ public:
      *  UPSLeagueHistory). Empty in a save from before the league's history. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSLeagueHistoryState History;
+
+    /** The league's storylines, weekly news digests and every award given (Epic 93;
+     *  UPSLeagueNarrative). Empty in a save from before the narrative. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSNarrativeState Narrative;
 };

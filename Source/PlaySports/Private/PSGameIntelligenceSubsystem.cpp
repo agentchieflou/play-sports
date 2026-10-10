@@ -400,6 +400,20 @@ int32 UPSGameIntelligenceSubsystem::AddRequest(FPSIntelRequest Request)
     return Request.RequestId;
 }
 
+int32 UPSGameIntelligenceSubsystem::OpenTextRequest(EPSIntelRequestKind Kind, const FString& Task, const FString& Instructions, const FString& Context)
+{
+    if (!IsBridgeOnline() || Kind == EPSIntelRequestKind::PlayCall || Task.IsEmpty() || Instructions.IsEmpty() || Context.IsEmpty())
+    {
+        return 0;
+    }
+    FPSIntelRequest Request;
+    Request.Kind = Kind;
+    Request.Task = Task;
+    Request.Instructions = Instructions;
+    Request.Context = Context;
+    return AddRequest(Request);
+}
+
 FPSIntelRequest* UPSGameIntelligenceSubsystem::FindRequestMutable(int32 RequestId)
 {
     if (RequestId <= 0)
