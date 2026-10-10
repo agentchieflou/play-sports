@@ -52,8 +52,9 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     CurrentState.bIsClockRunning = false;
     CurrentState.HomeTimeoutsRemaining = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
     CurrentState.AwayTimeoutsRemaining = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
-    CurrentPlayResult.YardsGained = 0;
-    CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
+    CurrentPlayResult = FPlayResult();
+    PendingClockPlay = EPSClockPlay::None;
+    PendingSnapPlayClock = -1.f;
     ActivePenalty = EPSPenaltyType::None;
     bPenaltyDeclined = false;
     PhaseTimer = 0.f;
@@ -63,6 +64,15 @@ void UPSPlaySimulation::TriggerSnap()
 {
     if (CurrentState.Phase == EPlayPhase::PreSnap)
     {
+        // The snap comes at the call's tempo mark (Epic 76): a running game clock also runs
+        // off what the play clock had left above it.
+        if (CurrentState.bIsClockRunning && PendingSnapPlayClock >= 0.f && CurrentState.PlayClockSeconds > PendingSnapPlayClock)
+        {
+            CurrentState.GameClockSeconds = FMath::Max(0.f, CurrentState.GameClockSeconds - (CurrentState.PlayClockSeconds - PendingSnapPlayClock));
+            CurrentState.PlayClockSeconds = PendingSnapPlayClock;
+        }
+        PendingSnapPlayClock = -1.f;
+
         if (FMath::FRand() < 0.05f)
         {
             ActivePenalty = EPSPenaltyType::Offsides;
@@ -88,10 +98,38 @@ void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
 
 void UPSPlaySimulation::RecordTackle(int32 YardsGained)
 {
+    if (CurrentState.Phase == EPlayPhase::Scoring)
+    {
+        return;
+    }
     CurrentPlayResult.ResultType = EPlayResultType::Tackle;
     CurrentPlayResult.YardsGained = YardsGained;
     SetPlayPhase(EPlayPhase::Scoring);
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Tackle recorded. Yards Gained: %d"), YardsGained);
+}
+
+void UPSPlaySimulation::RecordOutOfBounds(int32 YardsGained)
+{
+    if (CurrentState.Phase == EPlayPhase::Scoring)
+    {
+        return;
+    }
+    RecordTackle(YardsGained);
+    CurrentPlayResult.bOutOfBounds = true;
+}
+
+void UPSPlaySimulation::ResolveClockPlay()
+{
+    const UPSRulesConfig* Rules = RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>();
+    const bool bKneel = PendingClockPlay == EPSClockPlay::Kneel;
+    PendingClockPlay = EPSClockPlay::None;
+
+    // A kneel is down where he stands; a spike is an incompletion.
+    CurrentPlayResult.ResultType = bKneel ? EPlayResultType::Tackle : EPlayResultType::Incomplete;
+    CurrentPlayResult.YardsGained = bKneel ? Rules->KneelYardage : 0;
+    CurrentState.GameClockSeconds = FMath::Max(0.f, CurrentState.GameClockSeconds - (bKneel ? Rules->KneelPlaySeconds : Rules->SpikePlaySeconds));
+    SetPlayPhase(EPlayPhase::Scoring);
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: %s at the snap."), bKneel ? TEXT("Kneel") : TEXT("Spike"));
 }
 
 void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
@@ -151,7 +189,11 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     case EPlayPhase::PreSnap:
         break;
     case EPlayPhase::Snap:
-        if (PhaseTimer >= 0.5f)
+        if (PendingClockPlay != EPSClockPlay::None)
+        {
+            ResolveClockPlay();
+        }
+        else if (PhaseTimer >= 0.5f)
         {
             CurrentState.Phase = EPlayPhase::PassRush;
             PhaseTimer = 0.f;
@@ -370,10 +412,17 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     CurrentDriveSummary.Plays++;
     CurrentDriveSummary.Yards += CurrentPlayResult.YardsGained;
 
-    // Game clock and play clock status update based on play type
-    if (CurrentPlayResult.ResultType == EPlayResultType::Tackle)
+    // Game clock and play clock status update based on play type. Out of bounds late in a
+    // half keeps the clock stopped (Epic 76). A played game runs the real play clock before the
+    // snap, at the call's tempo; quick sim, which has no pre-snap time, runs off a fixed amount.
+    const bool bClockKeepsRunning = CurrentPlayResult.ResultType == EPlayResultType::Tackle
+        && !(CurrentPlayResult.bOutOfBounds && DoesOutOfBoundsStopClock(CurrentState.Quarter, CurrentState.GameClockSeconds, RulesConfig));
+    if (bClockKeepsRunning)
     {
-        CurrentState.GameClockSeconds -= 30.f; // Runoff 30 seconds on tackled plays
+        if (bQuickSimMode)
+        {
+            CurrentState.GameClockSeconds -= (RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>())->QuickSimTackleRunoffSeconds;
+        }
         CurrentState.PlayClockSeconds = 40.f;
         CurrentState.bIsClockRunning = true;
     }
@@ -597,6 +646,9 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     SetPlayPhase(NextPhase);
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
+    CurrentPlayResult.bOutOfBounds = false;
+    PendingClockPlay = EPSClockPlay::None;
+    PendingSnapPlayClock = -1.f;
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play resolved. New State: Down %d, Distance %d, YardLine %d, YardToGain %d"), 
         CurrentState.Down, CurrentState.Distance, CurrentState.YardLine, CurrentState.YardLineToGain);
@@ -639,6 +691,8 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     // Epic 104.5: the human kicker's meter and the human defender's jump at the snap
     Bus->OnKick.AddDynamic(this, &UPSPlaySimulation::OnBusKickEvent);
     Bus->OnJumpSnap.AddDynamic(this, &UPSPlaySimulation::OnBusJumpSnapEvent);
+    Bus->OnPlayCall.AddDynamic(this, &UPSPlaySimulation::OnBusPlayCallEvent);
+    Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Subscribed to TelemetryBus (C2)."));
 }
@@ -661,12 +715,12 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
 
 void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
 {
-    if (bQuickSimMode)
+    // Physical tackle resolves the play, unless the whistle already blew.
+    if (bQuickSimMode || CurrentState.Phase == EPlayPhase::Scoring)
     {
         return;
     }
 
-    // Physical tackle resolves the play
     CurrentPlayResult.ResultType = EPlayResultType::Tackle;
     CurrentPlayResult.YardsGained = Event.YardsGained;
     SetPlayPhase(EPlayPhase::Scoring);
@@ -681,6 +735,22 @@ void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
     // FPlayState in agreement so GetPlayState() callers see the right values).
     CurrentState.HomeScore = Event.HomeScore;
     CurrentState.AwayScore = Event.AwayScore;
+}
+
+void UPSPlaySimulation::OnBusPlayCallEvent(const FPSTelemetryPlayCallEvent& Event)
+{
+    // Only the offense's call for the coming snap; a call made at or after a snap is not for it.
+    if (!Event.bOffense || CurrentState.Phase != EPlayPhase::PreSnap)
+    {
+        return;
+    }
+    PendingClockPlay = PSSituation::ClockPlayFromCategory(Event.PlayCategory);
+    PendingSnapPlayClock = Event.SnapAtPlayClockSeconds;
+}
+
+void UPSPlaySimulation::OnBusTimeoutEvent(const FPSTelemetryTimeoutEvent& Event)
+{
+    CallTimeout(Event.bOffense == CurrentState.bHomeHasPossession);
 }
 
 void UPSPlaySimulation::RecordTouchdown()

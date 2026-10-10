@@ -14,3 +14,17 @@ int32 GetDefensivePersonnelCount(int32 Down, const UPSRulesConfig* RulesConfig)
 
     return BaseDefensivePersonnel;
 }
+
+bool DoesOutOfBoundsStopClock(int32 Quarter, float GameClockSeconds, const UPSRulesConfig* RulesConfig)
+{
+    const UPSRulesConfig* Rules = RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>();
+    if (Quarter == 2)
+    {
+        return GameClockSeconds <= Rules->OutOfBoundsStopsClockFirstHalfSeconds;
+    }
+    if (Quarter == 4)
+    {
+        return GameClockSeconds <= Rules->OutOfBoundsStopsClockSecondHalfSeconds;
+    }
+    return false;
+}
