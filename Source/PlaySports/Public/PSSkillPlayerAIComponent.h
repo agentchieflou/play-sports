@@ -6,6 +6,7 @@
 #include "Engine/DataTable.h"
 #include "PSPlayerAttributes.h"
 #include "PSSituationData.h"
+#include "PSSpecialTeamsData.h"
 #include "PSTelemetryBus.h"
 #include "PSSkillPlayerAIComponent.generated.h"
 
@@ -205,4 +206,7 @@ private:
     bool bTuningLoaded = false;
     /** From the offense's call: what the carrier does about the sideline (Epic 76). */
     EPSBoundaryIntent BoundaryIntent = EPSBoundaryIntent::None;
+    /** The offense's call is a kick or a fake, which the special-teams model plays out (Epic 75):
+     *  the offense's AI players stand. */
+    bool bSpecialTeamsCall = false;
 };

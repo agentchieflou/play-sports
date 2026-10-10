@@ -4,6 +4,7 @@
 #include "UObject/NoExportTypes.h"
 #include "PSPlayerAttributes.h"
 #include "PSSituationData.h"
+#include "PSSpecialTeamsData.h"
 #include "PSTelemetryBus.h"
 #include "PSPlaySimulation.generated.h"
 
@@ -69,6 +70,11 @@ struct FPlayState
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 AwayTimeoutsRemaining = 3;
+
+    /** The coming snap is a kickoff (Epic 75): the possessing team kicks from YardLine. Set by
+     *  a score, cleared when the kick is resolved. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bKickoff = false;
 };
 
 USTRUCT(BlueprintType)
@@ -122,6 +128,8 @@ struct FPlayResult
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bOutOfBounds = false;
 };
+
+class UPSSpecialTeamsModel;
 
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSPlaySimulation : public UObject
@@ -218,6 +226,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|Config")
     class UPSRulesConfig* RulesConfig = nullptr;
 
+    /** The kicking game's model (Epic 75), created on first use with Data/special_teams.json. */
+    UFUNCTION(BlueprintCallable, Category = "Simulation|SpecialTeams")
+    UPSSpecialTeamsModel* GetSpecialTeams();
+
+    /** The last kick's outcome, as the special-teams model resolved it. */
+    const FPSSpecialTeamsOutcome& GetLastSpecialTeamsOutcome() const { return LastSpecialTeamsOutcome; }
+
     const TArray<FPlayerAttributes>& GetOffenseRoster() const { return OffenseRoster; }
     const TArray<FPlayerAttributes>& GetDefenseRoster() const { return DefenseRoster; }
 
@@ -235,6 +250,20 @@ private:
     /** From the offense's call for the coming snap (Epic 76). */
     EPSClockPlay PendingClockPlay = EPSClockPlay::None;
     float PendingSnapPlayClock = -1.f;
+
+    /** Both sides' special-teams calls for the coming snap, and the last kick's outcome (Epic 75). */
+    FPSSpecialTeamsCall PendingSpecialTeams;
+    FPSSpecialTeamsOutcome LastSpecialTeamsOutcome;
+
+    UPROPERTY(Transient)
+    UPSSpecialTeamsModel* SpecialTeams = nullptr;
+
+    /** Resolves the kickoff, punt or field goal the play is in through the special-teams model. */
+    void ResolveKick();
+
+    /** The whistle has blown, or the special-teams model decides the play: physical tackles and
+     *  catches no longer change the result. */
+    bool IsBallDead() const;
 
     void ResolvePlayResult();
 

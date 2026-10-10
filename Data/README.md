@@ -40,6 +40,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
+| `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -83,6 +84,14 @@ Two `PlayCategory` values are clock plays (Epic 76): `Spike` and `Kneel` (the `C
 The CPU calls them only when the clock does (`UPSSituationAI::DecideClockPlay`), and
 `UPSPlaySimulation` resolves them at the snap: a spike is an incompletion, a kneel is down for
 `UPSRulesConfig::KneelYardage` with the clock running.
+
+Special-teams `PlayCategory` values (Epic 75) name `EPSSpecialTeamsPlay` calls: `Punt`, `FieldGoal`,
+`FakePunt`, `FakeFieldGoal` (the offense on a scrimmage down), `Kickoff`, `OnsideKick` (the kicking
+team), `KickReturn` (a return; its `Formation` names the scheme in `special_teams.json`),
+`KickBlock`, `HandsTeam` and `ReturnLaterals` (the receiving team). A kickoff down offers kickoff
+calls and returns only; a scrimmage down everything else. The CPU calls one only when
+`UPSSpecialTeamsAI` says it's due, and `UPSPlaySimulation` resolves it through
+`UPSSpecialTeamsModel`.
 
 ## Adding a new team
 
@@ -368,3 +377,35 @@ seconds left in the quarter; yard lines count from the offense's goal line (0) t
   `Delta` and the `Reason` the play-call screen shows.
 
 `tools/validate_data.py` checks it.
+
+## Special-teams tuning schema (`FPSSpecialTeamsTuning`)
+
+Single object (Epic 75). Yard lines (1-99) count from the team's own goal line; chances are 0-1.
+- Kickoffs: `KickoffYardLine` (after a touchdown or field goal), `SafetyKickYardLine`,
+  `KickoffTouchbackChance`, `TouchbackYardLine`, a return's `KickoffReturnMinYardLine` to
+  `KickoffReturnMaxYardLine`, `OnsideKickYards`, `OnsideRecoveryChance` (by surprise) and
+  `OnsideRecoveryVsHandsTeamChance`, `HandsTeamReturnPenaltyYards`, and laterals'
+  `LateralTouchdownChance` and `LateralFumbleLostChance`.
+- Punts: `PuntGrossYardsMin`/`Max`, `PuntTouchbackYardLine`, `PuntReturnYardsMin`/`Max`.
+- Field goals: `FieldGoalSnapYards` (added to the line of scrimmage's distance from the goal line),
+  `FieldGoalRanges[]` (`MaxYards`, `MakeChance`, shortest first; no chance beyond the last), and the
+  missed kick's spot clamp `MissedFieldGoalMinYardLine`/`MaxYardLine`.
+- Blocks: `PuntBlockChance` and `FieldGoalBlockChance` against a return unit, times
+  `BlockUnitMultiplier` when the defense calls the block, plus `EdgeSpeedFactor` per point of edge
+  speed and `InteriorStrengthFactor` per point of interior strength the rushers have over the
+  protection, at most `MaxBlockChance`. `BlockedPuntRecoilYards`, `BlockedKickTouchdownChance`,
+  `BlockUnitReturnPenaltyYards`.
+- Returns: `ReturnSchemes[]` (`Formation` of a `KickReturn` play, `ReturnYardsBonus`,
+  `BigReturnChance`), `DefaultBigReturnChance`, `BigReturnYards`; lane discipline from the
+  coverage's awareness over `CoverageAwarenessSpan` takes up to `LaneDisciplineYards` and
+  `LaneDisciplineBigReturnScale` of the big-return chance.
+- Fakes: `FakePuntSuccessChance`, `FakeFieldGoalSuccessChance`, `FakeVsBlockUnitDelta`,
+  `FakeExtraYardsMax`.
+- The CPU's calls: `MaxFieldGoalAttemptYards`, `LastPlaySeconds`, `NoPuntTrailingSeconds`; the fake
+  risk model `FakeMaxDistance`, `FakeMinAggression`, `FakeCallChance`; onside kicks
+  `OnsideMaxDeficit`, `OnsideWindowSeconds`, `SurpriseOnsideChance`; laterals `LateralsMaxDeficit`,
+  `LateralsWindowSeconds`; blocks `BlockWindowSeconds`, `BaseBlockCallChance`; and
+  `SpecialTeamsPlayWeight`.
+
+`tools/validate_data.py` checks it, including that each return scheme is a `KickReturn` play's
+formation.

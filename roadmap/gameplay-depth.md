@@ -132,10 +132,10 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** Beyond Epic 13's basics — blocks, returns as schemes, fakes, and onside kicks.
 **Depends on:** Core 13
 
-- [ ] Kick/punt block mechanics (edge timing, interior push, block-or-return unit choice)
-- [ ] Return schemes: wall/wedge setups from playbook data, lane discipline for coverage
-- [ ] Fake punt/FG plays integrated into playbook + AI call logic (Epic 18 risk model)
-- [ ] Onside kicks and desperation kick-return laterals
+- [x] Kick/punt block mechanics (edge timing, interior push, block-or-return unit choice) *(`UPSSpecialTeamsModel::GetBlockChance`: a base chance per kick, plus edge timing (the rushers' fastest player over the cover men's) and interior push (linemen's strength over the protection's), times `BlockUnitMultiplier` when the defense calls `KickBlock`; a blocked punt recoils and can be scored. The CPU defense calls the block or the return against the kick the offense's formation shows (`UPSSpecialTeamsAI::DecideReceiving`), re-calling when a human offense lines up to kick; a block unit returns short. All tuning in `Data/special_teams.json`)*
+- [x] Return schemes: wall/wedge setups from playbook data, lane discipline for coverage *(`KickReturn` plays in `sample_playbook.json` (`Return Wall`, `Return Wedge`); the receiving play's formation names its `ReturnSchemes` entry (yards and big-return chance); the coverage's awareness sets its lane discipline, which takes yards and big returns away. Kickoffs, punts and field goals all resolve through the model now, replacing the sim's hardcoded rolls)*
+- [x] Fake punt/FG plays integrated into playbook + AI call logic (Epic 18 risk model) *(`Offense_FakePunt` / `Offense_FakeFieldGoal` share the real kick's formation; `UPSSpecialTeamsAI::DecideOffense` fakes on 4th and short when the coach's aggression clears `FakeMinAggression` and a roll beats `FakeCallChance` times it, after `ShouldGoForItOnFourthDown`. A played game's 4th down is now a call (punt, field goal, fake or go) instead of the sim's automatic kick; the sim resolves a fake at the snap, better against a block unit)*
+- [x] Onside kicks and desperation kick-return laterals *(after a score the scorers kick off through a call window (`FPlayState::bKickoff`; a safety's free kick from the 20), fixing the old double possession flip that gave the scorers the ball back; the kicking team calls `OnsideKick` when it needs the ball late (or rarely by surprise), the receivers answer with the `HandsTeam`, and with seconds left and a touchdown needed they call `ReturnLaterals`: a touchdown or a fumble the kickers recover)*
 
 ### Epic 76: Situational Football Intelligence
 

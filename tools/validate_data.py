@@ -25,6 +25,8 @@ route in the route library and each action a Boolean in the PreSnap context.
 
 "SituationTempos" files against FPSSituationalTuning, its route IDs against the route library.
 
+"KickoffTouchbackChance" files against FPSSpecialTeamsTuning, each return scheme a KickReturn formation.
+
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
 """
@@ -991,6 +993,107 @@ def validate_situational_tuning(path, payload, route_ids):
             err(path, f"{where}: no Reason (the play-call screen shows it)")
 
 
+SPECIAL_TEAMS_CHANCES = ("KickoffTouchbackChance", "OnsideRecoveryChance", "OnsideRecoveryVsHandsTeamChance",
+                         "LateralTouchdownChance", "LateralFumbleLostChance", "PuntBlockChance", "FieldGoalBlockChance",
+                         "MaxBlockChance", "BlockedKickTouchdownChance", "DefaultBigReturnChance",
+                         "LaneDisciplineBigReturnScale", "FakePuntSuccessChance", "FakeFieldGoalSuccessChance",
+                         "FakeVsBlockUnitDelta", "FakeMinAggression", "FakeCallChance", "SurpriseOnsideChance",
+                         "BaseBlockCallChance")
+SPECIAL_TEAMS_YARD_LINES = ("KickoffYardLine", "SafetyKickYardLine", "TouchbackYardLine", "KickoffReturnMinYardLine",
+                            "KickoffReturnMaxYardLine", "PuntTouchbackYardLine", "MissedFieldGoalMinYardLine",
+                            "MissedFieldGoalMaxYardLine")
+SPECIAL_TEAMS_COUNTS = ("OnsideKickYards", "PuntGrossYardsMin", "PuntGrossYardsMax", "PuntReturnYardsMin", "PuntReturnYardsMax",
+                        "BlockedPuntRecoilYards", "BigReturnYards", "FakeExtraYardsMax", "FakeMaxDistance",
+                        "OnsideMaxDeficit", "LateralsMaxDeficit")
+SPECIAL_TEAMS_NUMBERS = ("HandsTeamReturnPenaltyYards", "FieldGoalSnapYards", "BlockUnitMultiplier", "EdgeSpeedFactor",
+                         "InteriorStrengthFactor", "BlockUnitReturnPenaltyYards", "CoverageAwarenessSpan",
+                         "LaneDisciplineYards", "MaxFieldGoalAttemptYards", "LastPlaySeconds", "NoPuntTrailingSeconds",
+                         "OnsideWindowSeconds", "LateralsWindowSeconds", "BlockWindowSeconds", "SpecialTeamsPlayWeight")
+SPECIAL_TEAMS_FIELDS = (set(SPECIAL_TEAMS_CHANCES) | set(SPECIAL_TEAMS_YARD_LINES) | set(SPECIAL_TEAMS_COUNTS)
+                        | set(SPECIAL_TEAMS_NUMBERS) | {"FieldGoalRanges", "ReturnSchemes"})
+
+
+def load_return_formations():
+    """The formations of the playbook's KickReturn plays, or None when the playbook is missing or
+    broken (its own checks report that)."""
+    try:
+        playbook = json.loads((DATA_DIR / "sample_playbook.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(playbook, dict) or not isinstance(playbook.get("Plays"), list):
+        return None
+    return {p.get("Formation") for p in playbook["Plays"] if isinstance(p, dict) and p.get("PlayCategory") == "KickReturn"}
+
+
+def validate_special_teams(path, payload, return_formations):
+    """FPSSpecialTeamsTuning (Data/special_teams.json, Epic 75)."""
+    extra = set(payload) - SPECIAL_TEAMS_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSSpecialTeamsTuning exactly")
+    for field in SPECIAL_TEAMS_CHANCES:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a chance, 0-1")
+    for field in SPECIAL_TEAMS_YARD_LINES:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 99:
+            err(path, f"{field}: '{value}' must be a yard line, 1-99")
+    for field in SPECIAL_TEAMS_COUNTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    for field in SPECIAL_TEAMS_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for low, high in (("KickoffReturnMinYardLine", "KickoffReturnMaxYardLine"), ("PuntGrossYardsMin", "PuntGrossYardsMax"),
+                      ("PuntReturnYardsMin", "PuntReturnYardsMax"), ("MissedFieldGoalMinYardLine", "MissedFieldGoalMaxYardLine")):
+        if isinstance(payload.get(low), int) and isinstance(payload.get(high), int) and payload[low] > payload[high]:
+            err(path, f"{low} ({payload[low]}) must not exceed {high} ({payload[high]})")
+
+    ranges = payload.get("FieldGoalRanges")
+    if not isinstance(ranges, list) or not ranges:
+        err(path, "FieldGoalRanges: must list at least one range")
+        ranges = []
+    previous = None
+    for idx, row in enumerate(ranges):
+        where = f"FieldGoalRanges[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        yards, chance = row.get("MaxYards"), row.get("MakeChance")
+        if not is_number(yards) or yards <= 0:
+            err(path, f"{where}.MaxYards: '{yards}' must be a distance above 0")
+        elif previous is not None and yards <= previous:
+            err(path, f"{where}.MaxYards: ranges must run shortest first")
+        else:
+            previous = yards
+        if not is_number(chance) or not 0 <= chance <= 1:
+            err(path, f"{where}.MakeChance: '{chance}' must be a chance, 0-1")
+
+    schemes = payload.get("ReturnSchemes")
+    if not isinstance(schemes, list):
+        err(path, "'ReturnSchemes' must be an array")
+        schemes = []
+    seen = set()
+    for idx, row in enumerate(schemes):
+        where = f"ReturnSchemes[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        formation = row.get("Formation")
+        if not isinstance(formation, str) or not formation or formation in seen:
+            err(path, f"{where}.Formation: '{formation}' is empty or listed twice")
+        seen.add(formation)
+        if return_formations is not None and formation not in return_formations:
+            err(path, f"{where}.Formation: '{formation}' is not the formation of a KickReturn play in sample_playbook.json")
+        if not is_number(row.get("ReturnYardsBonus")):
+            err(path, f"{where}.ReturnYardsBonus: '{row.get('ReturnYardsBonus')}' must be a number")
+        chance = row.get("BigReturnChance")
+        if not is_number(chance) or not 0 <= chance <= 1:
+            err(path, f"{where}.BigReturnChance: '{chance}' must be a chance, 0-1")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1047,6 +1150,8 @@ def main():
             validate_carrier_moves(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
+        if isinstance(payload, dict) and "KickoffTouchbackChance" in payload:
+            validate_special_teams(path, payload, load_return_formations())
         if isinstance(payload, dict) and "HotRouteSets" in payload:
             validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
         if isinstance(payload, dict) and "MaxQueued" in payload:

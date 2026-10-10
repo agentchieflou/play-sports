@@ -130,6 +130,7 @@ void UPSSkillPlayerAIComponent::HandlePlayCall(const FPSTelemetryPlayCallEvent& 
     {
         bRunPlay = Event.PlayCategory == TEXT("Run");
         BoundaryIntent = Event.BoundaryIntent;
+        bSpecialTeamsCall = PSSpecialTeams::FromCategory(Event.PlayCategory) != EPSSpecialTeamsPlay::None;
     }
 }
 
@@ -169,7 +170,7 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
 {
     DesiredDirection = FVector::ZeroVector;
     APSPlayerPawn* Self = GetSelf();
-    if (!Self || !bPlayLive)
+    if (!Self || !bPlayLive || bSpecialTeamsCall)
     {
         return;
     }
