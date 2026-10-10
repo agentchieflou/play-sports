@@ -119,6 +119,12 @@ TArray<FPSResolvedAssignment> PSPlayResolution::ResolvePlay(const FPSPlayDefinit
             // A route starts from the player's own split, not the ball.
             const FVector Offset = Entry.Assignment.FormationOffset;
             Entry.RouteOrigin = FVector(LineOfScrimmage.X + Offset.X, PawnY + Offset.Y * Entry.Mirror, LineOfScrimmage.Z + Offset.Z);
+            // A quarterback lined up deeper than his drop (the shotgun, Data/formations.json)
+            // holds his depth instead of stepping up to it.
+            if (Pawn->GetAttributes().Role == EPlayerRole::Quarterback && Entry.Assignment.RouteId.IsNone())
+            {
+                Entry.RouteOrigin.X = FMath::Min(Entry.RouteOrigin.X, Entry.PawnLocation.X);
+            }
             Entry.Waypoints = ResolveRouteWaypoints(Entry.Assignment.RouteId, RouteLibrary, Entry.RouteOrigin, Entry.Mirror, bWarnIfRouteMissing);
             // A route with no RouteId is "go to your spot": the QB's drop, the RB's mesh point on
             // a run (Epic 14).

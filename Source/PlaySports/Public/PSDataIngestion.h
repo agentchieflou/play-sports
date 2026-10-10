@@ -80,6 +80,7 @@
 #include "PSCrowdTypes.h"
 #include "PSCommentaryTypes.h"
 #include "PSFieldDimensions.h"
+#include "PSFormations.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -488,6 +489,12 @@ public:
      *  PSField::Validate checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadFieldDimensionsFromJson(const FString& JsonFilePath, FPSFieldDimensions& OutDimensions);
+
+    /** Loads every formation, front and shell's alignment (Data/formations.json): where each
+     *  player lines up for a call (PSFormations). False on a missing file or malformed JSON;
+     *  PSFormations::Validate checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadFormationCatalogFromJson(const FString& JsonFilePath, FPSFormationCatalog& OutCatalog);
 
     /** Loads the online matchmaking rules (Data/session_matchmaking.json, Epic 108.5). False on
      *  a missing file, malformed JSON or an unrecognized cross-play policy;

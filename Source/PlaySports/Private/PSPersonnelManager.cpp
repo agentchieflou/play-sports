@@ -2,7 +2,9 @@
 #include "PSPersonnelManager.h"
 #include "PSDataIngestion.h"
 #include "PSFieldGrid.h"
+#include "PSFormations.h"
 #include "PSHealthComponent.h"
+#include "PSPlayRecognitionSubsystem.h"
 #include "PSPlayerPawn.h"
 #include "PSRoster.h"
 #include "EngineUtils.h"
@@ -315,6 +317,9 @@ void UPSPersonnelManager::BeginNewPlay(float ScrimmageX, int32 PlayIndex)
     LineOfScrimmageX = ScrimmageX;
     CurrentPlayIndex = PlayIndex;
     RestingPlayerIds.Reset();
+    // A new play: the sides stand where the game mode put them until they call.
+    LineupCall = FPSLineupCall();
+    bDefenseCalled = false;
     if (!Roster)
     {
         return;
@@ -377,13 +382,35 @@ TArray<FName> UPSPersonnelManager::GetOnFieldPlayerIds(bool bOffense) const
 
 void UPSPersonnelManager::HandlePlayCall(const FPSTelemetryPlayCallEvent& Event)
 {
-    if (BoundPawns.Num() > 0)
+    if (BoundPawns.Num() == 0)
     {
-        ApplyPackageToSide(Event.bOffense, GetPackageForFormation(Event.Formation, Event.bOffense));
+        return;
+    }
+
+    // The call's formation (or front and shell) is what the side lines up in.
+    if (Event.bOffense)
+    {
+        LineupCall.OffenseFormation = Event.Formation;
+    }
+    else
+    {
+        LineupCall.DefenseFront = Event.Front;
+        LineupCall.DefenseShell = Event.CoverageShell;
+        bDefenseCalled = true;
+    }
+    if (!ApplyPackageToSide(Event.bOffense, GetPackageForFormation(Event.Formation, Event.bOffense), true))
+    {
+        LineUpSide(Event.bOffense);
+    }
+
+    // A defense that has called lines up again against the offense's new formation.
+    if (Event.bOffense && bDefenseCalled)
+    {
+        LineUpSide(false);
     }
 }
 
-bool UPSPersonnelManager::ApplyPackageToSide(bool bOffense, FName PackageId)
+bool UPSPersonnelManager::ApplyPackageToSide(bool bOffense, FName PackageId, bool bAlwaysLineUp)
 {
     if (!Roster || BoundPawns.Num() == 0)
     {
@@ -466,7 +493,7 @@ bool UPSPersonnelManager::ApplyPackageToSide(bool bOffense, FName PackageId)
     const bool bPackageChanged = SidePackage != Package->PackageId;
     SidePackage = Package->PackageId;
 
-    if (Change.PlayersIn.Num() > 0)
+    if (Change.PlayersIn.Num() > 0 || bAlwaysLineUp)
     {
         LineUpSide(bOffense);
     }
@@ -538,11 +565,51 @@ void UPSPersonnelManager::LineUpSide(bool bOffense)
     {
         Roles.Add(Pawn->GetAttributes().Role);
     }
-    const TArray<FVector> Lineup = APSFieldGrid::ComputeLineup(Roles, LineOfScrimmageX);
-    for (int32 PawnIndex = 0; PawnIndex < SidePawns.Num() && PawnIndex < Lineup.Num(); ++PawnIndex)
+
+    // The side's part of the calls; the defense reads the offense where it stands.
+    FPSLineupCall SideCall;
+    TArray<FPSAlignedPlayer> Offense;
+    if (bOffense)
     {
-        SidePawns[PawnIndex]->SetActorLocation(Lineup[PawnIndex], false, nullptr, ETeleportType::TeleportPhysics);
-        SidePawns[PawnIndex]->SetStartingLocation(Lineup[PawnIndex]);
+        SideCall.OffenseFormation = LineupCall.OffenseFormation;
+    }
+    else
+    {
+        SideCall.DefenseFront = LineupCall.DefenseFront;
+        SideCall.DefenseShell = LineupCall.DefenseShell;
+        if (UWorld* World = GetPawnWorld())
+        {
+            for (TActorIterator<APSPlayerPawn> It(World); It; ++It)
+            {
+                if (It->TeamSide == EPSTeamSide::Offense)
+                {
+                    FPSAlignedPlayer& Player = Offense.AddDefaulted_GetRef();
+                    Player.Role = It->GetAttributes().Role;
+                    Player.Location = It->GetActorLocation();
+                }
+            }
+        }
+    }
+    UPSPlayRecognitionSubsystem* Recognition = UPSPlayRecognitionSubsystem::Get(GetPawnWorld());
+    const FPSPlayRecognitionTuning DefaultRecognition;
+    const FPSLineupResult Lineup = PSFormations::LineUp(PSFormations::GetCatalog(), Roles, FVector(LineOfScrimmageX, 0.f, 0.f), SideCall,
+        bOffense ? nullptr : &Offense, Recognition ? Recognition->GetTuning() : DefaultRecognition);
+    for (int32 PawnIndex = 0; PawnIndex < SidePawns.Num() && PawnIndex < Lineup.Spots.Num(); ++PawnIndex)
+    {
+        SidePawns[PawnIndex]->SetActorLocation(Lineup.Spots[PawnIndex], false, nullptr, ETeleportType::TeleportPhysics);
+        SidePawns[PawnIndex]->SetStartingLocation(Lineup.Spots[PawnIndex]);
+    }
+
+    if (UPSTelemetryBus* Bus = BoundBus.Get())
+    {
+        FPSTelemetryLineupEvent Event;
+        Event.bOffense = bOffense;
+        Event.Formation = SideCall.OffenseFormation;
+        Event.Front = SideCall.DefenseFront;
+        Event.CoverageShell = SideCall.DefenseShell;
+        Event.StrongSide = Lineup.StrongSide;
+        Event.bFromData = bOffense ? Lineup.bFormationFound : (Lineup.bFrontFound || Lineup.bShellFound);
+        Bus->PublishLineup(Event);
     }
 }
 

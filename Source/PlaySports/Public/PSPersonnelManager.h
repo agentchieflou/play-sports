@@ -5,6 +5,7 @@
 #include "UObject/Object.h"
 #include "PSPlayerAttributes.h"
 #include "PSRosterData.h"
+#include "PSFormations.h"
 #include "PSTelemetryBus.h"
 #include "PSPersonnelManager.generated.h"
 
@@ -26,8 +27,12 @@ class UWorld;
  *  - When a side calls a play (the bus's PlayCall), the package for the play's formation
  *    comes on: per role, the first players on the depth chart who can play. Players already
  *    on the field keep their pawns; only the changes move, an incoming player taking an
- *    outgoing player's pawn of his own role when there is one, and the side lines up again
- *    through APSFieldGrid::ComputeLineup.
+ *    outgoing player's pawn of his own role when there is one.
+ *  - Every call lines its side up in the play's formation (the offense) or front and shell (the
+ *    defense), from Data/formations.json through APSFieldGrid::ComputeLineup; an offensive call
+ *    lines a defense that has called up again against the new formation. Each lineup is
+ *    announced on the bus (Lineup). Until its side calls, a side stands where the game mode put
+ *    it between plays (the role lineup).
  *  - At every new play (BeginNewPlay) both sides' packages are refilled: a ball carrier who
  *    must sit out (UPSRoster::IsAvailableForPlay) and a player whose stamina fell below the
  *    catalog's threshold (UPSRoster::EvaluateFatigueSubstitutions) give way to the next man
@@ -95,7 +100,8 @@ public:
     void UnbindFromBus();
 
     /** A new play lines up with the line of scrimmage at world X ScrimmageX: records the line
-     *  and the play index, rests tired players, then refills both sides' current packages.
+     *  and the play index, forgets the last play's calls, rests tired players, then refills both
+     *  sides' current packages.
      *  Call once the pawns are reset for the play (after XP and healing for the last one). */
     UFUNCTION(BlueprintCallable, Category = "Personnel")
     void BeginNewPlay(float ScrimmageX, int32 PlayIndex);
@@ -109,6 +115,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Personnel")
     FName GetCurrentPackage(bool bOffense) const { return bOffense ? OffensePackage : DefensePackage; }
 
+    /** What the sides line up in this play, from their calls (empty before a side calls). */
+    const FPSLineupCall& GetLineupCall() const { return LineupCall; }
+
     /** PlayerIds on the bound pawns of the side, in pawn order. */
     UFUNCTION(BlueprintPure, Category = "Personnel")
     TArray<FName> GetOnFieldPlayerIds(bool bOffense) const;
@@ -120,14 +129,16 @@ private:
     void HandlePlayCall(const FPSTelemetryPlayCallEvent& Event);
 
     /** Fills the side with PackageId (or the side's default), swapping only the players who
-     *  change, then lines the side up again and announces it. */
-    bool ApplyPackageToSide(bool bOffense, FName PackageId);
+     *  change, then lines the side up again (when players changed, or always with
+     *  bAlwaysLineUp) and announces it. */
+    bool ApplyPackageToSide(bool bOffense, FName PackageId, bool bAlwaysLineUp = false);
 
     /** Points Pawn at PlayerId's roster row, keeping the ball and any human on it. */
     bool PutPlayerOnPawn(APSPlayerPawn& Pawn, FName PlayerId);
 
     /** Lines up the side's pawns (bound ones first, then any other pawn of the side) at the
-     *  recorded line of scrimmage. */
+     *  recorded line of scrimmage, in the side's part of LineupCall (the defense against the
+     *  offense as it stands), and announces it (Lineup). */
     void LineUpSide(bool bOffense);
 
     /** The bound pawns still alive, in spawn order. */
@@ -156,6 +167,9 @@ private:
     TSet<FName> RestingPlayerIds;
     FName OffensePackage;
     FName DefensePackage;
+    /** The calls' formation, front and shell this play. */
+    FPSLineupCall LineupCall;
+    bool bDefenseCalled = false;
     float LineOfScrimmageX = 0.f;
     int32 CurrentPlayIndex = 0;
 };

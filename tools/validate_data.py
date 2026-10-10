@@ -111,7 +111,12 @@ to a cap no narrower than they start, waits and host scores of 0 or more, each d
 policy an EPSCrossPlayPolicy; "InterruptMargin" files against FPSCommentaryLibrary (Epic 96): the
 booth's pacing, every line's voice, moment and conditions, its Commentary.Line.<LineId> text in
 Data/ui_text.csv naming only the facts it may and the players and totals it says it needs, a
-play-by-play line for every moment, and the voices', storyline's and fouls' rows. Teams, the league
+play-by-play line for every moment, and the voices', storyline's and fouls' rows; "Techniques" files
+against FPSFormationCatalog (Data/formations.json): known techniques, sides and roles, every
+formation the plays, generator, staffs and packages name with a slot for each of its package's
+players and the QBAlignment, Backfield and Strength play_recognition.json reads from them, every
+front and shell the plays, run_fits.json and coverage_matchups.json name, each defensive call's
+package placed, and each shell's deep safeties defensive_presnap.json's. Teams, the league
 config, the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
@@ -2163,6 +2168,236 @@ PRESNAP_FLAGS = ("bCpuKeepsBackInVsBlitz", "bCpuMotionOnPass")
 PRESNAP_ACTIONS = ("AudibleAction", "SelectAction", "HotRouteAction", "MotionAction", "SlideAction", "ProtectionAction")
 
 
+FORMATION_CATALOG_NUMBERS = ("LinemanSpacingYards", "LineSetbackYards", "ShadeYards", "BoundaryMarginYards")
+FORMATION_SLOT_FIELDS = {"Role", "ScrimmageYardOffset", "LateralYardOffset", "Side", "Technique", "OverReceiver"}
+FORMATION_QB_ALIGNMENTS = ("UnderCenter", "Pistol", "Shotgun")
+FORMATION_BACKFIELDS = ("Empty", "Single", "Offset", "I", "Split", "Full")
+FORMATION_DEFENSE_ROLES = {"DefensiveLineman", "Linebacker", "DefensiveBack"}
+
+
+def load_json(name):
+    """Data/<name> as parsed JSON (None when missing or broken; its own checks report that)."""
+    try:
+        return json.loads((DATA_DIR / name).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+
+
+def formation_read(formation, recognition, cm_per_yard):
+    """(QBAlignment, Backfield, strong side +1/-1) that Epic 80's classifier
+    (PSPlayRecognition::ClassifyFormation) reads from formation lined up with the ball at 0;
+    None without one quarterback slot."""
+    strength = -1 if formation.get("Strength") == "Left" else 1
+    slots = [s for s in formation.get("Slots") or [] if isinstance(s, dict)]
+    passers = [s for s in slots if s.get("Role") == "Quarterback"]
+    if len(passers) != 1:
+        return None
+
+    def depth(slot):
+        return -float(slot.get("ScrimmageYardOffset", 0)) * cm_per_yard
+
+    def across(slot):
+        side = -strength if slot.get("Side") == "Weak" else strength
+        return side * float(slot.get("LateralYardOffset", 0)) * cm_per_yard
+
+    qb_depth = depth(passers[0])
+    alignment = ("UnderCenter" if qb_depth <= recognition.get("UnderCenterMaxDepth", 200)
+                 else "Pistol" if qb_depth <= recognition.get("PistolMaxDepth", 450) else "Shotgun")
+    backs, right, left, inline_right, inline_left = [], 0, 0, 0, 0
+    for slot in slots:
+        if slot is passers[0]:
+            continue
+        a = across(slot)
+        if depth(slot) >= recognition.get("BackfieldMinDepth", 250) and abs(a) <= recognition.get("BoxHalfWidth", 450):
+            backs.append(a)
+            continue
+        inline = abs(a) <= recognition.get("InlineWidth", 500) and slot.get("Role") == "TightEnd"
+        if a >= 0:
+            right += 1
+            inline_right += 1 if inline else 0
+        else:
+            left += 1
+            inline_left += 1 if inline else 0
+    if not backs:
+        backfield = "Empty"
+    elif len(backs) == 1:
+        backfield = "Offset" if abs(backs[0]) > recognition.get("OffsetWidth", 100) else "Single"
+    elif len(backs) == 2:
+        backfield = "I" if abs(backs[0] - backs[1]) <= recognition.get("StackWidth", 100) else "Split"
+    else:
+        backfield = "Full"
+    strong = 1 if right > left or (right == left and inline_right >= inline_left) else -1
+    return alignment, backfield, strong
+
+
+def validate_formations(path, payload):
+    """FPSFormationCatalog (Data/formations.json); mirrors PSFormations::Validate, plus what only
+    other files know: every formation the playbook, the generator, the staffs and the personnel
+    packages name exists, with a slot for each of its package's players; every front the plays,
+    the generator and run_fits.json name, and every shell they and coverage_matchups.json name,
+    exists; each defensive call places its whole package; each formation's QBAlignment, Backfield
+    and Strength are what play_recognition.json's classifier reads from its slots; and each shell
+    keeps defensive_presnap.json's count of deep safeties."""
+    for field in FORMATION_CATALOG_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0 or (field == "LinemanSpacingYards" and value <= 0):
+            err(path, f"{field}: '{value}' must be a number, 0 or more (the spacing above 0)")
+    extra = set(payload) - set(FORMATION_CATALOG_NUMBERS) - {"Techniques", "OffenseFormations", "FrontAlignments", "ShellAlignments"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFormationCatalog exactly")
+
+    techniques = set()
+    for idx, row in enumerate(payload.get("Techniques") or []):
+        where = f"Techniques[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: not an object")
+            continue
+        name = row.get("Technique")
+        if not isinstance(name, str) or not name or name in techniques:
+            err(path, f"{where}: Technique empty or listed twice")
+        techniques.add(name)
+        if row.get("Lineman") not in (0, 1, 2, 3) or row.get("Shade") not in (-1, 0, 1):
+            err(path, f"{where} '{name}': Lineman 0-3 and Shade -1, 0 or 1")
+        if set(row) - {"Technique", "Lineman", "Shade"}:
+            err(path, f"{where}: unknown field(s) {sorted(set(row) - {'Technique', 'Lineman', 'Shade'})}")
+
+    def check_slots(where, slots, offense, backs_only=False):
+        counts = {}
+        for sidx, slot in enumerate(slots or []):
+            swhere = f"{where}.Slots[{sidx}]"
+            if not isinstance(slot, dict):
+                err(path, f"{swhere}: not an object")
+                continue
+            if set(slot) - FORMATION_SLOT_FIELDS:
+                err(path, f"{swhere}: unknown field(s) {sorted(set(slot) - FORMATION_SLOT_FIELDS)} - names must match FPSFormationSpawnPoint exactly")
+            role = slot.get("Role")
+            counts[role] = counts.get(role, 0) + 1
+            if offense and (role not in content_contracts.OFFENSE_ROLES or role == "OffensiveLineman"):
+                err(path, f"{swhere}: {role} takes no offensive slot (the line is the catalog's)")
+            if not offense and role not in FORMATION_DEFENSE_ROLES:
+                err(path, f"{swhere}: {role} is not a defender")
+            if backs_only and role != "DefensiveBack":
+                err(path, f"{swhere}: a shell places the defensive backs")
+            if slot.get("Side", "Strong") not in ("Strong", "Weak"):
+                err(path, f"{swhere}.Side: Strong or Weak")
+            for field in ("ScrimmageYardOffset", "LateralYardOffset"):
+                if field in slot and not is_number(slot[field]):
+                    err(path, f"{swhere}.{field}: must be a number")
+            offset = slot.get("ScrimmageYardOffset", 0)
+            if is_number(offset) and (offset > 0 if offense else offset < 0):
+                err(path, f"{swhere}.ScrimmageYardOffset: the {'offense lines up behind' if offense else 'defense beyond'} the line")
+            technique, over = slot.get("Technique"), slot.get("OverReceiver", 0)
+            if offense and (technique or over):
+                err(path, f"{swhere}: the offense keys on no technique or receiver")
+            if technique is not None and technique not in techniques:
+                err(path, f"{swhere}.Technique: '{technique}' is not in Techniques")
+            if not isinstance(over, int) or isinstance(over, bool) or over < 0 or (over and technique):
+                err(path, f"{swhere}.OverReceiver: a whole number, 0 or more, and not with a technique")
+        return counts
+
+    def named(rows, key, where):
+        names = {}
+        for idx, row in enumerate(rows or []):
+            if not isinstance(row, dict):
+                err(path, f"{where}[{idx}]: not an object")
+                continue
+            name = row.get(key)
+            if not isinstance(name, str) or not name.strip() or name.lower() in names or name.lower() == "none":
+                err(path, f"{where}[{idx}].{key}: empty, None or listed twice")
+                continue
+            names[name.lower()] = row
+        return names
+
+    formations = named(payload.get("OffenseFormations"), "Formation", "OffenseFormations")
+    fronts = named(payload.get("FrontAlignments"), "Front", "FrontAlignments")
+    shells = named(payload.get("ShellAlignments"), "Shell", "ShellAlignments")
+
+    recognition = load_json("play_recognition.json") or {}
+    cm_per_yard = (load_json("field_dimensions.json") or {}).get("CentimetresPerYard", 100.0)
+    packages = load_data("personnel_packages.json", "Packages")
+    slot_counts = {}
+    for name, row in formations.items():
+        where = f"OffenseFormations '{row['Formation']}'"
+        slot_counts[name] = check_slots(where, row.get("Slots"), True)
+        if row.get("Strength") not in ("Right", "Left"):
+            err(path, f"{where}.Strength: Right or Left")
+        if row.get("QBAlignment") not in FORMATION_QB_ALIGNMENTS or row.get("Backfield") not in FORMATION_BACKFIELDS:
+            err(path, f"{where}: QBAlignment one of {FORMATION_QB_ALIGNMENTS}, Backfield one of {FORMATION_BACKFIELDS}")
+        if set(row) - {"Formation", "Strength", "QBAlignment", "Backfield", "Slots"}:
+            err(path, f"{where}: unknown field(s) - names must match FPSOffenseFormationDef exactly")
+        read = formation_read(row, recognition, cm_per_yard)
+        if read is None:
+            err(path, f"{where}: one Quarterback slot")
+        elif read != (row.get("QBAlignment"), row.get("Backfield"), -1 if row.get("Strength") == "Left" else 1):
+            err(path, f"{where}: play_recognition.json reads its slots as {read[0]}, {read[1]} backfield, strong "
+                      f"{'right' if read[2] > 0 else 'left'}; it says {row.get('QBAlignment')}, {row.get('Backfield')}, {row.get('Strength')}")
+        roles = formation_roles(packages, row["Formation"], True) if packages is not None else None
+        if roles is not None:
+            wanted = {role: n for role, n in roles.items() if role != "OffensiveLineman"}
+            if wanted != slot_counts[name]:
+                err(path, f"{where}: its slots {slot_counts[name]} aren't its personnel package's {wanted}")
+    front_counts = {name: check_slots(f"FrontAlignments '{row['Front']}'", row.get("Slots"), False) for name, row in fronts.items()}
+    shell_counts = {name: check_slots(f"ShellAlignments '{row['Shell']}'", row.get("Slots"), False, True) for name, row in shells.items()}
+
+    # Every name the plays, the generator, the staffs and the packages use.
+    plays = load_data("sample_playbook.json", "Plays") or []
+    generator = load_json("playbook_generator.json") or {}
+    used_formations = {(p.get("Formation"), "sample_playbook.json") for p in plays if isinstance(p, dict) and p.get("bIsOffensivePlay")}
+    used_formations |= {(f, "playbook_generator.json") for f in generator.get("OffenseFormations") or []}
+    used_formations |= {(f, "coaching_staffs.json") for s in load_data("coaching_staffs.json", "Schemes") or []
+                        if isinstance(s, dict) and s.get("bOffense") for f in s.get("Formations") or []}
+    used_formations |= {(f, "personnel_packages.json") for p in packages or [] if isinstance(p, dict) and p.get("bOffense")
+                        for f in p.get("Formations") or []}
+    for formation, source in sorted(used_formations, key=str):
+        if isinstance(formation, str) and formation.lower() not in formations:
+            err(path, f"OffenseFormations: '{formation}' ({source}) has no alignment")
+    used_fronts = {(p.get("Front"), "sample_playbook.json") for p in plays if isinstance(p, dict) and not p.get("bIsOffensivePlay") and p.get("Front")}
+    used_fronts |= {(f.get("Front"), "playbook_generator.json") for f in generator.get("DefensiveFronts") or [] if isinstance(f, dict)}
+    used_fronts |= {(f.get("Front"), "run_fits.json") for f in load_data("run_fits.json", "Fronts") or [] if isinstance(f, dict)}
+    for front, source in sorted(used_fronts, key=str):
+        if isinstance(front, str) and front.lower() not in fronts:
+            err(path, f"FrontAlignments: '{front}' ({source}) has no alignment")
+    used_shells = {(p.get("CoverageShell"), "sample_playbook.json") for p in plays if isinstance(p, dict) and not p.get("bIsOffensivePlay")}
+    used_shells |= {(c.get("Shell"), "playbook_generator.json") for c in generator.get("Coverages") or [] if isinstance(c, dict)}
+    used_shells |= {(s.get("Shell"), "coverage_matchups.json") for s in load_data("coverage_matchups.json", "Shells") or [] if isinstance(s, dict)}
+    for shell, source in sorted(used_shells, key=str):
+        if isinstance(shell, str) and shell.strip() and shell.lower() != "none" and shell.lower() not in shells:
+            err(path, f"ShellAlignments: '{shell}' ({source}) has no alignment")
+
+    # Each defensive call places its whole package: the shell the backs it has slots for, the
+    # front everyone else.
+    def check_call(label, formation, front, shell):
+        roles = formation_roles(packages, formation, False) if packages is not None else None
+        front_slots = front_counts.get((front or "").lower())
+        if roles is None or front_slots is None:
+            return
+        shell_backs = shell_counts.get((shell or "").lower(), {}).get("DefensiveBack", 0)
+        for role, count in roles.items():
+            have = max(front_slots.get(role, 0), shell_backs) if role == "DefensiveBack" else front_slots.get(role, 0)
+            if have < count:
+                err(path, f"{label}: front '{front}' and shell '{shell}' place {have} of its {count} {role}s")
+    for play in plays:
+        if isinstance(play, dict) and not play.get("bIsOffensivePlay"):
+            check_call(f"sample_playbook.json '{play.get('PlayId')}'", play.get("Formation"), play.get("Front"), play.get("CoverageShell"))
+    for front in generator.get("DefensiveFronts") or []:
+        for coverage in generator.get("Coverages") or []:
+            if isinstance(front, dict) and isinstance(coverage, dict):
+                check_call(f"playbook_generator.json '{front.get('Formation')}' in {coverage.get('Shell')}",
+                           front.get("Formation"), front.get("Front"), coverage.get("Shell"))
+
+    # The deep safeties each shell lines up: Epic 67's count for it.
+    presnap = load_json("defensive_presnap.json") or {}
+    deep_depth = presnap.get("DeepSafetyDepth", 1000)
+    for rule in presnap.get("ShellSafeties") or []:
+        shell = shells.get(str(rule.get("Shell", "")).lower()) if isinstance(rule, dict) else None
+        if shell is None:
+            continue
+        deep = sum(1 for s in shell.get("Slots") or [] if isinstance(s, dict) and not s.get("OverReceiver")
+                   and is_number(s.get("ScrimmageYardOffset", 0)) and s.get("ScrimmageYardOffset", 0) * cm_per_yard >= deep_depth)
+        if deep != rule.get("DeepSafeties"):
+            err(path, f"ShellAlignments '{shell['Shell']}': {deep} deep safeties; defensive_presnap.json plays {rule.get('DeepSafeties')}")
+
+
 def load_route_ids():
     """Route IDs in Data/sample_routes.json, or None when it is missing or broken."""
     try:
@@ -3186,7 +3421,7 @@ def validate_coverage_matchups(path, payload):
             continue
         shell = play.get("CoverageShell")
         if shell and shell not in names:
-            err(path, f"Shells: no rule for '{shell}', the coverage of {play.get('PlayId')} in sample_playbook.json")
+            err(path, f"ShellAlignments: no rule for '{shell}', the coverage of {play.get('PlayId')} in sample_playbook.json")
 
     # A pressing defender must stand inside the release contest's PressRadius (Epic 68).
     try:
@@ -5773,6 +6008,8 @@ def main(root=None):
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:
             validate_commentary_lines(path, payload)
+        if isinstance(payload, dict) and "Techniques" in payload:
+            validate_formations(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()

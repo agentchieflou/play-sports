@@ -128,6 +128,7 @@ every CI build.
 | `crowd.json` | `FPSCrowdTuning` (single object: the excitement model, `Levels`, `CrowdReactions`) | `UPSDataIngestion::LoadCrowdTuningFromJson`, via `UPSCrowdExcitementSubsystem` |
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
 | `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
+| `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
 
@@ -2078,6 +2079,45 @@ Every value is a number above 0.
   reach. `BoundaryHeightCm`: the boundary volumes' height.
 
 `PSField::Validate` and `tools/validate_data.py` check it.
+
+## Formation schema (`FPSFormationCatalog`)
+
+Single object: where each player lines up for a call (`PSFormations`, which
+`APSFieldGrid::ComputeLineup` delegates to). Distances are yards on the field's frame (`PSField`):
+`ScrimmageYardOffset` is from the line of scrimmage (negative behind it, for the offense; positive
+beyond it, for the defense), `LateralYardOffset` across the field toward the slot's `Side`
+(`Strong`, the default, is the offense's strength; `Weak` the other side; negative goes back
+across). The Nth player of a role takes the Nth slot of that role. Every call of the playbook
+lines up this way (`UPSPersonnelManager`, at each play call); a name not listed here lines that
+side up by role, with a warning.
+
+- `LinemanSpacingYards` (above 0), `LineSetbackYards`: the offensive line, centred on the ball.
+  `ShadeYards`: how far a shade technique sits inside or outside head up. `BoundaryMarginYards`:
+  nobody lines up closer than this to an end line or a sideline.
+- `Techniques[]`: `Technique` (its name, once each), `Lineman` (0 the center, 1 the guard, 2 the
+  tackle, 3 the end man's spot one spacing outside the tackle, where an inline tight end stands)
+  and `Shade` (-1 inside, 0 head up, 1 outside).
+- `OffenseFormations[]`, named as the plays name them (`Formation`): `Strength` (`Right` or `Left`),
+  `QBAlignment` and `Backfield` (Epic 80's names: the read the slots must give) and `Slots`, one per
+  player of the formation's personnel package but the line (a `Quarterback` once).
+  `tools/validate_data.py` checks that `play_recognition.json`'s classifier reads each formation's
+  slots as its `QBAlignment`, `Backfield` and `Strength`.
+- `FrontAlignments[]`, keyed by the plays' `Front` (the fronts of `run_fits.json`): `Slots` for the
+  linemen and linebackers (and the backs, for a front no shell completes). A slot can key on a
+  `Technique` over the offensive line on its `Side`, or on the `OverReceiver`-th receiver from the
+  outside on its side.
+- `ShellAlignments[]`, keyed by the plays' `CoverageShell` (the shells of `coverage_matchups.json`):
+  the defensive backs' `Slots`, in order. A shell's deep safeties (no receiver, at least
+  `defensive_presnap.json`'s `DeepSafetyDepth` deep) are as many as `defensive_presnap.json` plays
+  for it; Epic 67 then moves the safeties into the called structure.
+
+The defense lines up against the offense as it stands: the strength it reads
+(`PSPlayRecognition::ClassifyFormation`), its techniques over the actual line, its backs over the
+actual receivers. A back whose side has run out of receivers takes the other side's widest receiver
+nobody has yet; with none, the end man's spot. `PSFormations::Validate` and `tools/validate_data.py`
+check the file; the validator also checks that every formation, front and shell the playbook, the
+generator, the staffs and the personnel packages name is here, and that each defensive call places
+its whole package.
 
 ## Penalty rates schema (`FPSPenaltyTuning`)
 
