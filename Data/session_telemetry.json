@@ -1,0 +1,9 @@
+{
+    "FrameTimeBucketMs": 0.5,
+    "FrameTimeBucketCount": 200,
+    "Percentiles": [50, 95, 99],
+    "MinSessionSeconds": 5,
+    "MaxStoredSessions": 20,
+    "CheckpointEveryPlays": 5,
+    "CrashBreadcrumbCount": 12
+}

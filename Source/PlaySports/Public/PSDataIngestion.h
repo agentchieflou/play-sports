@@ -18,10 +18,14 @@
 #include "PSCarrierMoveComponent.h"
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
+#include "PSTelemetrySamplingTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSSpecialTeamsData.h"
 #include "PSStaffData.h"
+#include "PSSessionTelemetryTypes.h"
+#include "PSDefenderGapSubsystem.h"
+#include "PSRouteRunning.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -104,6 +108,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
 
+    /** Loads the route-running model's tuning (Data/route_running.json, Epic 68). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadRouteRunningTuningFromJson(const FString& JsonFilePath, FRouteRunningTuningRow& OutTuning);
+
     /** Loads the offense's pre-snap tuning (Data/presnap_tuning.json, Epic 66). False on a
      *  missing file, malformed JSON, or an unrecognized Alignment. */
     UFUNCTION(BlueprintCallable, Category = "Data")
@@ -117,6 +125,11 @@ public:
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRushMovesFromJson(const FString& JsonFilePath, FPSRushMoveCatalog& OutCatalog);
+
+    /** Loads the telemetry sampler's rate, history and budget (Data/telemetry_sampling.json,
+     *  Epic 26). False on a missing file, malformed JSON, or an unrecognized event type. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTelemetrySamplingTuningFromJson(const FString& JsonFilePath, FPSTelemetrySamplingTuning& OutTuning);
 
     /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
@@ -132,6 +145,14 @@ public:
      *  Epic 89). False on a missing file, malformed JSON, or an unrecognized Role string. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCoachingLeagueFromJson(const FString& JsonFilePath, FPSCoachingLeague& OutLeague);
+    /** Loads the session telemetry tuning (Data/session_telemetry.json, Epic 117). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSessionTelemetryTuningFromJson(const FString& JsonFilePath, FPSSessionTelemetryTuning& OutTuning);
+
+    /** Loads the run-fit fronts and tuning (Data/run_fits.json, Epic 81). False on a missing
+     *  file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadRunFitsFromJson(const FString& JsonFilePath, FPSRunFitCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

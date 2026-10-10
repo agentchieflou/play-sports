@@ -41,11 +41,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** Routes are contested skills, not spline-following — releases, stems, breaks, and double moves resolved by attributes.
 **Depends on:** C3, C4, Core 14, Core 16
 
-- [ ] Release contest vs. press coverage at the line (win/delay/reroute outcomes)
-- [ ] Stem/break sharpness derived from `Agility` (round vs. sharp cuts, separation math)
-- [ ] Double-move system with defender-bite probability (ties to 69's leverage state)
-- [ ] Option/sight-adjust routes reading coverage post-snap (hooks Epic 16's schema)
-- [ ] Timing windows: QB read progression (14) synchronized to route break timing
+- [x] Release contest vs. press coverage at the line (win/delay/reroute outcomes) *(`UPSRouteRunnerComponent` on `APSOffenseController`: a defender within `PressRadius` in front at the snap contests the release, `(Agility + Strength) / 2` against the presser's, rolled from the play's seed; a delay holds him, a reroute moves his route toward the sideline. Announced as `RouteRunning` on the bus. Defenders don't line up in press yet: that alignment is Epic 69's)*
+- [x] Stem/break sharpness derived from `Agility` (round vs. sharp cuts, separation math) *(a stiff receiver turns for the next leg up to `MaxBreakRounding` before the corner, a sharp one cuts on it; `PSRouteRunning::BreakSeparationGain` is the separation a break makes on the defender, which the QB counts on when he throws before the break)*
+- [x] Double-move system with defender-bite probability (ties to 69's leverage state) *(`bFake` waypoints (`SlantGo`, `OutAndUp`): the receiver sells the fake, the nearest defender bites by `BiteChance` (receiver Agility against his Awareness) and `UPSDefenderAIComponent` freezes him. The leverage term joins the bite chance when Epic 69's leverage state exists)*
+- [x] Option/sight-adjust routes reading coverage post-snap (hooks Epic 16's schema) *(`FPSRoute::OptionReadWaypoint`, `VsManBranch`, `VsZoneBranch`: at the read a man defender sends him on the man branch, away from the defender's leverage; zone sits him down (`Option` route, `Offense_TwinsOption`))*
+- [x] Timing windows: QB read progression (14) synchronized to route break timing *(`ChooseReceiver` reads a planned receiver only from his break (up to `MaxAnticipationSeconds` early, by Awareness) to `ReadWindowSeconds` after; out of time, or past every window, he reads the whole field. Tests: `Tests/PSRouteRunningTests.cpp`)*
 
 ### Epic 69: Coverage Matchup Engine
 

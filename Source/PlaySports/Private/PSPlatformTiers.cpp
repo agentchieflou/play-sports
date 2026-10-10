@@ -32,6 +32,10 @@ TArray<FString> PSPlatformTiers::ValidateCatalog(const FPSPlatformTierCatalog& C
         {
             Problems.Add(FString::Printf(TEXT("Tiers[%d]: AIDecisionInterval must be 0 or more"), Index));
         }
+        if (!(Tier.TelemetrySampleRateHz > 0.f) || !(Tier.TelemetrySampleBudgetMs > 0.f))
+        {
+            Problems.Add(FString::Printf(TEXT("Tiers[%d]: TelemetrySampleRateHz and TelemetrySampleBudgetMs must be above 0"), Index));
+        }
     }
     if (!FindTier(Catalog, Catalog.DefaultTier))
     {

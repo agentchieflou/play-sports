@@ -12,6 +12,7 @@
 
 class APSOffenseController;
 class APSPlayerPawn;
+class UPSRouteRunnerComponent;
 
 /** What an offensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -86,6 +87,15 @@ struct FSkillPlayerAITuningRow : public FTableRowBase
     /** Ball speed used to lead a receiver: lead time = distance / this. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float ThrowLeadSpeed = 2000.f;
+
+    /** A receiver on a planned route is read until this long after his break (Epic 68). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float ReadWindowSeconds = 0.8f;
+
+    /** A QB with 100 Awareness reads a receiver this long before his break, counting the
+     *  separation the break will make (none at 0). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float MaxAnticipationSeconds = 0.3f;
 
     /** How far in front of the QB a pass blocker sets up. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
@@ -164,8 +174,10 @@ public:
     bool IsRunPlay() const { return bRunPlay; }
 
     /** The receiver the QB would throw to now and whether he reads him as open: the most
-     *  separated eligible receiver, with the separation the QB's Awareness lets him see. */
-    APSPlayerPawn* ChooseReceiver(bool& bOutOpen, float& OutSeparation);
+     *  separated eligible receiver whose read is up (his route's timing window, Epic 68), with
+     *  the separation the QB's Awareness lets him see. bWholeField reads everyone, timing or
+     *  not (the QB out of time). */
+    APSPlayerPawn* ChooseReceiver(bool& bOutOpen, float& OutSeparation, bool bWholeField = false);
 
 protected:
     virtual void BeginPlay() override;
@@ -185,6 +197,7 @@ private:
     FVector SteerAsBlocker(APSPlayerPawn* Self) const;
 
     APSOffenseController* GetOffenseController() const;
+    UPSRouteRunnerComponent* GetRouteRunner() const;
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindTeammate(EPlayerRole Role) const;
     TArray<APSPlayerPawn*> GetFieldPawns() const;
