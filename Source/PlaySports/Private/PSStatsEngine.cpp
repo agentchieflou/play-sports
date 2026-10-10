@@ -113,6 +113,8 @@ void FPSTeamStatLine::Accumulate(const FPSTeamStatLine& Other)
     Takeaways += Other.Takeaways;
     FieldGoalsMade += Other.FieldGoalsMade;
     FieldGoalsAttempted += Other.FieldGoalsAttempted;
+    Penalties += Other.Penalties;
+    PenaltyYards += Other.PenaltyYards;
     for (const FPSSplitLine& Split : Other.Splits)
     {
         FPSSplitLine& Mine = FindOrAddSplit(Split.Situation);
@@ -201,6 +203,21 @@ void UPSStatsEngine::BeginGame(int32 Week, FName HomeTeamId, FName AwayTeamId)
     Current.Away.TeamId = AwayTeamId;
     Current.Away.Games = 1;
     bGameInProgress = true;
+    bPenaltyOnPlay = false;
+}
+
+void UPSStatsEngine::RecordPenalty(const FPSTelemetryPenaltyEvent& Event)
+{
+    // A flag in the air, or one declined, changes nothing: the play stands.
+    if (!bGameInProgress || Event.Kind != EPSPenaltyEventKind::Accepted)
+    {
+        return;
+    }
+    FPSTeamStatLine& Fouled = Event.bHomeTeam ? Current.Home : Current.Away;
+    ++Fouled.Penalties;
+    Fouled.PenaltyYards += FMath::Abs(Event.Yards);
+    // The simulation rules on the flag before it announces the play: that play is the penalty's.
+    bPenaltyOnPlay = true;
 }
 
 FPSPlayerStatLine& UPSStatsEngine::FindOrAddPlayer(FName PlayerId, FName TeamId)
@@ -235,11 +252,22 @@ void UPSStatsEngine::RecordPlay(const FPSTelemetryPlayResultEvent& Event)
 
     if (IsKickResult(Event.Result))
     {
+        bPenaltyOnPlay = false;
         if (Event.Result == TEXT("FieldGoalGood") || Event.Result == TEXT("FieldGoalMissed"))
         {
             ++Offense.FieldGoalsAttempted;
             Offense.FieldGoalsMade += Event.Result == TEXT("FieldGoalGood") ? 1 : 0;
         }
+        return;
+    }
+
+    // An accepted flag wiped the play out: its yards are the penalty's (the fouling team's, in
+    // RecordPenalty), not a pass's or a run's, and nobody is credited a completion, a carry, a
+    // catch, a tackle or a sack. A first down it gave still counts.
+    if (bPenaltyOnPlay)
+    {
+        bPenaltyOnPlay = false;
+        Offense.FirstDowns += Event.bFirstDown ? 1 : 0;
         return;
     }
 
@@ -358,6 +386,7 @@ void UPSStatsEngine::BindToBus(UPSTelemetryBus* Bus)
     {
         BoundBus = Bus;
         PlayResultHandle = Bus->OnPlayResultMC.AddUObject(this, &UPSStatsEngine::RecordPlay);
+        PenaltyHandle = Bus->OnPenaltyMC.AddUObject(this, &UPSStatsEngine::RecordPenalty);
     }
 }
 
@@ -366,9 +395,11 @@ void UPSStatsEngine::UnbindFromBus()
     if (UPSTelemetryBus* Bus = BoundBus.Get())
     {
         Bus->OnPlayResultMC.Remove(PlayResultHandle);
+        Bus->OnPenaltyMC.Remove(PenaltyHandle);
     }
     BoundBus.Reset();
     PlayResultHandle.Reset();
+    PenaltyHandle.Reset();
 }
 
 // --- Aggregation -------------------------------------------------------------------------

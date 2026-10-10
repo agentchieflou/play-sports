@@ -169,8 +169,10 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
     UPSMatchSetup* Match = NewObject<UPSMatchSetup>(this);
     if (Stats)
     {
-        // Every simulated play goes into the game's box score (Epic 92).
+        // Every simulated play goes into the game's box score (Epic 92), and each flag's ruling
+        // just before its play: a penalty is a team stat.
         Runner->OnPlayResolved.AddUObject(Stats, &UPSStatsEngine::RecordPlay);
+        Runner->OnPenaltyRuled.AddUObject(Stats, &UPSStatsEngine::RecordPenalty);
     }
     for (const FPSWeekMatchup& Matchup : Season->GetMatchupsForWeek(Week))
     {

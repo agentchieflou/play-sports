@@ -149,6 +149,15 @@ struct PLAYSPORTS_API FPSTeamStatLine
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
     int32 FieldGoalsAttempted = 0;
 
+    /** Accepted penalties this team committed, and the yards they cost it. Penalty yards are
+     *  the team's, never a passer's, rusher's or receiver's: the play they wiped out counts for
+     *  nobody. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    int32 Penalties = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+    int32 PenaltyYards = 0;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
     TArray<FPSSplitLine> Splits;
 
