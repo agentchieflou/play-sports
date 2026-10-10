@@ -13,6 +13,7 @@ class UPSFreeAgency;
 class UPSMatchSetup;
 class UPSRoster;
 class UPSStaffManager;
+class UPSStatsEngine;
 
 /**
  * UPSFranchiseFlow runs a franchise from week to week. It owns no league facts itself: the
@@ -23,11 +24,13 @@ class UPSStaffManager;
  *  - BuildUserMatch: the player's game this week, from the schedule, as a UPSMatchSetup.
  *  - SimulateWeek: the week's unplayed games through the quick sim (UPSQuickSimRunner), each
  *    team playing with its coaching staff's scheme fit (UPSMatchSetup::ApplyStaffs), results
- *    recorded in the season.
+ *    recorded in the season and, with a statistics engine (Epic 92), every play in its box
+ *    score.
  *  - AdvanceWeek: on to the next week; once the last week's games are all played, the season
  *    ends.
  *  - EndSeason: the off-season, once per season. The coaching carousel
- *    (UPSStaffManager::RunCarousel) runs on the final standings; then, with a contract manager
+ *    (UPSStaffManager::RunCarousel) runs on the final standings, the statistics engine (Epic 92)
+ *    archives the season; then, with a contract manager
  *    (UPSContractManager, Epic 87), the league year rolls over, CPU teams over the new cap cut
  *    back under it, and free agency (UPSFreeAgency) opens with every player whose deal ran out or
  *    who was cut. The player's team bids there; GetFreeAgency()->AdvanceDay() runs its days.
@@ -49,6 +52,15 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSContractManager* GetContracts() const { return Contracts; }
+
+    /** The league's statistics (Epic 92): every simulated game's plays are recorded in it, and the
+     *  season is archived when it ends. A book with no season yet starts at the contract
+     *  manager's league year (set contracts first), else season 1. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetStats(UPSStatsEngine* InStats);
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSStatsEngine* GetStats() const { return Stats; }
 
     /** A new franchise's contracts: every team with a roster signs its players at their demands
      *  (UPSContractManager::SignRosterAtDemand). Returns the contracts signed. */
@@ -134,6 +146,9 @@ private:
 
     UPROPERTY(Transient)
     UPSFreeAgency* FreeAgency = nullptr;
+
+    UPROPERTY(Transient)
+    UPSStatsEngine* Stats = nullptr;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;

@@ -62,6 +62,9 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     ActivePenalty = EPSPenaltyType::None;
     bPenaltyDeclined = false;
     PhaseTimer = 0.f;
+    PlayLog = FPSTelemetryPlayResultEvent();
+    bPlayLogOpen = false;
+    PlaysAnnounced = 0;
     PublishGameStateIfChanged();
 }
 
@@ -69,6 +72,7 @@ void UPSPlaySimulation::TriggerSnap()
 {
     if (CurrentState.Phase == EPlayPhase::PreSnap)
     {
+        OpenPlayLog();
         // The snap comes at the call's tempo mark (Epic 76): a running game clock also runs
         // off what the play clock had left above it.
         if (CurrentState.bIsClockRunning && PendingSnapPlayClock >= 0.f && CurrentState.PlayClockSeconds > PendingSnapPlayClock)
@@ -308,6 +312,9 @@ void UPSPlaySimulation::ResolvePlayResult()
     CompletionChance = FMath::Clamp(CompletionChance, 0.10f, 0.95f);
 
     float RandomRoll = FMath::FRand();
+    PlayLog.bPass = true;
+    PlayLog.PasserId = Passer.PlayerId;
+    PlayLog.ReceiverId = Receiver.PlayerId;
     if (RandomRoll > CompletionChance)
     {
         CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
@@ -321,6 +328,7 @@ void UPSPlaySimulation::ResolvePlayResult()
         int32 Yards = FMath::Clamp(FMath::RoundToInt(BaseYards), -5, 99);
 
         CurrentPlayResult.YardsGained = Yards;
+        PlayLog.bComplete = true;
 
         // Determine if it was a Touchdown or a Tackle
         float TouchdownChance = 0.05f + (Receiver.Speed - Defender.Speed) * 0.01f + (Yards * 0.005f);
@@ -333,12 +341,16 @@ void UPSPlaySimulation::ResolvePlayResult()
         else
         {
             CurrentPlayResult.ResultType = EPlayResultType::Tackle;
+            PlayLog.TacklerId = Defender.PlayerId;
         }
     }
 }
 
 void UPSPlaySimulation::EndPlayAndPrepareNext()
 {
+    // The state the play is resolved from: its result is announced against it (Epic 92).
+    const FPlayState AtSnap = CurrentState;
+
     // A kick's outcome is the special-teams model's (Epic 75): no penalty or yardage rule changes it.
     const bool bKickResult = CurrentPlayResult.ResultType == EPlayResultType::KickoffResult || CurrentPlayResult.ResultType == EPlayResultType::PuntResult
         || CurrentPlayResult.ResultType == EPlayResultType::FieldGoalGood || CurrentPlayResult.ResultType == EPlayResultType::FieldGoalMissed;
@@ -609,6 +621,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     {
         NextPhase = EPlayPhase::Kickoff;
     }
+    AnnouncePlayResult(AtSnap, bTurnover);
     SetPlayPhase(NextPhase);
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
@@ -655,6 +668,7 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnCatch.AddDynamic(this, &UPSPlaySimulation::OnBusCatchEvent);
     Bus->OnTackle.AddDynamic(this, &UPSPlaySimulation::OnBusTackleEvent);
     Bus->OnScore.AddDynamic(this, &UPSPlaySimulation::OnBusScoreEvent);
+    Bus->OnThrow.AddDynamic(this, &UPSPlaySimulation::OnBusThrowEvent);
     // Epic 104.5: the human kicker's meter and the human defender's jump at the snap
     Bus->OnKick.AddDynamic(this, &UPSPlaySimulation::OnBusKickEvent);
     Bus->OnJumpSnap.AddDynamic(this, &UPSPlaySimulation::OnBusJumpSnapEvent);
@@ -674,6 +688,21 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
         return;
     }
 
+    if (!IsBallDead())
+    {
+        const FName CatcherId = FindPlayerIdByName(Event.ReceiverName);
+        PlayLog.bInterception = Event.bIsInterception;
+        PlayLog.bComplete = !Event.bIsInterception;
+        if (Event.bIsInterception)
+        {
+            PlayLog.InterceptorId = CatcherId;
+        }
+        else
+        {
+            PlayLog.ReceiverId = CatcherId;
+        }
+    }
+
     if (CurrentState.Phase == EPlayPhase::PassRush || CurrentState.Phase == EPlayPhase::Snap)
     {
         SetPlayPhase(EPlayPhase::BallCarrierMovement);
@@ -691,6 +720,18 @@ void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
 
     CurrentPlayResult.ResultType = EPlayResultType::Tackle;
     CurrentPlayResult.YardsGained = Event.YardsGained;
+    const FName CarrierId = FindPlayerIdByName(Event.BallCarrierName);
+    PlayLog.TacklerId = FindPlayerIdByName(Event.TacklerName);
+    if (Event.bIsSack)
+    {
+        PlayLog.bSack = true;
+        PlayLog.bPass = true;
+        PlayLog.PasserId = CarrierId;
+    }
+    else if (!PlayLog.bPass)
+    {
+        PlayLog.RusherId = CarrierId;
+    }
     SetPlayPhase(EPlayPhase::Scoring);
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusTackle — %s tackled by %s for %d yards."),
         *Event.BallCarrierName, *Event.TacklerName, Event.YardsGained);
@@ -704,6 +745,79 @@ void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
     CurrentState.HomeScore = Event.HomeScore;
     CurrentState.AwayScore = Event.AwayScore;
     PublishGameStateIfChanged();
+}
+
+void UPSPlaySimulation::OnBusThrowEvent(const FPSTelemetryThrowEvent& Event)
+{
+    if (bQuickSimMode || IsBallDead())
+    {
+        return;
+    }
+    PlayLog.bPass = true;
+    PlayLog.PasserId = FindPlayerIdByName(Event.PasserName);
+    PlayLog.ReceiverId = FindPlayerIdByName(Event.TargetReceiverName);
+}
+
+void UPSPlaySimulation::OpenPlayLog()
+{
+    PlayLog = FPSTelemetryPlayResultEvent();
+    PlayLog.bHomeOffense = CurrentState.bHomeHasPossession;
+    PlayLog.Quarter = CurrentState.Quarter;
+    PlayLog.GameClockSeconds = CurrentState.GameClockSeconds;
+    PlayLog.Down = CurrentState.Down;
+    PlayLog.Distance = CurrentState.Distance;
+    PlayLog.YardLine = CurrentState.YardLine;
+    bPlayLogOpen = true;
+}
+
+FName UPSPlaySimulation::FindPlayerIdByName(const FString& DisplayName) const
+{
+    if (DisplayName.IsEmpty())
+    {
+        return NAME_None;
+    }
+    const auto Named = [&DisplayName](const FPlayerAttributes& Player) { return Player.DisplayName == DisplayName; };
+    const FPlayerAttributes* Found = OffenseRoster.FindByPredicate(Named);
+    if (!Found)
+    {
+        Found = DefenseRoster.FindByPredicate(Named);
+    }
+    return Found ? Found->PlayerId : NAME_None;
+}
+
+void UPSPlaySimulation::AnnouncePlayResult(const FPlayState& AtSnap, bool bTurnover)
+{
+    // A play that began without a snap (a kick the simulation went straight to) is announced
+    // against the state it was resolved from.
+    if (!bPlayLogOpen)
+    {
+        PlayLog.bHomeOffense = AtSnap.bHomeHasPossession;
+        PlayLog.Quarter = AtSnap.Quarter;
+        PlayLog.GameClockSeconds = AtSnap.GameClockSeconds;
+        PlayLog.Down = AtSnap.Down;
+        PlayLog.Distance = AtSnap.Distance;
+        PlayLog.YardLine = AtSnap.YardLine;
+    }
+
+    const EPlayResultType Result = CurrentPlayResult.ResultType;
+    const bool bKick = Result == EPlayResultType::KickoffResult || Result == EPlayResultType::PuntResult
+        || Result == EPlayResultType::FieldGoalGood || Result == EPlayResultType::FieldGoalMissed;
+    PlayLog.PlayNumber = ++PlaysAnnounced;
+    PlayLog.Result = StaticEnum<EPlayResultType>()->GetNameStringByValue(static_cast<int64>(Result));
+    PlayLog.YardsGained = CurrentPlayResult.YardsGained;
+    PlayLog.HomePoints = CurrentState.HomeScore - AtSnap.HomeScore;
+    PlayLog.AwayPoints = CurrentState.AwayScore - AtSnap.AwayScore;
+    PlayLog.bTurnoverOnDowns = bTurnover && !bKick && !PlayLog.bInterception;
+    PlayLog.bFirstDown = !bKick && (Result == EPlayResultType::Touchdown
+        || (Result != EPlayResultType::Safety && !bTurnover && AtSnap.YardLine + CurrentPlayResult.YardsGained >= AtSnap.YardLineToGain));
+
+    OnPlayResolved.Broadcast(PlayLog);
+    if (UPSTelemetryBus* Bus = CachedWorld ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr)
+    {
+        Bus->PublishPlayResult(PlayLog);
+    }
+    PlayLog = FPSTelemetryPlayResultEvent();
+    bPlayLogOpen = false;
 }
 
 void UPSPlaySimulation::OnBusPlayCallEvent(const FPSTelemetryPlayCallEvent& Event)

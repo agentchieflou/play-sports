@@ -5,6 +5,10 @@ FPSQuickSimResult UPSQuickSimRunner::SimulateGame(const TArray<FPlayerAttributes
     UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
     Sim->bQuickSimMode = true;
     Sim->InitializePlay(HomeRoster, AwayRoster);
+    Sim->OnPlayResolved.AddLambda([this](const FPSTelemetryPlayResultEvent& Event)
+    {
+        OnPlayResolved.Broadcast(Event);
+    });
 
     int32 TickCount = 0;
     while (TickCount < MaxPlaysPerGame)

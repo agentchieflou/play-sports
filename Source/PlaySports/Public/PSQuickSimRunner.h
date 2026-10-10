@@ -37,4 +37,8 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Franchise|QuickSim")
     float SecondsPerPlayAdvance = 6.f;
+
+    /** Every play of every game this runner simulates, as the simulation resolves it
+     *  (UPSPlaySimulation::OnPlayResolved; Epic 92's statistics record from it). */
+    FPSTelemetryPlayResultMC OnPlayResolved;
 };

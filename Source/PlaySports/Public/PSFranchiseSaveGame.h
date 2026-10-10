@@ -5,6 +5,7 @@
 #include "PSLeagueData.h"
 #include "PSStaffData.h"
 #include "PSContractData.h"
+#include "PSStatsData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -44,4 +45,9 @@ public:
      *  (Epic 87; UPSContractManager). LeagueYear 0 in a save from before contracts. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSContractLedger ContractLedger;
+
+    /** This season's box scores, past seasons' totals and the record book (Epic 92;
+     *  UPSStatsEngine). Season 0 in a save from before statistics. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSStatBook StatBook;
 };
