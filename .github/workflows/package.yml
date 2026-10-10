@@ -163,13 +163,16 @@ jobs:
         if: ${{ !cancelled() }}
         shell: powershell
         run: |
-          # UAT and the cook write their logs under the user's AppData for an installed engine.
+          # For an installed engine UAT logs under the user's AppData, and the cook under the
+          # engine's AutomationTool\Saved folder.
           $Dest = Join-Path $env:GITHUB_WORKSPACE "Saved\Logs\UAT"
           New-Item -ItemType Directory -Force -Path $Dest | Out-Null
-          $UatLogs = Join-Path $env:APPDATA "Unreal Engine\AutomationTool\Logs"
-          if (Test-Path $UatLogs) {
-            Get-ChildItem -Path $UatLogs -Recurse -File | Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-6) } |
-              ForEach-Object { Copy-Item $_.FullName -Destination $Dest -Force }
+          $Sources = @((Join-Path $env:APPDATA "Unreal Engine\AutomationTool\Logs"), (Join-Path $env:UE_ROOT "Engine\Programs\AutomationTool\Saved"))
+          foreach ($Source in $Sources) {
+            if (Test-Path $Source) {
+              Get-ChildItem -Path $Source -Recurse -File -Include *.txt, *.log | Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-6) } |
+                ForEach-Object { Copy-Item $_.FullName -Destination $Dest -Force }
+            }
           }
 
       - name: Upload smoke test and logs
