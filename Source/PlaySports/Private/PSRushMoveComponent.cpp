@@ -1,4 +1,5 @@
 #include "PSRushMoveComponent.h"
+#include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
 #include "PSDefenseController.h"
@@ -6,7 +7,6 @@
 #include "PSTelemetryBus.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "Misc/Paths.h"
 
 namespace PSRushMovePrivate
@@ -313,20 +313,12 @@ bool UPSRushMoveComponent::ResolveActiveMove(float Roll)
             Blocker->EngagedOpponent = nullptr;
         }
         const APSPlayerPawn* Holder = nullptr;
-        for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
+        if (UPSAIFieldSnapshot* Field = GetWorld() ? GetWorld()->GetSubsystem<UPSAIFieldSnapshot>() : nullptr)
         {
-            if (It->TeamSide != EPSTeamSide::Offense)
+            Holder = Field->FindBallCarrier();
+            if (!Holder || Holder->TeamSide != EPSTeamSide::Offense)
             {
-                continue;
-            }
-            if (It->HasPossession())
-            {
-                Holder = *It;
-                break;
-            }
-            if (!Holder && It->GetAttributes().Role == EPlayerRole::Quarterback)
-            {
-                Holder = *It;
+                Holder = Field->FindPawn(EPSTeamSide::Offense, EPlayerRole::Quarterback);
             }
         }
         FVector Toward(-1.f, 0.f, 0.f);
@@ -380,13 +372,20 @@ void UPSRushMoveComponent::EndEngagementState()
 
 bool UPSRushMoveComponent::ReadDoubleTeam(const APSPlayerPawn* Self) const
 {
+    UPSAIFieldSnapshot* Field = GetWorld() ? GetWorld()->GetSubsystem<UPSAIFieldSnapshot>() : nullptr;
+    if (!Field)
+    {
+        return false;
+    }
     // His own blocker, any lineman engaged on him, and any free lineman at his side.
     const float Radius = Catalog.DoubleTeamRadius;
+    const TArray<APSPlayerPawn*>& Pawns = Field->GetPawns();
+    const TArray<EPlayerRole>& Roles = Field->GetRoles();
     int32 Blockers = 0;
-    for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
+    for (int32 Index = 0; Index < Pawns.Num(); ++Index)
     {
-        const APSPlayerPawn* Pawn = *It;
-        if (Pawn == Self || Pawn->TeamSide != EPSTeamSide::Offense || Pawn->GetAttributes().Role != EPlayerRole::OffensiveLineman)
+        const APSPlayerPawn* Pawn = Pawns[Index];
+        if (Pawn == Self || Pawn->TeamSide != EPSTeamSide::Offense || Roles[Index] != EPlayerRole::OffensiveLineman)
         {
             continue;
         }

@@ -1,4 +1,5 @@
 #include "PSSkillPlayerAIComponent.h"
+#include "PSAIFieldSnapshot.h"
 #include "PSBall.h"
 #include "PSBallActionComponent.h"
 #include "PSDataIngestion.h"
@@ -7,7 +8,6 @@
 #include "PSPlatformTiers.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "Misc/Paths.h"
 
 namespace PSSkillPlayerAIPrivate
@@ -163,8 +163,11 @@ void UPSSkillPlayerAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeE
     }
 }
 
+DECLARE_CYCLE_STAT(TEXT("Skill player AI decision"), STAT_PSAISkillDecision, STATGROUP_PSAI);
+
 void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
 {
+    SCOPE_CYCLE_COUNTER(STAT_PSAISkillDecision);
     DesiredDirection = FVector::ZeroVector;
     APSPlayerPawn* Self = GetSelf();
     if (!Self || !bPlayLive)
@@ -475,12 +478,8 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::FindTeammate(EPlayerRole Role) const
     return nullptr;
 }
 
-TArray<APSPlayerPawn*> UPSSkillPlayerAIComponent::GetFieldPawns() const
+const TArray<APSPlayerPawn*>& UPSSkillPlayerAIComponent::GetFieldPawns() const
 {
-    TArray<APSPlayerPawn*> Pawns;
-    for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
-    {
-        Pawns.Add(*It);
-    }
-    return Pawns;
+    // One scan of the field per frame, shared by every AI player (Epic 17.5).
+    return UPSAIFieldSnapshot::GetFieldPawns(GetWorld());
 }

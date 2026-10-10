@@ -10,6 +10,7 @@
 
 class APSDefenseController;
 class APSPlayerPawn;
+class UPSAIFieldSnapshot;
 
 /** What a defensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -191,7 +192,9 @@ private:
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindCarrier() const;
     APSPlayerPawn* FindOpponent(EPlayerRole Role) const;
-    TArray<APSPlayerPawn*> GetFieldPawns() const;
+
+    /** The field as the AI reads it this frame, shared by every AI player (Epic 17.5). */
+    UPSAIFieldSnapshot* GetFieldSnapshot() const;
 
     UPROPERTY(Transient)
     FDefenderAITuningRow Tuning;

@@ -171,7 +171,7 @@ private:
     APSOffenseController* GetOffenseController() const;
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindTeammate(EPlayerRole Role) const;
-    TArray<APSPlayerPawn*> GetFieldPawns() const;
+    const TArray<APSPlayerPawn*>& GetFieldPawns() const;
 
     UPROPERTY(Transient)
     FSkillPlayerAITuningRow Tuning;
