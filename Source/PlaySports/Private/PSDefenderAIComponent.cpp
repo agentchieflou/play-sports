@@ -111,6 +111,11 @@ void UPSDefenderAIComponent::TickComponent(float DeltaTime, ELevelTick TickType,
     TickAI(DeltaTime);
 }
 
+APSPlayerPawn* UPSDefenderAIComponent::GetCoveredReceiver() const
+{
+    return CoveredReceiver.Get();
+}
+
 float UPSDefenderAIComponent::GetReactionSeconds()
 {
     const APSPlayerPawn* Self = GetSelf();

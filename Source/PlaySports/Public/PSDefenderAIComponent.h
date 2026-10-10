@@ -129,7 +129,7 @@ public:
 
     /** The receiver this defender has in man coverage this play, if any. */
     UFUNCTION(BlueprintPure, Category = "AI")
-    APSPlayerPawn* GetCoveredReceiver() const { return CoveredReceiver.Get(); }
+    APSPlayerPawn* GetCoveredReceiver() const;
 
     /** The spot this defender is playing in zone (or dropped to on a pass read). */
     UFUNCTION(BlueprintPure, Category = "AI")
