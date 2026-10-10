@@ -65,6 +65,22 @@ jobs:
           $Json = Get-Content $Index -Raw
           if ($Json -match '"failed"\s*:\s*[1-9]' -or $Json -match '"state"\s*:\s*"fail') { throw "Automation report contains failed test(s)" }
 
+      - name: Performance budgets
+        # Epic 114: PlaySports.Perf.StandardPlayProfile wrote Saved/Profiling/StandardPlay_<tier>.json.
+        # A system over its budget warns; over HardFailMultiplier times it (Data/perf_harness.json)
+        # fails. Pushes to main add the run to the runner's trend history, which a regression is
+        # measured against. A missing report passes: the test step says why.
+        if: ${{ !cancelled() }}
+        shell: powershell
+        run: |
+          $History = if ($env:PS_PERF_HISTORY) { $env:PS_PERF_HISTORY } else { Join-Path $env:USERPROFILE "play-sports-ci\perf_history.jsonl" }
+          if ("${{ github.event_name }}" -eq "push") {
+            python tools/perf_budget.py check Saved/Profiling --history "$History" --record --summary "$env:GITHUB_STEP_SUMMARY"
+          } else {
+            python tools/perf_budget.py check Saved/Profiling --history "$History" --summary "$env:GITHUB_STEP_SUMMARY"
+          }
+          if ($LASTEXITCODE -ne 0) { throw "A system is far over its frame-time budget" }
+
       - name: Summarize crash reports
         # Epic 117: a crash during the build or the tests leaves Saved/Crashes/<id>; print its
         # scrubbed call stack and game state here. Informational: it always exits 0.
@@ -78,4 +94,12 @@ jobs:
         with:
           name: automation-report
           path: Saved/AutomationReport/
+          if-no-files-found: ignore
+
+      - name: Upload performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-report
+          path: Saved/Profiling/
           if-no-files-found: ignore

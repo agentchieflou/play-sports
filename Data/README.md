@@ -91,6 +91,7 @@ every CI build.
 | `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
 | `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
 | `versus_rules.json` | `FPSVersusRules` (single object) | `UPSDataIngestion::LoadVersusRulesFromJson`, via `UPSVersusSubsystem` |
+| `perf_harness.json` | `FPSPerfHarnessTuning` (single object) | `UPSDataIngestion::LoadPerfHarnessTuningFromJson`, via `UPSPerfHarness`; also read by `tools/perf_budget.py` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -362,6 +363,12 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
   - `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` (above 0): how often the telemetry
     sampler (Epic 26) records every pawn, and what one recording may cost in ms before the
     sampler halves its rate.
+  - `TargetFrameRate` (above 0): the frame rate the tier is budgeted for (Epic 114).
+  - `SystemBudgets[]`: `System` (`Simulation`, `AI`, `Telemetry`, `Overlays`, `UI`, `Animation`,
+    `Crowd`, `Audio`) and `BudgetMs` (0 or more), the game-thread ms per frame that system may use.
+    Exactly one per system; together they fit in a frame (1000 / `TargetFrameRate`), and the
+    `Telemetry` budget covers `TelemetrySampleBudgetMs`. The profiling harness and CI hold the
+    measured times to them (`Specs/Platform_Audit.md` section 7).
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -1008,3 +1015,22 @@ one machine:
   until it is back. `bQuitForfeits`: quitting forfeits the game to the other player.
 
 `UPSVersusSubsystem::ValidateRules` and `tools/validate_data.py` check it.
+
+## Profiling harness schema (`FPSPerfHarnessTuning`)
+
+Single object (Epic 114; `UPSPerfHarness`, and `tools/perf_budget.py` in CI). The per-system
+budgets themselves are per tier, in `platform_tiers.json`.
+- `FrameSeconds` (above 0): seconds per simulated frame of the standard play.
+- `WarmupFrames` (0 or more): pre-snap frames run before the capture starts.
+- `PassFrames`, `PursuitFrames` (1 or more), `PreSnapFrames` (0 or more): the captured play, from
+  the snap to the catch, from the catch to the tackle, and the next down's pre-snap.
+- `HistogramBucketMs` (above 0), `HistogramBucketCount` (1 or more): each system's frame-time
+  histogram. Times are reported to the bucket width.
+- `MaxBusEventsPerPlay` (1 or more): the most bus events the standard play may record.
+- `HardFailMultiplier` (1 or more): CI fails when a system's 95th-percentile frame time is over
+  its budget times this, and warns between the budget and this.
+- `RegressionTolerance`, `MinRegressionMs` (0 or more), `TrendWindow` (1 or more): CI warns of a
+  regression when a system's 95th percentile is this fraction, and at least this many ms, over
+  the median of its last `TrendWindow` runs recorded on main.
+
+`UPSPerfHarness::ValidateTuning` and `tools/validate_data.py` check it.

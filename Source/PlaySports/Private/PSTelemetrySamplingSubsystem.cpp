@@ -1,4 +1,5 @@
 #include "PSTelemetrySamplingSubsystem.h"
+#include "PSPerfBudget.h"
 #include "PSBall.h"
 #include "PSDataIngestion.h"
 #include "PSPlayerPawn.h"
@@ -310,6 +311,7 @@ void UPSTelemetrySamplingSubsystem::AdvanceTime(float DeltaSeconds)
 
 void UPSTelemetrySamplingSubsystem::TakeScheduledFrame()
 {
+    PS_PERF_SCOPE(Telemetry);
     const uint64 StartCycles = FPlatformTime::Cycles64();
 
     const UPSTelemetryBus* Bus = BoundBus.Get();

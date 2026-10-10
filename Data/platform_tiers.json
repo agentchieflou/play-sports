@@ -14,7 +14,18 @@
             "AIDecisionInterval": 0,
             "TelemetrySampleRateHz": 30,
             "TelemetrySampleBudgetMs": 0.25,
-            "OverlayDetail": "Full"
+            "OverlayDetail": "Full",
+            "TargetFrameRate": 60,
+            "SystemBudgets": [
+                { "System": "Simulation", "BudgetMs": 1.0 },
+                { "System": "AI", "BudgetMs": 2.0 },
+                { "System": "Telemetry", "BudgetMs": 0.5 },
+                { "System": "Overlays", "BudgetMs": 1.0 },
+                { "System": "UI", "BudgetMs": 1.0 },
+                { "System": "Animation", "BudgetMs": 3.0 },
+                { "System": "Crowd", "BudgetMs": 2.0 },
+                { "System": "Audio", "BudgetMs": 1.0 }
+            ]
         },
         {
             "TierId": "MobileBaseline",
@@ -23,7 +34,18 @@
             "AIDecisionInterval": 0.033,
             "TelemetrySampleRateHz": 15,
             "TelemetrySampleBudgetMs": 0.15,
-            "OverlayDetail": "Simplified"
+            "OverlayDetail": "Simplified",
+            "TargetFrameRate": 60,
+            "SystemBudgets": [
+                { "System": "Simulation", "BudgetMs": 0.75 },
+                { "System": "AI", "BudgetMs": 2.0 },
+                { "System": "Telemetry", "BudgetMs": 0.3 },
+                { "System": "Overlays", "BudgetMs": 0.75 },
+                { "System": "UI", "BudgetMs": 0.75 },
+                { "System": "Animation", "BudgetMs": 2.5 },
+                { "System": "Crowd", "BudgetMs": 1.0 },
+                { "System": "Audio", "BudgetMs": 0.75 }
+            ]
         },
         {
             "TierId": "MobileLow",
@@ -32,7 +54,18 @@
             "AIDecisionInterval": 0.066,
             "TelemetrySampleRateHz": 10,
             "TelemetrySampleBudgetMs": 0.1,
-            "OverlayDetail": "Minimal"
+            "OverlayDetail": "Minimal",
+            "TargetFrameRate": 30,
+            "SystemBudgets": [
+                { "System": "Simulation", "BudgetMs": 1.0 },
+                { "System": "AI", "BudgetMs": 3.0 },
+                { "System": "Telemetry", "BudgetMs": 0.3 },
+                { "System": "Overlays", "BudgetMs": 0.5 },
+                { "System": "UI", "BudgetMs": 1.0 },
+                { "System": "Animation", "BudgetMs": 4.0 },
+                { "System": "Crowd", "BudgetMs": 0.5 },
+                { "System": "Audio", "BudgetMs": 1.0 }
+            ]
         }
     ]
 }

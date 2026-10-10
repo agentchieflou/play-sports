@@ -44,7 +44,9 @@ with the control's value type, every action of a covered context is reachable by
 touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
-coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "PausesPerHalf" files against
+coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "HardFailMultiplier" files
+against FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system,
+within its frame; "PausesPerHalf" files against
 FPSVersusRules (Epic 107): control roles on their sides, screen and overlay audiences, pause and
 resume etiquette. Teams, the league config, the playbook, player rating ranges and every reference
 between files are tools/content_contracts.py's (Epic 125), run from here.
@@ -609,6 +611,44 @@ TIER_TELEMETRY_NUMBERS = ("TelemetrySampleRateHz", "TelemetrySampleBudgetMs")
 OVERLAY_DETAILS = {"Full", "Simplified", "Minimal"}
 
 
+PERF_SYSTEMS = ("Simulation", "AI", "Telemetry", "Overlays", "UI", "Animation", "Crowd", "Audio")
+
+
+def validate_system_budgets(path, where, tier):
+    """A tier's TargetFrameRate and SystemBudgets (Epic 114); mirrors
+    PSPlatformTiers::ValidateSystemBudgets."""
+    fps = tier.get("TargetFrameRate")
+    if not is_number(fps) or fps <= 0:
+        err(path, f"{where}.TargetFrameRate: '{fps}' must be a number above 0")
+        return
+    budgets = tier.get("SystemBudgets")
+    if not isinstance(budgets, list):
+        err(path, f"{where}.SystemBudgets: must be an array")
+        return
+    total = 0.0
+    by_system = {}
+    for idx, budget in enumerate(budgets):
+        if not isinstance(budget, dict) or budget.get("System") not in PERF_SYSTEMS:
+            err(path, f"{where}.SystemBudgets[{idx}]: System must be one of {list(PERF_SYSTEMS)}")
+            continue
+        ms = budget.get("BudgetMs")
+        if not is_number(ms) or ms < 0:
+            err(path, f"{where}.SystemBudgets[{idx}].BudgetMs: '{ms}' must be a number, 0 or more")
+            continue
+        by_system.setdefault(budget["System"], []).append(ms)
+        total += ms
+    for system in PERF_SYSTEMS:
+        if len(by_system.get(system, [])) != 1:
+            err(path, f"{where}.SystemBudgets: needs exactly one budget for {system}")
+    frame_ms = 1000.0 / fps
+    if total > frame_ms + 1e-6:
+        err(path, f"{where}.SystemBudgets: add up to {total:.2f} ms, more than a {fps} fps frame ({frame_ms:.2f} ms)")
+    telemetry = by_system.get("Telemetry", [None])[0]
+    sample = tier.get("TelemetrySampleBudgetMs")
+    if is_number(telemetry) and is_number(sample) and telemetry + 1e-6 < sample:
+        err(path, f"{where}.SystemBudgets: the Telemetry budget is below TelemetrySampleBudgetMs, which it includes")
+
+
 def validate_platform_tiers(path, payload):
     """FPSPlatformTierCatalog (Data/platform_tiers.json, Epic 129); mirrors
     PSPlatformTiers::ValidateCatalog plus the device-profile cross-check."""
@@ -638,8 +678,9 @@ def validate_platform_tiers(path, payload):
                 err(path, f"{where}.{field}: '{value}' must be a number above 0")
         if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
             err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
+        validate_system_budgets(path, where, tier)
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
-                             *TIER_TELEMETRY_NUMBERS}
+                             "TargetFrameRate", "SystemBudgets", *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -2564,6 +2605,34 @@ def validate_versus_rules(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSVersusRules exactly")
 
 
+PERF_HARNESS_POSITIVE = ("FrameSeconds", "HistogramBucketMs", "HardFailMultiplier")
+PERF_HARNESS_NON_NEGATIVE = ("RegressionTolerance", "MinRegressionMs")
+PERF_HARNESS_COUNTS = {"WarmupFrames": 0, "PassFrames": 1, "PursuitFrames": 1, "PreSnapFrames": 0,
+                       "HistogramBucketCount": 1, "MaxBusEventsPerPlay": 1, "TrendWindow": 1}
+
+
+def validate_perf_harness(path, payload):
+    """FPSPerfHarnessTuning (Data/perf_harness.json, Epic 114); mirrors
+    UPSPerfHarness::ValidateTuning."""
+    for field in PERF_HARNESS_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in PERF_HARNESS_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field, floor in PERF_HARNESS_COUNTS.items():
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < floor:
+            err(path, f"{field}: '{value}' must be a whole number, {floor} or more")
+    if is_number(payload.get("HardFailMultiplier")) and payload["HardFailMultiplier"] < 1:
+        err(path, "HardFailMultiplier: must be 1 or more (it multiplies the budget)")
+    extra = set(payload) - set(PERF_HARNESS_POSITIVE) - set(PERF_HARNESS_NON_NEGATIVE) - set(PERF_HARNESS_COUNTS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPerfHarnessTuning exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2677,6 +2746,8 @@ def main():
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "PausesPerHalf" in payload:
             validate_versus_rules(path, payload)
+        if isinstance(payload, dict) and "HardFailMultiplier" in payload:
+            validate_perf_harness(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

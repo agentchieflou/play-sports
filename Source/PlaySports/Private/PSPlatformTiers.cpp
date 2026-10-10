@@ -36,6 +36,7 @@ TArray<FString> PSPlatformTiers::ValidateCatalog(const FPSPlatformTierCatalog& C
         {
             Problems.Add(FString::Printf(TEXT("Tiers[%d]: TelemetrySampleRateHz and TelemetrySampleBudgetMs must be above 0"), Index));
         }
+        Problems.Append(ValidateSystemBudgets(Tier, Index));
     }
     if (!FindTier(Catalog, Catalog.DefaultTier))
     {
@@ -49,6 +50,61 @@ TArray<FString> PSPlatformTiers::ValidateCatalog(const FPSPlatformTierCatalog& C
         }
     }
     return Problems;
+}
+
+TArray<FString> PSPlatformTiers::ValidateSystemBudgets(const FPSPlatformTier& Tier, int32 Index)
+{
+    // Epic 114: a budget for every system, none twice, all within the tier's frame.
+    TArray<FString> Problems;
+    if (!(Tier.TargetFrameRate > 0.f))
+    {
+        Problems.Add(FString::Printf(TEXT("Tiers[%d]: TargetFrameRate must be above 0"), Index));
+        return Problems;
+    }
+    const UEnum* Systems = StaticEnum<EPSPerfSystem>();
+    float Total = 0.f;
+    for (int32 SystemIndex = 0; Systems && SystemIndex < Systems->NumEnums() - 1; ++SystemIndex)
+    {
+        const EPSPerfSystem System = static_cast<EPSPerfSystem>(Systems->GetValueByIndex(SystemIndex));
+        int32 Count = 0;
+        for (const FPSSystemBudget& Budget : Tier.SystemBudgets)
+        {
+            Count += Budget.System == System ? 1 : 0;
+        }
+        if (Count != 1)
+        {
+            Problems.Add(FString::Printf(TEXT("Tiers[%d]: SystemBudgets needs exactly one budget for %s (has %d)"), Index, *Systems->GetNameStringByIndex(SystemIndex), Count));
+        }
+    }
+    for (const FPSSystemBudget& Budget : Tier.SystemBudgets)
+    {
+        if (Budget.BudgetMs < 0.f)
+        {
+            Problems.Add(FString::Printf(TEXT("Tiers[%d]: the %s budget must be 0 or more"), Index, *UEnum::GetValueAsString(Budget.System)));
+        }
+        Total += FMath::Max(Budget.BudgetMs, 0.f);
+    }
+    if (Total > GetFrameBudgetMs(Tier) + KINDA_SMALL_NUMBER)
+    {
+        Problems.Add(FString::Printf(TEXT("Tiers[%d]: the system budgets add up to %.2f ms, more than a %.0f fps frame (%.2f ms)"), Index, Total, Tier.TargetFrameRate, GetFrameBudgetMs(Tier)));
+    }
+    const float TelemetryBudget = FindSystemBudget(Tier, EPSPerfSystem::Telemetry);
+    if (TelemetryBudget >= 0.f && TelemetryBudget + KINDA_SMALL_NUMBER < Tier.TelemetrySampleBudgetMs)
+    {
+        Problems.Add(FString::Printf(TEXT("Tiers[%d]: the Telemetry budget is below TelemetrySampleBudgetMs, which it includes"), Index));
+    }
+    return Problems;
+}
+
+float PSPlatformTiers::FindSystemBudget(const FPSPlatformTier& Tier, EPSPerfSystem System)
+{
+    const FPSSystemBudget* Budget = Tier.SystemBudgets.FindByPredicate([System](const FPSSystemBudget& Candidate) { return Candidate.System == System; });
+    return Budget ? Budget->BudgetMs : -1.f;
+}
+
+float PSPlatformTiers::GetFrameBudgetMs(const FPSPlatformTier& Tier)
+{
+    return Tier.TargetFrameRate > 0.f ? 1000.f / Tier.TargetFrameRate : 0.f;
 }
 
 const FPSPlatformTier* PSPlatformTiers::FindTier(const FPSPlatformTierCatalog& Catalog, FName TierId)

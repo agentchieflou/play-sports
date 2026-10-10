@@ -41,10 +41,10 @@ Epic 118's job format serves the growing `Specs/` editor backlog. Track P
 **Goal:** Frame-time budgets per system, measured continuously — 22 physics agents + crowd + overlays must coexist.
 **Depends on:** Core 17
 
-- [ ] Budget definition per subsystem (sim, animation, crowd, overlays, audio) vs. 60fps target
-- [ ] Automated profiling scenario: standard play under full load, per-system timings captured
-- [ ] Budget regression detection in CI (112) with trend history
-- [ ] `stat`-command custom counters for the game's own systems (telemetry bus, BT evaluations)
+- [x] Budget definition per subsystem (sim, animation, crowd, overlays, audio) vs. 60fps target *(per tier in `Data/platform_tiers.json`: a `TargetFrameRate` and a game-thread ms budget for each of Simulation, AI, Telemetry, Overlays, UI, Animation, Crowd and Audio, validated to fit the frame; the table and its rationale are `Specs/Platform_Audit.md` section 7. Proposed figures until a device measures them)*
+- [x] Automated profiling scenario: standard play under full load, per-system timings captured *(`UPSPerfHarness`: 22 AI players, the ball, snap, rush, throw, catch, pursuit, tackle and the next pre-snap, each frame stepping the game's systems at the tier's AI rate; `PSPerf` times each system exclusively into Epic 117's frame-time histograms and reports mean, p50, p95 and max against the tier's budgets. Headless in CI (`PlaySports.Perf.StandardPlayProfile`), and on a device through `PS.Perf.RunHarness` or `PS.Perf.Capture <seconds>` for real play; no device numbers yet)*
+- [x] Budget regression detection in CI (112) with trend history *(CI's Performance budgets step, `tools/perf_budget.py`: over budget warns, over `HardFailMultiplier` times it fails, a p95 regression against the median of the last runs on main warns; pushes to main append to the runner's history; the report is the `perf-report` artifact and the step summary's table. Tolerances in `Data/perf_harness.json`)*
+- [x] `stat`-command custom counters for the game's own systems (telemetry bus, BT evaluations) *(`stat PlaySports`: a cycle counter per budgeted system, and per-frame counts of bus events, AI decisions (what BT evaluations would be: the controllers' trees are unused mirrors) and field scans; `stat PSAI` and `stat PSTelemetrySampling` keep their finer counters)*
 
 ### Epic 115: Determinism & Replay Serialization Format
 

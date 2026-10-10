@@ -1,4 +1,5 @@
 #include "PSSkillPlayerAIComponent.h"
+#include "PSPerfBudget.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSBall.h"
 #include "PSBallActionComponent.h"
@@ -198,6 +199,8 @@ DECLARE_CYCLE_STAT(TEXT("Skill player AI decision"), STAT_PSAISkillDecision, STA
 void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
 {
     SCOPE_CYCLE_COUNTER(STAT_PSAISkillDecision);
+    PS_PERF_SCOPE(AI);
+    PSPerf::AddCount(EPSPerfCounter::AIDecisions);
     DesiredDirection = FVector::ZeroVector;
     APSPlayerPawn* Self = GetSelf();
     if (!Self || !bPlayLive || bSpecialTeamsCall)

@@ -1,4 +1,5 @@
 #include "PSAIFieldSnapshot.h"
+#include "PSPerfBudget.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 
@@ -47,6 +48,8 @@ void UPSAIFieldSnapshot::EnsureScanned()
     }
 
     SCOPE_CYCLE_COUNTER(STAT_PSAIFieldScan);
+    PS_PERF_SCOPE_NESTED(AI);
+    PSPerf::AddCount(EPSPerfCounter::FieldScans);
     Pawns.Reset();
     Roles.Reset();
     for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
