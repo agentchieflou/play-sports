@@ -9,8 +9,8 @@ localization gather collects them:
                          and UPSLocalization::Format(TEXT("Key"), ...).
   Data/ui_text_data.csv  "PSUIData": generated from the UI data files' strings
                          (ui_menus.json, ui_settings.json, loading_tips.json,
-                         defensive_adjustments.json). Don't edit it; run this script with
-                         --write after changing one of those files.
+                         defensive_adjustments.json, ui_hints.json). Don't edit it; run this
+                         script with --write after changing one of those files.
 
   python tools/ui_text.py           check (exit 1 with the problems)
   python tools/ui_text.py --write   regenerate Data/ui_text_data.csv
@@ -32,6 +32,7 @@ Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones
   Setting.<SettingId>.Choice<Index>
   Tip.<TipId>
   Adjustment.<AdjustmentId>.Label | Description
+  Hint.<HintId>
 """
 
 import csv
@@ -108,6 +109,11 @@ def data_rows():
             adjustment_id = adjustment.get("AdjustmentId", "")
             add(f"Adjustment.{adjustment_id}.Label", adjustment.get("Label"), "defensive_adjustments.json: play-call adjustment")
             add(f"Adjustment.{adjustment_id}.Description", adjustment.get("Description"), "defensive_adjustments.json: adjustment detail")
+
+    hints = _load("ui_hints.json") or {}
+    for hint in hints.get("Hints", []) if isinstance(hints, dict) else []:
+        if isinstance(hint, dict):
+            add(f"Hint.{hint.get('HintId', '')}", hint.get("Text"), f"ui_hints.json: first-time hint ({hint.get('Trigger', '')})")
     return rows
 
 

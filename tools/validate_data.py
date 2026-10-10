@@ -44,7 +44,7 @@ with the control's value type, every action of a covered context is reachable by
 touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
-coaches of that role. Teams, the league config, the playbook, player rating ranges and every
+coaches of that role; "Hints" files against FPSHintCatalog (Epic 105.4). Teams, the league config, the playbook, player rating ranges and every
 reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -1995,6 +1995,37 @@ def validate_skycam(path, payload):
         err(path, f"MinHeightCm ({payload['MinHeightCm']}) must be below the cables' ceiling over midfield ({ceiling:.0f})")
 
 
+HINT_TRIGGERS = {"OffenseCall", "DefenseCall", "FourthDown", "TwoMinuteDrill", "Kickoff"}
+
+
+def validate_ui_hints(path, payload):
+    """FPSHintCatalog (Data/ui_hints.json, Epic 105.4); mirrors UPSUIHintSubsystem::ValidateCatalog."""
+    hints = payload.get("Hints")
+    if not isinstance(hints, list):
+        err(path, "'Hints' must be an array")
+        return
+    seen = set()
+    for idx, hint in enumerate(hints):
+        where = f"Hints[{idx}]"
+        if not isinstance(hint, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        hint_id = hint.get("HintId")
+        if not isinstance(hint_id, str) or not hint_id or hint_id in seen:
+            err(path, f"{where}.HintId: empty or used twice")
+        seen.add(hint_id)
+        if hint.get("Trigger") not in HINT_TRIGGERS:
+            err(path, f"{where}.Trigger: '{hint.get('Trigger')}' is not an EPSHintTrigger ({sorted(HINT_TRIGGERS)})")
+        if not isinstance(hint.get("Text"), str) or not hint["Text"].strip():
+            err(path, f"{where}.Text: the hint needs text")
+        extra = set(hint) - {"HintId", "Trigger", "Text"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSHintDef exactly")
+    extra = set(payload) - {"Hints"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSHintCatalog exactly")
+
+
 def validate_ui_text():
     """Data/ui_text.csv, Data/ui_text_data.csv and the UI code's text (Epic 106); the checks
     live in tools/ui_text.py, which also regenerates ui_text_data.csv."""
@@ -2536,6 +2567,8 @@ def main():
             validate_rush_moves(path, payload)
         if isinstance(payload, dict) and "CaptionWordsPerSecond" in payload:
             validate_ui_accessibility(path, payload)
+        if isinstance(payload, dict) and "Hints" in payload:
+            validate_ui_hints(path, payload)
         if isinstance(payload, dict) and "Fronts" in payload:
             validate_run_fits(path, payload)
         if isinstance(payload, dict) and "All22Rigs" in payload:

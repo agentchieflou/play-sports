@@ -151,3 +151,4 @@
 "PlayCall.Category.Screen","Screen","Play category"
 "PlayCall.Category.ShortPass","Short pass","Play category"
 "PlayCall.Category.Spike","Spike","Play category: stop the clock"
+"Hint.Line","Tip: {Hint}","A first-time hint under the play-call screen's situation"

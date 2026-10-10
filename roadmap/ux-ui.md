@@ -81,7 +81,7 @@ never direct sim/GameMode reads.
 - [ ] Free-practice mode: any play vs. configurable defense, no clock (extends the functional gym map)
 - [ ] Tutorial sequence: movement → passing → defense → play calling, with completion tracking
 - [ ] Skill drills with scoring (route timing, pocket navigation, open-field tackling)
-- [ ] Contextual hint system for first-time situations (first 4th down, first two-minute drill)
+- [x] Contextual hint system for first-time situations (first 4th down, first two-minute drill) *(`UPSUIHintSubsystem` picks the first unseen hint in `Data/ui_hints.json` that fits when the play-call screen is first shown for a side after a snap. Triggers: a kickoff, a 4th down, the two-minute drill as `UPSSituationAI` reads it, and the first offensive or defensive call. The call screen shows it under the situation ("Tip: ...") and narration reads it. It is marked seen in the profile (`UPSProfileSaveGame::SeenHints` through `UPSSettingsSubsystem`) so it shows once per player, and `ResetHints` brings them back. The Hints setting (Gameplay) turns them off, and the text is translated through the string tables. The other 105 stories wait on Core 24's gym map)*
 
 ### Epic 106: Localization & Text Infrastructure
 

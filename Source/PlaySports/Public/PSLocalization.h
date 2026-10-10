@@ -26,10 +26,11 @@ enum class EPSUnitSystem : uint8
  *     (hand-written: "Reset to defaults", "{Label}: {Value}", unit patterns, HUD banners,
  *     input action names).
  *   - The UI data files' text. GetDataText reads the "PSUIData" table, Data/ui_text_data.csv.
- *     It is generated from ui_menus.json, ui_settings.json, loading_tips.json and
- *     defensive_adjustments.json by tools/ui_text.py, and validate_data.py fails when it is
- *     stale. The keys are MenuKey/SettingKey/TipKey/AdjustmentKey. A string missing from it,
- *     or changed since it was generated, is shown as written, untranslated.
+ *     It is generated from ui_menus.json, ui_settings.json, loading_tips.json,
+ *     defensive_adjustments.json and ui_hints.json by tools/ui_text.py, and validate_data.py
+ *     fails when it is stale. The keys are MenuKey/SettingKey/TipKey/AdjustmentKey/HintKey. A
+ *     string missing from it, or changed since it was generated, is shown as written,
+ *     untranslated.
  *   - Text that is not ours to translate: team and player names, button labels, text the
  *     engine already localized. Verbatim says so.
  *
@@ -107,6 +108,8 @@ public:
     static FString TipKey(FName TipId);
     /** Adjustment.<AdjustmentId>.Label|Description (Data/defensive_adjustments.json). */
     static FString AdjustmentKey(FName AdjustmentId, const FString& Field);
+    /** Hint.<HintId> (Data/ui_hints.json, Epic 105.4). */
+    static FString HintKey(FName HintId);
 
     /** Turns pseudo-localization on or off (the ps.Loc.Pseudo console variable). */
     UFUNCTION(BlueprintCallable, Category = "Localization")

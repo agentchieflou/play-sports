@@ -104,6 +104,18 @@ editor handoff: what exists in code, and what an editor session adds.
     on screen bypassed the tables. `PlaySports.Localization.PseudoLocalizedUI` checks every
     menu screen this way, play calling included.
 
+- **First-time hints (Epic 105.4).** `UPSUIHintSubsystem` (world) teaches a situation the first
+  time the player meets it:
+  - When the play-call screen is first shown for a side after a snap, it picks the first hint in
+    `Data/ui_hints.json` that fits and that this player hasn't seen. The candidates are a
+    kickoff, a 4th down, the two-minute drill (as the situation AI reads it) and the first
+    offensive or defensive call.
+  - The call screen shows the hint under the situation ("Tip: ..."), and narration reads it with
+    the screen.
+  - The hint is marked seen in the profile (`UPSProfileSaveGame::SeenHints`, through
+    `UPSSettingsSubsystem`), so it comes up once per player. `ResetHints` brings them all back.
+  - The Hints setting (Gameplay) turns hints off.
+
 ## 2. Not yet (other epics)
 
 - `?mode=` and `?team=` are passed but nothing reads them yet: the match still loads

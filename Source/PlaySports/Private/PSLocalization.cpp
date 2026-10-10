@@ -165,6 +165,11 @@ FString UPSLocalization::AdjustmentKey(FName AdjustmentId, const FString& Field)
     return FString::Printf(TEXT("Adjustment.%s.%s"), *AdjustmentId.ToString(), *Field);
 }
 
+FString UPSLocalization::HintKey(FName HintId)
+{
+    return FString::Printf(TEXT("Hint.%s"), *HintId.ToString());
+}
+
 void UPSLocalization::SetPseudoLocalization(bool bOn)
 {
     PSLocalizationPrivate::CVarPseudo->Set(bOn ? 1 : 0, ECVF_SetByCode);
