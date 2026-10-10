@@ -408,9 +408,10 @@ instead of hand-authoring each play. Every field is required:
   carrier's spot), `LineKind` (`PassBlock` or `RunBlock`: the line, and a tight end or back no slot
   claims) and `BacksideRoute` (what a wide receiver no slot claims runs; empty: he blocks).
   - `Slots[]`, in the quarterback's read order: `Roles` (receivers, in preference) and `Routes` (route
-    library IDs). Each slot goes to the first receiver of its roles the formation still has. A
-    concept makes a play for every combination of its slots' routes (at most 64) in every formation
-    its slots fit.
+    library IDs). Each slot goes to the first receiver of its roles the formation still has, and its
+    route gets the slot's place as its `ReadOrder` (1, 2, ...), so the play art ranks the
+    progression; a backside route is unread. A concept makes a play for every combination of its
+    slots' routes (at most 64) in every formation its slots fit.
   - `Deceptions`: the Epic 72 variants it is made with: `None`, `PlayAction` on a pass (a
     `PlayAction` play from `PlayActionDrop`), `ZoneRead` or `RPO` on a run.
 - `DefensiveFronts[]`: `Formation` (a defensive personnel package's), `Front` (in `run_fits.json`)
@@ -432,7 +433,8 @@ instead of hand-authoring each play. Every field is required:
 
 Generated plays are ordinary `FPSPlayDefinition`s with PlayIds `<SchemeId>_<ConceptId>_<Formation>_<n>`
 (or `<SchemeId>_Def_<Formation>_<Shell>_<PressureId>`), so the play loader, the AI and the playbook
-contract treat them like the hand-written book. The automation test
+contract treat them like the hand-written book, and `UPSPlaybookGenerator::ValidatePlayArt` holds them
+to Epic 35's art/AI consistency check (`PSPlayArt::ValidatePlayArt`). The automation test
 `PlaySports.Content.PlaybookGenerator.WritesValidContent` writes every scheme's book to
 `Saved/GeneratedPlaybooks/Data/playbooks/`. CI checks those books with
 `python tools/content.py check --root Saved/GeneratedPlaybooks --strict`. `validate_data.py` checks
