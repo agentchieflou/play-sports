@@ -47,7 +47,9 @@ keeps that mapping.
 | Play context | `UPSPlayContextComponent` (on the controller, Epic 104) | Which gameplay-depth context (section 3) is on, from the snap and the end of the play on the bus and the controlled pawn's possession. |
 | Passing | `Data/passing_input.json` → `UPSPassingComponent` (on the controller, Epic 104) | The human passer: receiver slots, touch and bullet, stick placement, pump fake. |
 | Carrier moves | `Data/carrier_moves.json` → `UPSCarrierMoveComponent` (on every `APSPlayerPawn`), pressed through `UPSCarrierInputComponent` (on the controller, Epic 104.2) | Juke, spin, truck, stiff-arm, hurdle, slide: attribute gates, stamina, the velocity change, the commitment window, and the tackle-odds window `ResolveTackle` reads. |
-| Input buffer | `Data/input_buffer.json` → `UPSInputBufferComponent` (on the controller, Epic 104.4) | Presses whose target is busy wait for it; a press made just before its context comes on counts there. Passing and the carrier's moves hear their buttons through it. |
+| Input buffer | `Data/input_buffer.json` → `UPSInputBufferComponent` (on the controller, Epic 104.4) | Presses whose target is busy wait for it; a press made just before its context comes on counts there. Passing, the carrier's moves, the defender's buttons and the kick meter hear their buttons through it. |
+| Defensive technique | `Data/defensive_techniques.json` → `UPSDefenderTechniqueComponent` (on every `APSPlayerPawn`), pressed through `UPSDefenseInputComponent` (on the controller, Epic 104.5) | The jump at the snap (a get-off burst, or offside) and the strip attempt `ResolveTackle` reads. |
+| Kick meter | `Data/kick_meter.json` → `UPSKickMeterComponent` (on the controller, Epic 104.5) | The human kicker's hold-release-press meter; the kick goes on the bus for `UPSPlaySimulation`. |
 
 ## 3. The context stack
 
@@ -59,14 +61,15 @@ bind the same key.
 | `World` | 0 | nothing yet (lobby and sideline walking, Epic 143) | The browser world's baseline (section 4). |
 | `OnField` | 1 | `APSPlayerController::OnPossess` of an `APSPlayerPawn`; popped on unpossess | The possessed pawn during play. |
 | `Menu` | 2 | not pushed on Enhanced Input | Names the keys menus treat as Confirm (Enter, A) and Back (Escape, B). While a screen is open the player is in UI input mode and Slate moves focus (D-pad, stick, arrows, Tab); `UPSMenuComponent` reads its Back keys from this context. |
-| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | Pre-snap inputs (empty so far: hiking stays Confirm on `OnField`). |
+| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | Pre-snap inputs: the defender's jump at the snap (Epic 104.5). Hiking stays Confirm on `OnField`. |
 | `Passing` | 3 | `UPSPlayContextComponent`: the controlled QB holds the ball behind the line | The pass buttons and the pump fake. They take A, X and LB from `OnField` while on. |
 | `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | The move set (Epic 104.2). It takes the face buttons and both bumpers from `OnField` while on. |
-| `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | Epic 104.5's defensive inputs. |
+| `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | The strip attempt (Epic 104.5). X and LB still switch player from `OnField`. |
+| `Kicking` | 3 | `UPSPlayContextComponent`: a kickoff, punt or field goal, while the controlled player is on the kicking side (the offense) | The kick meter (Epic 104.5). It takes A from `OnField` while on. |
 
-The four gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
+The five gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
 one of them (`APSPlayerController::SetDepthContext`), on top of `OnField`. An offensive player
-without the ball during the play has none.
+without the ball during the play has none, and neither does the receiving side during a kick.
 
 `APSPlayerController::ActiveInputContexts` is the stack. The controller mirrors it into the local
 player's `UEnhancedInputLocalPlayerSubsystem` when one exists. Headless test worlds have no local
@@ -100,6 +103,9 @@ as the Xbox glyph set labels them.
 | StiffArm | Boolean | BallCarrier | V | RB | the same: an arm bar (Strength 30+) |
 | Hurdle | Boolean | BallCarrier | Space | Y | the same: leap a low tackle (Agility 65+) |
 | Slide | Boolean | BallCarrier | Left Ctrl | LB | the same: give yourself up (down at the next contact, no hit, no fumble) |
+| JumpSnap | Boolean | PreSnap | Space | LT | `UPSDefenseInputComponent`: a defender's first press before the snap is when he moves; within `JumpWindowSeconds` of the snap he bursts off the line, earlier he is offside |
+| Strip | Boolean | Defense | R | RB | the same: a strip attempt; for a moment his tackles land less often but force more fumbles |
+| Kick | Boolean | Kicking | Space | A | `UPSKickMeterComponent`: hold to fill the power, release to lock it, press to stop the accuracy needle |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
 every context. Start opens the character sheet off the field and pauses on it (Epic 101). The
@@ -222,6 +228,34 @@ outcomes are published, and Hit (every landed tackle), Catch, Interception and F
     (`IsInputKeyDown`/`GetInputKeyTimeDown`), so any engine key counts, gamepad, keyboard or
     touch; `KeyStateQuery` lets tests, or touch controls that inject actions rather than keys
     (Epic 130), supply it.
+- **Defensive inputs** (as built, Epic 104.5). `UPSDefenseInputComponent` on the controller
+  hears `JumpSnap` and `Strip` through the buffer, and the snap on the bus.
+  - **Jump-snap.** The first press before the snap is when the defender moves; later presses
+    can't take it back. At the snap it is judged against `JumpWindowSeconds`. Inside the window,
+    `UPSDefenderTechniqueComponent::GetOff` adds `GetOffSpeed` toward the line of scrimmage.
+    Earlier, he is offside. Either way a `JumpSnap` event goes on the bus, and
+    `UPSPlaySimulation` flags an offside jump as Offsides (the play runs; the offense can accept
+    it, as with the simulation's own offsides).
+  - **Strip.** `TryStrip` opens a `StripWindowSeconds` attempt for a defender without the ball.
+    Tackles he makes in it succeed `StripTackleScale` as often but add `StripFumbleChance` x
+    Strength/100 to the fumble chance (`UPSBallActionComponent::ResolveTackle`, through
+    `PSBallResolutionHelpers::ComputeTackleChance` and the extracted `ComputeFumbleChance`). A
+    press during the cooldown waits in the buffer.
+- **The kick meter** (as built, Epic 104.5). `UPSKickMeterComponent` on the controller.
+  - A kick phase on the bus (`Kickoff`, `Punt`, `FieldGoal`; `APSGameMode` now names them in
+    `PhaseChange`) lines the human up if he controls a player on the kicking side. There are no
+    special-teams units yet, so that means the offense. `UPSPlayContextComponent` pushes
+    `Kicking` for him; the receiving side has no depth context.
+  - Lining up publishes a `Kick` event with `HoldSeconds` (`LineUpSeconds`). `UPSPlaySimulation`
+    then waits up to that long into the phase, instead of kicking for the CPU after two seconds.
+  - Hold `Kick`: the power bar fills over `PowerFillSeconds` and drains back if held past full.
+    Release: power locks and the needle sweeps from -1 to 1 over `AccuracySweepSeconds`. Press:
+    the needle stops; left alone, it ends at 1.
+  - The kick is a `Kick` event with power, needle and `Roll = PowerWeight x (1 - power) +
+    AccuracyWeight x |needle|` (0 perfect, 1 worst). The simulation uses the roll where its CPU
+    kicker rolls a random number: a field goal is good when the roll is under the distance's
+    success chance, a punt nets 45 yards at roll 0 down to 35 at roll 1, and a kickoff is a
+    touchback under 0.6.
 - **Feel.** Walk, jog and run blend from the stick magnitude `HandleMove` already receives,
   after the tuned dead zone and curve. Sprint stays an override (section 7).
 
@@ -294,6 +328,10 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.BufferWaitsOutCommitment` | A move pressed during another's commitment, or near the end of its cooldown, fires as soon as it can; the newest press wins; an early press is dropped; letting the player go empties the buffer (Epic 104.4). |
 | `PlaySports.Input.BufferHoldsPassForTheBall` | A pass button pressed before the ball arrives throws once it does; a stale press throws nothing; a hold is timed from the press; leaving Passing drops a waiting press (Epic 104.4). |
 | `PlaySports.Input.BufferCarriesPressIntoNewContext` | A pass key pressed the frame before Passing comes on throws on release; the hike key and a stale press are not replayed (Epic 104.4). |
+| `PlaySports.Input.DefenseAndKickTuningValidates` | The technique and kick meter tuning load and validate, their buttons are in the catalog with glyphs, and the roll and fumble formulas hold (Epic 104.5). |
+| `PlaySports.Input.JumpSnapTimedAtTheSnap` | A jump just before the snap bursts the defender off the line; an early one is offside and flagged; nothing after the snap or on offense (Epic 104.5). |
+| `PlaySports.Input.StripTradesTackleForFumble` | A strip attempt lowers tackle odds and raises fumble odds, wears off, and waits out its cooldown in the buffer (Epic 104.5). |
+| `PlaySports.Input.KickMeterDrivesTheKick` | A kick phase lines the human kicker up and the play waits; the meter's roll decides the field goal, punt and kickoff; without a human the CPU kicks on time (Epic 104.5). |
 
 What CI cannot show is how the input feels in a player's hands: real rumble strength on a pad,
 glyph icons (none are imported yet; the labels stand in), and the menu flow on a gamepad. Those

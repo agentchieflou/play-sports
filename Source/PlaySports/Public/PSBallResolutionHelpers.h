@@ -91,6 +91,20 @@ struct FTackleTuningRow : public FTableRowBase
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float CarrierSpeedWeight = 0.05f;
+
+    /** A landed tackle's fumble chance: FumbleBaseChance + tackler speed (cm/s) x
+     *  FumbleSpeedScalar, clamped to FumbleChanceMin..FumbleChanceMax. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float FumbleBaseChance = 0.02f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float FumbleSpeedScalar = 0.0001f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float FumbleChanceMin = 0.01f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float FumbleChanceMax = 0.25f;
 };
 
 /**
@@ -110,8 +124,15 @@ namespace PSBallResolutionHelpers
     bool ResolveCatch(const FPlayerAttributes& Attributes, float Roll, const FCatchTuningRow& Tuning = FCatchTuningRow());
 
     /** A tackle's chance of success. CarrierMoveMultiplier is the carrier's active move
-     *  (UPSCarrierMoveComponent::GetTackleChanceMultiplier, Epic 104.2): it scales the clamped
-     *  chance, so a good move can beat the floor; the result never exceeds the maximum. */
+     *  (UPSCarrierMoveComponent::GetTackleChanceMultiplier, Epic 104.2) times the tackler's
+     *  strip attempt (UPSDefenderTechniqueComponent::GetTackleChanceScale, Epic 104.5): it
+     *  scales the clamped chance, so a good move can beat the floor; the result never exceeds
+     *  the maximum. */
     float ComputeTackleChance(const FPlayerAttributes& Carrier, const FPlayerAttributes& Defender, float CarrierSpeed, float DefenderSpeed,
         float CarrierMoveMultiplier = 1.f, const FTackleTuningRow& Tuning = FTackleTuningRow());
+
+    /** A landed tackle's chance of a fumble. StripBonus is the tackler's strip attempt
+     *  (UPSDefenderTechniqueComponent::GetFumbleChanceBonus, Epic 104.5), added on top of the
+     *  clamped chance so a strip can go past the usual maximum; the result never exceeds 1. */
+    float ComputeFumbleChance(float DefenderSpeed, float StripBonus = 0.f, const FTackleTuningRow& Tuning = FTackleTuningRow());
 }

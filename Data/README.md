@@ -36,6 +36,8 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
+| `defensive_techniques.json` | `FDefensiveTechniqueTuningRow` (single object) | `UPSDataIngestion::LoadDefensiveTechniquesFromJson`, via `UPSDefenderTechniqueComponent` |
+| `kick_meter.json` | `FKickMeterTuningRow` (single object) | `UPSDataIngestion::LoadKickMeterTuningFromJson`, via `UPSKickMeterComponent` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
@@ -298,4 +300,33 @@ Single object (Epic 70; how a CPU pass rusher beats the man blocking him):
   of a double team; a lineman engaged on him counts from anywhere.
 
 `PSRushMoves::ValidateCatalog` and `tools/validate_data.py` check it.
+
+## Defensive technique schema (`FDefensiveTechniqueTuningRow`)
+
+Single object (Epic 104.5; the human defender's buttons, `Specs/Input_Architecture.md` section 6):
+- `JumpSnapAction`: a Boolean action in the catalog's `PreSnap` context. `StripAction`: one in
+  its `Defense` context.
+- `JumpWindowSeconds`: a jump pressed at most this long before the snap is clean; an earlier one
+  is offside.
+- `GetOffSpeed` (cm/s): what a clean jump adds toward the line of scrimmage at the snap.
+- `StripWindowSeconds`, `StripCooldownSeconds`: how long a strip attempt lasts, and from one to
+  the next.
+- `StripTackleScale` (0-1): a stripping defender's tackles succeed this many times as often.
+- `StripFumbleChance` (0-1): what his tackles add to the fumble chance at Strength 100, in
+  proportion below.
+
+`UPSDefenderTechniqueComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Kick meter schema (`FKickMeterTuningRow`)
+
+Single object (Epic 104.5; the human kicker, `Specs/Input_Architecture.md` section 6):
+- `KickAction`: a Boolean action in the catalog's `Kicking` context.
+- `LineUpSeconds` (above 0): how long into a kick phase the play waits for the human's kick.
+- `PowerFillSeconds` (above 0): held, the power bar fills from empty to full in this long, then
+  drains back.
+- `AccuracySweepSeconds` (above 0): with power locked, the needle runs from -1 to 1 in this long.
+- `PowerWeight`, `AccuracyWeight` (0 or more, not both 0): the kick's roll is
+  `PowerWeight x (1 - power) + AccuracyWeight x |needle|`, clamped to 0-1, where 0 is perfect.
+
+`UPSKickMeterComponent::ValidateTuning` and `tools/validate_data.py` check it.
 

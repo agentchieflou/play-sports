@@ -8,6 +8,8 @@
 #include "PSPassingComponent.h"
 #include "PSCarrierInputComponent.h"
 #include "PSInputBufferComponent.h"
+#include "PSDefenseInputComponent.h"
+#include "PSKickMeterComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -46,6 +48,8 @@ APSPlayerController::APSPlayerController()
     PassingComponent = CreateDefaultSubobject<UPSPassingComponent>(TEXT("PassingComp"));
     CarrierInputComponent = CreateDefaultSubobject<UPSCarrierInputComponent>(TEXT("CarrierInputComp"));
     InputBufferComponent = CreateDefaultSubobject<UPSInputBufferComponent>(TEXT("InputBufferComp"));
+    DefenseInputComponent = CreateDefaultSubobject<UPSDefenseInputComponent>(TEXT("DefenseInputComp"));
+    KickMeterComponent = CreateDefaultSubobject<UPSKickMeterComponent>(TEXT("KickMeterComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()

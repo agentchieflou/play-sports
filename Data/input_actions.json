@@ -33,7 +33,12 @@
         {
             "ContextId": "Defense",
             "Priority": 3,
-            "Description": "The human plays defense during the play. Epic 104.5's defensive inputs (strip attempts) bind here; SwitchPlayer stays in OnField."
+            "Description": "The human plays defense during the play. Epic 104.5's strip attempt binds here (RB); SwitchPlayer stays in OnField, so X and LB still switch."
+        },
+        {
+            "ContextId": "Kicking",
+            "Priority": 3,
+            "Description": "The human's side kicks: a kickoff, punt or field goal (Epic 104.5). Kick works UPSKickMeterComponent's meter: hold to fill the power, release to lock it, press again to stop the accuracy needle. Outranks OnField, so A kicks instead of confirming."
         }
     ],
     "Actions": [
@@ -275,6 +280,36 @@
             "Bindings": [
                 { "Key": "SpaceBar" },
                 { "Key": "Gamepad_FaceButton_Top" }
+            ]
+        },
+        {
+            "ActionId": "JumpSnap",
+            "ValueType": "Boolean",
+            "Description": "A defender times his get-off to the snap (Epic 104.5): pressed just before the snap, he bursts off the line at it; pressed earlier, he is offside. UPSDefenseInputComponent; the timing is Data/defensive_techniques.json.",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "SpaceBar" },
+                { "Key": "Gamepad_LeftTrigger" }
+            ]
+        },
+        {
+            "ActionId": "Strip",
+            "ValueType": "Boolean",
+            "Description": "A defender rips at the ball (Epic 104.5): for a moment his tackles are likelier to force a fumble and less likely to bring the carrier down. UPSDefenseInputComponent; the numbers are Data/defensive_techniques.json.",
+            "Contexts": ["Defense"],
+            "Bindings": [
+                { "Key": "R" },
+                { "Key": "Gamepad_RightShoulder" }
+            ]
+        },
+        {
+            "ActionId": "Kick",
+            "ValueType": "Boolean",
+            "Description": "Work the kick meter (Epic 104.5): hold to fill the power, release to lock it, press again to stop the accuracy needle. UPSKickMeterComponent; the meter is Data/kick_meter.json.",
+            "Contexts": ["Kicking"],
+            "Bindings": [
+                { "Key": "SpaceBar" },
+                { "Key": "Gamepad_FaceButton_Bottom" }
             ]
         },
         {

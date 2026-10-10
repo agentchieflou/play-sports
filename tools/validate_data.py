@@ -20,7 +20,9 @@ catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each mov
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
 DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
 "MaxQueued" files against FInputBufferTuningRow, each buffered action a Boolean catalog action;
-"RushMoves" files against FPSRushMoveCatalog.
+"RushMoves" files against FPSRushMoveCatalog; "JumpWindowSeconds" files against
+FDefensiveTechniqueTuningRow and "PowerFillSeconds" files against FKickMeterTuningRow, each
+named action a Boolean in its context.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -755,6 +757,65 @@ def validate_rush_moves(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
 
 
+DEFENSIVE_TECHNIQUE_NUMBERS = ("JumpWindowSeconds", "GetOffSpeed", "StripWindowSeconds", "StripCooldownSeconds",
+                               "StripTackleScale", "StripFumbleChance")
+
+
+def check_named_action(path, field, action_id, context, catalog):
+    """The catalog action a tuning file names must be a Boolean action in context."""
+    if not isinstance(action_id, str) or not action_id:
+        err(path, f"{field}: must name a catalog action")
+        return
+    if catalog is None:
+        return
+    actions = {a.get("ActionId"): a for a in catalog.get("Actions", []) if isinstance(a, dict)}
+    action = actions.get(action_id)
+    if action is None:
+        err(path, f"{field}: '{action_id}' is not an action in input_actions.json")
+    elif action.get("ValueType") != "Boolean" or context not in (action.get("Contexts") or []):
+        err(path, f"{field}: '{action_id}' must be a Boolean action in the {context} context")
+
+
+def validate_defensive_techniques(path, payload, catalog):
+    """FDefensiveTechniqueTuningRow (Data/defensive_techniques.json, Epic 104.5); mirrors
+    UPSDefenderTechniqueComponent::ValidateTuning plus the catalog cross-check."""
+    for field in DEFENSIVE_TECHNIQUE_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("StripTackleScale", "StripFumbleChance"):
+        if is_number(payload.get(field)) and payload[field] > 1:
+            err(path, f"{field}: at most 1")
+    extra = set(payload) - set(DEFENSIVE_TECHNIQUE_NUMBERS) - {"JumpSnapAction", "StripAction"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FDefensiveTechniqueTuningRow exactly")
+    check_named_action(path, "JumpSnapAction", payload.get("JumpSnapAction"), "PreSnap", catalog)
+    check_named_action(path, "StripAction", payload.get("StripAction"), "Defense", catalog)
+
+
+KICK_METER_SECONDS = ("LineUpSeconds", "PowerFillSeconds", "AccuracySweepSeconds")
+KICK_METER_WEIGHTS = ("PowerWeight", "AccuracyWeight")
+
+
+def validate_kick_meter(path, payload, catalog):
+    """FKickMeterTuningRow (Data/kick_meter.json, Epic 104.5); mirrors
+    UPSKickMeterComponent::ValidateTuning plus the catalog cross-check."""
+    for field in KICK_METER_SECONDS:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a positive number")
+    for field in KICK_METER_WEIGHTS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if all(is_number(payload.get(f)) for f in KICK_METER_WEIGHTS) and sum(payload[f] for f in KICK_METER_WEIGHTS) <= 0:
+        err(path, "PowerWeight and AccuracyWeight can't both be 0")
+    extra = set(payload) - set(KICK_METER_SECONDS) - set(KICK_METER_WEIGHTS) - {"KickAction"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FKickMeterTuningRow exactly")
+    check_named_action(path, "KickAction", payload.get("KickAction"), "Kicking", catalog)
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -811,6 +872,10 @@ def main():
             validate_carrier_moves(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "MaxQueued" in payload:
             validate_input_buffer(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "JumpWindowSeconds" in payload:
+            validate_defensive_techniques(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "PowerFillSeconds" in payload:
+            validate_kick_meter(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "RushMoves" in payload:
             validate_rush_moves(path, payload)
     if errors:

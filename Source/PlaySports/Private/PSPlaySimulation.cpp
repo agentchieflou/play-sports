@@ -81,6 +81,8 @@ void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
 {
     CurrentState.Phase = NewPhase;
     PhaseTimer = 0.f;
+    bHumanKickLinedUp = false;
+    HumanKickRoll = -1.f;
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play phase overridden. Transited to: %s"), *UEnum::GetValueAsString(NewPhase));
 }
 
@@ -176,10 +178,11 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         }
         break;
     case EPlayPhase::Kickoff:
-        if (PhaseTimer >= 2.0f)
+        if (IsKickReady())
         {
+            const float KickRoll = ConsumeKickRoll();
             CurrentPlayResult.ResultType = EPlayResultType::KickoffResult;
-            if (FMath::FRand() < 0.60f)
+            if (KickRoll < 0.60f)
             {
                 CurrentPlayResult.YardsGained = 25;
                 UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Kickoff resulted in Touchback."));
@@ -194,17 +197,19 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         }
         break;
     case EPlayPhase::Punt:
-        if (PhaseTimer >= 2.0f)
+        if (IsKickReady())
         {
+            // 35 to 45 yards net, evenly for the CPU's random roll; a better kick goes farther.
+            const float KickRoll = ConsumeKickRoll();
             CurrentPlayResult.ResultType = EPlayResultType::PuntResult;
-            CurrentPlayResult.YardsGained = FMath::RandRange(35, 45);
+            CurrentPlayResult.YardsGained = 35 + FMath::Min(10, FMath::FloorToInt((1.f - KickRoll) * 11.f));
             UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Punt net distance: %d yards."), CurrentPlayResult.YardsGained);
             CurrentState.Phase = EPlayPhase::Scoring;
             PhaseTimer = 0.f;
         }
         break;
     case EPlayPhase::FieldGoal:
-        if (PhaseTimer >= 2.0f)
+        if (IsKickReady())
         {
             float DistToGoal = 100.f - CurrentState.YardLine + 17.f;
             float SuccessChance = 0.95f;
@@ -212,7 +217,7 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
             else if (DistToGoal > 40.f) SuccessChance = 0.70f;
             else if (DistToGoal > 30.f) SuccessChance = 0.85f;
 
-            if (FMath::FRand() < SuccessChance)
+            if (ConsumeKickRoll() < SuccessChance)
             {
                 CurrentPlayResult.ResultType = EPlayResultType::FieldGoalGood;
                 UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Field Goal is GOOD from %.1f yards!"), DistToGoal);
@@ -631,6 +636,9 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnCatch.AddDynamic(this, &UPSPlaySimulation::OnBusCatchEvent);
     Bus->OnTackle.AddDynamic(this, &UPSPlaySimulation::OnBusTackleEvent);
     Bus->OnScore.AddDynamic(this, &UPSPlaySimulation::OnBusScoreEvent);
+    // Epic 104.5: the human kicker's meter and the human defender's jump at the snap
+    Bus->OnKick.AddDynamic(this, &UPSPlaySimulation::OnBusKickEvent);
+    Bus->OnJumpSnap.AddDynamic(this, &UPSPlaySimulation::OnBusJumpSnapEvent);
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Subscribed to TelemetryBus (C2)."));
 }
@@ -718,3 +726,49 @@ bool UPSPlaySimulation::CallTimeout(bool bHomeTeam)
     return true;
 }
 
+void UPSPlaySimulation::OnBusKickEvent(const FPSTelemetryKickEvent& Event)
+{
+    const EPlayPhase Phase = CurrentState.Phase;
+    if (Phase != EPlayPhase::Kickoff && Phase != EPlayPhase::Punt && Phase != EPlayPhase::FieldGoal)
+    {
+        return;
+    }
+    if (Event.bLiningUp)
+    {
+        bHumanKickLinedUp = true;
+        HumanKickHoldSeconds = Event.HoldSeconds;
+    }
+    else
+    {
+        HumanKickRoll = FMath::Clamp(Event.Roll, 0.f, 1.f);
+    }
+}
+
+void UPSPlaySimulation::OnBusJumpSnapEvent(const FPSTelemetryJumpSnapEvent& Event)
+{
+    if (Event.bOffside && ActivePenalty == EPSPenaltyType::None)
+    {
+        ActivePenalty = EPSPenaltyType::Offsides;
+        bPenaltyDeclined = false;
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! %s jumped offside."), *Event.DefenderName);
+    }
+}
+
+bool UPSPlaySimulation::IsKickReady() const
+{
+    if (HumanKickRoll >= 0.f)
+    {
+        return true;
+    }
+    // The CPU kicker kicks after two seconds; a lined-up human gets until his hold runs out.
+    return PhaseTimer >= (bHumanKickLinedUp ? FMath::Max(2.0f, HumanKickHoldSeconds) : 2.0f);
+}
+
+float UPSPlaySimulation::ConsumeKickRoll()
+{
+    const float KickRoll = HumanKickRoll >= 0.f ? HumanKickRoll : FMath::FRand();
+    bHumanKickLinedUp = false;
+    HumanKickHoldSeconds = 0.f;
+    HumanKickRoll = -1.f;
+    return KickRoll;
+}

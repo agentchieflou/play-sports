@@ -1,0 +1,8 @@
+{
+    "KickAction": "Kick",
+    "LineUpSeconds": 6.0,
+    "PowerFillSeconds": 1.0,
+    "AccuracySweepSeconds": 0.8,
+    "PowerWeight": 0.6,
+    "AccuracyWeight": 0.4
+}
