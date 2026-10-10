@@ -332,8 +332,19 @@ bool FPSSettingsMenuTest::RunTest(const FString& Parameters)
 
     Menu->OpenRootScreen();
     Menu->ChooseOption(TEXT("Settings"));
+    // One option per category, in order, then the screen's own options (Keys and buttons,
+    // Epic 103.4).
     const FPSMenuScreenDef Categories = Menu->GetPresentedScreen(Menu->GetTopScreenId());
-    TestEqual(TEXT("Settings lists one option per category"), Categories.Options.Num(), Settings->GetCatalog().Categories.Num());
+    const FPSMenuScreenDef* SettingsScreen = Menu->GetCatalog().FindScreen(Menu->GetTopScreenId());
+    const TArray<FPSSettingCategoryDef>& CategoryDefs = Settings->GetCatalog().Categories;
+    TestEqual(TEXT("Settings lists one option per category, then its own"), Categories.Options.Num(),
+        CategoryDefs.Num() + (SettingsScreen ? SettingsScreen->Options.Num() : 0));
+    bool bCategoriesFirst = Categories.Options.Num() >= CategoryDefs.Num();
+    for (int32 Index = 0; bCategoriesFirst && Index < CategoryDefs.Num(); ++Index)
+    {
+        bCategoriesFirst = Categories.Options[Index].OptionId == CategoryDefs[Index].CategoryId;
+    }
+    TestTrue(TEXT("...the categories first, in order"), bCategoriesFirst);
 
     Menu->ChooseOption(VibrationDef->Category);
     FPSMenuScreenDef Category = Menu->GetPresentedScreen(Menu->GetTopScreenId());
