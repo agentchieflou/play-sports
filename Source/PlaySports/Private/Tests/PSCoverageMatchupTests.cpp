@@ -793,7 +793,8 @@ bool FPSCoverageMatchupTuningTest::RunTest(const FString& Parameters)
     FPSCoverageMatchupTuning Broken = Loaded;
     Broken.FlagChance = 1.5f;
     Broken.SeparationRecoverySpeed = 0.f;
-    Broken.Shells.Add(Broken.Shells[0]);
+    const FPSCoverageShellRule Twice = Broken.Shells[0];
+    Broken.Shells.Add(Twice);
     TestEqual(TEXT("Bad tuning is caught: a chance over 1, no recovery speed, a shell twice"), UPSCoverageMatchupSubsystem::ValidateTuning(Broken).Num(), 3);
 
     DestroyTestWorld(World);
