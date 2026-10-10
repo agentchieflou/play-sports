@@ -24,7 +24,8 @@ DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDevi
 route in the route library and each action a Boolean in the PreSnap context; "SituationTempos"
 files against FPSSituationalTuning, its route IDs against the route library; "KeyframeEvents"
 files against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header
-declares it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117).
+declares it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts"
+files against FPSRunFitCatalog.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1122,6 +1123,71 @@ def validate_situational_tuning(path, payload, route_ids):
             err(path, f"{where}: no Reason (the play-call screen shows it)")
 
 
+RUN_GAPS = {"DLeft", "CLeft", "BLeft", "ALeft", "ARight", "BRight", "CRight", "DRight"}
+RUN_FIT_NUMBERS = ("GapWidth", "InlineTightEndWidth", "FitDepth", "SecondLevelDepth", "LeverageOffset", "FlowWeight",
+                   "AttackRadius", "FillRadius")
+
+
+def validate_run_fits(path, payload):
+    """FPSRunFitCatalog (Data/run_fits.json, Epic 81); mirrors PSDefenderGaps::ValidateCatalog."""
+    for field in RUN_FIT_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if is_number(payload.get("GapWidth")) and payload["GapWidth"] <= 0:
+        err(path, "GapWidth must be positive")
+    if is_number(payload.get("FlowWeight")) and payload["FlowWeight"] > 1:
+        err(path, "FlowWeight must be between 0 (hold the gap) and 1 (follow the carrier)")
+    extra = set(payload) - set(RUN_FIT_NUMBERS) - {"Fronts", "DefaultFront"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSRunFitCatalog exactly")
+    fronts = payload.get("Fronts")
+    if not isinstance(fronts, list) or not fronts:
+        err(path, "'Fronts' must be a non-empty array")
+        return
+    names = set()
+    for idx, front in enumerate(fronts):
+        where = f"Fronts[{idx}]"
+        if not isinstance(front, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        name = front.get("Front")
+        if not isinstance(name, str) or not name or name in names:
+            err(path, f"{where}.Front: empty or listed twice")
+        names.add(name)
+        fits = front.get("Fits")
+        if not isinstance(fits, list):
+            err(path, f"{where}.Fits: must be an array")
+            continue
+        roles, gaps = set(), set()
+        for fit_idx, fit in enumerate(fits):
+            fit_where = f"{where}.Fits[{fit_idx}]"
+            if not isinstance(fit, dict):
+                err(path, f"{fit_where}: must be an object")
+                continue
+            role = fit.get("Role")
+            if role not in PLAYER_ROLES:
+                err(path, f"{fit_where}.Role: '{role}' is not an EPlayerRole")
+            elif role in roles:
+                err(path, f"{fit_where}.Role: '{role}' is listed twice in this front")
+            roles.add(role)
+            fit_gaps = fit.get("Gaps")
+            if not isinstance(fit_gaps, list):
+                err(path, f"{fit_where}.Gaps: must be an array")
+                continue
+            for gap in fit_gaps:
+                if gap not in RUN_GAPS:
+                    err(path, f"{fit_where}.Gaps: '{gap}' is not an EPSRunGap ({sorted(RUN_GAPS)})")
+                elif gap in gaps:
+                    err(path, f"{fit_where}.Gaps: '{gap}' is given twice in this front")
+                gaps.add(gap)
+            extra = set(fit) - {"Role", "Gaps"}
+            if extra:
+                err(path, f"{fit_where}: unknown field(s) {sorted(extra)}")
+    if payload.get("DefaultFront") not in names:
+        err(path, f"DefaultFront: '{payload.get('DefaultFront')}' must name a listed front")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1188,6 +1254,8 @@ def main():
             validate_input_buffer(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "RushMoves" in payload:
             validate_rush_moves(path, payload)
+        if isinstance(payload, dict) and "Fronts" in payload:
+            validate_run_fits(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:
