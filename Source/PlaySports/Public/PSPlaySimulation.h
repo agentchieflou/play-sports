@@ -114,7 +114,8 @@ enum class EPlayResultType : uint8
     KickoffResult,
     PuntResult,
     /** The defense caught the pass (the Catch event's flag): a turnover. The defense takes the
-     *  ball where the return ended, unless a defensive flag the offense accepts wipes it out. */
+     *  ball where the return ended, or scores a touchdown when it ended at the offense's goal
+     *  line, unless a defensive flag the offense accepts wipes it out. */
     Interception
 };
 
@@ -330,7 +331,8 @@ private:
     int32 PlaysAnnounced = 0;
 
     /** Where an interception's return ended, in the offense's yard lines (0 its goal line, 100
-     *  the defense's): the catch's spot, then the interceptor's tackle's. */
+     *  the defense's): the catch's spot, then the interceptor's tackle's. A return to 0 is a
+     *  touchdown for the defense. */
     int32 InterceptionSpot = 0;
 
     /** Starts the play log at the snap, from the situation. */
@@ -367,4 +369,8 @@ private:
 
     /** Ends a spike or a kneel at the snap: nothing physical decides it. */
     void ResolveClockPlay();
+
+    /** A touchdown for the team with the ball: the rules' points and its try (UPSRulesConfig),
+     *  then it kicks off. The offense's own touchdown, and a defense's interception return. */
+    void ScoreTouchdown();
 };
