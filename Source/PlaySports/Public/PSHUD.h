@@ -12,7 +12,8 @@
  * replaces Epic 5's debug scoreboard, and UPSOverlayChyronWidget, both drawing
  * UPSOverlayBroadcastSubsystem. A designer can assign Widget Blueprints instead. The chyron
  * widget is left out on a tier whose OverlayDetail is Minimal. UPSOverlayBadgeWidget draws the
- * position badges over the players (Epic 28).
+ * position badges over the players (Epic 28), and UPSTelestratorWidget is the telestrator's
+ * drawing layer (Epic 44), on every tier: analysis is the player's own choice.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSHUD : public AHUD
@@ -50,6 +51,13 @@ public:
 
     UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
     UUserWidget* BadgeWidget;
+
+    /** The telestrator's drawing layer (Epic 44): idle until analysis mode is on. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
+    TSubclassOf<UUserWidget> TelestratorWidgetClass;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
+    UUserWidget* TelestratorWidget;
 
 protected:
     virtual void BeginPlay() override;

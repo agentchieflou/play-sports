@@ -63,7 +63,7 @@ ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBu
 "UnownedColor" files against FPSGapOverlayStyle (Epic 81); "TradeRequestWeeks" files against
 FPSMoraleTuning (Epic 91): 0-1 thresholds, each chemistry unit's role, games and bonus; "ReelSize"
 files against FPSHighlightTuning (Epic 42); "PlayerPickRadius" files against FPSTelestratorTuning
-(Epic 44); "LeverageShade" files against FPSCoverageMatchupTuning (Epic 69): its shell rules (each
+(Epic 44), its drawing layer's colors and sizes too; "LeverageShade" files against FPSCoverageMatchupTuning (Epic 69): its shell rules (each
 coverage shell the playbook calls has one) and a press spot inside the route-running PressRadius;
 "ScoopClearRadius" files against FPSLooseBallTuning (Epic 17.4); "DifficultyTiers" files against
 FPSDifficultyCatalog, each scale a numeric field of its AI tuning file, the tiers the Difficulty
@@ -1533,7 +1533,11 @@ def validate_commentary_hooks(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCommentaryHookTuning exactly")
 
 
-TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks")
+TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks",
+                      "MarkColor", "AutoMarkColor", "MarkWidth", "MinStrokeWidth", "ArrowheadLength",
+                      "ArrowheadAngleDegrees", "PlayerRingRadius", "CircleSegments", "CursorSpeed",
+                      "CursorDeadZone", "CursorRadius")
+TELESTRATOR_LAYER_POSITIVE = ("MarkWidth", "MinStrokeWidth", "ArrowheadLength", "PlayerRingRadius", "CursorSpeed", "CursorRadius")
 
 
 def validate_telestrator(path, payload):
@@ -1550,6 +1554,24 @@ def validate_telestrator(path, payload):
         value = payload.get(field)
         if not isinstance(value, int) or isinstance(value, bool) or value < low:
             err(path, f"{field}: '{value}' must be a whole number, {low} or more")
+    # The drawing layer (UPSTelestratorWidget).
+    for field in ("MarkColor", "AutoMarkColor"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not HEX_COLOR.match(value):
+            err(path, f"{field}: '{value}' must be #RRGGBB")
+    for field in TELESTRATOR_LAYER_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    angle = payload.get("ArrowheadAngleDegrees")
+    if not is_number(angle) or not 0 < angle < 90:
+        err(path, f"ArrowheadAngleDegrees: '{angle}' must be above 0 and below 90")
+    segments = payload.get("CircleSegments")
+    if not isinstance(segments, int) or isinstance(segments, bool) or segments < 8:
+        err(path, f"CircleSegments: '{segments}' must be a whole number, 8 or more")
+    dead_zone = payload.get("CursorDeadZone")
+    if not is_number(dead_zone) or not 0 <= dead_zone < 1:
+        err(path, f"CursorDeadZone: '{dead_zone}' must be a number from 0 to below 1")
     extra = set(payload) - set(TELESTRATOR_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelestratorTuning exactly")

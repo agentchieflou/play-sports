@@ -4,8 +4,11 @@
 #include "PSCameraFraming.h"
 #include "PSDataIngestion.h"
 #include "PSOverlayEmphasisSubsystem.h"
+#include "PSPlayerController.h"
 #include "PSPlayerPawn.h"
 #include "PSReplaySubsystem.h"
+#include "PSTelestratorLayer.h"
+#include "PSUITeamCatalog.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -19,6 +22,15 @@
 UPSTelestratorSubsystem::UPSTelestratorSubsystem()
 {
     EmphasisSource = TEXT("Telestrator");
+    AnalysisActionId = TEXT("Telestrator");
+    LayerContextId = TEXT("Telestrator");
+    DrawActionId = TEXT("TelestratorDraw");
+    CursorActionId = TEXT("TelestratorCursor");
+    ToolActionId = TEXT("TelestratorTool");
+    UndoActionId = TEXT("TelestratorUndo");
+    ClearActionId = TEXT("TelestratorClear");
+    SaveActionId = TEXT("TelestratorSave");
+    ExitActionId = TEXT("TelestratorExit");
 }
 
 bool UPSTelestratorSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
@@ -29,7 +41,95 @@ bool UPSTelestratorSubsystem::DoesSupportWorldType(const EWorldType::Type WorldT
 void UPSTelestratorSubsystem::Deinitialize()
 {
     EndAnalysis();
+    for (const TWeakObjectPtr<APSPlayerController>& Bound : BoundControllers)
+    {
+        if (APSPlayerController* Controller = Bound.Get())
+        {
+            Controller->OnCatalogActionStarted.RemoveDynamic(this, &UPSTelestratorSubsystem::HandleActionStarted);
+        }
+    }
+    BoundControllers.Reset();
     Super::Deinitialize();
+}
+
+// --- The way in, and the drawing layer's buttons -----------------------------------------
+
+void UPSTelestratorSubsystem::BindController(APSPlayerController* Controller)
+{
+    if (!Controller)
+    {
+        return;
+    }
+    Controller->OnCatalogActionStarted.AddUniqueDynamic(this, &UPSTelestratorSubsystem::HandleActionStarted);
+    BoundControllers.AddUnique(Controller);
+}
+
+void UPSTelestratorSubsystem::UnbindController(APSPlayerController* Controller)
+{
+    if (!Controller)
+    {
+        return;
+    }
+    Controller->OnCatalogActionStarted.RemoveDynamic(this, &UPSTelestratorSubsystem::HandleActionStarted);
+    BoundControllers.Remove(Controller);
+}
+
+void UPSTelestratorSubsystem::HandleActionStarted(FName ActionId)
+{
+    if (ActionId == AnalysisActionId)
+    {
+        ToggleAnalysis();
+    }
+}
+
+bool UPSTelestratorSubsystem::ToggleAnalysis()
+{
+    if (bAnalysisActive)
+    {
+        EndAnalysis();
+        return false;
+    }
+    return BeginAnalysis();
+}
+
+EPSTelestratorTool UPSTelestratorSubsystem::CycleTool()
+{
+    Tool = PSTelestratorLayer::NextTool(Tool);
+    return Tool;
+}
+
+bool UPSTelestratorSubsystem::RunLayerAction(FName ActionId)
+{
+    if (!bAnalysisActive || ActionId.IsNone())
+    {
+        return false;
+    }
+    if (ActionId == ToolActionId)
+    {
+        CycleTool();
+    }
+    else if (ActionId == UndoActionId)
+    {
+        Undo();
+    }
+    else if (ActionId == ClearActionId)
+    {
+        ClearMarks();
+    }
+    else if (ActionId == SaveActionId)
+    {
+        FString Written;
+        ExportStill(FString(), Written);
+    }
+    else if (ActionId == ExitActionId || ActionId == AnalysisActionId)
+    {
+        EndAnalysis();
+    }
+    else
+    {
+        return false;
+    }
+    return true;
 }
 
 // --- Tuning ------------------------------------------------------------------------------
@@ -97,6 +197,30 @@ TArray<FString> UPSTelestratorSubsystem::ValidateTuning(const FPSTelestratorTuni
     if (InTuning.MaxMarks < 1)
     {
         Problems.Add(TEXT("MaxMarks must be 1 or more"));
+    }
+
+    // The drawing layer.
+    FLinearColor Parsed;
+    if (!UPSUITeamCatalog::ParseHexColor(InTuning.MarkColor, Parsed) || !UPSUITeamCatalog::ParseHexColor(InTuning.AutoMarkColor, Parsed))
+    {
+        Problems.Add(TEXT("MarkColor and AutoMarkColor must be #RRGGBB"));
+    }
+    if (!(InTuning.MarkWidth > 0.f) || !(InTuning.MinStrokeWidth > 0.f) || !(InTuning.ArrowheadLength > 0.f) || !(InTuning.PlayerRingRadius > 0.f)
+        || !(InTuning.CursorSpeed > 0.f) || !(InTuning.CursorRadius > 0.f))
+    {
+        Problems.Add(TEXT("MarkWidth, MinStrokeWidth, ArrowheadLength, PlayerRingRadius, CursorSpeed and CursorRadius must be above 0"));
+    }
+    if (!(InTuning.ArrowheadAngleDegrees > 0.f) || InTuning.ArrowheadAngleDegrees >= 90.f)
+    {
+        Problems.Add(TEXT("ArrowheadAngleDegrees must be above 0 and below 90"));
+    }
+    if (InTuning.CircleSegments < 8)
+    {
+        Problems.Add(TEXT("CircleSegments must be 8 or more"));
+    }
+    if (InTuning.CursorDeadZone < 0.f || InTuning.CursorDeadZone >= 1.f)
+    {
+        Problems.Add(TEXT("CursorDeadZone must be from 0 to below 1"));
     }
     return Problems;
 }

@@ -7,6 +7,7 @@
 #include "PSTelestratorSubsystem.generated.h"
 
 class APSBroadcastCamera;
+class APSPlayerController;
 class APSPlayerPawn;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSAnnotationRequestSignature, const FPSAnnotationRequest&, Request);
@@ -33,8 +34,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSAnnotationReceivedSignature, int3
  *    for an agent that polls GetPendingAnnotationRequests through AgenticLink's call_function.
  *    The answer comes back through SubmitAutoAnnotation: notes, and marks in field terms. With no
  *    bridge online and nobody listening, there is nothing to ask and the request is refused.
+ *  - The way in: the Telestrator catalog action of whoever looks through the broadcast camera
+ *    (bound as it becomes their view, like photo mode) toggles analysis.
  *
- * Drawing the marks on screen is a widget's (not built); this keeps them and the math.
+ * UPSTelestratorWidget (the drawing layer, made by APSHUD) paints the marks
+ * (PSTelestratorLayer), turns the mouse, a finger or its gamepad cursor into strokes, and runs
+ * the Telestrator context's buttons through RunLayerAction; this keeps the marks and the math.
  */
 UCLASS()
 class PLAYSPORTS_API UPSTelestratorSubsystem : public UWorldSubsystem
@@ -111,6 +116,72 @@ public:
 
     /** The player standing nearest Screen in Frame, within Radius; None when nobody is. */
     static FName PickPlayer(const FPSFilmFrame& Frame, const FVector2D& Screen, float Radius);
+
+    /** The tool after the current one (freehand, arrow, circle, player, and round again), now
+     *  the current one. */
+    UFUNCTION(BlueprintCallable, Category = "Telestrator")
+    EPSTelestratorTool CycleTool();
+
+    /** The stroke being drawn (normalized screen points), for the layer to show as it goes;
+     *  empty between strokes. */
+    UFUNCTION(BlueprintPure, Category = "Telestrator")
+    TArray<FVector2D> GetLiveStroke() const { return bStroking ? StrokePoints : TArray<FVector2D>(); }
+
+    /** The frame and its marks without a copy, for the layer to paint every frame. */
+    const FPSTelestration& GetTelestrationRef() const { return Telestration; }
+
+    // --- The way in, and the drawing layer's buttons ----------------------------------------
+
+    /** Analysis on (BeginAnalysis), or off when it is on. True when it is on after. */
+    UFUNCTION(BlueprintCallable, Category = "Telestrator")
+    bool ToggleAnalysis();
+
+    /** One of the drawing layer's actions (the Telestrator context), while analysis is on: the
+     *  next tool, undo, clear, save the still, or leave (TelestratorExit, or Telestrator again).
+     *  False for any other action, or outside analysis. Drawing and the cursor are the layer's. */
+    UFUNCTION(BlueprintCallable, Category = "Telestrator")
+    bool RunLayerAction(FName ActionId);
+
+    /** Listens to Controller's catalog actions, so its Telestrator button toggles analysis.
+     *  APSBroadcastCamera binds whoever looks through it. Idempotent. */
+    void BindController(APSPlayerController* Controller);
+
+    void UnbindController(APSPlayerController* Controller);
+
+    /** Catalog action handler (APSPlayerController::OnCatalogActionStarted). */
+    UFUNCTION()
+    void HandleActionStarted(FName ActionId);
+
+    /** The catalog action that toggles analysis, in the field's and the replay's contexts and the
+     *  layer's own. */
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName AnalysisActionId;
+
+    /** The input catalog context the drawing layer reads its keys from (never pushed on
+     *  Enhanced Input; the layer takes them through Slate), and its actions. */
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName LayerContextId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName DrawActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName CursorActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName ToolActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName UndoActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName ClearActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName SaveActionId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Telestrator")
+    FName ExitActionId;
 
     // --- Stills --------------------------------------------------------------------------
 
@@ -201,4 +272,7 @@ private:
 
     UPROPERTY(Transient)
     TArray<FPSAnnotationRequest> PendingRequests;
+
+    /** The controllers whose Telestrator button this listens to. */
+    TArray<TWeakObjectPtr<APSPlayerController>> BoundControllers;
 };

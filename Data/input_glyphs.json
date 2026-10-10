@@ -121,6 +121,7 @@
                 { "ActionId": "PhotoHideUI", "GlyphId": "Touch_PhotoHideUI", "Label": "Hide UI" },
                 { "ActionId": "PhotoCapture", "GlyphId": "Touch_PhotoCapture", "Label": "Capture" },
                 { "ActionId": "PhotoExit", "GlyphId": "Touch_PhotoExit", "Label": "Exit" },
+                { "ActionId": "Telestrator", "GlyphId": "Touch_Telestrator", "Label": "Draw" },
                 { "ActionId": "PickPlayerLeft", "GlyphId": "Touch_PickPlayerLeft", "Label": "Pick Left" },
                 { "ActionId": "PickPlayerRight", "GlyphId": "Touch_PickPlayerRight", "Label": "Pick Right" },
                 { "ActionId": "Strip", "GlyphId": "Touch_Strip", "Label": "Strip" },

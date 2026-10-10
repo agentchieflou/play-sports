@@ -72,6 +72,7 @@ bind the same key.
 | `Kicking` | 3 | `UPSPlayContextComponent`: a kickoff, punt or field goal, while the controlled player is on the kicking side (the offense) | The kick meter (Epic 104.5). It takes A from `OnField` while on. |
 | `Replay` | 4 | `UPSReplaySubsystem` (`APSPlayerController::SetModeContextActive`), on every player controller while a replay plays (Epic 41) | The replay's transport and camera. It takes A, B, X, Y, the bumpers and the D-pad's left and right from whatever the field has while on; Start still pauses, and the Move stick (from `OnField`) steers the free camera. |
 | `PhotoMode` | 5 | `UPSPhotoModeSubsystem` (`SetModeContextActive`), on every player controller while photo mode is on (Epic 45); it takes `Replay` off meanwhile and puts it back after | The free camera, its zoom, roll and focus, filters, guides, the UI toggle, capture and exit. It binds every pad button but Start, which still opens the pause menu over it. |
+| `Telestrator` | 6 | not pushed on Enhanced Input: like `Menu`, it names keys that `UPSTelestratorWidget` reads through Slate while analysis mode is on (Epic 44) | The drawing layer's buttons: draw at the cursor, the cursor itself, next tool, undo, clear, save the still, leave. While the layer is up the player is in UI input mode, so nothing reaches the camera, the replay or the pawn under the drawing; the mouse and a finger draw directly. Not remappable (`"bRemappable": false`), as Menu isn't. Touch uses the layer's own toolbar, so it is in `ContextsWithoutTouch`, and the touch layer stands down while analysis is on. |
 
 The six gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
 one of them (`APSPlayerController::SetDepthContext`), on top of `OnField`. A mode context such as `Replay`
@@ -159,6 +160,14 @@ as the Xbox glyph set labels them.
 | PhotoHideUI | Boolean | PhotoMode | H | Y | the same: hide or show the HUD, overlays and photo mode's controls |
 | PhotoCapture | Boolean | PhotoMode | Space | A | the same: a high-resolution screenshot |
 | PhotoExit | Boolean | PhotoMode | Esc | B | the same: back to the game or replay as it was |
+| Telestrator | Boolean | OnField, Replay, Telestrator | Y | D-pad Up, RS flick up | `UPSTelestratorSubsystem` via `OnCatalogActionStarted` of each controller looking through the broadcast camera: enters analysis mode over a replay (held) or the film view, and leaves it from the layer (Epic 44). Before the snap D-pad Up is the audible (PreSnap outranks OnField), so the flick up (and a swipe up on touch) is the way in there; touch has it on D-pad Up in a replay |
+| TelestratorDraw | Boolean | Telestrator | Space | A | `UPSTelestratorWidget`: draw with the current tool at the cursor while held |
+| TelestratorCursor | Axis2D | Telestrator | W A S D, arrows | LS | the same: moves the drawing cursor (X right, Y up the screen), past `CursorDeadZone` |
+| TelestratorTool | Boolean | Telestrator | Tab | X | the same, through `RunLayerAction`: freehand, arrow, circle, player |
+| TelestratorUndo | Boolean | Telestrator | Backspace | Y | the same: take the last mark back |
+| TelestratorClear | Boolean | Telestrator | Delete | LB | the same: take every mark back |
+| TelestratorSave | Boolean | Telestrator | Enter | RB | the same: save the annotated still |
+| TelestratorExit | Boolean | Telestrator | Esc | B | the same: leave analysis; a held replay plays on |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
 every off-field context. On the field Y is taken: the tempo before the snap (the shell disguise on defense), slot 2 while
