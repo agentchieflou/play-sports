@@ -14,6 +14,7 @@ class APSBroadcastCamera;
 class APSPlayerPawn;
 class UPSRoster;
 class UPSPersonnelManager;
+class UPSFieldSides;
 class UPSPlayerLeveling;
 class UPSMatchSetup;
 class UPSStaffManager;
@@ -84,12 +85,18 @@ public:
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
     TArray<APSPlayerPawn*> CachedPawns;
 
-    /** The match's players: the home team's offense and the away team's defense, each from its
-     *  own team's roster at its staff's scheme fit (MatchSetup), or RosterJsonPath's players when
-     *  the match has no teams; with its depth chart and the combat/leveling live-state (Epic
-     *  139/141): who's downed, sitting out, or leveled up. The on-field pawns point at its rows. */
+    /** The match's players: both teams', each from its own team's roster at its staff's scheme
+     *  fit (MatchSetup), or RosterJsonPath's players when the match has no teams; with its depth
+     *  chart (FieldSides arranges it for the team with the ball) and the combat/leveling
+     *  live-state (Epic 139/141): who's downed, sitting out, or leveled up. The on-field pawns
+     *  point at its rows. */
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay|Combat")
     UPSRoster* ActiveRoster;
+
+    /** Puts the team with the ball on offense: follows the simulation's possession and arranges
+     *  ActiveRoster's depth chart, so the personnel manager fields each side from its team. */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
+    UPSFieldSides* FieldSides;
 
     /** Picks who is on the field from ActiveRoster (Epic 19.5): the default personnel
      *  packages at kickoff, each play call's package, and the next man up for a sit-out
