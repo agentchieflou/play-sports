@@ -286,7 +286,12 @@ bool FAgenticLinkEngineToolsTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("K2_GetActorLocation can be called"), IsToolError(Location));
     FString ReturnValue;
     const TSharedPtr<FJsonObject> Outputs = GetObject(GetObject(Location, TEXT("structuredContent")), TEXT("outputs"));
-    TestTrue(TEXT("...and returns the location"), Outputs.IsValid() && Outputs->TryGetStringField(TEXT("ReturnValue"), ReturnValue) && ReturnValue.Contains(TEXT("X=100")));
+    const bool bHasReturnValue = Outputs.IsValid() && Outputs->TryGetStringField(TEXT("ReturnValue"), ReturnValue);
+    AddInfo(FString::Printf(TEXT("K2_GetActorLocation answered %s; the actor stands at %s"), *ResultText(Location), *First->GetActorLocation().ToString()));
+    FVector Returned = FVector::ZeroVector;
+    TestTrue(TEXT("...and returns its location as text"), bHasReturnValue && Returned.InitFromString(ReturnValue));
+    TestTrue(TEXT("...which is where the actor stands"), Returned.Equals(First->GetActorLocation(), 0.1f));
+    TestTrue(TEXT("...where it was spawned"), First->GetActorLocation().Equals(FVector(100.f, 0.f, 0.f), 0.1f));
     const TSharedPtr<FJsonObject> Hidden = CallTool(Server, TEXT("call_function"), FString::Printf(TEXT(R"({"actor":"%s","function":"SetActorHiddenInGame","arguments":{"bNewHidden":true}})"), *FirstName));
     TestFalse(TEXT("SetActorHiddenInGame can be called with a JSON boolean"), IsToolError(Hidden));
     TestTrue(TEXT("...and hides the actor"), First->IsHidden());
