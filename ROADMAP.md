@@ -455,7 +455,7 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 
 - [ ] Autonomix: T3D import helpers — spawn/mutate level actors from agent-generated T3D text, wrapped in undoable transactions
 - [ ] Autonomix: Python escape hatch — run agent-supplied scripts via `PythonScriptPlugin` with result capture
-- [ ] AgenticLink: MCP server exposing engine reflection (list actors, get/set properties, invoke `UFUNCTION`s) with transaction safety
-- [ ] Register the real server in `.mcp.json` + `.vscode/mcp.json`, and document the Antigravity global-config entry in `AGENTS.md`
+- [x] AgenticLink: MCP server exposing engine reflection (list actors, get/set properties, invoke `UFUNCTION`s) with transaction safety — *`FAgenticLinkMcpServer` (JSON-RPC 2.0, MCP 2024-11-05 to 2025-06-18) on Streamable HTTP (`FAgenticLinkHttpTransport`, `http://127.0.0.1:8790/mcp`, opt-in with `-AgenticLinkMcp`/`-AgenticLinkMcpPort=`, localhost-only Origin). Tools: `list_actors`, `get_property`, `set_property` (instance-editable only), `call_function` (BlueprintCallable only), `spawn_actor`; each edit is one `FScopedTransaction` (Undo works) on the game thread. Tests: `PlaySports.AgenticLink.*`. Not verified against a live MCP client: no editor here.*
+- [ ] Register the real server in `.mcp.json` + `.vscode/mcp.json`, and document the Antigravity global-config entry in `AGENTS.md` — *documented in `AGENTS.md` (all three entries); the two repo config files are left for the owner to register*
 - [ ] Model router honoring the `.env` contract (`OLLAMA_HOST`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`) so bridge tasks can be delegated to free-tier models
 - [ ] Agent smoke test: an external agent connects over MCP, spawns an actor in the gym map, runs an Epic 24 test, reports results
