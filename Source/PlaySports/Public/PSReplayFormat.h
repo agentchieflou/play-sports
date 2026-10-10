@@ -23,8 +23,11 @@ struct FPSReplayHeader
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
     FDateTime RecordedAtUtc;
 
-    // Master seed for deterministic re-simulation (Mode 2 in Specs/Determinism_Audit.md).
-    // 0 = recording predates RNG discipline and supports event playback only.
+    // Master seed for deterministic re-simulation (Mode 2 in Specs/Determinism_Audit.md): from
+    // version 2 (Epic 108), the seed of the simulation's own stream (UPSPlaySimulation::
+    // SeedRolls), which every platform draws alike. 0 = no seed: event playback only. Version 1
+    // seeds seeded the engine's global stream, the C runtime's rand(), which differs between
+    // platforms and isn't drawn any more; they migrate to 0.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
     int32 RandomSeed = 0;
 
@@ -100,7 +103,8 @@ class PLAYSPORTS_API UPSReplayFormat : public UBlueprintFunctionLibrary
     GENERATED_BODY()
 
 public:
-    static const int32 CurrentFormatVersion = 1;
+    /** 2 (Epic 108): RandomSeed seeds the simulation's own stream, not the global one. */
+    static const int32 CurrentFormatVersion = 2;
 
     UFUNCTION(BlueprintCallable, Category = "Replay")
     static FPSReplayRecording MakeRecording(const FPlayState& InitialPlayState, const TArray<FPlayerAttributes>& OffenseRoster, const TArray<FPlayerAttributes>& DefenseRoster);

@@ -5,6 +5,7 @@
 #include "PSGameStateEvents.h"
 #include "PSDataIngestion.h"
 #include "PSPlaySimulation.h"
+#include "PSNetRandomStreams.h"
 #include "Misc/Paths.h"
 #include "PSHUD.h"
 #include "PSPlayerController.h"
@@ -238,6 +239,13 @@ void APSGameMode::StartPlay()
                 if (UPSGameIntelligenceSubsystem* Intelligence = GetWorld()->GetSubsystem<UPSGameIntelligenceSubsystem>())
                 {
                     Intelligence->SetStateSources(PersonnelManager, MatchStats);
+                }
+
+                // The flags and kicks roll on the match's seed (Epic 108): set before kickoff (an
+                // online session, a replay), it plays them the same.
+                if (UPSNetRandomStreams* Streams = UPSNetRandomStreams::Get(this))
+                {
+                    PlaySimulation->SeedRolls(Streams->MakeMatchSeed(TEXT("PlaySimulation")));
                 }
 
                 // Give the simulation its world ref so it can subscribe to bus events (C2)

@@ -3,6 +3,7 @@
 #include "PSGameStateEvents.h"
 #include "PSRulesConfig.h"
 #include "PSSpecialTeamsModel.h"
+#include "PSNetRandomStreams.h"
 #include "PSGameMode.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
@@ -83,7 +84,7 @@ void UPSPlaySimulation::TriggerSnap()
         }
         PendingSnapPlayClock = -1.f;
 
-        if (FMath::FRand() < 0.05f)
+        if (NextRoll() < 0.05f)
         {
             ActivePenalty = EPSPenaltyType::Offsides;
             bPenaltyDeclined = false;
@@ -197,7 +198,7 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     else if (IsBallLive())
     {
         // Holding is called while the ball is live, never after the whistle or on a kick.
-        if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
+        if (ActivePenalty == EPSPenaltyType::None && NextRoll() < 0.03f * DeltaSeconds)
         {
             ActivePenalty = EPSPenaltyType::Holding;
             bPenaltyDeclined = false;
@@ -317,7 +318,7 @@ void UPSPlaySimulation::ResolvePlayResult()
     float CompletionChance = 0.60f + (Passer.Awareness + Receiver.Agility - Defender.Awareness - Defender.Agility) * 0.005f;
     CompletionChance = FMath::Clamp(CompletionChance, 0.10f, 0.95f);
 
-    float RandomRoll = FMath::FRand();
+    float RandomRoll = NextRoll();
     PlayLog.bPass = true;
     PlayLog.PasserId = Passer.PlayerId;
     PlayLog.ReceiverId = Receiver.PlayerId;
@@ -330,7 +331,7 @@ void UPSPlaySimulation::ResolvePlayResult()
     {
         // Resolved as complete, calculate yards gained
         float BaseYards = 6.0f + (Receiver.Speed - Defender.Speed) * 0.25f;
-        BaseYards += FMath::FRandRange(-4.0f, 16.0f);
+        BaseYards += NextRollInRange(-4.0f, 16.0f);
         int32 Yards = FMath::Clamp(FMath::RoundToInt(BaseYards), -5, 99);
 
         CurrentPlayResult.YardsGained = Yards;
@@ -340,7 +341,7 @@ void UPSPlaySimulation::ResolvePlayResult()
         float TouchdownChance = 0.05f + (Receiver.Speed - Defender.Speed) * 0.01f + (Yards * 0.005f);
         TouchdownChance = FMath::Clamp(TouchdownChance, 0.0f, 0.85f);
 
-        if (FMath::FRand() < TouchdownChance || Yards >= 50)
+        if (NextRoll() < TouchdownChance || Yards >= 50)
         {
             CurrentPlayResult.ResultType = EPlayResultType::Touchdown;
         }
@@ -668,7 +669,7 @@ void UPSPlaySimulation::ScoreTouchdown()
 {
     const UPSRulesConfig* Rules = RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>();
     int32 Points = Rules->TouchdownPoints;
-    if (FMath::FRand() < Rules->PATSuccessChance)
+    if (NextRoll() < Rules->PATSuccessChance)
     {
         ++Points;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: PAT kick is GOOD!"));
@@ -1014,6 +1015,24 @@ UPSSpecialTeamsModel* UPSPlaySimulation::GetSpecialTeams()
     return SpecialTeams;
 }
 
+void UPSPlaySimulation::SeedRolls(int32 Seed)
+{
+    Rolls.Initialize(Seed);
+    bRollsSeeded = true;
+    // The kicks get a stream of their own, so the number of flags rolled never moves a kick.
+    GetSpecialTeams()->Seed(UPSNetRandomStreams::MixSeed(Seed, UPSNetRandomStreams::HashText(TEXT("SpecialTeams"))));
+}
+
+float UPSPlaySimulation::NextRoll()
+{
+    return bRollsSeeded ? Rolls.FRand() : FMath::FRand();
+}
+
+float UPSPlaySimulation::NextRollInRange(float Min, float Max)
+{
+    return bRollsSeeded ? Rolls.FRandRange(Min, Max) : FMath::FRandRange(Min, Max);
+}
+
 bool UPSPlaySimulation::IsBallLive() const
 {
     const EPlayPhase Phase = CurrentState.Phase;
@@ -1144,7 +1163,7 @@ bool UPSPlaySimulation::IsKickReady() const
 
 float UPSPlaySimulation::ConsumeKickRoll()
 {
-    const float KickRoll = HumanKickRoll >= 0.f ? HumanKickRoll : FMath::FRand();
+    const float KickRoll = HumanKickRoll >= 0.f ? HumanKickRoll : NextRoll();
     bHumanKickLinedUp = false;
     HumanKickHoldSeconds = 0.f;
     HumanKickRoll = -1.f;
