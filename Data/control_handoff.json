@@ -1,5 +1,7 @@
 {
     "CycleWindowSeconds": 1.5,
     "PickLeftAction": "PickPlayerLeft",
-    "PickRightAction": "PickPlayerRight"
+    "PickRightAction": "PickPlayerRight",
+    "OffenseControlRole": "Quarterback",
+    "DefenseControlRole": "Linebacker"
 }

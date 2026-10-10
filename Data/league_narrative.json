@@ -9,7 +9,8 @@
         { "Kind": "RookieSurge", "Weight": 2.5 },
         { "Kind": "RevengeGame", "Weight": 2.0 },
         { "Kind": "RecordBroken", "Weight": 4.0 },
-        { "Kind": "AwardRace", "Weight": 3.5 }
+        { "Kind": "AwardRace", "Weight": 3.5 },
+        { "Kind": "Trade", "Weight": 3.0 }
     ],
     "MaxDigestItems": 6,
     "DigestsKept": 20,

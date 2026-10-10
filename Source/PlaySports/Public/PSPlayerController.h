@@ -29,6 +29,7 @@ class UPSSettingsComponent;
 class UPSControlHandoffComponent;
 class UPSOverlayReticleComponent;
 class UPSOverlayBadgeComponent;
+class UPSHumanTeamComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -74,7 +75,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * OnCatalogActionStarted consumer hears touch exactly as it hears the gamepad.
  *
  * Two players on one machine (Epic 107) each have one of these, seated by UPSVersusSubsystem:
- * HumanIndex says which human it is, and it never takes the other human's player.
+ * HumanIndex says which human it is, and it never takes the other human's player. A single
+ * human plays for one team (UPSHumanTeamComponent): on offense while it has the ball, on
+ * defense when the other team has it.
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -165,6 +168,10 @@ public:
     /** The floating position badges (Epic 28). */
     UFUNCTION(BlueprintPure, Category = "Overlay")
     UPSOverlayBadgeComponent* GetOverlayBadgeComponent() const { return OverlayBadgeComponent; }
+
+    /** Keeps a single human on their own team when the ball changes hands. */
+    UFUNCTION(BlueprintPure, Category = "Possession")
+    UPSHumanTeamComponent* GetHumanTeamComponent() const { return HumanTeamComponent; }
 
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -264,7 +271,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Possession")
     int32 HumanIndex;
 
-    /** The side the human plays when not yet controlling a pawn. */
+    /** The side the human plays when not yet controlling a pawn. A single human's follows
+     *  their team's possession (UPSHumanTeamComponent); a head-to-head seat's, the versus
+     *  subsystem. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Possession")
     EPSTeamSide HumanSide;
 
@@ -355,6 +364,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Overlay")
     UPSOverlayBadgeComponent* OverlayBadgeComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Possession")
+    UPSHumanTeamComponent* HumanTeamComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

@@ -178,6 +178,18 @@ struct FPSContractTuning
     {
         return PositionMarkets.FindByPredicate([Role](const FPSPositionMarket& Market) { return Market.Role == Role; });
     }
+
+    /** How far a team with Count players at Role is short of its RosterTarget, 0-1 (0 with the
+     *  target met or no target). */
+    float GetRoleShortfall(EPlayerRole Role, int32 Count) const
+    {
+        const FPSPositionMarket* Market = FindMarket(Role);
+        if (!Market || Market->RosterTarget <= 0)
+        {
+            return 0.f;
+        }
+        return FMath::Clamp(static_cast<float>(Market->RosterTarget - Count) / Market->RosterTarget, 0.f, 1.f);
+    }
 };
 
 /** One league year of a contract. Its cap hit is BaseSalary plus ProratedBonus. */
@@ -579,4 +591,64 @@ struct FPSFreeAgentSigning
 
     UPROPERTY(BlueprintReadOnly, Category = "Contracts")
     FPSContractOffer Offer;
+};
+
+/** A traded player's contract going to his new team (Epic 88). */
+USTRUCT(BlueprintType)
+struct FPSContractTransfer
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Contracts")
+    FName PlayerId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Contracts")
+    FName ToTeamId;
+};
+
+/** What a trade does to one team's cap this league year. */
+USTRUCT(BlueprintType)
+struct FPSTeamCapChange
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    FName TeamId;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    int32 CapSpaceBefore = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    int32 CapSpaceAfter = 0;
+
+    /** The bonus it already paid on the players it traded away, now dead money: this year's
+     *  shares this year, later years' next year. */
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    int32 DeadMoneyThisYear = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    int32 DeadMoneyNextYear = 0;
+};
+
+/** A trade's contracts checked against the cap (UPSContractManager::PreviewTrade). */
+USTRUCT(BlueprintType)
+struct FPSTradeCapCheck
+{
+    GENERATED_BODY()
+
+    /** Every team ends under the cap, or no further over it than it was. */
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    bool bValid = false;
+
+    /** Why not, when it isn't valid. */
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    FString Problem;
+
+    /** The team that would go over the cap, when that is why. */
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    FName OverCapTeamId;
+
+    /** Every team the trade touches. */
+    UPROPERTY(BlueprintReadOnly, Category = "Contracts")
+    TArray<FPSTeamCapChange> Teams;
 };

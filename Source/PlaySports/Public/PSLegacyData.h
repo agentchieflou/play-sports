@@ -5,6 +5,7 @@
 #include "PSLeagueData.h"
 #include "PSPlayerAttributes.h"
 #include "PSPlayerProgression.h"
+#include "PSNarrativeTypes.h"
 #include "PSStatsData.h"
 #include "PSTelemetryBus.h"
 #include "PSLegacyData.generated.h"
@@ -23,13 +24,39 @@ struct PLAYSPORTS_API FPSHallOfFameThreshold
     int32 CareerValue = 1;
 };
 
+/** What each award a player won (Epic 93) adds to his hall score. */
+USTRUCT(BlueprintType)
+struct PLAYSPORTS_API FPSHallOfFameAward
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    EPSAwardKind Award = EPSAwardKind::MostValuablePlayer;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float Score = 0.f;
+};
+
 /** Who goes into the hall of fame (Data/legacy.json). A retired player's hall score is his best
- *  category: the highest of his career totals over their thresholds' values, so reaching any one
- *  threshold is a score of 1. */
+ *  category, the highest of his career totals over their thresholds' values (so reaching any one
+ *  threshold is a score of 1), plus each award he won times its AwardScores score. */
 USTRUCT(BlueprintType)
 struct PLAYSPORTS_API FPSHallOfFameTuning
 {
     GENERATED_BODY()
+
+    FPSHallOfFameTuning()
+    {
+        const EPSAwardKind DefaultAwards[] = { EPSAwardKind::MostValuablePlayer, EPSAwardKind::OffensivePlayerOfYear, EPSAwardKind::DefensivePlayerOfYear,
+            EPSAwardKind::RookieOfYear, EPSAwardKind::OffensivePlayerOfWeek, EPSAwardKind::DefensivePlayerOfWeek };
+        const float DefaultScores[] = { 0.5f, 0.3f, 0.3f, 0.1f, 0.02f, 0.02f };
+        for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(DefaultAwards)); ++Index)
+        {
+            FPSHallOfFameAward& Entry = AwardScores.AddDefaulted_GetRef();
+            Entry.Award = DefaultAwards[Index];
+            Entry.Score = DefaultScores[Index];
+        }
+    }
 
     /** Seasons a player waits after retiring before he can be voted in. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
@@ -49,6 +76,10 @@ struct PLAYSPORTS_API FPSHallOfFameTuning
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
     TArray<FPSHallOfFameThreshold> Thresholds;
+
+    /** Each award kind at most once; an award not listed adds nothing. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    TArray<FPSHallOfFameAward> AwardScores;
 };
 
 /** A role's age curve: Core 19's progression model (FPSProgressionTuning) at that role's ages. */
@@ -234,8 +265,13 @@ struct PLAYSPORTS_API FPSRetiredPlayer
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
     int32 Seasons = 0;
 
+    /** His hall score: his best career category's, plus his awards' (AwardScore). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
     float HallScore = 0.f;
+
+    /** What the awards he won (Epic 93) add to it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float AwardScore = 0.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
     bool bHallOfFame = false;

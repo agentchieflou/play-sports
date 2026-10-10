@@ -3,10 +3,11 @@
 // Tests covered:
 //   1. The pawn's attributes pointer and its ball-action component.
 //   2. A live tackle goes out on the bus: UPSBallActionComponent::ResolveTackle publishes the
-//      Tackle event (tackler, carrier, spot, yards, sack), the play simulation records the play
-//      from it, with its yards from the line of scrimmage (a back who lined up 5 yards deep
-//      gains from the line, not from his own spot), and the statistics engine counts a rush
-//      with its tackler, then a sack.
+//      Tackle event (tackler, carrier, spot, sack), the play simulation records the play from
+//      it, with its yards from the line of scrimmage (a back who lined up 5 yards deep gains
+//      from the line, not from his own spot) -- the one measure of them, which the play's result
+//      carries -- and the statistics engine counts a rush with its tackler, then a sack. A
+//      quarterback down behind the snap's line is sacked, even ahead of where he lined up.
 //   3. A ball that came to rest (its projectile stopped simulating) flies again when relaunched.
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -14,6 +15,7 @@
 #include "PSBallActionComponent.h"
 #include "PSBall.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSGameStateEvents.h"
 #include "PSPlaySimulation.h"
 #include "PSStatsData.h"
 #include "PSStatsEngine.h"
@@ -71,8 +73,19 @@ namespace PSBallActionTests
         {
             Pawn->InitializePlayer(Player);
             Pawn->SetStartingLocation(LinedUpAt);
+            // Headless worlds have no BeginPlay: the component hears the snap's line by hand.
+            Pawn->GetBallActionComponent()->BindToBus();
         }
         return Pawn;
+    }
+
+    /** The snap as the game mode announces it: from the simulation's yard line. */
+    static void PublishSnap(UPSTelemetryBus* Bus, const UPSPlaySimulation* Sim)
+    {
+        FPSTelemetrySnapEvent Snap;
+        Snap.YardLine = Sim->GetPlayState().YardLine;
+        Snap.LineOfScrimmage = PSGameStateEvents::LineOfScrimmageFor(Snap.YardLine);
+        Bus->PublishSnap(Snap);
     }
 }
 
@@ -155,8 +168,10 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
     Bus->OnPlayResultMC.AddLambda([&Plays](const FPSTelemetryPlayResultEvent& Event) { Plays.Add(Event); });
 
     // A run: the back lined up 5 yards deep, at the 15, and is brought down at the 28. He slides
-    // into the contact, so the tackle holds with no hit and no fumble: the test needs no luck.
+    // into the contact, so the tackle holds with no hit and no fumble, and the snap's random
+    // flags are cleared: the test needs no luck.
     Sim->TriggerSnap();
+    Sim->ActivePenalty = EPSPenaltyType::None;
     APSPlayerPawn* Runner = SpawnPlayer(World, Offense[1], FVector(2800.f, 0.f, 100.f), FVector(1500.f, 0.f, 100.f));
     APSPlayerPawn* Linebacker = SpawnPlayer(World, Defense[1], FVector(2900.f, 0.f, 100.f), FVector(2450.f, 0.f, 100.f));
     if (!TestTrue(TEXT("The runner and the linebacker"), Runner && Linebacker))
@@ -164,6 +179,7 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
         return false;
     }
+    PublishSnap(Bus, Sim);
     Runner->GainPossession();
     TestTrue(TEXT("The runner slides"), Runner->GetCarrierMoveComponent()->TryMove(EPSCarrierMove::Slide, FVector2D::ZeroVector));
     TestTrue(TEXT("The tackle holds"), Runner->GetBallActionComponent()->ResolveTackle(Linebacker));
@@ -173,7 +189,6 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
         TestEqual(TEXT("...naming the tackler"), Tackles[0].TacklerName, Defense[1].DisplayName);
         TestEqual(TEXT("...and the carrier"), Tackles[0].BallCarrierName, Offense[1].DisplayName);
         TestEqual(TEXT("...at the spot: the 28"), Tackles[0].YardLine, 28);
-        TestEqual(TEXT("...13 yards on from where he lined up"), Tackles[0].YardsGained, 13);
         TestFalse(TEXT("...a run, not a sack"), Tackles[0].bIsSack);
     }
     TestEqual(TEXT("The simulation took the tackle: the whistle has blown"), Sim->GetPlayState().Phase, EPlayPhase::Scoring);
@@ -187,6 +202,7 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("...a run"), !Plays[0].bPass && Plays[0].Result == TEXT("Tackle"));
         TestEqual(TEXT("...by the runner"), Plays[0].RusherId, Offense[1].PlayerId);
         TestEqual(TEXT("...stopped by the linebacker"), Plays[0].TacklerId, Defense[1].PlayerId);
+        TestEqual(TEXT("...its 8 yards, the simulation's one measure of them"), Plays[0].YardsGained, 8);
     }
     const FPSBoxScore& Game = Stats->GetCurrentGame();
     TestEqual(TEXT("The stats engine recorded the play"), Game.PlayCount, 1);
@@ -198,8 +214,8 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
         LinebackerLine && LinebackerLine->Tackles == 1 && LinebackerLine->Sacks == 0 && LinebackerLine->TeamId == FName(TEXT("Away")));
     TestEqual(TEXT("The home team's rushing yards"), Game.Home.RushingYards, 8);
 
-    // A sack: the quarterback, still holding the ball, goes down behind where he lined up (a
-    // yard behind the new line at the 28).
+    // A sack: the quarterback, still holding the ball, goes down behind the new line at the 28
+    // (he lined up a yard behind it).
     Sim->TriggerSnap();
     APSPlayerPawn* Quarterback = SpawnPlayer(World, Offense[0], FVector(2100.f, 0.f, 100.f), FVector(2700.f, 0.f, 100.f));
     APSPlayerPawn* Lineman = SpawnPlayer(World, Defense[0], FVector(2050.f, 0.f, 100.f), FVector(2900.f, 0.f, 100.f));
@@ -208,20 +224,48 @@ bool FPSLiveTackleOnBusTest::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
         return false;
     }
+    PublishSnap(Bus, Sim);
     Quarterback->GainPossession();
     TestTrue(TEXT("The quarterback slides"), Quarterback->GetCarrierMoveComponent()->TryMove(EPSCarrierMove::Slide, FVector2D::ZeroVector));
     TestTrue(TEXT("The sack holds"), Quarterback->GetBallActionComponent()->ResolveTackle(Lineman));
     if (TestEqual(TEXT("A second Tackle event"), Tackles.Num(), 2))
     {
-        TestTrue(TEXT("...a sack, 6 yards back"), Tackles[1].bIsSack && Tackles[1].YardsGained == -6);
+        TestTrue(TEXT("...a sack: down behind the line"), Tackles[1].bIsSack);
         TestEqual(TEXT("...naming the lineman"), Tackles[1].TacklerName, Defense[0].DisplayName);
     }
     TestEqual(TEXT("The sack loses 7 yards from the line, the 28"), Sim->GetPlayResult().YardsGained, -7);
+    // No random offside flag at the snap moves the announced yards.
+    Sim->ActivePenalty = EPSPenaltyType::None;
     Sim->EndPlayAndPrepareNext();
     const FPSPlayerStatLine* LinemanLine = Stats->GetCurrentGame().FindPlayer(Defense[0].PlayerId);
     TestTrue(TEXT("The lineman's sack, a tackle too"), LinemanLine && LinemanLine->Sacks == 1 && LinemanLine->Tackles == 1);
     const FPSPlayerStatLine* QuarterbackLine = Stats->GetCurrentGame().FindPlayer(Offense[0].PlayerId);
     TestTrue(TEXT("The quarterback sacked, not rushing"), QuarterbackLine && QuarterbackLine->TimesSacked == 1 && QuarterbackLine->RushAttempts == 0);
+    if (TestEqual(TEXT("The sack announced"), Plays.Num(), 2))
+    {
+        TestTrue(TEXT("...for the simulation's 7-yard loss"), Plays[1].bSack && Plays[1].YardsGained == -7);
+    }
+
+    // Down behind the line but ahead of where he lined up is still a sack: the line, the 21 now,
+    // decides, not his own spot (he lined up at the 20 and is brought down at the 20.5).
+    Sim->TriggerSnap();
+    TestEqual(TEXT("The next snap is from the 21"), Sim->GetPlayState().YardLine, 21);
+    APSPlayerPawn* Scrambler = SpawnPlayer(World, Offense[0], FVector(2050.f, 0.f, 100.f), FVector(2000.f, 0.f, 100.f));
+    APSPlayerPawn* Chaser = SpawnPlayer(World, Defense[1], FVector(2000.f, 0.f, 100.f), FVector(2450.f, 0.f, 100.f));
+    if (!TestTrue(TEXT("The scrambler and the chaser"), Scrambler && Chaser))
+    {
+        Stats->UnbindFromBus();
+        DestroyTestWorld(World);
+        return false;
+    }
+    PublishSnap(Bus, Sim);
+    Scrambler->GainPossession();
+    TestTrue(TEXT("The scrambler slides"), Scrambler->GetCarrierMoveComponent()->TryMove(EPSCarrierMove::Slide, FVector2D::ZeroVector));
+    TestTrue(TEXT("The tackle holds"), Scrambler->GetBallActionComponent()->ResolveTackle(Chaser));
+    if (TestEqual(TEXT("A third Tackle event"), Tackles.Num(), 3))
+    {
+        TestTrue(TEXT("...a sack, though ahead of where he lined up"), Tackles[2].bIsSack);
+    }
 
     Stats->UnbindFromBus();
     DestroyTestWorld(World);

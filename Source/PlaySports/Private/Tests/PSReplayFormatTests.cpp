@@ -58,7 +58,7 @@ static FPSReplayRecording BuildSampleRecording()
     TackleEvent.TickIndex = 240;
     TackleEvent.TimestampSeconds = 4.f;
     TackleEvent.EventType = TEXT("Tackle");
-    TackleEvent.PayloadJson = TEXT("{\"YardsGained\":6}");
+    TackleEvent.PayloadJson = TEXT("{\"YardLine\":51}");
     Recording.Events.Add(TackleEvent);
 
     return Recording;

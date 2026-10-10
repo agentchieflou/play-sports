@@ -25,6 +25,7 @@ class UPSRoster;
 class UPSStaffManager;
 class UPSLeagueHistory;
 class UPSStatsEngine;
+class UPSTradeMarket;
 class UPSWeeklyPreparation;
 
 /**
@@ -41,8 +42,9 @@ class UPSWeeklyPreparation;
  *    recorded in the season and, with a statistics engine (Epic 92), every play in its box
  *    score.
  *  - AdvanceWeek: on to the next week; once the last week's games are all played, the season
- *    ends. With a narrative (Epic 93) the week just played is closed first: its storylines,
- *    honors and news digest.
+ *    ends. With a trade market (Epic 88) the CPU teams trade first, up to the deadline; with a
+ *    narrative (Epic 93) the week just played is then closed: its storylines (its trades among
+ *    them), honors and news digest.
  *  - EndSeason: the off-season, once per season. The narrative's season awards are voted (Epic
  *    93) while the season's box scores are still open. The coaching carousel
  *    (UPSStaffManager::RunCarousel) runs on the final standings, the statistics engine (Epic 92)
@@ -52,6 +54,7 @@ class UPSWeeklyPreparation;
  *    (UPSContractManager, Epic 87), the league year rolls over, CPU teams over the new cap cut
  *    back under it, and free agency (UPSFreeAgency) opens with every player whose deal ran out or
  *    who was cut. The player's team bids there; GetFreeAgency()->AdvanceDay() runs its days.
+ *    Last, the trade market (Epic 88) opens for the off-season.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSFranchiseFlow : public UObject
@@ -175,6 +178,16 @@ public:
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSPlayerAging* GetPlayerAging() const { return PlayerAging; }
 
+    /** The league's trades (Epic 88), connected to this flow's season, contracts, draft, rosters,
+     *  locker room and aging curves (set those first; it is connected again each week). Each
+     *  AdvanceWeek runs its week (the CPU's trades, up to the deadline) before the news; the
+     *  season's end opens it for the off-season and logs its telemetry. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetTradeMarket(UPSTradeMarket* InTradeMarket);
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSTradeMarket* GetTradeMarket() const { return TradeMarket; }
+
     /** Who retired at the season's end (empty before then). */
     UFUNCTION(BlueprintPure, Category = "Franchise")
     const TArray<FPSRetirementDecision>& GetRetirements() const { return Retirements; }
@@ -253,6 +266,9 @@ public:
     const TArray<FPSCarouselEvent>& GetCarouselEvents() const { return CarouselEvents; }
 
 private:
+    /** Hands the trade market this flow's season, contracts, draft, rosters and the rest. */
+    void ConnectTradeMarket();
+
     UPROPERTY(Transient)
     UPSFranchiseSeason* Season = nullptr;
 
@@ -300,6 +316,9 @@ private:
 
     UPROPERTY(Transient)
     UPSPlayerAging* PlayerAging = nullptr;
+
+    UPROPERTY(Transient)
+    UPSTradeMarket* TradeMarket = nullptr;
 
     UPROPERTY(Transient)
     TArray<FPSRetirementDecision> Retirements;

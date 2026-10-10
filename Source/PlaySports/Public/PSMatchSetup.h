@@ -131,6 +131,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Match")
     FName GetUserTeamId() const { return UserTeamId; }
 
+    /** True unless the player's team is the away team: a single human with no team named
+     *  plays the home team, which has the ball first (UPSHumanTeamComponent). */
+    UFUNCTION(BlueprintPure, Category = "Match")
+    bool IsUserTeamHome() const { return UserTeamId.IsNone() || UserTeamId != AwayTeamId; }
+
     /** The season week of a franchise game; 0 otherwise. */
     UFUNCTION(BlueprintPure, Category = "Match")
     int32 GetSeasonWeek() const { return SeasonWeek; }

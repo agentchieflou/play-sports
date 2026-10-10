@@ -9,6 +9,7 @@
 #include "PSLeagueHistory.generated.h"
 
 class UPSFranchiseSaveGame;
+class UPSLeagueNarrative;
 class UPSStatsEngine;
 
 /**
@@ -23,7 +24,7 @@ class UPSStatsEngine;
  *    then; the archive no longer needs it.
  *  - The hall of fame: after each season the retired players who have waited WaitSeasons and
  *    played MinSeasons are voted in when their hall score reaches InductionScore: their best career
- *    total against its threshold (awards join it with Epic 93).
+ *    total against its threshold, plus what their awards add (Epic 93's award record, SetAwards).
  *  - Franchise history: a team's seasons, finishes, championships and legends (its hall of famers).
  *
  * UPSFranchiseFlow archives each season and holds the vote at the season's end; the history
@@ -75,6 +76,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Legacy")
     float GetHallScore(const FPSPlayerStatLine& Career) const;
 
+    /** The league's award record (Epic 93): each award a player won adds its AwardScores score to
+     *  his hall score. Without one, awards add nothing. */
+    void SetAwards(const UPSLeagueNarrative* InAwards);
+
+    /** What PlayerId's awards add to his hall score: each award he won times its score. */
+    UFUNCTION(BlueprintPure, Category = "Legacy")
+    float GetAwardScore(FName PlayerId) const;
+
     // --- Reading it ------------------------------------------------------------------------------
 
     UFUNCTION(BlueprintPure, Category = "Legacy")
@@ -121,9 +130,14 @@ public:
 private:
     FPSSeasonArchive* FindMutableSeason(int32 Season);
 
+    /** Retiree's award score and hall score, from his career and his awards. */
+    void ScoreRetiree(FPSRetiredPlayer& Retiree) const;
+
     UPROPERTY(Transient)
     FPSLegacyTuning Tuning;
 
     UPROPERTY(Transient)
     FPSLeagueHistoryState State;
+
+    TWeakObjectPtr<const UPSLeagueNarrative> Awards;
 };

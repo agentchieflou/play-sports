@@ -122,9 +122,14 @@ bool UPSDraft::PrepareClass(const FPSDraftClass& Class, int32 Seed)
     {
         return false;
     }
+    // Picks traded for this draft or a later one keep their new owners (Epic 88).
+    TArray<FPSDraftPickRight> Traded = State.TradedPicks;
+    const int32 ClassYear = Class.DraftYear;
+    Traded.RemoveAll([ClassYear](const FPSDraftPickRight& Right) { return Right.DraftYear < ClassYear; });
     State = FPSDraftState();
     State.Seed = Seed;
     State.DraftYear = Class.DraftYear;
+    State.TradedPicks = MoveTemp(Traded);
     for (const FPlayerAttributes& Player : Class.Prospects)
     {
         FPSProspect& Prospect = State.Prospects.AddDefaulted_GetRef();
@@ -351,11 +356,16 @@ bool UPSDraft::BeginDraft(const TArray<FName>& FirstRoundOrder, UPSContractManag
     Contracts = InContracts;
     FreeAgency = InFreeAgency;
     State.Order.Reset();
+    State.OriginalOrder.Reset();
     State.Picks.Reset();
     const int32 NumPicks = FMath::Min(Tuning.NumRounds * Round.Num(), State.Prospects.Num());
     for (int32 Pick = 0; Pick < NumPicks; ++Pick)
     {
-        State.Order.Add(Round[Pick % Round.Num()]);
+        // Each pick goes to the team holding it: its own, or the one it was traded to (Epic 88).
+        const FName Original = Round[Pick % Round.Num()];
+        const FName Owner = GetPickOwner(State.DraftYear, Pick / Round.Num() + 1, Original);
+        State.OriginalOrder.Add(Original);
+        State.Order.Add(FindTeam(Owner) ? Owner : Original);
     }
     State.bOpen = true;
 
@@ -523,12 +533,8 @@ void UPSDraft::TakePick(FName PlayerId)
         return;
     }
     const FName TeamId = State.Order[Overall - 1];
-    TSet<FName> RoundTeams;
-    for (const FName& OrderTeam : State.Order)
-    {
-        RoundTeams.Add(OrderTeam);
-    }
-    const int32 RoundSize = FMath::Max(1, RoundTeams.Num());
+    const FName OriginalTeamId = State.OriginalOrder.IsValidIndex(Overall - 1) ? State.OriginalOrder[Overall - 1] : TeamId;
+    const int32 RoundSize = FMath::Max(1, GetRoundSize());
 
     float Estimate = 0.f;
     float Uncertainty = 0.f;
@@ -541,6 +547,7 @@ void UPSDraft::TakePick(FName PlayerId)
     Pick.Round = (Overall - 1) / RoundSize + 1;
     Pick.PickInRound = (Overall - 1) % RoundSize + 1;
     Pick.TeamId = TeamId;
+    Pick.OriginalTeamId = OriginalTeamId;
     Pick.PlayerId = PlayerId;
     Pick.Estimate = Estimate;
     Pick.TrueGrade = Prospect->TrueGrade;
@@ -566,6 +573,10 @@ void UPSDraft::TakePick(FName PlayerId)
     Pick.Description = FString::Printf(TEXT("Round %d, pick %d (%d overall): %s take %s, %s %s (graded %.0f)%s"), Pick.Round, Pick.PickInRound, Overall,
         *TeamId.ToString(), *Prospect->Player.DisplayName, *RoleName(Prospect->Player.Role), *PlayerId.ToString(), Estimate,
         Contracts && !Pick.bSigned ? TEXT(", unsigned: no cap room") : TEXT(""));
+    if (OriginalTeamId != TeamId)
+    {
+        Pick.Description += FString::Printf(TEXT(" (%s's pick, traded)"), *OriginalTeamId.ToString());
+    }
     State.Picks.Add(Pick);
 
     if (State.Picks.Num() >= State.Order.Num())
@@ -617,12 +628,147 @@ void UPSDraft::SaveTo(UPSFranchiseSaveGame* Save) const
 
 bool UPSDraft::LoadFrom(const UPSFranchiseSaveGame* Save)
 {
-    if (!Save || Save->Draft.Prospects.Num() == 0)
+    if (!Save || (Save->Draft.Prospects.Num() == 0 && Save->Draft.TradedPicks.Num() == 0))
     {
         return false;
     }
     State = Save->Draft;
     return true;
+}
+
+FName UPSDraft::GetPickOwner(int32 DraftYear, int32 Round, FName OriginalTeamId) const
+{
+    const FPSDraftPickRight* Right = State.TradedPicks.FindByPredicate([DraftYear, Round, OriginalTeamId](const FPSDraftPickRight& Candidate)
+    {
+        return Candidate.DraftYear == DraftYear && Candidate.Round == Round && Candidate.OriginalTeamId == OriginalTeamId;
+    });
+    return Right ? Right->OwnerTeamId : OriginalTeamId;
+}
+
+int32 UPSDraft::GetRoundSize() const
+{
+    const TArray<FName>& Originals = State.OriginalOrder.Num() > 0 ? State.OriginalOrder : State.Order;
+    TSet<FName> Teams;
+    for (const FName& TeamId : Originals)
+    {
+        Teams.Add(TeamId);
+    }
+    return Teams.Num();
+}
+
+int32 UPSDraft::FindPickIndex(int32 DraftYear, int32 Round, FName OriginalTeamId) const
+{
+    if (DraftYear != State.DraftYear || State.Order.Num() == 0 || Round < 1)
+    {
+        return INDEX_NONE;
+    }
+    const TArray<FName>& Originals = State.OriginalOrder.Num() == State.Order.Num() ? State.OriginalOrder : State.Order;
+    const int32 RoundSize = GetRoundSize();
+    const int32 Last = FMath::Min(Round * RoundSize, Originals.Num());
+    for (int32 Index = (Round - 1) * RoundSize; Index < Last; ++Index)
+    {
+        if (Originals[Index] == OriginalTeamId)
+        {
+            return Index;
+        }
+    }
+    return INDEX_NONE;
+}
+
+int32 UPSDraft::GetPickSlot(int32 DraftYear, int32 Round, FName OriginalTeamId) const
+{
+    const int32 Index = FindPickIndex(DraftYear, Round, OriginalTeamId);
+    return Index == INDEX_NONE ? 0 : Index + 1;
+}
+
+bool UPSDraft::IsPickAvailable(int32 DraftYear, int32 Round, FName OriginalTeamId) const
+{
+    if (OriginalTeamId.IsNone() || DraftYear <= 0 || Round < 1 || Round > Tuning.NumRounds)
+    {
+        return false;
+    }
+    if (State.DraftYear > 0 && DraftYear < State.DraftYear)
+    {
+        // A past draft's.
+        return false;
+    }
+    if (DraftYear == State.DraftYear && (State.bOpen || State.bComplete))
+    {
+        // This draft's order is set: the pick must be in it and not yet made.
+        const int32 Index = FindPickIndex(DraftYear, Round, OriginalTeamId);
+        return !State.bComplete && Index != INDEX_NONE && Index >= State.Picks.Num();
+    }
+    return true;
+}
+
+bool UPSDraft::TransferPick(int32 DraftYear, int32 Round, FName OriginalTeamId, FName NewOwnerTeamId)
+{
+    if (NewOwnerTeamId.IsNone() || !IsPickAvailable(DraftYear, Round, OriginalTeamId))
+    {
+        return false;
+    }
+    const int32 Index = State.bOpen ? FindPickIndex(DraftYear, Round, OriginalTeamId) : INDEX_NONE;
+    if (Index != INDEX_NONE && !FindTeam(NewOwnerTeamId))
+    {
+        // On the open draft's clock only a team in the draft can pick.
+        return false;
+    }
+
+    auto IsThisPick = [DraftYear, Round, OriginalTeamId](const FPSDraftPickRight& Candidate)
+    {
+        return Candidate.DraftYear == DraftYear && Candidate.Round == Round && Candidate.OriginalTeamId == OriginalTeamId;
+    };
+    if (NewOwnerTeamId == OriginalTeamId)
+    {
+        // Back with its own team: no longer a traded pick.
+        State.TradedPicks.RemoveAll(IsThisPick);
+    }
+    else if (FPSDraftPickRight* Right = State.TradedPicks.FindByPredicate(IsThisPick))
+    {
+        Right->OwnerTeamId = NewOwnerTeamId;
+    }
+    else
+    {
+        FPSDraftPickRight& Added = State.TradedPicks.AddDefaulted_GetRef();
+        Added.DraftYear = DraftYear;
+        Added.Round = Round;
+        Added.OriginalTeamId = OriginalTeamId;
+        Added.OwnerTeamId = NewOwnerTeamId;
+    }
+    if (Index != INDEX_NONE)
+    {
+        State.Order[Index] = NewOwnerTeamId;
+    }
+    return true;
+}
+
+TArray<FPSDraftPickRight> UPSDraft::GetTeamPicks(FName TeamId, int32 DraftYear) const
+{
+    TArray<FPSDraftPickRight> Held;
+    if (TeamId.IsNone())
+    {
+        return Held;
+    }
+    for (int32 Round = 1; Round <= Tuning.NumRounds; ++Round)
+    {
+        if (GetPickOwner(DraftYear, Round, TeamId) == TeamId && IsPickAvailable(DraftYear, Round, TeamId))
+        {
+            FPSDraftPickRight& Own = Held.AddDefaulted_GetRef();
+            Own.DraftYear = DraftYear;
+            Own.Round = Round;
+            Own.OriginalTeamId = TeamId;
+            Own.OwnerTeamId = TeamId;
+        }
+    }
+    for (const FPSDraftPickRight& Right : State.TradedPicks)
+    {
+        if (Right.DraftYear == DraftYear && Right.OwnerTeamId == TeamId && Right.OriginalTeamId != TeamId
+            && IsPickAvailable(Right.DraftYear, Right.Round, Right.OriginalTeamId))
+        {
+            Held.Add(Right);
+        }
+    }
+    return Held;
 }
 
 FPSProspect* UPSDraft::FindMutableProspect(FName PlayerId)

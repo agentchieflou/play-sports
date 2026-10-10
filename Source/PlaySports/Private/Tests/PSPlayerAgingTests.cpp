@@ -6,7 +6,8 @@
 //      of unknown age is left alone without a contract manager and takes its default age with one.
 //   2. Retirement: the chance from age, rating, injury and morale, and its biggest reason; at
 //      ForcedAge a certainty. An off-season retires the forced and caps the rest at
-//      MaxRetirementShare of the roster; retirees leave the roster, their contracts are cut, the
+//      MaxRetirementShare of the roster; retirees leave the roster, their contracts end (no dead
+//      money for guarantees they forfeit), the
 //      league's history records them; an injured veteran (Epic 90) retires as the tuning says; the
 //      same season retires the same players.
 //   3. The franchise: at the season's end a too-old veteran retires into the history and everyone
@@ -203,11 +204,12 @@ bool FPSRetirementTest::RunTest(const FString& Parameters)
         const FString Label = Decision.PlayerId.ToString();
         FPlayerAttributes Gone;
         TestFalse(*(Label + TEXT(": off the roster")), Roster->FindPlayerById(Decision.PlayerId, Gone));
-        TestNull(*(Label + TEXT(": his contract cut")), Contracts->FindContract(Decision.PlayerId));
+        TestNull(*(Label + TEXT(": his contract ended")), Contracts->FindContract(Decision.PlayerId));
         FPSRetiredPlayer Record;
         TestTrue(*(Label + TEXT(": in the league's history")), History->FindRetiredPlayer(Decision.PlayerId, Record) && Record.Reason == Decision.Reason && Record.Player.Age == Decision.Age);
         TestTrue(*(Label + TEXT(": a veteran")), Decision.Age >= R.ForcedAge - 2);
     }
+    TestEqual(TEXT("Retirees forfeit their unearned guarantees: no dead money"), Contracts->GetDeadMoney(FName(TEXT("Hawks")), Contracts->GetLeagueYear()), 0);
     TestEqual(TEXT("The young stay and age"), RowOf(Roster, TEXT("VET_19")).Age, 26);
 
     // The same season retires the same players.

@@ -20,7 +20,9 @@ enum class EPSStorylineKind : uint8
     /** A record in the record book fell this week (Epic 92). */
     RecordBroken,
     /** The most valuable player race is close. */
-    AwardRace
+    AwardRace,
+    /** A trade this week (Epic 88): the team that got its headline player, and the other. */
+    Trade
 };
 
 /** An honor the league hands out (Epic 93). Week honors each week; the rest at the season's end
@@ -148,7 +150,8 @@ struct FPSNarrativeTuning
     {
         const TPair<EPSStorylineKind, float> Kinds[] = {
             { EPSStorylineKind::WinStreak, 3.f }, { EPSStorylineKind::LosingStreak, 2.f }, { EPSStorylineKind::RookieSurge, 2.5f },
-            { EPSStorylineKind::RevengeGame, 2.f }, { EPSStorylineKind::RecordBroken, 4.f }, { EPSStorylineKind::AwardRace, 3.5f } };
+            { EPSStorylineKind::RevengeGame, 2.f }, { EPSStorylineKind::RecordBroken, 4.f }, { EPSStorylineKind::AwardRace, 3.5f },
+            { EPSStorylineKind::Trade, 3.f } };
         for (const TPair<EPSStorylineKind, float>& Kind : Kinds)
         {
             FPSStorylineKindDef& Def = StorylineKinds.AddDefaulted_GetRef();
@@ -212,7 +215,7 @@ struct FPSStoryline
     EPSStatScope Scope = EPSStatScope::Game;
 
     /** The streak's length, the rookie's total, the record, the revenge game's margin, the race's
-     *  gap. */
+     *  gap, the trade's number of pieces. */
     UPROPERTY(BlueprintReadOnly, Category = "Narrative")
     int32 Value = 0;
 

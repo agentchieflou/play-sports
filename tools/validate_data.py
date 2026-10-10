@@ -57,7 +57,7 @@ against FPSPersonnelPanelStyle (Epic 29); "MinSamples" files against FPSOpponent
 counter pairing a play category the human calls with one the CPU answers on the other side (Epic
 78); "PausesPerHalf" files against FPSVersusRules (Epic 107): control roles on their sides, screen
 and overlay audiences, pause and resume etiquette; "bLogDecisions" files against FPSAIDebugTuning
-and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover target naming a
+(its overlay cards' sizes, colors and nudges too, Epic 85.2) and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover target naming a
 player of its scenario (Epic 85); "StadiumCapacity" files against FPSEconomyTuning (Epic 95):
 ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBudgetFraction;
 "UnownedColor" files against FPSGapOverlayStyle (Epic 81); "TradeRequestWeeks" files against
@@ -88,8 +88,8 @@ each flavor's scheme in coaching_staffs.json; "CombineDrills" files against FPSD
 rookie deal no longer than contracts.json's MaxContractYears; "PlayCallTimeoutSeconds" files against
 FPSGameIntelligenceTuning (Epic 82), each task one of tools/orchestrator/routing.json's;
 "HallOfFame" files against FPSLegacyTuning (Epic 94): the hall of fame's waits and score, each
-threshold and archived leader a player stat category, listed once, each role's age curve and the
-retirement chances; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one weight per
+threshold and archived leader a player stat category, listed once, each award's score an
+EPSAwardKind's, once, each role's age curve and the retirement chances; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one weight per
 EPSStorylineKind, award scoring by EPSStatCategory, a falling ballot, the digest's task one of
 routing.json's; "FormationClasses" files against FPSPlayRecognitionTuning (Epic 80): its distances,
 read scales and weights, the pistol no shallower than under center, 0-1 leans and weights, and each
@@ -99,9 +99,21 @@ group, each rule's trigger an EPSAudioTrigger and its cue in the catalog, each l
 0-100 slider in ui_settings.json; "CrowdReactions" files against FPSCrowdTuning (Epic 23.2): every
 EPSCrowdLevel once with rising thresholds from Hush's 0, every EPSCrowdStimulus once with -1..1
 deltas; "ModelMoments" files against FPSCommentaryHookTuning (Epic 23.5), each moment an
-EPSCommentaryMoment and the task one of routing.json's. Teams, the league config, the playbook,
-player rating ranges and every reference between files are tools/content_contracts.py's (Epic 125),
-run from here.
+EPSCommentaryMoment and the task one of routing.json's, the stakes and novelty weights 0-1 (Epic
+96.1); "CentimetresPerYard" files against FPSFieldDimensions (Data/field_dimensions.json, the
+field's one frame): every dimension a positive number; "HoldingChancePerPlay" files against
+FPSPenaltyTuning (Data/penalties.json): each flag's chance from 0 to 1; "PickRoundValues" files
+against FPSTradeTuning (Epic 88): one entry per EPSTradeStance, 0-1 weights, chances and win
+percentages (the rebuilder's under the contender's), a counter ratio no more than the accept ratio,
+a falling pick chart above its last pick's value; "SkillWindowGrowthPerSecond" files against
+FPSSessionMatchmakingTuning (Epic 108.5): a protocol version of 1 or more, skill windows that widen
+to a cap no narrower than they start, waits and host scores of 0 or more, each default cross-play
+policy an EPSCrossPlayPolicy; "InterruptMargin" files against FPSCommentaryLibrary (Epic 96): the
+booth's pacing, every line's voice, moment and conditions, its Commentary.Line.<LineId> text in
+Data/ui_text.csv naming only the facts it may and the players and totals it says it needs, a
+play-by-play line for every moment, and the voices', storyline's and fouls' rows. Teams, the league
+config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1230,7 +1242,7 @@ def validate_game_intelligence(path, payload):
 
 
 
-STORYLINE_KINDS = ("WinStreak", "LosingStreak", "RookieSurge", "RevengeGame", "RecordBroken", "AwardRace")
+STORYLINE_KINDS = ("WinStreak", "LosingStreak", "RookieSurge", "RevengeGame", "RecordBroken", "AwardRace", "Trade")
 STAT_CATEGORIES = ("PassingYards", "PassingTouchdowns", "Completions", "InterceptionsThrown", "RushingYards",
                    "RushingTouchdowns", "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks",
                    "Interceptions", "TeamPoints", "TeamTotalYards")
@@ -1306,6 +1318,77 @@ def validate_narrative(path, payload):
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSNarrativeTuning exactly")
+
+
+TRADE_STANCES = ("Contender", "Balanced", "Rebuilder")
+TRADE_POSITIVE = ("MaxPlayerValue", "TalentCurveExponent", "CounterRatio", "AcceptRatio", "DeadlineFraction")
+TRADE_NON_NEGATIVE = ("RoleWeightExponent", "SurplusValuePerCap", "NeedValueWeight", "LastPickValue", "LopsidedMinGap",
+                      "DeadlineBuyerPremium", "MinTargetGain")
+TRADE_FRACTIONS = ("UncontrolledYearWeight", "TradeRequestDiscount", "ContenderWinPercentage", "RebuilderWinPercentage",
+                   "FuturePickDiscount", "MaxValueImbalance", "DeadlineFraction", "BaseTradeChance", "DeadlineTradeChance",
+                   "DeadlineSellerDiscount")
+TRADE_COUNTS = {"ValueHorizonYears": 1, "TradablePickYears": 1, "MaxAssetsPerSide": 1, "MaxTradesPerTeamPerSeason": 1,
+                "DeadlineRampWeeks": 1, "TargetsPerAttempt": 1, "MinGamesForStance": 0, "RetradeCooldownWeeks": 0,
+                "MinPlayersAtRole": 0, "MaxOffersToUserPerWeek": 0, "RandomSeed": None}
+
+
+def validate_trades(path, payload):
+    """FPSTradeTuning (Data/trades.json, Epic 88); mirrors UPSTradeMarket::ValidateTuning."""
+    for field in TRADE_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in TRADE_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in TRADE_FRACTIONS:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    for field, floor in TRADE_COUNTS.items():
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or (floor is not None and value < floor):
+            err(path, f"{field}: '{value}' must be a whole number" + (f", {floor} or more" if floor is not None else ""))
+    contender, rebuilder = payload.get("ContenderWinPercentage"), payload.get("RebuilderWinPercentage")
+    if is_number(contender) and is_number(rebuilder) and rebuilder >= contender:
+        err(path, f"RebuilderWinPercentage ({rebuilder}) must be under ContenderWinPercentage ({contender})")
+    accept, counter = payload.get("AcceptRatio"), payload.get("CounterRatio")
+    if is_number(accept) and is_number(counter) and counter > accept:
+        err(path, f"CounterRatio ({counter}) must be no more than AcceptRatio ({accept})")
+
+    stances = payload.get("Stances")
+    if not isinstance(stances, list):
+        err(path, "'Stances' must be an array of { Stance, FutureYearWeight, PickMultiplier }")
+        stances = []
+    for idx, entry in enumerate(stances):
+        where = f"Stances[{idx}]"
+        if not isinstance(entry, dict) or entry.get("Stance") not in TRADE_STANCES:
+            err(path, f"{where}.Stance must be one of {list(TRADE_STANCES)}")
+            continue
+        weight, multiplier = entry.get("FutureYearWeight"), entry.get("PickMultiplier")
+        if not is_number(weight) or not 0 <= weight <= 1:
+            err(path, f"{where}.FutureYearWeight: '{weight}' must be a number from 0 to 1")
+        if not is_number(multiplier) or multiplier <= 0:
+            err(path, f"{where}.PickMultiplier: '{multiplier}' must be a number above 0")
+        if set(entry) - {"Stance", "FutureYearWeight", "PickMultiplier"}:
+            err(path, f"{where}: unknown field(s) {sorted(set(entry) - {'Stance', 'FutureYearWeight', 'PickMultiplier'})} - names must match FPSTradeStanceTuning exactly")
+    named = [entry.get("Stance") for entry in stances if isinstance(entry, dict)]
+    for stance in TRADE_STANCES:
+        if named.count(stance) != 1:
+            err(path, f"Stances: '{stance}' must have exactly one entry")
+
+    chart = payload.get("PickRoundValues")
+    if not isinstance(chart, list) or not chart or not all(is_number(value) and value > 0 for value in chart):
+        err(path, "PickRoundValues must be a non-empty array of numbers above 0")
+    elif any(later > earlier for earlier, later in zip(chart, chart[1:])):
+        err(path, f"PickRoundValues {chart}: a later round's first pick can't be worth more")
+    elif is_number(payload.get("LastPickValue")) and payload["LastPickValue"] > chart[-1]:
+        err(path, f"LastPickValue ({payload['LastPickValue']}) must be no more than the last round's first pick ({chart[-1]})")
+
+    known = set(TRADE_POSITIVE) | set(TRADE_NON_NEGATIVE) | set(TRADE_FRACTIONS) | set(TRADE_COUNTS) | {"Stances", "PickRoundValues"}
+    if set(payload) - known:
+        err(path, f"unknown field(s) {sorted(set(payload) - known)} - names must match FPSTradeTuning exactly")
 
 
 SOURCE_PUBLIC = REPO / "Source" / "PlaySports" / "Public"
@@ -1491,8 +1574,11 @@ def validate_crowd(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCrowdTuning exactly")
 
 
+COMMENTARY_STAKES = ("LateQuarterStakes", "CloseGameStakes", "CriticalDownStakes", "RedZoneStakes", "ScoreStakes",
+                     "TurnoverStakes", "BigPlayNovelty")
 COMMENTARY_HOOK_FIELDS = {"BigHitDamage", "DeepPassCm", "TwoMinuteWarningSeconds", "MaxMomentsKept", "bOfferToModels",
-                          "ModelMoments", "ModelTask", "ModelInstructions", "ModelContextChars"}
+                          "ModelMoments", "ModelTask", "ModelInstructions", "ModelContextChars", "LateGameQuarter",
+                          "CloseGameMargin", "RedZoneYardLine", "NoveltyHorizon", "BigPlayYards", *COMMENTARY_STAKES}
 
 
 def validate_commentary_hooks(path, payload):
@@ -1504,6 +1590,14 @@ def validate_commentary_hooks(path, payload):
             err(path, f"{field}: '{payload.get(field)}' must be a number above 0")
     if not whole_number(payload.get("MaxMomentsKept")) or payload.get("MaxMomentsKept") < 1:
         err(path, f"MaxMomentsKept: '{payload.get('MaxMomentsKept')}' must be a whole number, 1 or more")
+    for field in COMMENTARY_STAKES:
+        if not is_number(payload.get(field)) or not 0 <= payload.get(field) <= 1:
+            err(path, f"{field}: '{payload.get(field)}' must be 0-1")
+    for field, low, high in (("LateGameQuarter", 1, None), ("CloseGameMargin", 0, None), ("RedZoneYardLine", 1, 99),
+                             ("NoveltyHorizon", 1, None), ("BigPlayYards", 1, None)):
+        value = payload.get(field)
+        if not whole_number(value) or value < low or (high is not None and value > high):
+            err(path, f"{field}: '{value}' must be a whole number, {low} or more" + (f", at most {high}" if high else ""))
     if not isinstance(payload.get("bOfferToModels"), bool):
         err(path, "bOfferToModels must be true or false")
     offered = payload.get("ModelMoments")
@@ -1531,6 +1625,121 @@ def validate_commentary_hooks(path, payload):
     extra = set(payload) - COMMENTARY_HOOK_FIELDS
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCommentaryHookTuning exactly")
+
+
+COMMENTARY_LINE_PLACEHOLDERS = {"Player", "Other", "Yards", "Points", "Down", "Distance", "Quarter", "Clock", "HomeScore",
+                                "AwayScore", "Total", "Stat", "Penalty"}
+COMMENTARY_LINE_TYPES = {"LineId": str, "Voice": str, "Moment": str, "Priority": int, "CooldownSeconds": (int, float),
+                         "MaxPerGame": int, "MaxPerSeason": int, "Detail": str, "MinDown": int, "MaxDown": int,
+                         "MinYards": int, "MaxYards": int, "MinStakes": (int, float), "bRequireFirstDown": bool,
+                         "bRequireTurnover": bool, "bNeedsPrimary": bool, "bNeedsSecondary": bool, "bNeedsTotal": bool}
+COMMENTARY_LIBRARY_NUMBERS = {"WordsPerSecond": 0, "MinLineSeconds": 0, "MaxDelaySeconds": 0, "ColorMaxDelaySeconds": 0}
+COMMENTARY_LIBRARY_FIELDS = {"Seed", "WordsPerSecond", "MinLineSeconds", "MaxLineSeconds", "MaxDelaySeconds",
+                             "ColorMaxDelaySeconds", "InterruptMargin", "QueueLength", "ColorWindowDelaySeconds",
+                             "StakesWeight", "NoveltyWeight", "RepeatPenalty", "VarietyBand", "MaxTalkingPointsPerGame",
+                             "TalkingPointPriority", "TalkingPointGapSeconds", "bUseModelLines", "ModelLinePriority",
+                             "MaxSpokenKept", "Lines"}
+
+
+def placeholders(text):
+    return set(re.findall(r"\{(\w+)\}", text))
+
+
+def validate_commentary_lines(path, payload):
+    """FPSCommentaryLibrary (Data/commentary_lines.json, Epic 96); mirrors
+    UPSCommentaryEngine::ValidateLibrary, plus each line's text in Data/ui_text.csv."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ui_text
+    table, _ = ui_text.read_table(ui_text.UI_TEXT)
+    voices = header_enum("PSCommentaryTypes.h", "EPSCommentaryVoice") or []
+    moments = header_enum("PSTelemetryBus.h", "EPSCommentaryMoment") or []
+    penalties = [name for name in (header_enum("PSPlaySimulation.h", "EPSPenaltyType") or []) if name != "None"]
+    for field, low in COMMENTARY_LIBRARY_NUMBERS.items():
+        if not is_number(payload.get(field)) or payload.get(field) <= low:
+            err(path, f"{field}: '{payload.get(field)}' must be a number above {low}")
+    if is_number(payload.get("MinLineSeconds")) and (not is_number(payload.get("MaxLineSeconds"))
+                                                     or payload.get("MaxLineSeconds") < payload.get("MinLineSeconds")):
+        err(path, "MaxLineSeconds must be a number, at least MinLineSeconds")
+    for field in ("ColorWindowDelaySeconds", "TalkingPointGapSeconds", "StakesWeight", "NoveltyWeight", "RepeatPenalty",
+                  "VarietyBand"):
+        if not is_number(payload.get(field)) or payload.get(field) < 0:
+            err(path, f"{field}: '{payload.get(field)}' must be a number, 0 or more")
+    for field, low, high in (("InterruptMargin", 0, 100), ("QueueLength", 1, None), ("MaxSpokenKept", 1, None),
+                             ("MaxTalkingPointsPerGame", 0, None), ("TalkingPointPriority", 0, 100),
+                             ("ModelLinePriority", 0, 100)):
+        value = payload.get(field)
+        if not whole_number(value) or value < low or (high is not None and value > high):
+            err(path, f"{field}: '{value}' must be a whole number, {low}" + (f"-{high}" if high is not None else " or more"))
+    if not whole_number(payload.get("Seed")):
+        err(path, "Seed must be a whole number")
+    if not isinstance(payload.get("bUseModelLines"), bool):
+        err(path, "bUseModelLines must be true or false")
+    lines = payload.get("Lines")
+    if not isinstance(lines, list) or not lines:
+        err(path, "'Lines' must be a non-empty array")
+        lines = []
+    seen = set()
+    called = set()
+    for idx, line in enumerate(lines):
+        where = f"Lines[{idx}]"
+        if not isinstance(line, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        line_id = line.get("LineId")
+        if not isinstance(line_id, str) or not line_id or line_id in seen:
+            err(path, f"{where}.LineId: empty or used twice")
+            continue
+        seen.add(line_id)
+        where = f"{where} {line_id}"
+        for field, kind in COMMENTARY_LINE_TYPES.items():
+            if field in line and (not isinstance(line[field], kind) or (kind is int and isinstance(line[field], bool))):
+                err(path, f"{where}: {field} has the wrong type")
+        for field in ("LineId", "Voice", "Moment", "Priority"):
+            if field not in line:
+                err(path, f"{where}: needs {field}")
+        if set(line) - set(COMMENTARY_LINE_TYPES):
+            err(path, f"{where}: unknown field(s) {sorted(set(line) - set(COMMENTARY_LINE_TYPES))}")
+        if voices and line.get("Voice") not in voices:
+            err(path, f"{where}: Voice must be one of {voices}")
+        if moments and line.get("Moment") not in moments:
+            err(path, f"{where}: Moment must be one of {moments}")
+        if line.get("Voice") == "PlayByPlay":
+            called.add(line.get("Moment"))
+        priority = line.get("Priority")
+        if whole_number(priority) and not 0 <= priority <= 100:
+            err(path, f"{where}: Priority {priority} must be 0-100")
+        for field in ("CooldownSeconds", "MaxPerGame", "MaxPerSeason"):
+            if is_number(line.get(field, 0)) and line.get(field, 0) < 0:
+                err(path, f"{where}: {field} must be 0 or more")
+        min_down, max_down = line.get("MinDown", 0), line.get("MaxDown", 4)
+        min_yards, max_yards = line.get("MinYards", -100), line.get("MaxYards", 100)
+        stakes = line.get("MinStakes", 0)
+        if (whole_number(min_down) and whole_number(max_down) and not 0 <= min_down <= max_down <= 4) \
+                or (whole_number(min_yards) and whole_number(max_yards) and min_yards > max_yards) \
+                or (is_number(stakes) and not 0 <= stakes <= 1):
+            err(path, f"{where}: its conditions can't hold (downs 0-4, MinYards at most MaxYards, MinStakes 0-1)")
+        key = f"Commentary.Line.{line_id}"
+        if key not in table:
+            err(path, f"{where}: no '{key}' row in Data/ui_text.csv")
+            continue
+        used = placeholders(table[key])
+        if used - COMMENTARY_LINE_PLACEHOLDERS:
+            err(path, f"{where}: its text names {sorted(used - COMMENTARY_LINE_PLACEHOLDERS)}, not facts of a moment ({sorted(COMMENTARY_LINE_PLACEHOLDERS)})")
+        for needed, flag in ((("Player",), "bNeedsPrimary"), (("Other",), "bNeedsSecondary"), (("Total", "Stat"), "bNeedsTotal")):
+            if used & set(needed) and line.get(flag) is not True:
+                err(path, f"{where}: its text names {{{needed[0]}}}, so it needs {flag}: true (never said without it)")
+    for moment in moments:
+        if moment not in called:
+            err(path, f"Lines: no PlayByPlay line for the {moment} moment")
+    for key in ("Commentary.Voice.PlayByPlay", "Commentary.Voice.Color", "Commentary.Storyline",
+                *[f"Commentary.Penalty.{name}" for name in penalties]):
+        if key not in table:
+            err(path, f"no '{key}' row in Data/ui_text.csv (the booth says it)")
+    if "Commentary.Storyline" in table and placeholders(table["Commentary.Storyline"]) - {"Headline", "Body"}:
+        err(path, "Commentary.Storyline may name only {Headline} and {Body}")
+    extra = set(payload) - COMMENTARY_LIBRARY_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCommentaryLibrary exactly")
 
 
 TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks",
@@ -1891,6 +2100,37 @@ def validate_overlay_reticle(path, payload):
             err(path, f"ReticleStates: no '{state}' entry")
 
 
+FIELD_DIMENSION_FIELDS = ("CentimetresPerYard", "FieldLengthYards", "EndZoneDepthYards", "FieldWidthYards",
+                          "OutOfBoundsDepthYards", "BoundaryHeightCm")
+
+
+def validate_field_dimensions(path, payload):
+    """FPSFieldDimensions (Data/field_dimensions.json): the field's one frame, which PSField maps
+    yards to world space with; mirrors PSField::Validate."""
+    for field in FIELD_DIMENSION_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    extra = set(payload) - set(FIELD_DIMENSION_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldDimensions exactly")
+
+
+PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
+
+
+def validate_penalties(path, payload):
+    """FPSPenaltyTuning (Data/penalties.json): how often the simulation's own flags fly; mirrors
+    UPSPenaltyModel::ValidateTuning."""
+    for field in PENALTY_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0 or value > 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    extra = set(payload) - set(PENALTY_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPenaltyTuning exactly")
+
+
 def validate_control_handoff(path, payload, catalog):
     """FControlHandoffTuningRow (Data/control_handoff.json, Epic 30); mirrors
     UPSControlHandoffComponent::ValidateTuning plus the catalog cross-check."""
@@ -1906,7 +2146,12 @@ def validate_control_handoff(path, payload, catalog):
             action = actions.get(action_id)
             if action is None or action.get("ValueType") != "Boolean" or "PreSnap" not in (action.get("Contexts") or []):
                 err(path, f"{field}: '{action_id}' must be a Boolean action in input_actions.json's PreSnap context")
-    extra = set(payload) - {"CycleWindowSeconds", "PickLeftAction", "PickRightAction"}
+    offense_role, defense_role = payload.get("OffenseControlRole"), payload.get("DefenseControlRole")
+    if offense_role not in OFFENSIVE_ROLES:
+        err(path, f"OffenseControlRole: '{offense_role}' must be an offensive role ({sorted(OFFENSIVE_ROLES)})")
+    if defense_role not in DEFENSIVE_ROLES:
+        err(path, f"DefenseControlRole: '{defense_role}' must be a defensive role ({sorted(DEFENSIVE_ROLES)})")
+    extra = set(payload) - {"CycleWindowSeconds", "PickLeftAction", "PickRightAction", "OffenseControlRole", "DefenseControlRole"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FControlHandoffTuningRow exactly")
 
@@ -4049,8 +4294,43 @@ def validate_versus_rules(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSVersusRules exactly")
 
 
+CROSS_PLAY_POLICIES = {"Anyone", "SameInput", "SamePlatform"}
+SESSION_MATCHMAKING_NUMBERS = ("InitialSkillWindow", "SkillWindowGrowthPerSecond", "MaxSkillWindow", "RegionRelaxSeconds",
+                               "MaxWaitSeconds", "HostScoreDesktop", "HostScoreOnPower", "HostScoreUnmetered")
+SESSION_MATCHMAKING_FIELDS = {"ProtocolVersion", "DefaultCrossPlay", "TouchDefaultCrossPlay"} | set(SESSION_MATCHMAKING_NUMBERS)
+
+
+def validate_session_matchmaking(path, payload):
+    """FPSSessionMatchmakingTuning (Data/session_matchmaking.json, Epic 108.5); mirrors
+    UPSSessionService::ValidateTuning."""
+    protocol = payload.get("ProtocolVersion")
+    if not isinstance(protocol, int) or isinstance(protocol, bool) or protocol < 1:
+        err(path, f"ProtocolVersion: '{protocol}' must be a whole number, 1 or more")
+    for field in SESSION_MATCHMAKING_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    initial, widest = payload.get("InitialSkillWindow"), payload.get("MaxSkillWindow")
+    if is_number(initial) and is_number(widest) and widest < initial:
+        err(path, f"MaxSkillWindow: {widest} must be at least InitialSkillWindow ({initial})")
+    wait = payload.get("MaxWaitSeconds")
+    if is_number(wait) and wait <= 0:
+        err(path, "MaxWaitSeconds: must be above 0")
+    for field in ("DefaultCrossPlay", "TouchDefaultCrossPlay"):
+        if payload.get(field) not in CROSS_PLAY_POLICIES:
+            err(path, f"{field}: '{payload.get(field)}' must be one of {sorted(CROSS_PLAY_POLICIES)} (EPSCrossPlayPolicy)")
+    extra = set(payload) - SESSION_MATCHMAKING_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSSessionMatchmakingTuning exactly")
+
+
 AI_DEBUG_FIELDS = {"bLogDecisions": bool, "bWritePostMortems": bool, "PostMortemDirectory": str, "MaxPostMortemFiles": int,
-                   "MaxRecordsPerPlay": int, "OverlayHeightCm": (int, float), "OverlayFontScale": (int, float)}
+                   "MaxRecordsPerPlay": int, "OverlayHeightCm": (int, float), "OverlayFontScale": (int, float),
+                   "OverlayFontSize": int, "OverlayCharWidth": (int, float), "OverlayLineHeight": (int, float),
+                   "OverlayPadding": (int, float), "OverlayMaxLineChars": int, "OverlayOffenseColor": str,
+                   "OverlayDefenseColor": str, "OverlayTextColor": str, "OverlayOpacity": (int, float),
+                   "OverlayCrowdedOpacity": (int, float), "OverlayNudgeStep": (int, float), "OverlayMaxNudges": int,
+                   "OverlayTargetLineWidth": (int, float)}
 DEFENSIVE_ASSIGNMENTS = {"PassRush", "Contain", "ManCoverage", "ZoneCoverage", "RunFit", "Block"}
 SCENARIO_FIELDS = {"ScenarioId", "Description", "OffenseCategory", "Down", "Distance", "StepSeconds", "Steps", "Players", "Expectations"}
 SCENARIO_PLAYER_FIELDS = {"PlayerId", "Role", "Location", "Rating", "DNA", "bHasBall", "Route", "Assignment", "CoverTarget", "ZoneOffset"}
@@ -4069,6 +4349,21 @@ def validate_ai_debug(path, payload):
     directory = payload.get("PostMortemDirectory")
     if isinstance(directory, str) and (not directory.strip() or ".." in directory or directory.startswith(("/", "\\"))):
         err(path, "PostMortemDirectory: a folder under Saved/, without '..'")
+    # The overlay's cards (Epic 85.2); mirrors PSAIDebugOverlay::ValidateTuning.
+    for field in ("OverlayFontSize", "OverlayCharWidth", "OverlayLineHeight", "OverlayTargetLineWidth"):
+        if is_number(payload.get(field)) and payload[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    for field in ("OverlayPadding", "OverlayNudgeStep", "OverlayMaxNudges"):
+        if is_number(payload.get(field)) and payload[field] < 0:
+            err(path, f"{field}: must be 0 or more")
+    if isinstance(payload.get("OverlayMaxLineChars"), int) and payload["OverlayMaxLineChars"] < 8:
+        err(path, "OverlayMaxLineChars: must be 8 or more")
+    for field in ("OverlayOpacity", "OverlayCrowdedOpacity"):
+        if is_number(payload.get(field)) and not 0 <= payload[field] <= 1:
+            err(path, f"{field}: must be from 0 to 1")
+    for field in ("OverlayOffenseColor", "OverlayDefenseColor", "OverlayTextColor"):
+        if isinstance(payload.get(field), str) and not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload[field]}' must be #RRGGBB")
     extra = set(payload) - set(AI_DEBUG_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSAIDebugTuning exactly")
@@ -5068,6 +5363,8 @@ PLAYER_STAT_CATEGORIES = {
     "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks", "Interceptions",
 }
 HALL_OF_FAME_INT_FIELDS = ("WaitSeasons", "MinSeasons", "MaxInducteesPerSeason")
+AWARD_KINDS = ("OffensivePlayerOfWeek", "DefensivePlayerOfWeek", "MostValuablePlayer", "OffensivePlayerOfYear",
+               "DefensivePlayerOfYear", "RookieOfYear")
 
 
 AGING_CURVE_FIELDS = {"PeakAgeStart", "PeakAgeEnd", "GrowthPerYear", "DeclinePerYear", "LowSnapShareThreshold"}
@@ -5165,7 +5462,22 @@ def validate_legacy(path, payload):
                 err(path, f"{where}.CareerValue: '{value}' must be a whole number, 1 or more")
             if set(threshold) - {"Category", "CareerValue"}:
                 err(path, f"{where}: unknown field(s) {sorted(set(threshold) - {'Category', 'CareerValue'})}")
-        known = set(HALL_OF_FAME_INT_FIELDS) | {"InductionScore", "Thresholds"}
+        awards = hall.get("AwardScores", [])
+        if not isinstance(awards, list):
+            err(path, "HallOfFame.AwardScores: must be an array of { Award, Score }")
+            awards = []
+        named = set()
+        for idx, entry in enumerate(awards):
+            where = f"HallOfFame.AwardScores[{idx}]"
+            if not isinstance(entry, dict) or entry.get("Award") not in AWARD_KINDS or entry.get("Award") in named:
+                err(path, f"{where}.Award: must be an EPSAwardKind ({list(AWARD_KINDS)}), listed once")
+                continue
+            named.add(entry["Award"])
+            if not is_number(entry.get("Score")) or entry["Score"] < 0:
+                err(path, f"{where}.Score: '{entry.get('Score')}' must be a number, 0 or more")
+            if set(entry) - {"Award", "Score"}:
+                err(path, f"{where}: unknown field(s) {sorted(set(entry) - {'Award', 'Score'})}")
+        known = set(HALL_OF_FAME_INT_FIELDS) | {"InductionScore", "Thresholds", "AwardScores"}
         if set(hall) - known:
             err(path, f"HallOfFame: unknown field(s) {sorted(set(hall) - known)} - names must match FPSHallOfFameTuning exactly")
     leaders = payload.get("LeaderCategories")
@@ -5441,16 +5753,26 @@ def main(root=None):
             validate_game_intelligence(path, payload)
         if isinstance(payload, dict) and "HallOfFame" in payload:
             validate_legacy(path, payload)
+        if isinstance(payload, dict) and "PickRoundValues" in payload:
+            validate_trades(path, payload)
         if isinstance(payload, dict) and "StorylineKinds" in payload:
             validate_narrative(path, payload)
         if isinstance(payload, dict) and "FormationClasses" in payload:
             validate_play_recognition(path, payload)
+        if isinstance(payload, dict) and "HoldingChancePerPlay" in payload:
+            validate_penalties(path, payload)
         if isinstance(payload, dict) and "EventCues" in payload:
             validate_audio_cues(path, payload)
         if isinstance(payload, dict) and "CrowdReactions" in payload:
             validate_crowd(path, payload)
         if isinstance(payload, dict) and "ModelMoments" in payload:
             validate_commentary_hooks(path, payload)
+        if isinstance(payload, dict) and "CentimetresPerYard" in payload:
+            validate_field_dimensions(path, payload)
+        if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
+            validate_session_matchmaking(path, payload)
+        if isinstance(payload, dict) and "InterruptMargin" in payload:
+            validate_commentary_lines(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()

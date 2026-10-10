@@ -198,11 +198,20 @@ namespace PSHighlightTests
             Bus->PublishCatch(Event);
         }
 
-        void Tackle(int32 Yards)
+        void Tackle()
         {
             FPSTelemetryTackleEvent Event;
-            Event.YardsGained = Yards;
+            Event.BallCarrierName = TEXT("WR_01");
             Bus->PublishTackle(Event);
+        }
+
+        /** The simulation's result for the play: its yards, from the line of scrimmage. */
+        void AnnounceResult(int32 Yards)
+        {
+            FPSTelemetryPlayResultEvent Event;
+            Event.Result = TEXT("Tackle");
+            Event.YardsGained = Yards;
+            Bus->PublishPlayResult(Event);
         }
 
         void BrokenTackle()
@@ -225,10 +234,11 @@ namespace PSHighlightTests
             // 1. A 4-yard run.
             Snap();
             Steps(10);
-            Tackle(4);
+            Tackle();
             Steps(2);
             Whistle();
             Steps(3);
+            AnnounceResult(4);
             GameState(TEXT("PreSnap"), 3, 570.f, 34, true, 7, 7);
             Steps(10);
 
@@ -241,10 +251,11 @@ namespace PSHighlightTests
             Steps(4);
             BrokenTackle();
             Steps(8);
-            Tackle(45);
+            Tackle();
             Steps(2);
             Whistle();
             Steps(3);
+            AnnounceResult(45);
             GameState(TEXT("PreSnap"), 3, 520.f, 79, true, 7, 7);
             Steps(10);
 
@@ -423,8 +434,8 @@ bool FPSHighlightPlaysTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Every play settled"), Impacts.Num(), 5);
     if (Impacts.Num() == 5)
     {
-        TestEqual(TEXT("The run: its yards from the tackle"), Impacts[0].Yards, 4);
-        TestEqual(TEXT("The catch: the longest yards of the play"), Impacts[1].Yards, 45);
+        TestEqual(TEXT("The run: its yards from the simulation's result"), Impacts[0].Yards, 4);
+        TestEqual(TEXT("The catch and run: the play's yards from the result, not the catch's 12"), Impacts[1].Yards, 45);
         TestEqual(TEXT("... two broken tackles"), Impacts[1].BrokenTackles, 2);
         TestEqual(TEXT("The touchdown: seven points, from the game state"), Impacts[2].Points, 7);
         TestTrue(TEXT("... a swing in who wins"), Impacts[2].WinProbabilitySwing > 0.05f);

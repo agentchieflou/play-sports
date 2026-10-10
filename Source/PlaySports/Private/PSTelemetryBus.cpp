@@ -121,8 +121,8 @@ void UPSTelemetryBus::PublishTackle(const FPSTelemetryTackleEvent& Event)
     FString JsonPayload;
     FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryTackleEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
 
-    FString Description = FString::Printf(TEXT("Tackle: Tackler=%s, Carrier=%s, YardsGained=%d%s"),
-        *Event.TacklerName, *Event.BallCarrierName, Event.YardsGained, Event.bIsSack ? TEXT(" (sack)") : TEXT(""));
+    FString Description = FString::Printf(TEXT("Tackle: Tackler=%s, Carrier=%s, YardLine=%d%s"),
+        *Event.TacklerName, *Event.BallCarrierName, Event.YardLine, Event.bIsSack ? TEXT(" (sack)") : TEXT(""));
     RecordHistory(EPSTelemetryEventType::Tackle, Description, JsonPayload);
 
     if (OnTackle.IsBound())
@@ -689,4 +689,18 @@ void UPSTelemetryBus::PublishCommentary(const FPSTelemetryCommentaryEvent& Event
         OnCommentary.Broadcast(Event);
     }
     OnCommentaryMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishTrade(const FPSTelemetryTradeEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryTradeEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    RecordHistory(EPSTelemetryEventType::Trade, FString::Printf(TEXT("Trade: %s"), *Event.Description), JsonPayload);
+
+    if (OnTrade.IsBound())
+    {
+        OnTrade.Broadcast(Event);
+    }
+    OnTradeMC.Broadcast(Event);
 }

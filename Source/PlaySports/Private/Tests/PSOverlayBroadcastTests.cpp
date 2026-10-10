@@ -203,7 +203,9 @@ bool FPSScoreBugTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("...five seconds later 14:55"), Bug.GameClockText, FString(TEXT("14:55")));
     TestTrue(TEXT("No play clock during the play"), Bug.PlayClockText.IsEmpty());
 
-    // A 65-yard gain: first down inside the opponent's 20.
+    // A 65-yard gain: first down inside the opponent's 20 (no flag on the play: the snap's
+    // random flags are cleared so the test needs no luck).
+    Sim->ActivePenalty = EPSPenaltyType::None;
     Sim->RecordTackle(65);
     Sim->EndPlayAndPrepareNext();
     Bug = Broadcast->GetScoreBug();
@@ -213,6 +215,7 @@ bool FPSScoreBugTest::RunTest(const FString& Parameters)
 
     // A touchdown: points, possession changes, a score alert and a drive summary.
     Sim->TriggerSnap();
+    Sim->ActivePenalty = EPSPenaltyType::None;
     Sim->RecordTouchdown();
     Sim->EndPlayAndPrepareNext();
     const FPlayState After = Sim->GetPlayState();
@@ -237,14 +240,24 @@ bool FPSScoreBugTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("...ending in a touchdown"), Chyron.Detail.Contains(TEXT("Touchdown")));
     }
 
-    // A sack becomes a play line.
+    // A sack becomes a play line once the play's result has its yards: the simulation's, from
+    // the line of scrimmage. The tackle alone only names who went down.
+    const int32 QueuedBeforeSack = Broadcast->GetQueuedChyronCount();
     FPSTelemetryTackleEvent Sack;
     Sack.TacklerName = TEXT("DE_1");
     Sack.BallCarrierName = TEXT("QB_1");
-    Sack.YardsGained = -7;
     Sack.bIsSack = true;
     Bus->PublishTackle(Sack);
+    TestEqual(TEXT("The tackle alone has no line yet"), Broadcast->GetQueuedChyronCount(), QueuedBeforeSack);
+    FPSTelemetryPlayResultEvent SackResult;
+    SackResult.Result = TEXT("Tackle");
+    SackResult.YardsGained = -7;
+    SackResult.bPass = true;
+    SackResult.bSack = true;
+    Bus->PublishPlayResult(SackResult);
     TestTrue(TEXT("The sack waits its turn"), Broadcast->GetQueuedChyronCount() >= 1);
+    const FPSChyron* SackLine = Broadcast->GetQueuedChyrons().FindByPredicate([](const FPSChyron& Waiting) { return Waiting.Kind == EPSChyronKind::PlayStat; });
+    TestTrue(TEXT("...with the simulation's yards"), SackLine && SackLine->Detail == UPSOverlayBroadcastSubsystem::MakeSackDetail(TEXT("DE_1"), TEXT("QB_1"), -7));
 
     // The two-minute state, straight from an announcement.
     FPSTelemetryGameStateEvent Late = PSGameStateEvents::MakeEvent(Sim->GetPlayState(), FDriveSummary(), 1, 3);

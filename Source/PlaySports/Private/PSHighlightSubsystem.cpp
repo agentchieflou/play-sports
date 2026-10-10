@@ -243,16 +243,20 @@ void UPSHighlightSubsystem::HandleEventRecorded(const FPSTelemetryEvent& Event)
         break;
     }
     case EPSTelemetryEventType::Tackle:
-    {
-        FPSTelemetryTackleEvent Tackle;
-        if (Track.bActive && ReadPayload(Event, Tackle))
+        // The tackle is the play's key moment; its yards come with the play's result.
+        if (Track.bActive)
         {
-            if (!Track.bHaveYards || FMath::Abs(Tackle.YardsGained) > FMath::Abs(Track.LongestYards))
-            {
-                Track.LongestYards = Tackle.YardsGained;
-                Track.bHaveYards = true;
-            }
             NoteKeyMoment(Event.Sequence, TackleRank);
+        }
+        break;
+    case EPSTelemetryEventType::PlayResult:
+    {
+        // The simulation, the outcome authority, measured the play: its yards are the play's.
+        FPSTelemetryPlayResultEvent Result;
+        if (Track.bActive && ReadPayload(Event, Result))
+        {
+            Track.ResultYards = Result.YardsGained;
+            Track.bHaveResult = true;
         }
         break;
     }
@@ -370,7 +374,11 @@ void UPSHighlightSubsystem::SettlePlay()
     Impact.Points = FMath::Max(Track.EventPoints, StatePoints);
     const bool bChangedHands = bStates && After.bHomeHasPossession != Before.bHomeHasPossession;
     Impact.bTurnover = Track.bTurnoverEvent || (bChangedHands && !Track.bKickPlay && Impact.Points == 0);
-    if (Track.bHaveYards)
+    if (Track.bHaveResult)
+    {
+        Impact.Yards = Track.ResultYards;
+    }
+    else if (Track.bHaveYards)
     {
         Impact.Yards = Track.LongestYards;
     }

@@ -17,6 +17,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "PSFieldDimensions.h"
 #include "Dom/JsonObject.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -223,7 +224,7 @@ bool FPSCommentaryPlayDescriptionTest::RunTest(const FString& Parameters)
         TestEqual(TEXT("...as deep"), Pass->Detail, FName(TEXT("Deep")));
         TestEqual(TEXT("...by the passer"), Pass->PrimaryName, FString(TEXT("Hawks QB")));
         TestEqual(TEXT("...to his target"), Pass->SecondaryName, FString(TEXT("Hawks WR")));
-        TestTrue(TEXT("...its air yards"), FMath::IsNearlyEqual(Pass->Magnitude, (Tuning.DeepPassCm + 200.f) / 91.44f, 0.01f));
+        TestTrue(TEXT("...its air yards"), FMath::IsNearlyEqual(Pass->Magnitude, PSField::CentimetresToYards(Tuning.DeepPassCm + 200.f), 0.01f));
     }
     FPSTelemetryCatchEvent Catch;
     Catch.ReceiverName = TEXT("Hawks WR");
@@ -241,7 +242,6 @@ bool FPSCommentaryPlayDescriptionTest::RunTest(const FString& Parameters)
     FPSTelemetryTackleEvent Tackle;
     Tackle.TacklerName = TEXT("Wolves CB");
     Tackle.BallCarrierName = TEXT("Hawks WR");
-    Tackle.YardsGained = 31;
     const int32 BeforeTackle = Fixture.Published.Num();
     Bus->PublishTackle(Tackle);
     TestEqual(TEXT("A plain tackle waits for the play's result"), Fixture.Published.Num(), BeforeTackle);

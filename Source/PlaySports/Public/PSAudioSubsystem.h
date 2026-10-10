@@ -25,7 +25,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSAudioCueRequestedMC, const FPSAudioCueReq
  *    Stopped); a throw (Deep at DeepPassCm); a catch (Interception); a fumble (Turnover); a kick;
  *    the score and the result of a play (the simulation's PlayResult); a flag (the simulation's
  *    Penalty); a timeout; a carrier crossing the goal line; the crowd's level and reactions
- *    (UPSCrowdExcitementSubsystem's Crowd events); a pre-snap call (the cadence); a quarter's end.
+ *    (UPSCrowdExcitementSubsystem's Crowd events); a pre-snap call (the cadence); a quarter's end;
+ *    a line the commentary booth said (Epic 96: its LineId, for the line's recorded voice-over).
  *  - Cues: Data/audio_cues.json maps each trigger (and Detail) to cues; every matching rule plays.
  *    A cue's sound is a soft object path, empty until an editor session imports it: the request is
  *    made and recorded either way, so the mapping is testable headlessly.
@@ -171,6 +172,7 @@ private:
     void HandleBoundaryCrossed(const FPSTelemetryBoundaryCrossedEvent& Event);
     void HandleCrowd(const FPSTelemetryCrowdEvent& Event);
     void HandlePreSnap(const FPSTelemetryPreSnapEvent& Event);
+    void HandleSpeech(const FPSTelemetrySpeechEvent& Event);
 
     /** The play's phase is now Phase: a live phase starts the play, a dead one after a live one
      *  blows the whistle. */

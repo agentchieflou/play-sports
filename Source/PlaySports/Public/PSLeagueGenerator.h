@@ -9,6 +9,7 @@
 #include "PSPlayerProgression.h"
 #include "PSLeagueGenerator.generated.h"
 
+class UPSPlayerAging;
 class UPSRoster;
 
 /** The pure rules of the league generator. */
@@ -52,9 +53,10 @@ namespace PSLeagueGenerator
  *    veteran's experience) is shared across his ratings; each role's players are ranked best
  *    first by the contract market's overall rating (UPSContractNegotiation::RatePlayer).
  *  - Ages: an entry age, then years in the league drawn from the role's attrition, so rookies
- *    are the largest group and veterans thin out. Ratings follow the progression curve to that
- *    age (PSLeagueGenerator::ApplyCareerArc), so a young player grows into his prime and a
- *    veteran has declined from it.
+ *    are the largest group and veterans thin out. Ratings follow his role's age curve to that
+ *    age (PSLeagueGenerator::ApplyCareerArc with UPSPlayerAging::GetCurve, Epic 94's curves),
+ *    so a young player grows into his prime and a veteran has declined from it, as he will go on
+ *    to age in a franchise.
  *  - DNA: Epic 79's catalog and generation rule (PSPlayerDNA::GenerateProfile), centered on the
  *    league's own players.
  *  - Draft classes: GenerateDraftClass makes a year's prospects the same way, all rookies.
@@ -82,8 +84,17 @@ public:
      *  UPSPlayerDNASubsystem's when there is one, else Data/player_dna.json. */
     void SetDNACatalog(const FPSPlayerDNACatalog& InCatalog);
 
-    /** The age curve ratings follow. By default Data/player_progression.json. */
+    /** The age curve ratings follow for a role without its own. By default
+     *  Data/player_progression.json. */
     void SetProgressionTuning(const FPSProgressionTuning& InTuning);
+
+    /** The role age curves ratings follow (UPSPlayerAging::GetCurve, Epic 94): the same curves a
+     *  franchise's players age on. By default one loaded from Data/legacy.json, falling back to
+     *  the progression tuning above for a role it doesn't list. */
+    void SetPlayerAging(UPSPlayerAging* InAging);
+
+    /** Role's age curve: the aging system's for it, else the progression tuning. */
+    FPSProgressionTuning GetCareerCurve(EPlayerRole Role);
 
     /**
      * A league of the tuning's NumTeams teams. BaseTeams (e.g. a teams file's rows) keep their
@@ -151,4 +162,13 @@ private:
     bool bTuningLoaded = false;
     bool bDNACatalogSet = false;
     bool bProgressionSet = false;
+
+    /** The role age curves (Epic 94); loaded in EnsureLoaded unless set. */
+    UPROPERTY(Transient)
+    UPSPlayerAging* Aging = nullptr;
+
+    bool bAgingSet = false;
+
+    /** Aging is the generator's own (its base curve follows SetProgressionTuning). */
+    bool bOwnAging = false;
 };
