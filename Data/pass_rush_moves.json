@@ -1,0 +1,17 @@
+{
+    "FirstMoveSeconds": 0.3,
+    "RecoverySeconds": 0.4,
+    "CounterBonus": 0.15,
+    "WinChanceMin": 0.03,
+    "WinChanceMax": 0.8,
+    "HistoryPriorWeight": 3,
+    "DoubleTeamRadius": 160,
+    "RushMoves": [
+        { "Move": "Bull",  "Attribute": "Strength", "BlockerAttribute": "Strength",  "MinAttribute": 60, "BaseWinChance": 0.18, "RatingScalar": 0.008, "MoveSeconds": 0.7, "StaminaCost": 6, "WinBurstSpeed": 120, "DoubleTeamWinScale": 0.35, "bDoubleTeamOnly": false, "Response": "Anchor", "Counters": "Mirror" },
+        { "Move": "Swim",  "Attribute": "Agility",  "BlockerAttribute": "Awareness", "MinAttribute": 50, "BaseWinChance": 0.15, "RatingScalar": 0.008, "MoveSeconds": 0.5, "StaminaCost": 5, "WinBurstSpeed": 160, "DoubleTeamWinScale": 0.3,  "bDoubleTeamOnly": false, "Response": "Punch",  "Counters": "Mirror" },
+        { "Move": "Rip",   "Attribute": "Speed",    "BlockerAttribute": "Agility",   "MinAttribute": 55, "BaseWinChance": 0.15, "RatingScalar": 0.008, "MoveSeconds": 0.5, "StaminaCost": 5, "WinBurstSpeed": 180, "DoubleTeamWinScale": 0.3,  "bDoubleTeamOnly": false, "Response": "Punch",  "Counters": "Anchor" },
+        { "Move": "Spin",  "Attribute": "Agility",  "BlockerAttribute": "Agility",   "MinAttribute": 65, "BaseWinChance": 0.12, "RatingScalar": 0.01,  "MoveSeconds": 0.5, "StaminaCost": 8, "WinBurstSpeed": 180, "DoubleTeamWinScale": 0.3,  "bDoubleTeamOnly": false, "Response": "Mirror", "Counters": "Anchor" },
+        { "Move": "Club",  "Attribute": "Strength", "BlockerAttribute": "Agility",   "MinAttribute": 50, "BaseWinChance": 0.1,  "RatingScalar": 0.006, "MoveSeconds": 0.4, "StaminaCost": 4, "WinBurstSpeed": 140, "DoubleTeamWinScale": 0.3,  "bDoubleTeamOnly": false, "Response": "Mirror", "Counters": "Punch" },
+        { "Move": "Split", "Attribute": "Agility",  "BlockerAttribute": "Strength",  "MinAttribute": 40, "BaseWinChance": 0.2,  "RatingScalar": 0.006, "MoveSeconds": 0.6, "StaminaCost": 8, "WinBurstSpeed": 120, "DoubleTeamWinScale": 0.75, "bDoubleTeamOnly": true,  "Response": "Anchor", "Counters": "None" }
+    ]
+}

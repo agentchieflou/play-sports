@@ -248,6 +248,22 @@ void UPSTelemetryBus::PublishPumpFake(const FPSTelemetryPumpFakeEvent& Event)
     OnPumpFakeMC.Broadcast(Event);
 }
 
+void UPSTelemetryBus::PublishPassRushMove(const FPSTelemetryPassRushEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPassRushEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Outcome = Event.bWon ? FString(TEXT("won")) : FString::Printf(TEXT("stopped by %s"), *Event.Response);
+    FString Description = FString::Printf(TEXT("PassRushMove: %s %s on %s, %s"), *Event.RusherName, *Event.Move, *Event.BlockerName, *Outcome);
+    RecordHistory(EPSTelemetryEventType::PassRushMove, Description, JsonPayload);
+
+    if (OnPassRushMove.IsBound())
+    {
+        OnPassRushMove.Broadcast(Event);
+    }
+    OnPassRushMoveMC.Broadcast(Event);
+}
+
 void UPSTelemetryBus::PublishPreSnap(const FPSTelemetryPreSnapEvent& Event)
 {
     FString JsonPayload;
