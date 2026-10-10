@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/DataTable.h"
+#include "PSAIDecisionTypes.h"
 #include "PSPlayerAttributes.h"
 #include "PSSituationData.h"
 #include "PSSpecialTeamsData.h"
@@ -14,6 +15,7 @@ class APSOffenseController;
 class APSPlayerPawn;
 class UPSRouteRunnerComponent;
 class UPSPocketComponent;
+class UPSAIDecisionLog;
 
 /** What an offensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -221,6 +223,13 @@ private:
     FVector SteerAsCarrier(APSPlayerPawn* Self) const;
     FVector SteerAsBlocker(APSPlayerPawn* Self) const;
 
+    /** Notes what this decision did and why for the decision log (Epic 85). Call only while
+     *  bLoggingDecision. */
+    void NoteDecision(const FString& InAction, const FString& InReason, const APSPlayerPawn* InTarget = nullptr);
+
+    /** Records this decision in the decision log, filling in what wasn't noted. */
+    void RecordDecision(const APSPlayerPawn* Self, UPSAIDecisionLog* DecisionLog);
+
     APSOffenseController* GetOffenseController() const;
     UPSRouteRunnerComponent* GetRouteRunner() const;
     UPSPocketComponent* GetPocket() const;
@@ -236,6 +245,16 @@ private:
     FSkillPlayerAITuningRow BaseTuning;
 
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
+
+    /** This decision as the decision log will record it (Epic 85), filled only while it logs. */
+    FPSAIDecisionRecord PendingDecision;
+
+    /** How much separation the QB's last read needed to call a receiver open. */
+    float LastOpenThreshold = 0.f;
+
+    /** True while the decision being made is logged. */
+    bool bLoggingDecision = false;
+
     EPSSkillPlayerAction Action = EPSSkillPlayerAction::Idle;
     FVector DesiredDirection = FVector::ZeroVector;
     FVector LineOfScrimmage = FVector::ZeroVector;

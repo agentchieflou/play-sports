@@ -11,6 +11,7 @@
 class APSDefenseController;
 class APSPlayerPawn;
 class UPSAIFieldSnapshot;
+class UPSAIDecisionLog;
 
 /** What a defensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -201,6 +202,10 @@ private:
 
     /** Where Self fits his gap against a run by Carrier; false when he should pursue instead. */
     bool GetFitTarget(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier, FVector& OutTarget) const;
+
+    /** Records this decision in the decision log (Epic 85): his assignment, action and target,
+     *  and Reason (or the action's own when empty). */
+    void RecordDecision(UPSAIDecisionLog* DecisionLog, const APSPlayerPawn* Self, const APSPlayerPawn* Carrier, const FString& Reason);
 
     APSDefenseController* GetDefenseController() const;
     APSPlayerPawn* GetSelf() const;

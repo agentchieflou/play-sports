@@ -1,0 +1,87 @@
+{
+    "Scenarios": [
+        {
+            "ScenarioId": "QBThrowsToOpenReceiver",
+            "Description": "Past his first read with a clean pocket, the quarterback throws to the receiver nobody is near.",
+            "OffenseCategory": "ShortPass",
+            "Down": 1,
+            "Distance": 10,
+            "StepSeconds": 0.7,
+            "Steps": 1,
+            "Players": [
+                { "PlayerId": "QB", "Role": "Quarterback", "Location": { "X": -300, "Y": 0, "Z": 100 }, "bHasBall": true },
+                { "PlayerId": "WR", "Role": "WideReceiver", "Location": { "X": 800, "Y": 1200, "Z": 100 } },
+                { "PlayerId": "CB", "Role": "DefensiveBack", "Location": { "X": 900, "Y": 2000, "Z": 100 }, "Assignment": "ZoneCoverage" }
+            ],
+            "Expectations": [
+                { "PlayerId": "QB", "Action": "Throw", "Target": "WR" }
+            ]
+        },
+        {
+            "ScenarioId": "CollapsedPocketScramble",
+            "Description": "A free rusher on him and nobody to throw to: the quarterback scrambles, and the rusher keeps coming.",
+            "OffenseCategory": "ShortPass",
+            "Down": 2,
+            "Distance": 7,
+            "StepSeconds": 0.1,
+            "Steps": 1,
+            "Players": [
+                { "PlayerId": "QB", "Role": "Quarterback", "Location": { "X": -300, "Y": 0, "Z": 100 }, "bHasBall": true },
+                { "PlayerId": "DE", "Role": "DefensiveLineman", "Location": { "X": -100, "Y": 0, "Z": 100 }, "Assignment": "PassRush" }
+            ],
+            "Expectations": [
+                { "PlayerId": "QB", "Action": "Scramble" },
+                { "PlayerId": "DE", "Action": "Rush", "Target": "QB", "Heading": { "X": -1, "Y": 0, "Z": 0 } }
+            ]
+        },
+        {
+            "ScenarioId": "CornerMirrorsHisMan",
+            "Description": "A receiver running his route goes upfield, and the corner in man coverage takes him.",
+            "OffenseCategory": "ShortPass",
+            "Down": 1,
+            "Distance": 10,
+            "StepSeconds": 0.1,
+            "Steps": 1,
+            "Players": [
+                { "PlayerId": "WR", "Role": "WideReceiver", "Location": { "X": 0, "Y": 1200, "Z": 100 }, "Route": [ { "X": 800, "Y": 0, "Z": 0 } ] },
+                { "PlayerId": "CB", "Role": "DefensiveBack", "Location": { "X": 500, "Y": 1200, "Z": 100 }, "Assignment": "ManCoverage", "CoverTarget": "WR" }
+            ],
+            "Expectations": [
+                { "PlayerId": "WR", "Action": "RunRoute", "Heading": { "X": 1, "Y": 0, "Z": 0 } },
+                { "PlayerId": "CB", "Action": "Cover", "Target": "WR" }
+            ]
+        },
+        {
+            "ScenarioId": "CarrierCutsAwayFromTackler",
+            "Description": "A back with the ball and a tackler closing from upfield on his left cuts right and keeps going.",
+            "OffenseCategory": "ShortPass",
+            "Down": 1,
+            "Distance": 10,
+            "StepSeconds": 0.1,
+            "Steps": 1,
+            "Players": [
+                { "PlayerId": "RB", "Role": "RunningBack", "Location": { "X": 0, "Y": 0, "Z": 100 }, "bHasBall": true },
+                { "PlayerId": "LB", "Role": "Linebacker", "Location": { "X": 200, "Y": -150, "Z": 100 } }
+            ],
+            "Expectations": [
+                { "PlayerId": "RB", "Action": "CarryBall", "Target": "LB", "Heading": { "X": 1, "Y": 1, "Z": 0 } }
+            ]
+        },
+        {
+            "ScenarioId": "ZoneDefenderDropsToHisSpot",
+            "Description": "A defender in zone coverage with nobody in it drops straight to his spot.",
+            "OffenseCategory": "ShortPass",
+            "Down": 3,
+            "Distance": 8,
+            "StepSeconds": 0.1,
+            "Steps": 1,
+            "Players": [
+                { "PlayerId": "S", "Role": "DefensiveBack", "Location": { "X": 800, "Y": -600, "Z": 100 }, "Assignment": "ZoneCoverage", "ZoneOffset": { "X": 700, "Y": 0, "Z": 0 } },
+                { "PlayerId": "TE", "Role": "TightEnd", "Location": { "X": 0, "Y": 2500, "Z": 100 } }
+            ],
+            "Expectations": [
+                { "PlayerId": "S", "Action": "Zone", "Heading": { "X": 1, "Y": 0, "Z": 0 } }
+            ]
+        }
+    ]
+}

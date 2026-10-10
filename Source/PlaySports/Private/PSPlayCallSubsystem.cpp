@@ -1,4 +1,5 @@
 #include "PSPlayCallSubsystem.h"
+#include "PSAIDecisionLog.h"
 #include "PSOpponentModel.h"
 #include "PSCoachingAI.h"
 #include "PSDataIngestion.h"
@@ -896,6 +897,31 @@ void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
         ? CoachingAI->SelectOffensivePlay(Situation, Tendency, Candidates)
         : CoachingAI->SelectDefensivePlay(Situation, Tendency, Candidates);
     const FPSPlayDefinition* Play = Candidates.FindByPredicate([Chosen](const FPSPlayDefinition& Candidate) { return Candidate.PlayId == Chosen; });
+
+    // The decision log (Epic 85): every play weighed, the pick and its reasons.
+    UPSAIDecisionLog* DecisionLog = UPSAIDecisionLog::Get(GetWorld());
+    if (DecisionLog && DecisionLog->IsLogging())
+    {
+        FPSAIDecisionRecord Decision;
+        Decision.AgentId = bOffense ? TEXT("CPUOffense") : TEXT("CPUDefense");
+        Decision.System = TEXT("PlayCall");
+        Decision.Action = (Play ? Play->PlayId : Candidates[0].PlayId).ToString();
+        for (const FPSPlaySuggestion& Suggestion : CoachingAI->RankPlays(Situation, Tendency, Candidates, bOffense))
+        {
+            FPSAIDecisionOption Option;
+            Option.Option = Suggestion.PlayId.ToString();
+            Option.Score = Suggestion.Weight;
+            Option.Note = Suggestion.Category;
+            Option.bChosen = Option.Option == Decision.Action;
+            if (Option.bChosen)
+            {
+                Decision.Target = Suggestion.Category;
+                Decision.Reason = Suggestion.Reasons.Num() > 0 ? FString::Join(Suggestion.Reasons, TEXT("; ")) : FString(TEXT("A weighted pick from the playbook"));
+            }
+            Decision.Options.Add(Option);
+        }
+        DecisionLog->Record(Decision);
+    }
     SetCall(Play ? *Play : Candidates[0], EPSPlayCaller::CPU);
 }
 

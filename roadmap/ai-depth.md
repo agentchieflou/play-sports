@@ -143,7 +143,30 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** Every AI decision is inspectable — the debugging surface that makes Epics 78–84 maintainable by agents.
 **Depends on:** Core 14, Core 15, 26
 
-- [ ] Decision log: per-agent, per-tick reasoning records (considered options, chosen, why)
+- [x] Decision log: per-agent, per-tick reasoning records (considered options, chosen, why)
+  *As built: `UPSAIDecisionLog` (world subsystem) records an `FPSAIDecisionRecord` for every
+  decision tick of `UPSSkillPlayerAIComponent` and `UPSDefenderAIComponent`, every rush-move choice
+  and every CPU play call. Each record holds the player, play and time, his assignment, the action,
+  the target and the reason. Where the AI weighed options, they come with their scores and the one
+  chosen: the QB's receivers by separation, the rush plan's moves, the coaching AI's plays by
+  weight. It is off by default (`Data/ai_debug.json`; console variable `ps.AI.DecisionLog`) and
+  costs nothing while off. Recording never changes a decision.*
 - [ ] On-field debug overlay: live BT state, target, assignment above any pawn (reuses Track A badge rendering)
-- [ ] Play post-mortem dump: one file per play with all 22 decision streams, replay-linked (41)
-- [ ] Scriptable scenario runner: place 22 players in a state, run one decision cycle, assert outputs (extends Epic 24's gym)
+  *Model half built: with `ps.AI.DebugOverlay` on, each player's latest decision is drawn above
+  him as debug text (`DescribeForOverlay`: player, assignment, action, target and reason), with a
+  line to his target. Still to do: drawing it through Epic 28's badge widget (which hides players
+  during the play, so needs an always-on debug layer), and an editor or PIE session to check how
+  it reads.*
+- [x] Play post-mortem dump: one file per play with all 22 decision streams, replay-linked (41)
+  *As built: when a play ends (Scoring, or the next snap), `Saved/AIPostMortems/Play_<time>_<play>.json`
+  holds the snap's situation, both calls, the bus events from the snap on, and every player's
+  decision stream. The bus sequence numbers of the snap and the last event are the join key to the
+  event history Epic 41's replay is built from. It is written with `ps.AI.PostMortem` or the
+  data's switch, and the newest `MaxPostMortemFiles` are kept.*
+- [x] Scriptable scenario runner: place 22 players in a state, run one decision cycle, assert outputs (extends Epic 24's gym)
+  *As built: `UPSAIScenarioRunner` places a scenario's players (any number, up to all 22) under
+  their AI, each with his ratings, DNA, ball, route or assignment. It snaps, runs the decision
+  cycles and checks each expectation (action, target, heading) against the decision log.
+  Scenarios are data (`Data/ai_scenarios.json`), and `PlaySports.Gym.AIScenarios` runs them
+  headlessly. The gym map's functional test (24.1, editor) can call `RunScenario` on its own
+  world.*

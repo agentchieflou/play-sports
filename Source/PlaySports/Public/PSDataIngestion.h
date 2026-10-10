@@ -45,6 +45,7 @@
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSOpponentModelTypes.h"
+#include "PSAIDecisionTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -264,6 +265,15 @@ public:
      *  rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadOpponentModelTuningFromJson(const FString& JsonFilePath, FPSOpponentModelTuning& OutTuning);
+
+    /** Loads the AI debug tools' settings (Data/ai_debug.json, Epic 85). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadAIDebugTuningFromJson(const FString& JsonFilePath, FPSAIDebugTuning& OutTuning);
+
+    /** Loads scripted AI scenarios (Data/ai_scenarios.json, Epic 85). False on a missing file or
+     *  malformed JSON; UPSAIScenarioRunner::ValidateScenario checks each. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadAIScenariosFromJson(const FString& JsonFilePath, FPSAIScenarioCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

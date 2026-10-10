@@ -93,6 +93,8 @@ every CI build.
 | `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
 | `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
 | `opponent_model.json` | `FPSOpponentModelTuning` (single object: distance buckets, read and strength tuning, `Counters`) | `UPSDataIngestion::LoadOpponentModelTuningFromJson`, via `UPSOpponentModel` |
+| `ai_debug.json` | `FPSAIDebugTuning` (single object: switches, post-mortem folder and limits, overlay placement) | `UPSDataIngestion::LoadAIDebugTuningFromJson`, via `UPSAIDecisionLog` |
+| `ai_scenarios.json` | `FPSAIScenarioCatalog` (single object: `Scenarios`) | `UPSDataIngestion::LoadAIScenariosFromJson`, via `UPSAIScenarioRunner` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -174,6 +176,38 @@ Single object (Epic 78; how the CPU learns the human's play-calling and counters
   counters. Only categories some counter observes are tracked.
 
 `PSOpponentModel::ValidateTuning` and `tools/validate_data.py` check it.
+
+## AI debug schema (`FPSAIDebugTuning`)
+
+Single object (Epic 85; the AI's decision log, overlay and post-mortems, `UPSAIDecisionLog`):
+- `bLogDecisions`, `bWritePostMortems`: on without the console variables (`ps.AI.DecisionLog`,
+  `ps.AI.PostMortem`; `ps.AI.DebugOverlay` draws the overlay). Shipped off: logging costs nothing
+  while off.
+- `PostMortemDirectory`: a folder under `Saved/` (no `..`) for one `Play_<time>_<play>.json` per
+  play; `MaxPostMortemFiles` (above 0) of them are kept, the newest.
+- `MaxRecordsPerPlay` (above 0): a play keeps at most this many decisions.
+- `OverlayHeightCm`, `OverlayFontScale` (above 0): where the overlay's text sits above a player,
+  and its size.
+
+## AI scenario schema (`FPSAIScenarioCatalog`)
+
+Single object (Epic 85; scripted scenarios for `UPSAIScenarioRunner`, run by the automation test
+`PlaySports.Gym.AIScenarios`):
+- `Scenarios[]`, each with a unique `ScenarioId`, a `Description`, the offense's `OffenseCategory`
+  (an offensive play category), `Down`, `Distance`, and the decision cycle: `Steps` (1 or more) of
+  `StepSeconds` (above 0) each.
+- `Players[]`: a unique `PlayerId`, an `EPlayerRole` `Role`, a `Location` (`X`/`Y`/`Z`; the line of
+  scrimmage is X = 0, the offense going +X), a `Rating` (0-100, every rating; default 70), an
+  optional `DNA` (as a roster's), `bHasBall`; on offense a `Route` of offsets from his spot (none:
+  he blocks, or reads as QB); on defense an `Assignment` (`PassRush`, `Contain`, `ManCoverage`,
+  `ZoneCoverage`, `RunFit` or `Block`), the `CoverTarget` he covers (a player of the scenario) and a
+  `ZoneOffset` from his spot.
+- `Expectations[]`: a player of the scenario (`PlayerId`) and the `Action` his latest decision
+  must be (`FPSAIDecisionRecord::Action`: his state, or the act -- `Throw`, `Scramble`, `HandOff`,
+  ...). Optionally its `Target`, and a `Heading` (`X`/`Y`/`Z`) he must be steered within
+  `MaxAngleDegrees` (default 45) of.
+
+`UPSAIScenarioRunner::ValidateScenario` and `tools/validate_data.py` check them.
 
 ## Personnel package schema (`FPSPersonnelCatalog`)
 

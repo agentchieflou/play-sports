@@ -49,7 +49,9 @@ FPSEmphasisStyle (Epic 36); "Axes" + "Bindings" files against FPSPlayerDNACatalo
 FPSPlayerDNA field, each binding a numeric field of its target's tuning file and each rush move in
 pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
 "Counters" + "MinSamples" files against FPSOpponentModelTuning, each counter pairing a play category
-the human calls with one the CPU answers on the other side (Epic 78).
+the human calls with one the CPU answers on the other side (Epic 78); "bLogDecisions" files against
+FPSAIDebugTuning and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover
+target naming a player of its scenario (Epic 85).
 Teams, the league config, the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
@@ -2800,6 +2802,113 @@ def validate_opponent_model(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(set(counter) - {'bOffense', 'Observed', 'Counter', 'Weight'})}")
 
 
+AI_DEBUG_FIELDS = {"bLogDecisions": bool, "bWritePostMortems": bool, "PostMortemDirectory": str, "MaxPostMortemFiles": int,
+                   "MaxRecordsPerPlay": int, "OverlayHeightCm": (int, float), "OverlayFontScale": (int, float)}
+DEFENSIVE_ASSIGNMENTS = {"PassRush", "Contain", "ManCoverage", "ZoneCoverage", "RunFit", "Block"}
+SCENARIO_FIELDS = {"ScenarioId", "Description", "OffenseCategory", "Down", "Distance", "StepSeconds", "Steps", "Players", "Expectations"}
+SCENARIO_PLAYER_FIELDS = {"PlayerId", "Role", "Location", "Rating", "DNA", "bHasBall", "Route", "Assignment", "CoverTarget", "ZoneOffset"}
+SCENARIO_EXPECTATION_FIELDS = {"PlayerId", "Action", "Target", "Heading", "MaxAngleDegrees"}
+
+
+def validate_ai_debug(path, payload):
+    """FPSAIDebugTuning (Data/ai_debug.json, Epic 85)."""
+    for field, ftype in AI_DEBUG_FIELDS.items():
+        value = payload.get(field)
+        if field not in payload or (ftype is int and isinstance(value, bool)) or not isinstance(value, ftype):
+            err(path, f"{field}: '{value}' has the wrong type")
+    for field in ("MaxPostMortemFiles", "MaxRecordsPerPlay", "OverlayFontScale"):
+        if is_number(payload.get(field)) and payload[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    directory = payload.get("PostMortemDirectory")
+    if isinstance(directory, str) and (not directory.strip() or ".." in directory or directory.startswith(("/", "\\"))):
+        err(path, "PostMortemDirectory: a folder under Saved/, without '..'")
+    extra = set(payload) - set(AI_DEBUG_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSAIDebugTuning exactly")
+
+
+def is_vector(value):
+    return isinstance(value, dict) and set(value) <= {"X", "Y", "Z"} and all(is_number(v) for v in value.values())
+
+
+def validate_ai_scenarios(path, payload, dna_catalog):
+    """FPSAIScenarioCatalog (Data/ai_scenarios.json, Epic 85); mirrors
+    UPSAIScenarioRunner::ValidateScenario."""
+    scenarios = payload.get("Scenarios")
+    if not isinstance(scenarios, list) or not scenarios:
+        err(path, "'Scenarios' must be a non-empty array")
+        return
+    ids = set()
+    for idx, scenario in enumerate(scenarios):
+        where = f"Scenarios[{idx}]"
+        if not isinstance(scenario, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        sid = scenario.get("ScenarioId")
+        if not isinstance(sid, str) or not sid or sid in ids:
+            err(path, f"{where}.ScenarioId: '{sid}' must be a unique, non-empty name")
+        ids.add(sid)
+        where = f"Scenarios[{idx}] '{sid}'"
+        if set(scenario) - SCENARIO_FIELDS:
+            err(path, f"{where}: unknown field(s) {sorted(set(scenario) - SCENARIO_FIELDS)}")
+        if scenario.get("OffenseCategory", "ShortPass") not in content_contracts.OFFENSE_CATEGORIES:
+            err(path, f"{where}.OffenseCategory: '{scenario.get('OffenseCategory')}' is not an offensive play category")
+        step_seconds = scenario.get("StepSeconds", 0.1)
+        if not is_number(step_seconds) or step_seconds <= 0:
+            err(path, f"{where}.StepSeconds: must be above 0")
+        steps = scenario.get("Steps", 1)
+        if not isinstance(steps, int) or isinstance(steps, bool) or steps < 1:
+            err(path, f"{where}.Steps: a whole number, 1 or more")
+        players = scenario.get("Players") if isinstance(scenario.get("Players"), list) else []
+        if not players:
+            err(path, f"{where}.Players: must place at least one player")
+        names = set()
+        for pidx, player in enumerate(players):
+            pwhere = f"{where}.Players[{pidx}]"
+            if not isinstance(player, dict):
+                err(path, f"{pwhere}: must be an object")
+                continue
+            if set(player) - SCENARIO_PLAYER_FIELDS:
+                err(path, f"{pwhere}: unknown field(s) {sorted(set(player) - SCENARIO_PLAYER_FIELDS)}")
+            pid = player.get("PlayerId")
+            if not isinstance(pid, str) or not pid or pid in names:
+                err(path, f"{pwhere}.PlayerId: '{pid}' must be a unique, non-empty name")
+            names.add(pid)
+            if player.get("Role") not in PLAYER_ROLES:
+                err(path, f"{pwhere}.Role: '{player.get('Role')}' is not an EPlayerRole")
+            if not is_vector(player.get("Location")):
+                err(path, f"{pwhere}.Location: must be an X/Y/Z object")
+            if "Rating" in player and (not is_number(player["Rating"]) or not 0 <= player["Rating"] <= 100):
+                err(path, f"{pwhere}.Rating: ratings run 0-100")
+            if "DNA" in player:
+                validate_player_dna(path, pwhere, player, dna_catalog)
+            if "Assignment" in player and player["Assignment"] not in DEFENSIVE_ASSIGNMENTS:
+                err(path, f"{pwhere}.Assignment: '{player['Assignment']}' must be one of {sorted(DEFENSIVE_ASSIGNMENTS)}")
+            if "Route" in player and (not isinstance(player["Route"], list) or not all(is_vector(v) for v in player["Route"])):
+                err(path, f"{pwhere}.Route: must be a list of X/Y/Z offsets")
+            if "ZoneOffset" in player and not is_vector(player["ZoneOffset"]):
+                err(path, f"{pwhere}.ZoneOffset: must be an X/Y/Z object")
+        for pidx, player in enumerate(players):
+            if isinstance(player, dict) and "CoverTarget" in player and player["CoverTarget"] not in names:
+                err(path, f"{where}.Players[{pidx}].CoverTarget: '{player['CoverTarget']}' isn't a player in the scenario")
+        expectations = scenario.get("Expectations") if isinstance(scenario.get("Expectations"), list) else []
+        if not expectations:
+            err(path, f"{where}.Expectations: must expect something")
+        for eidx, expectation in enumerate(expectations):
+            ewhere = f"{where}.Expectations[{eidx}]"
+            if not isinstance(expectation, dict):
+                err(path, f"{ewhere}: must be an object")
+                continue
+            if set(expectation) - SCENARIO_EXPECTATION_FIELDS:
+                err(path, f"{ewhere}: unknown field(s) {sorted(set(expectation) - SCENARIO_EXPECTATION_FIELDS)}")
+            if expectation.get("PlayerId") not in names:
+                err(path, f"{ewhere}.PlayerId: '{expectation.get('PlayerId')}' isn't a player in the scenario")
+            if not isinstance(expectation.get("Action"), str) or not expectation.get("Action"):
+                err(path, f"{ewhere}.Action: must name the decision expected")
+            if "Heading" in expectation and not is_vector(expectation["Heading"]):
+                err(path, f"{ewhere}.Heading: must be an X/Y/Z object")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2917,6 +3026,10 @@ def main():
             validate_player_dna_catalog(path, payload)
         if isinstance(payload, dict) and "Counters" in payload and "MinSamples" in payload:
             validate_opponent_model(path, payload)
+        if isinstance(payload, dict) and "bLogDecisions" in payload:
+            validate_ai_debug(path, payload)
+        if isinstance(payload, dict) and "Scenarios" in payload:
+            validate_ai_scenarios(path, payload, load_dna_catalog())
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:
