@@ -18,7 +18,8 @@ The staged folder:
   index.html app.js loader.js gait.js field.js replay_schema.json   the viewer
   data/field_dimensions.json data/sample_teams.json                 from Data/
   assets/standin.glb assets/LICENSE                                 RawAssets/world/people/ (CC0)
-  recordings/index.json recordings/<play>.json ...                  the recordings, as listed
+  recordings/index.json recordings/<play>.json ...                  the recordings, as listed,
+                                                                    written compact (same JSON)
   sample/SYNTHETIC_*                                                with --synthetic only
 --print-files prints the published-path -> source map for the Artifact tool's `files`.
 
@@ -202,7 +203,7 @@ SKELETON_HEAD = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-
 SKELETON_TAIL = "\n</body>\n</html>\n"
 
 
-def stage(out, recordings=None, synthetic=False, schema=None, log=print, standalone=False):
+def stage(out, recordings=None, synthetic=False, schema=None, log=print, standalone=False, compact=True):
     """Builds the folder at out; returns {published path: source path}. Raises StageError."""
     schema = schema or load_schema()
     out = Path(out)
@@ -263,10 +264,19 @@ def stage(out, recordings=None, synthetic=False, schema=None, log=print, standal
         target = out / published
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
+    if compact:
+        # The recordings and the index without the converter's indentation: the same JSON,
+        # about half the bytes on a phone's connection. Strings (each event's payload) are kept.
+        for published in files:
+            if published.startswith("recordings/") and published.endswith(".json"):
+                target = out / published
+                doc = json.loads(target.read_text(encoding="utf-8-sig"))
+                target.write_text(json.dumps(doc, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
     if standalone:
         page = out / "index.html"
         page.write_text(SKELETON_HEAD + page.read_text(encoding="utf-8") + SKELETON_TAIL, encoding="utf-8")
-    log(f"stage: {len(files)} files in {out}")
+    total = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
+    log(f"stage: {len(files)} files, {total / 1e6:.1f} MB, in {out}")
     return files
 
 
@@ -276,10 +286,11 @@ def main(argv=None):
     parser.add_argument("--synthetic", action="store_true", help="include the synthetic test sample")
     parser.add_argument("--out", required=True, help="the folder to build (replaced)")
     parser.add_argument("--standalone", action="store_true", help="give index.html its own document skeleton (not for the Artifact host)")
+    parser.add_argument("--keep-indentation", action="store_true", help="copy the recordings as they are instead of writing them compact")
     parser.add_argument("--print-files", action="store_true", help="print the published path -> source map as JSON")
     args = parser.parse_args(argv)
     try:
-        files = stage(args.out, args.recordings, args.synthetic, standalone=args.standalone)
+        files = stage(args.out, args.recordings, args.synthetic, standalone=args.standalone, compact=not args.keep_indentation)
     except StageError as exc:
         print(f"stage: {exc}")
         return 1

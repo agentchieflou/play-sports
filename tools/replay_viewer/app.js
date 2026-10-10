@@ -72,6 +72,10 @@ const S = {
     cam: "sideline",
     follow: -1,
     layers: { trails: true, vectors: false, contacts: true, labels: true },
+    wholeRecording: false,
+    win: { a: 0, b: 0 },
+    snapT: null,
+    mismatches: [],
     dirty: true,
     loadToken: 0
 };
@@ -797,6 +801,7 @@ async function selectPlay(k)
         replay.events.filter((e) => e.type === "Whistle").forEach((e) => { e.label = "Whistle: ended by clock"; });
     }
     S.replay = replay;
+    S.mismatches = findMismatches(replay, play.entry);
     S.kits = kitsFor(replay, play.entry);
     rebuildField();
     buildViews(replay, S.kits);
@@ -805,15 +810,12 @@ async function selectPlay(k)
     S.follow = -1;
     $("card").hidden = true;
     $("synthetic-banner").hidden = !replay.synthetic && !play.entry.synthetic;
+    S.t = 0;
+    computeWindow();
+    S.t = S.win.a;
     renderHud(play, replay);
     renderTimeline(replay);
     renderAbout(play, replay);
-    S.t = 0;
-    const snap = replay.events.find((e) => e.type === "Snap");
-    if (snap)
-    {
-        S.t = Math.max(0, snap.t - replay.start - 0.4);
-    }
     setStatus("");
     setCamera(S.cam === "follow" ? "sideline" : S.cam, true);
     update(true);
@@ -903,6 +905,78 @@ function placeLines(replay)
 }
 
 // ---------------------------------------------------------------------------------------------
+// The span shown, and where the record disagrees with itself
+// ---------------------------------------------------------------------------------------------
+
+/** The snap and the whistle on the replay's own clock (seconds from its first frame), from its
+ *  events or the index's times; null when neither has one. */
+function playMoments(replay, entry)
+{
+    const snap = replay.events.find((e) => e.type === "Snap");
+    let snapT = snap ? snap.t - replay.start : null;
+    if (snapT === null && entry.snapTime !== null && entry.snapTime !== undefined)
+    {
+        snapT = entry.snapTime - replay.start;
+    }
+    const whistle = replay.events.find((e) => e.type === "Whistle" && (!snap || e.t >= snap.t));
+    let whistleT = whistle ? whistle.t - replay.start : null;
+    if (whistleT === null && entry.whistleTime !== null && entry.whistleTime !== undefined)
+    {
+        whistleT = entry.whistleTime - replay.start;
+    }
+    return { snapT, whistleT };
+}
+
+/** The span the timeline shows: a second before the snap to a second after the whistle (the
+ *  lineup before and the next play's after are cut), or the whole recording. */
+function computeWindow()
+{
+    const r = S.replay;
+    const { snapT, whistleT } = playMoments(r, S.plays[S.current].entry);
+    S.snapT = snapT;
+    let a = 0;
+    let b = r.duration;
+    if (!S.wholeRecording && snapT !== null)
+    {
+        a = Math.max(0, snapT - 1);
+        b = whistleT !== null ? Math.min(r.duration, Math.max(whistleT + 1, a + 1)) : r.duration;
+    }
+    S.win = { a, b };
+    S.t = Math.min(b, Math.max(a, S.t));
+}
+
+/** Where the recording disagrees with itself, said plainly rather than smoothed over. */
+function findMismatches(replay, entry)
+{
+    const out = [];
+    const r = replay.result;
+    if (!r)
+    {
+        return out;
+    }
+    const incomplete = /incomplete/i.test(r.result);
+    const catches = replay.events.filter((e) => e.type === "Catch" && !(String(L.field(e.payload, "bIsInterception")) === "true"));
+    if (incomplete && catches.length)
+    {
+        const c = catches[0];
+        out.push(`The bus recorded a catch (${c.label}, ${(c.t - replay.start).toFixed(2)} s) but the simulation ruled the pass incomplete.`);
+    }
+    if (incomplete && r.complete)
+    {
+        out.push("The simulation's PlayResult marks the pass complete (bComplete) yet gives its result as Incomplete.");
+    }
+    if (incomplete && entry.outcome === "Completion")
+    {
+        out.push("The demo index calls the play a completion; the simulation's result is Incomplete.");
+    }
+    if (entry.yards !== null && entry.yards !== undefined && r.yards !== null && entry.yards !== r.yards)
+    {
+        out.push(`The demo index gives ${entry.yards} yards; the simulation gives ${r.yards}.`);
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------------------------
 // HUD, timeline, about
 // ---------------------------------------------------------------------------------------------
 
@@ -938,8 +1012,11 @@ function renderHud(play, replay)
         const spot = yardLine <= 50 ? `own ${yardLine}` : `opp ${100 - yardLine}`;
         add(`${ordinal(down)} & ${distance} · ${spot}`);
     }
+    // The simulation's own result (its PlayResult, the outcome authority) when the recording has
+    // one; the index's outcome otherwise.
     const r = replay.result;
-    const resultText = outcomeText(e) || (r && r.result ? `${r.sack ? "Sack" : r.interception ? "Interception" : r.result}${r.yards !== null ? ` ${signed(r.yards)} yd` : ""}` : "");
+    const simText = r && r.result ? `${r.sack ? "Sack" : r.interception ? "Interception" : r.result}${r.yards !== null && !(r.yards === 0 && /incomplete/i.test(r.result)) ? ` ${signed(r.yards)} yd` : ""}` : "";
+    const resultText = simText || outcomeText(e);
     if (resultText)
     {
         add(resultText, "result");
@@ -947,6 +1024,11 @@ function renderHud(play, replay)
     if (e.endedBy === "PhaseClock")
     {
         add("Ended by clock", "quiet");
+    }
+    if (S.mismatches.length)
+    {
+        const caught = S.mismatches.some((m) => m.startsWith("The bus recorded a catch"));
+        add(caught ? "Mismatch: caught, ruled incomplete" : `Mismatch: ${S.mismatches.length}`, "bad", openAbout);
     }
     if (Array.isArray(e.problems))
     {
@@ -970,35 +1052,38 @@ function renderTimeline(replay)
 {
     const track = $("track");
     track.querySelectorAll(".mk").forEach((m) => m.remove());
-    const d = Math.max(0.001, replay.duration);
+    const { a, b } = S.win;
+    const d = Math.max(0.001, b - a);
+    const inWindow = (e) => e.t - replay.start >= a - 1e-6 && e.t - replay.start <= b + 1e-6;
     for (const e of replay.events)
     {
-        if (e.kind === "hidden" || e.t < replay.start - 1e-6)
+        if (e.kind === "hidden" || !inWindow(e))
         {
             continue;
         }
         const mk = document.createElement("i");
         mk.className = "mk" + (e.kind === "minor" ? " minor" : "") + (e.derived ? " derived" : "");
-        mk.style.left = `${((e.t - replay.start) / d) * 100}%`;
+        mk.style.left = `${((e.t - replay.start - a) / d) * 100}%`;
         mk.style.setProperty("--c", eventColour(e));
         mk.title = e.label;
         track.appendChild(mk);
     }
     const scrub = $("scrub");
-    scrub.max = String(d);
+    scrub.min = String(a);
+    scrub.max = String(b);
     const box = $("moments");
     box.innerHTML = "";
     S.momentButtons = [];
     for (const e of replay.events)
     {
-        if (e.kind !== "key" || e.t < replay.start - 1e-6)
+        if (e.kind !== "key" || !inWindow(e))
         {
             continue;
         }
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "moment";
-        b.style.setProperty("--c", eventColour(e));
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "moment";
+        chip.style.setProperty("--c", eventColour(e));
         const dot = document.createElement("i");
         if (e.derived)
         {
@@ -1007,15 +1092,15 @@ function renderTimeline(replay)
         const label = document.createElement("span");
         label.textContent = e.label;
         const when = document.createElement("b");
-        when.textContent = `${(e.t - replay.start).toFixed(1)}s`;
-        b.append(dot, label, when);
-        b.addEventListener("click", () =>
+        when.textContent = clockText(e.t - replay.start, 1);
+        chip.append(dot, label, when);
+        chip.addEventListener("click", () =>
         {
-            seek(Math.max(0, e.t - replay.start - (e.type === "Snap" ? 0.3 : 0.6)));
+            seek(Math.max(S.win.a, e.t - replay.start - (e.type === "Snap" ? 0.3 : 0.6)));
             setPlaying(true);
         });
-        box.appendChild(b);
-        S.momentButtons.push({ b, t: e.t - replay.start });
+        box.appendChild(chip);
+        S.momentButtons.push({ b: chip, t: e.t - replay.start });
     }
 }
 
@@ -1056,7 +1141,9 @@ function renderAbout(play, replay)
     add("Defense call", def ? [def.name, def.front, def.coverage].filter(Boolean).join(", ") : play.entry.defenseCall);
     const e = play.entry;
     add("Asked for", [e.intent, e.wantedOutcome ? `wanted ${e.wantedOutcome}` : "", e.calledBy ? `called by ${e.calledBy}` : ""].filter(Boolean).join(", "));
-    add("Outcome", outcomeText(e) ? `${outcomeText(e)}${e.firstDown ? ", first down" : ""}` : null);
+    const r = replay.result;
+    add("Result", r && r.result ? `${r.result}${r.yards !== null ? `, ${signed(r.yards)} yd` : ""} (the simulation's PlayResult)` : null);
+    add("Outcome", outcomeText(e) ? `${outcomeText(e)}${e.firstDown ? ", first down" : ""} (the demo index)` : null);
     const endings = { Tackle: "a tackle", BallGrounded: "the ball landing", BoundaryCrossed: "crossing a boundary", LooseBall: "a loose ball", PhaseClock: "the phase clock (no tackle, landing or boundary)" };
     add("Ended by", e.endedBy ? endings[e.endedBy] || e.endedBy : null);
     if (e.seedsTried)
@@ -1071,6 +1158,10 @@ function renderAbout(play, replay)
     if (e.maxBallSpeedCmPerSec)
     {
         add("Fastest ball", `${(e.maxBallSpeedCmPerSec / 100).toFixed(1)} m/s${e.ballTravelCm ? `, travelled ${(e.ballTravelCm / 100).toFixed(1)} m` : ""}`);
+    }
+    if (S.mismatches.length)
+    {
+        add("Mismatch", S.mismatches.join(" "));
     }
     if (Array.isArray(e.problems))
     {
@@ -1091,9 +1182,9 @@ function renderAbout(play, replay)
 
 function setPlaying(on)
 {
-    if (on && S.replay && S.t >= S.replay.duration - 1e-3)
+    if (on && S.replay && S.t >= S.win.b - 1e-3)
     {
-        S.t = 0;
+        S.t = S.win.a;
     }
     S.playing = !!on && !!S.replay;
     $("play-toggle").setAttribute("aria-label", S.playing ? "Pause" : "Play");
@@ -1107,7 +1198,7 @@ function seek(t)
     {
         return;
     }
-    S.t = Math.min(S.replay.duration, Math.max(0, t));
+    S.t = Math.min(S.win.b, Math.max(S.win.a, t));
     update(true);
 }
 
@@ -1382,18 +1473,36 @@ function updateEffects(r, abs)
     }
 }
 
+/** A time on the replay's clock as the page shows it: from the snap (+1.20 s, \u22120.50 s) when
+ *  the play has one, else from the first frame. */
+function clockText(t, digits)
+{
+    if (S.snapT === null)
+    {
+        return `${t.toFixed(digits)}s`;
+    }
+    const d = t - S.snapT;
+    const text = Math.abs(d).toFixed(digits);
+    return `${d < -1e-9 && Number(text) !== 0 ? "\u2212" : "+"}${text}s`;
+}
+
 function updateClock()
 {
     const r = S.replay;
-    const d = r ? r.duration : 0;
+    const { a, b } = S.win;
+    const d = b - a;
     const frame = r ? L.frameAtOrBefore(r.times, r.start + S.t) + 1 : 0;
-    $("clock").innerHTML = `${S.t.toFixed(2)} s<small>of ${d.toFixed(2)} s · frame ${frame}/${r ? r.times.length : 0}</small>`;
+    const clockEl = $("clock");
+    clockEl.textContent = r ? clockText(S.t, 2).replace(/s$/, " s") : "0.00 s";
+    const small = document.createElement("small");
+    small.textContent = r ? `${S.snapT === null ? `of ${r.duration.toFixed(2)} s` : "from the snap"} · frame ${frame}/${r.times.length}` : "";
+    clockEl.appendChild(small);
     const scrub = $("scrub");
     if (document.activeElement !== scrub || !scrubbing)
     {
         scrub.value = String(S.t);
     }
-    $("fill").style.width = `${d > 0 ? (S.t / d) * 100 : 0}%`;
+    $("fill").style.width = `${d > 0 ? ((S.t - a) / d) * 100 : 0}%`;
     if (S.momentButtons)
     {
         for (const m of S.momentButtons)
@@ -1603,9 +1712,9 @@ function frame()
     if (S.replay && S.playing)
     {
         S.t += dt * S.speed;
-        if (S.t >= S.replay.duration)
+        if (S.t >= S.win.b)
         {
-            S.t = S.replay.duration;
+            S.t = S.win.b;
             setPlaying(false);
         }
         update(false);
@@ -1747,7 +1856,19 @@ $("layers").addEventListener("click", (ev) =>
     }
     const on = b.getAttribute("aria-pressed") !== "true";
     b.setAttribute("aria-pressed", String(on));
-    S.layers[b.dataset.layer] = on;
+    if (b.dataset.layer === "whole")
+    {
+        S.wholeRecording = on;
+        if (S.replay)
+        {
+            computeWindow();
+            renderTimeline(S.replay);
+        }
+    }
+    else
+    {
+        S.layers[b.dataset.layer] = on;
+    }
     update(true);
 });
 $("card-close").addEventListener("click", () => followPlayer(-1));

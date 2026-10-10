@@ -102,6 +102,13 @@ button { cursor: pointer; }
     gap: 10px;
 }
 
+/* Explicit rows: the banner is hidden for real recordings, and auto-placement would then hand
+   the field's flexible row to the deck. */
+.bar { grid-row: 1; }
+.banner { grid-row: 2; }
+.stage { grid-row: 3; }
+.deck { grid-row: 4; }
+
 /* Header: the mark, the play picker, the about button. */
 .bar { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .mark {
@@ -448,7 +455,7 @@ dialog::backdrop { background: rgb(5 10 16 / 0.55); }
             <button class="play" id="play-toggle" type="button" aria-label="Play">
                 <svg viewBox="0 0 24 24" aria-hidden="true" id="play-icon"><path d="M8 5v14l11-7z"/></svg>
             </button>
-            <div class="clock" id="clock">0.00 s<small>of 0.00 s</small></div>
+            <div class="clock" id="clock">0.00 s<small>loading</small></div>
             <div class="spacer"></div>
             <div class="seg" role="group" aria-label="Playback speed" id="speeds">
                 <button type="button" data-speed="0.25" aria-pressed="false">¼×</button>
@@ -480,6 +487,7 @@ dialog::backdrop { background: rgb(5 10 16 / 0.55); }
                 <button class="pill toggle" type="button" data-layer="vectors" aria-pressed="false">Velocity</button>
                 <button class="pill toggle" type="button" data-layer="contacts" aria-pressed="true">Contacts</button>
                 <button class="pill toggle" type="button" data-layer="labels" aria-pressed="true">Labels</button>
+                <button class="pill toggle" type="button" data-layer="whole" aria-pressed="false">Whole recording</button>
             </div>
         </div>
     </section>
@@ -494,6 +502,8 @@ dialog::backdrop { background: rgb(5 10 16 / 0.55); }
             <ul>
                 <li>Where every player and the ball was, how fast and which way each moved and faced, and who had the ball: the game's telemetry sampler recorded these, frame by frame.</li>
                 <li>Between two recorded frames, positions are blended the way the game's own replay blends them.</li>
+                <li>The timeline runs from a second before the snap to a second after the whistle. "Whole recording" shows the lineup before and the dead ball after as well.</li>
+                <li>The result is the simulation's own (its PlayResult). Where the recording disagrees with itself, such as a catch the simulation ruled incomplete, a red "Mismatch" says so.</li>
                 <li>Moments on the timeline are the events the game's telemetry bus announced. A hollow marker is read off the frames instead (the ball changing hands).</li>
                 <li>Contacts are opponents whose collision capsules (44 cm radius) touch, measured from their positions.</li>
                 <li>The viewer draws the bodies: a stand-in character whose run cycle follows each player's recorded speed and ground covered, sized by height and weight when the roster has them. Skin, hair and kit colours are presentation only.</li>

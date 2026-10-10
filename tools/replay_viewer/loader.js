@@ -359,20 +359,36 @@ const PAYLOAD_LABEL = {
     BallGrounded: () => "Ball on the ground",
     BoundaryCrossed: (p, name) => (bool(field(p, "bEndZone")) ? "Into the end zone" : "Out of bounds") + name(p, "CarrierName", ": "),
     PumpFake: () => "Pump fake",
+    Penalty: (p) =>
+    {
+        const foul = String(field(p, "Penalty") || "penalty");
+        const kind = enumName(field(p, "Kind"));
+        const yards = num(field(p, "Yards"), 0);
+        const side = field(p, "bOnDefense") === undefined ? "" : bool(field(p, "bOnDefense")) ? " on the defense" : " on the offense";
+        if (kind === "Accepted")
+        {
+            return `${foul} accepted${yards ? `, ${yards} yd` : ""}`;
+        }
+        if (kind === "Declined")
+        {
+            return `${foul} declined`;
+        }
+        return `Flag: ${foul}${side}`;
+    },
     PlayResult: (p) =>
     {
         const result = String(field(p, "Result") || "Result");
         const yards = num(field(p, "YardsGained"), null);
-        return yards === null ? result : `${result}, ${yards >= 0 ? "+" : ""}${yards} yd`;
+        return yards === null || (yards === 0 && /incomplete/i.test(result)) ? result : `${result}, ${yards >= 0 ? "+" : ""}${yards} yd`;
     }
 };
 
-/** How an event shows on the timeline: 'key' moments get a labelled marker, 'minor' ones a tick,
- *  'hidden' ones only the list. */
+/** How an event shows on the timeline: 'key' moments get a labelled marker and a chip, 'minor'
+ *  ones a tick; every other type (commentary, crowd, lineups, coverage reads...) stays off it. */
 const EVENT_KIND = {
     Snap: "key", Throw: "key", Catch: "key", Tackle: "key", Fumble: "key", Score: "key", PlayResult: "key",
-    Kick: "key", LooseBall: "key", BoundaryCrossed: "key", BallGrounded: "key", PumpFake: "minor",
-    Damage: "minor", PassRushMove: "minor", PhaseChange: "hidden", GameState: "hidden", PlayCall: "hidden"
+    Kick: "key", LooseBall: "key", BoundaryCrossed: "key", BallGrounded: "key", Penalty: "key",
+    PumpFake: "minor", Damage: "minor", PassRushMove: "minor"
 };
 
 const LIVE_PHASES = new Set(["Snap", "PassRush", "BallCarrierMovement"]);
@@ -707,7 +723,7 @@ export function buildReplay(doc, schema, options = {})
             }
         }
         const label = labelFor(e.type, e.payload);
-        let kind = EVENT_KIND[e.type] || "minor";
+        let kind = EVENT_KIND[e.type] || "hidden";
         if (e.type === "PhaseChange")
         {
             const to = enumName(field(e.payload, "NewPhase"));
@@ -750,11 +766,13 @@ export function buildReplay(doc, schema, options = {})
         }
     }
 
-    // The two calls and the result, from the recording's own events.
+    // The two calls and the result, from the recording's own events. The calls are the last ones
+    // made before the snap: a recording that runs past the whistle also holds the next play's.
     const calls = { offense: null, defense: null };
+    const firstSnap = rawEvents.find((e) => e.type === "Snap");
     for (const e of rawEvents)
     {
-        if (e.type !== "PlayCall")
+        if (e.type !== "PlayCall" || (firstSnap && e.k > firstSnap.k))
         {
             continue;
         }

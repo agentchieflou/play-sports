@@ -98,7 +98,7 @@
         },
         "EPSTelemetryEventType": {
             "header": "Source/PlaySports/Public/PSTelemetryBus.h",
-            "values": ["Snap", "Throw", "Catch", "Tackle", "Fumble", "Score", "PhaseChange", "Damage", "PlayCall", "PumpFake", "PassRushMove", "Kick", "GameState", "PlayResult", "LooseBall", "BoundaryCrossed", "BallGrounded"]
+            "values": ["Snap", "Throw", "Catch", "Tackle", "Fumble", "Score", "PhaseChange", "Damage", "PlayCall", "PumpFake", "PassRushMove", "Kick", "GameState", "PlayResult", "LooseBall", "BoundaryCrossed", "BallGrounded", "Penalty"]
         }
     },
     "payloads": {
@@ -118,6 +118,7 @@
         "LooseBall": { "struct": "FPSTelemetryLooseBallEvent", "fields": ["Kind", "PlayerName", "Location"] },
         "BoundaryCrossed": { "struct": "FPSTelemetryBoundaryCrossedEvent", "fields": ["CarrierName", "YardLine", "bEndZone"] },
         "BallGrounded": { "struct": "FPSTelemetryBallGroundedEvent", "fields": ["Location"] },
+        "Penalty": { "struct": "FPSTelemetryPenaltyEvent", "fields": ["Kind", "Penalty", "bOnDefense", "Yards"] },
         "_header": "Source/PlaySports/Public/PSTelemetryBus.h"
     },
     "playerInfo": {
