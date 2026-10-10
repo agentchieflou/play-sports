@@ -168,7 +168,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "66":  {"track": "E", "mode": "code", "status": "partial", "depends_on": ["14", "16"], "open_stories": ["66.5 crowd-noise interference on road audibles (waits on Epic 49)"]},
     "67":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["15", "16", "66"]},
     "68":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "14", "16"]},
-    "69":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["C3", "C4", "15", "68"]},
+    "69":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "15", "68"]},
     "70":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "9"]},
     "71":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["14", "9"]},
     "72":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["66", "68", "14", "15"]},

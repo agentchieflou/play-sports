@@ -561,3 +561,19 @@ void UPSTelemetryBus::PublishRecordBroken(const FPSTelemetryRecordBrokenEvent& E
     }
     OnRecordBrokenMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishCoverage(const FPSTelemetryCoverageEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryCoverageEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Coverage: %s %s on %s: %s"),
+        *UEnum::GetValueAsString(Event.Kind), *Event.DefenderName, *Event.ReceiverName, *Event.Outcome.ToString());
+    RecordHistory(EPSTelemetryEventType::Coverage, Description, JsonPayload);
+
+    if (OnCoverage.IsBound())
+    {
+        OnCoverage.Broadcast(Event);
+    }
+    OnCoverageMC.Broadcast(Event);
+}

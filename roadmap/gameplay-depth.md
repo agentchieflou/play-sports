@@ -74,11 +74,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** DB-vs-WR is a continuous contest — press, leverage, cushion, zone handoffs, help rules.
 **Depends on:** C3, C4, Core 15, 68
 
-- [ ] Leverage model (inside/outside positioning as persistent state both AIs play against)
-- [ ] Press/jam contest at snap paired with 68's release system
-- [ ] Zone handoff rules (carry vertical, pass off underneath, communicate — visible via Track A stars)
-- [ ] Safety help behavior (over-the-top rules, robber, rotation integrity)
-- [ ] Pass-interference emergence: contest physics can draw Epic 11 penalty flags organically
+- [x] Leverage model (inside/outside positioning as persistent state both AIs play against) *(`UPSCoverageMatchupSubsystem`, the coverage matchup engine: every man matchup has its shell's side (`Shells` in `Data/coverage_matchups.json`), which the defender plays `LeverageShade` over and holds until the receiver crosses his face (`Coverage` Leverage Lost/Regained on the bus). The receiver plays against it: a break (now announced, `RouteRunning` Break) away from it puts the defender out of phase for the separation it makes (Epic 68's `BreakSeparationGain` plus `AwayFromLeverageBonus`, over `SeparationRecoverySpeed`), one into it gains nothing; a double move's fake toward it bites `LeverageBiteBonus` more often; an option route breaks away from it)*
+- [x] Press/jam contest at snap paired with 68's release system *(before the snap a man-coverage back over a receiver walks up to press when the shell allows it and his jam chance (one minus Epic 68's release chance) reaches `PressMinJamChance`; the receiver's route runner contests his release against that presser. A won jam trails tight (`PressCushion`); a beaten presser is out of phase `PressBeatenSeconds` and freezes)*
+- [x] Zone handoff rules (carry vertical, pass off underneath, communicate — visible via Track A stars) *(a zone defender picks up the receiver in his zone and plays on him; leaving it, he is handed to the zone he runs into, carried on vertically when no deeper zone is free, or passed off underneath. Each is announced (`Coverage` Carry, HandOff, PassOff) for the defensive iconography (Epic 31) to draw; drawing the stars is Epic 31's)*
+- [x] Safety help behavior (over-the-top rules, robber, rotation integrity) *(a deep defender stays `OverTopCushion` over the deepest receiver in his area; when one leaves the deep zones (a blown-coverage rotation, Epic 17.4) the rest split the field between them; man defenders left over in a man-free or Cover 1 call take the deep middle, then the robber, who jumps the crosser in his window)*
+- [x] Pass-interference emergence: contest physics can draw Epic 11 penalty flags organically *(a defender in contact with the targeted receiver while the ball is in the air, further from where it comes down than the receiver, draws a `PassInterference` flag (`FlagChance`, seeded per snap); `UPSPlaySimulation` enforces it as a spot foul with a first down, declined when the play gained more. Tests: `Tests/PSCoverageMatchupTests.cpp`)*
 
 ### Epic 70: Pass-Rush Move System
 

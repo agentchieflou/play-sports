@@ -97,7 +97,9 @@ enum class EPSPenaltyType : uint8
 {
     None,
     Offsides,
-    Holding
+    Holding,
+    /** Defensive pass interference, drawn by the coverage contest (Epic 69): a spot foul. */
+    PassInterference
 };
 
 UENUM(BlueprintType)
@@ -201,6 +203,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
     bool bPenaltyDeclined;
 
+    /** A pass-interference flag's spot: yards past the line of scrimmage. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
+    int32 PassInterferenceYards = 0;
+
     // Bus subscriber handlers (C2) -- public so tests can call them directly
     UFUNCTION()
     void OnBusCatchEvent(const FPSTelemetryCatchEvent& Event);
@@ -231,6 +237,12 @@ public:
      *  as Offsides. */
     UFUNCTION()
     void OnBusJumpSnapEvent(const FPSTelemetryJumpSnapEvent& Event);
+
+    /** Pass interference the coverage contest drew (Epic 69, UPSCoverageMatchupSubsystem):
+     *  flagged as a spot foul at the event's yards past the line, unless a flag is already down
+     *  or the ball is dead. */
+    UFUNCTION()
+    void OnBusCoverageEvent(const FPSTelemetryCoverageEvent& Event);
 
     /** The offense's call before its snap (Epic 76): its tempo's play-clock mark, and whether
      *  it is a spike or a kneel, which this resolves at the snap. */

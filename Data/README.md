@@ -65,6 +65,7 @@ every CI build.
 | `pocket_tuning.json` | `FPocketTuningRow` (single object) | `UPSDataIngestion::LoadPocketTuningFromJson`, via `UPSPocketComponent` and `UPSPlayOrchestrator` |
 | `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
 | `blown_coverage.json` | `FBlownCoverageTuningRow` (single object) | `UPSDataIngestion::LoadBlownCoverageTuningFromJson`, via `UPSBlownCoverageSubsystem` |
+| `coverage_matchups.json` | `FPSCoverageMatchupTuning` (single object: tuning, `Shells`, `DefaultShell`) | `UPSDataIngestion::LoadCoverageMatchupTuningFromJson`, via `UPSCoverageMatchupSubsystem` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `defensive_techniques.json` | `FDefensiveTechniqueTuningRow` (single object) | `UPSDataIngestion::LoadDefensiveTechniquesFromJson`, via `UPSDefenderTechniqueComponent` |
@@ -934,6 +935,48 @@ Single object (Epic 17.4; the defense's reaction to a receiver running free,
   line with every defender this far from him is running free.
 - `HelpRadius`: the nearest defender playing a zone (or in man with nobody to cover) within this
   distance of him leaves his zone to cover him. Each receiver and each helper once per play.
+
+`tools/validate_data.py` checks it.
+
+## Coverage matchup schema (`FPSCoverageMatchupTuning`)
+
+Single object (Epic 69; the coverage matchup engine, `UPSCoverageMatchupSubsystem`). Every number
+is 0 or more; distances are cm, shares and chances 0-1:
+- Press: `PressDepth`, `PressShade`: a pressing back lines up this far in front of his receiver
+  and this far to his leverage side (the spot must be inside `route_running.json`'s
+  `PressRadius`, or the release contest would not find him). `PressAlignWidth`: the receiver he is
+  over is the nearest within this distance across the field. `PressMinJamChance`: the CPU presses
+  only when the back's chance to win the jam (one minus the receiver's release chance) is at least
+  this. `PreSnapArrivalRadius`: walking up, this close is there. `PressCushion`: a back who won his
+  jam trails this close (in place of `ManCushion`); `PressBeatenSeconds`: one who lost it is out of
+  phase this long.
+- Leverage: `LeverageShade`: a man defender plays this far to his leverage side.
+  `LeverageLostMargin` / `LeverageRegainMargin`: the receiver this far across his face takes it;
+  the defender this far back on his side has it again. `LeverageBiteBonus`: added to a double
+  move's bite chance for a fake toward the leverage (taken off for one away). `BreakMinLateral`:
+  a break (or fake) whose leg is at least this much across the field counts as toward or away.
+  `IntoLeverageSeparationScale`: the share of a break's separation (Epic 68) kept when it goes into
+  the leverage; `AwayFromLeverageBonus`: added when it goes away. `SeparationRecoverySpeed` (above
+  0): the defender is out of phase for the separation over this, at most `MaxOutOfPhaseSeconds`.
+- Zones: `CarryMargin`: a zone defender keeps his receiver until he is this far outside the zone
+  (`defense_ai_tuning.json`'s `ZoneRadius`), playing `ZoneCarryCushion` downfield of him;
+  `VerticalCarryDepth`: one leaving this far past the defender's spot is carried on (vertical)
+  when no deeper zone is free to take him; any other is passed off.
+- Safety help: `DeepZoneDepth`: a zone this far past the line is deep. `OverTopCushion`,
+  `DeepHelpWidth`, `DeepShadeWeight`: a deep defender stays this far deeper than the deepest
+  receiver within `DeepHelpWidth` across of his spot, shaded this share toward him.
+  `FieldWidth` (above 0): when a deep defender leaves the deep zones, the rest split this evenly.
+  `FreeDeepDepth`: a free deep-middle defender's depth; `RobberDepth`, `RobberRadius`,
+  `RobberJumpWeight`: a robber's depth, the window he reads, and how far he jumps the nearest
+  receiver in it.
+- Pass interference: `ContactRadius`, `TrailMargin`: a defender this close to the targeted
+  receiver while the ball is in the air, and this much further from where it comes down than the
+  receiver, is playing through him; `FlagChance`: how often the officials flag it.
+- `Shells`: one rule per coverage shell (`FPSPlayDefinition::CoverageShell`) -- `Shell`,
+  `Leverage` (`Inside` toward the ball, `Outside` toward the sideline), `bPress`, and `FreeRoles`
+  (`DeepMiddle`, `Robber`), the jobs its left-over man defenders take, deepest first. Every shell a
+  `Base`, `Blitz` or `Prevent` play in `sample_playbook.json` calls needs one; names are unique.
+  `DefaultShell` is the rule for any other.
 
 `tools/validate_data.py` checks it.
 
