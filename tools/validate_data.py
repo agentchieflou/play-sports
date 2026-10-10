@@ -49,7 +49,7 @@ FPSEmphasisStyle (Epic 36); "Axes" + "Bindings" files against FPSPlayerDNACatalo
 FPSPlayerDNA field, each binding a numeric field of its target's tuning file and each rush move in
 pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
 "PlaybackRates" files against FPSReplayTuning (Epic 41), each camera a named one or a rig in
-camera_all22.json. Teams, the league config, the playbook, player rating ranges and every reference
+camera_all22.json; "PlayerPickRadius" files against FPSTelestratorTuning (Epic 44). Teams, the league config, the playbook, player rating ranges and every reference
 between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -1004,6 +1004,28 @@ def validate_replay_tuning(path, payload, rig_ids):
     extra = set(payload) - set(REPLAY_FIELDS) - {"ReplayPoseRateHz"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSReplayTuning exactly")
+
+
+TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks")
+
+
+def validate_telestrator(path, payload):
+    """FPSTelestratorTuning (Data/telestrator.json, Epic 44); mirrors UPSTelestratorSubsystem::ValidateTuning."""
+    if not is_number(payload.get("FieldHeightCm")):
+        err(path, f"FieldHeightCm: '{payload.get('FieldHeightCm')}' must be a number")
+    spacing = payload.get("MinPointSpacing")
+    if not is_number(spacing) or spacing < 0:
+        err(path, f"MinPointSpacing: '{spacing}' must be a number, 0 or more")
+    radius = payload.get("PlayerPickRadius")
+    if not is_number(radius) or radius <= 0:
+        err(path, f"PlayerPickRadius: '{radius}' must be a number above 0")
+    for field, low in (("MaxStrokePoints", 2), ("MaxMarks", 1)):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < low:
+            err(path, f"{field}: '{value}' must be a whole number, {low} or more")
+    extra = set(payload) - set(TELESTRATOR_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelestratorTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -2951,6 +2973,8 @@ def main():
             validate_player_dna_catalog(path, payload)
         if isinstance(payload, dict) and "PlaybackRates" in payload:
             validate_replay_tuning(path, payload, load_all22_rig_ids())
+        if isinstance(payload, dict) and "PlayerPickRadius" in payload:
+            validate_telestrator(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:
