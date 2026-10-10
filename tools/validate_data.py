@@ -87,8 +87,8 @@ each flavor's scheme in coaching_staffs.json; "CombineDrills" files against FPSD
 rookie deal no longer than contracts.json's MaxContractYears; "PlayCallTimeoutSeconds" files against
 FPSGameIntelligenceTuning (Epic 82), each task one of tools/orchestrator/routing.json's;
 "HallOfFame" files against FPSLegacyTuning (Epic 94): the hall of fame's waits and score, each
-threshold and archived leader a player stat category, listed once, each role's age curve and the
-retirement chances; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one weight per
+threshold and archived leader a player stat category, listed once, each award's score an
+EPSAwardKind's, once, each role's age curve and the retirement chances; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one weight per
 EPSStorylineKind, award scoring by EPSStatCategory, a falling ballot, the digest's task one of
 routing.json's. Teams, the league config, the playbook, player rating ranges and every reference
 between files are tools/content_contracts.py's (Epic 125), run from here.
@@ -4700,6 +4700,8 @@ PLAYER_STAT_CATEGORIES = {
     "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks", "Interceptions",
 }
 HALL_OF_FAME_INT_FIELDS = ("WaitSeasons", "MinSeasons", "MaxInducteesPerSeason")
+AWARD_KINDS = ("OffensivePlayerOfWeek", "DefensivePlayerOfWeek", "MostValuablePlayer", "OffensivePlayerOfYear",
+               "DefensivePlayerOfYear", "RookieOfYear")
 
 
 AGING_CURVE_FIELDS = {"PeakAgeStart", "PeakAgeEnd", "GrowthPerYear", "DeclinePerYear", "LowSnapShareThreshold"}
@@ -4797,7 +4799,22 @@ def validate_legacy(path, payload):
                 err(path, f"{where}.CareerValue: '{value}' must be a whole number, 1 or more")
             if set(threshold) - {"Category", "CareerValue"}:
                 err(path, f"{where}: unknown field(s) {sorted(set(threshold) - {'Category', 'CareerValue'})}")
-        known = set(HALL_OF_FAME_INT_FIELDS) | {"InductionScore", "Thresholds"}
+        awards = hall.get("AwardScores", [])
+        if not isinstance(awards, list):
+            err(path, "HallOfFame.AwardScores: must be an array of { Award, Score }")
+            awards = []
+        named = set()
+        for idx, entry in enumerate(awards):
+            where = f"HallOfFame.AwardScores[{idx}]"
+            if not isinstance(entry, dict) or entry.get("Award") not in AWARD_KINDS or entry.get("Award") in named:
+                err(path, f"{where}.Award: must be an EPSAwardKind ({list(AWARD_KINDS)}), listed once")
+                continue
+            named.add(entry["Award"])
+            if not is_number(entry.get("Score")) or entry["Score"] < 0:
+                err(path, f"{where}.Score: '{entry.get('Score')}' must be a number, 0 or more")
+            if set(entry) - {"Award", "Score"}:
+                err(path, f"{where}: unknown field(s) {sorted(set(entry) - {'Award', 'Score'})}")
+        known = set(HALL_OF_FAME_INT_FIELDS) | {"InductionScore", "Thresholds", "AwardScores"}
         if set(hall) - known:
             err(path, f"HallOfFame: unknown field(s) {sorted(set(hall) - known)} - names must match FPSHallOfFameTuning exactly")
     leaders = payload.get("LeaderCategories")
