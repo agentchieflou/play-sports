@@ -1,0 +1,166 @@
+// PSPlayCallSubsystem.h - Epic 102: the one authority on the play each side runs next
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Subsystems/WorldSubsystem.h"
+#include "PSCoachingData.h"
+#include "PSMenuTypes.h"
+#include "PSPlayCallTypes.h"
+#include "PSPlaybookData.h"
+#include "PSTelemetryBus.h"
+#include "PSPlayCallSubsystem.generated.h"
+
+class APSPlayerPawn;
+class UDataTable;
+class UPSCoachingAI;
+class UPSPlayOrchestrator;
+struct FPlayState;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSHumanCallNeededMC, bool /* bOffense */);
+
+/**
+ * UPSPlayCallSubsystem holds each side's call for the coming snap -- the single source of
+ * truth for "which play is being run" (Architecture rule 6) -- and makes the calls real:
+ *
+ *  - The playbook (Data/sample_playbook.json, routes in Data/sample_routes.json) loads
+ *    through UPSPlaybookIngestion.
+ *  - APSGameMode opens a call window at every scrimmage down (OpenPlayCall) and snaps when
+ *    PollReadyToSnap says so. A side no human controls is called by UPSCoachingAI; a side a
+ *    human controls waits for that player's call (the play-call screens, UPSPlayCallComponent).
+ *    A CPU offense snaps CpuSnapDelaySeconds after both calls are in; a human offense snaps
+ *    when its player hikes (RequestSnap).
+ *  - At the Snap event both calls go to UPSPlayOrchestrator, which hands every AI pawn its
+ *    assignment.
+ *
+ * Which pawns humans control comes from the bus (ControlChange); every call is announced on
+ * it (PlayCall).
+ */
+UCLASS()
+class PLAYSPORTS_API UPSPlayCallSubsystem : public UWorldSubsystem
+{
+    GENERATED_BODY()
+
+public:
+    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    virtual void Deinitialize() override;
+
+    static FString GetDefaultPlaybookPath();
+    static FString GetDefaultRoutesPath();
+    static FString GetDefaultTuningPath();
+
+    /** Replaces the playbook with these files, read through UPSPlaybookIngestion. */
+    bool LoadPlaybook(const FString& PlaysJsonPath, const FString& RoutesJsonPath);
+
+    /** Replaces the tuning with JsonFilePath's, read through UPSDataIngestion. */
+    bool LoadTuningFromJson(const FString& JsonFilePath);
+
+    /** The tuning in use, loaded from the default path on first use. */
+    const FPlayCallTuningRow& GetTuning();
+
+    /** A side's plays in playbook order (the default playbook loads on first use). */
+    TArray<FPSPlayDefinition> GetPlays(bool bOffense);
+
+    /** A side's formations, each once, in playbook order. */
+    TArray<FString> GetFormations(bool bOffense);
+
+    TArray<FPSPlayDefinition> GetPlaysInFormation(const FString& Formation, bool bOffense);
+
+    bool FindPlay(FName PlayId, FPSPlayDefinition& OutPlay);
+
+    /** The route library plays resolve against. */
+    const UDataTable* GetRouteLibrary();
+
+    /** Menu options for the play-call screens (Epic 101's screen stack): one per formation,
+     *  opening PlaysScreenId with the formation as payload ... */
+    TArray<FPSMenuOptionDef> BuildFormationOptions(bool bOffense, FName PlaysScreenId);
+
+    /** ... and one per play in Formation, calling it. */
+    TArray<FPSMenuOptionDef> BuildPlayOptions(const FString& Formation, bool bOffense);
+
+    /** A one-line text stand-in for play art until Track A's art pipeline (Epic 35) exists:
+     *  "WR Slant, RB Flat, TE pass block" (dot-separated). */
+    static FString DescribePlay(const FPSPlayDefinition& Play);
+
+    /** The coaching AI's view of a play state, from the possessing team's side. */
+    static FPSSituationContext MakeSituation(const FPlayState& State);
+
+    /** A new scrimmage down: clears both calls and opens the window. Sides a human controls
+     *  are announced on OnHumanCallNeeded; the others are called on the next poll. */
+    void OpenPlayCall(const FPSSituationContext& InSituation);
+
+    bool IsCallWindowOpen() const { return bWindowOpen; }
+
+    /** Calls PlayId for its side (the play says which). False when the window is closed or
+     *  the play is unknown. A new call replaces the side's earlier one. */
+    bool CallPlay(FName PlayId, EPSPlayCaller Caller);
+
+    const FPSPlayCall& GetCall(bool bOffense) const { return bOffense ? OffenseCall : DefenseCall; }
+
+    /** True while a human controls a pawn on that side. */
+    bool IsHumanSide(bool bOffense) const;
+
+    /** True while the window is open and that side waits for its human's call. */
+    bool IsWaitingForHuman(bool bOffense) const;
+
+    /** The human offense hikes. False unless the window is open and a human made the
+     *  offense's call. */
+    bool RequestSnap();
+
+    /** Called every pre-snap tick by the game mode: fills CPU calls for sides no human
+     *  controls, then says whether the offense snaps now. */
+    bool PollReadyToSnap(float DeltaSeconds);
+
+    /** A side now waits for its human's call (bOffense says which). */
+    FPSHumanCallNeededMC OnHumanCallNeeded;
+
+protected:
+    virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+
+private:
+    void HandleSnap(const FPSTelemetrySnapEvent& Event);
+    void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
+
+    void EnsurePlaybookLoaded();
+    void CallForCpu(bool bOffense);
+    void SetCall(const FPSPlayDefinition& Play, EPSPlayCaller Caller);
+    void Distribute(const FVector& LineOfScrimmage);
+    APSPlayerPawn* FindPawnByPlayerId(FName PlayerId) const;
+
+    UPROPERTY(Transient)
+    UDataTable* PlaysTable;
+
+    UPROPERTY(Transient)
+    UDataTable* RoutesTable;
+
+    /** PlaysTable's rows in playbook order. */
+    UPROPERTY(Transient)
+    TArray<FPSPlayDefinition> Plays;
+
+    UPROPERTY(Transient)
+    UPSCoachingAI* CoachingAI;
+
+    UPROPERTY(Transient)
+    UPSPlayOrchestrator* Orchestrator;
+
+    UPROPERTY(Transient)
+    FPlayCallTuningRow Tuning;
+
+    UPROPERTY(Transient)
+    FPSSituationContext Situation;
+
+    UPROPERTY(Transient)
+    FPSPlayCall OffenseCall;
+
+    UPROPERTY(Transient)
+    FPSPlayCall DefenseCall;
+
+    /** PlayerId of each human-controlled pawn -> whether it plays offense. */
+    TMap<FName, bool> HumanPawnSides;
+
+    TWeakObjectPtr<UPSTelemetryBus> BoundBus;
+    float TimeSinceCallsComplete = 0.f;
+    bool bWindowOpen = false;
+    bool bSnapRequested = false;
+    bool bPlaybookLoaded = false;
+    bool bTuningLoaded = false;
+};

@@ -4,6 +4,8 @@
 #include "PSDataIngestion.h"
 #include "PSInputConfig.h"
 #include "PSPlayerController.h"
+#include "PSPlayCallComponent.h"
+#include "PSPlayCallSubsystem.h"
 #include "PSLoadingTips.h"
 #include "PSLoadingScreenSubsystem.h"
 #include "Engine/GameInstance.h"
@@ -89,6 +91,22 @@ TArray<FString> UPSMenuComponent::ValidateCatalog(const FPSMenuCatalog& InCatalo
             Errors.Add(FString::Printf(TEXT("LoadingScreen '%s' must have Content Loading"), *InCatalog.LoadingScreen.ToString()));
         }
     }
+    if (!InCatalog.PlayCallScreen.IsNone())
+    {
+        const FPSMenuScreenDef* PlayCall = InCatalog.FindScreen(InCatalog.PlayCallScreen);
+        if (!PlayCall)
+        {
+            Errors.Add(FString::Printf(TEXT("PlayCallScreen '%s' is not a screen"), *InCatalog.PlayCallScreen.ToString()));
+        }
+        else if (PlayCall->Content != EPSMenuScreenContent::PlayCallFormations)
+        {
+            Errors.Add(FString::Printf(TEXT("PlayCallScreen '%s' must have Content PlayCallFormations"), *InCatalog.PlayCallScreen.ToString()));
+        }
+        if (!InCatalog.FindScreenWithContent(EPSMenuScreenContent::PlayCallPlays))
+        {
+            Errors.Add(TEXT("A PlayCallScreen needs a screen with Content PlayCallPlays to list a formation's plays"));
+        }
+    }
     if (InCatalog.TransitionSeconds < 0.f)
     {
         Errors.Add(TEXT("TransitionSeconds must not be negative"));
@@ -97,8 +115,9 @@ TArray<FString> UPSMenuComponent::ValidateCatalog(const FPSMenuCatalog& InCatalo
     for (const FPSMenuScreenDef& Screen : InCatalog.Screens)
     {
         const FString ScreenLabel = Screen.ScreenId.ToString();
-        // A Loading screen is left by the travel it announces, not by input.
-        if (Screen.Options.Num() == 0 && !Screen.bAllowBack && Screen.Content != EPSMenuScreenContent::Loading)
+        // Generated screens get their options at runtime; a Loading screen is left by the
+        // travel it announces, not by input.
+        if (Screen.Options.Num() == 0 && !Screen.bAllowBack && Screen.Content == EPSMenuScreenContent::Static)
         {
             Errors.Add(FString::Printf(TEXT("Screen '%s' has no options and blocks Back, so it can never be left"), *ScreenLabel));
         }
@@ -234,6 +253,8 @@ void UPSMenuComponent::ChooseOption(FName OptionId)
     const FName Payload = Option->Payload;
     if (!TargetScreen.IsNone())
     {
+        // The opened screen may be generated from the payload (a formation's plays).
+        ScreenPayloads.Add(TargetScreen, Payload);
         OpenScreen(TargetScreen);
     }
     if (Command != EPSMenuCommand::None)
@@ -337,6 +358,15 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
     case EPSMenuCommand::QuitGame:
         UKismetSystemLibrary::QuitGame(this, GetOwningPlayer(), EQuitPreference::Quit, false);
         break;
+    case EPSMenuCommand::CallPlay:
+        if (UPSPlayCallSubsystem* PlayCall = GetWorld() ? GetWorld()->GetSubsystem<UPSPlayCallSubsystem>() : nullptr)
+        {
+            if (PlayCall->CallPlay(Payload, EPSPlayCaller::Human))
+            {
+                Resume();
+            }
+        }
+        break;
     default:
         break;
     }
@@ -427,6 +457,23 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
     else if (Presented.Content == EPSMenuScreenContent::Loading && !PendingLoadingTip.IsEmpty())
     {
         Presented.Body = PendingLoadingTip;
+    }
+    else if (Presented.Content == EPSMenuScreenContent::PlayCallFormations || Presented.Content == EPSMenuScreenContent::PlayCallPlays)
+    {
+        UPSPlayCallSubsystem* PlayCall = GetWorld() ? GetWorld()->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+        const APSPlayerController* Player = Cast<APSPlayerController>(GetOwner());
+        const bool bOffense = !Player || !Player->GetPlayCallComponent() || Player->GetPlayCallComponent()->IsCallingForOffense();
+        if (PlayCall && Presented.Content == EPSMenuScreenContent::PlayCallFormations)
+        {
+            const FPSMenuScreenDef* PlaysScreen = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::PlayCallPlays);
+            Presented.Options.Append(PlayCall->BuildFormationOptions(bOffense, PlaysScreen ? PlaysScreen->ScreenId : NAME_None));
+        }
+        else if (PlayCall)
+        {
+            const FString Formation = ScreenPayloads.FindRef(ScreenId).ToString();
+            Presented.Title = Formation;
+            Presented.Options.Append(PlayCall->BuildPlayOptions(Formation, bOffense));
+        }
     }
     return Presented;
 }

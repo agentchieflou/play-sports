@@ -1,0 +1,120 @@
+#include "PSPlayCallComponent.h"
+#include "PSMenuComponent.h"
+#include "PSPlayCallSubsystem.h"
+#include "PSPlayerController.h"
+#include "PSPlayerPawn.h"
+#include "Engine/World.h"
+
+UPSPlayCallComponent::UPSPlayCallComponent()
+{
+    PrimaryComponentTick.bCanEverTick = false;
+    ConfirmActionId = TEXT("Confirm");
+}
+
+void UPSPlayCallComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    BindToPlayCall();
+}
+
+void UPSPlayCallComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    UnbindFromPlayCall();
+    Super::EndPlay(EndPlayReason);
+}
+
+void UPSPlayCallComponent::BindToPlayCall()
+{
+    UPSPlayCallSubsystem* PlayCall = GetPlayCall();
+    if (!PlayCall || BoundPlayCall.Get() == PlayCall)
+    {
+        return;
+    }
+
+    UnbindFromPlayCall();
+    CallNeededHandle = PlayCall->OnHumanCallNeeded.AddUObject(this, &UPSPlayCallComponent::HandleHumanCallNeeded);
+    BoundPlayCall = PlayCall;
+
+    if (APSPlayerController* Controller = GetOwningController())
+    {
+        Controller->OnCatalogActionStarted.AddUniqueDynamic(this, &UPSPlayCallComponent::HandleCatalogAction);
+    }
+}
+
+void UPSPlayCallComponent::UnbindFromPlayCall()
+{
+    if (UPSPlayCallSubsystem* PlayCall = BoundPlayCall.Get())
+    {
+        PlayCall->OnHumanCallNeeded.Remove(CallNeededHandle);
+    }
+    CallNeededHandle.Reset();
+    BoundPlayCall.Reset();
+
+    if (APSPlayerController* Controller = GetOwningController())
+    {
+        Controller->OnCatalogActionStarted.RemoveDynamic(this, &UPSPlayCallComponent::HandleCatalogAction);
+    }
+}
+
+bool UPSPlayCallComponent::IsCallingForOffense() const
+{
+    const APSPlayerController* Controller = GetOwningController();
+    if (!Controller)
+    {
+        return true;
+    }
+    if (const APSPlayerPawn* PlayerPawn = Cast<APSPlayerPawn>(Controller->GetPawn()))
+    {
+        return PlayerPawn->TeamSide == EPSTeamSide::Offense;
+    }
+    return Controller->HumanSide == EPSTeamSide::Offense;
+}
+
+bool UPSPlayCallComponent::OpenCallScreen()
+{
+    APSPlayerController* Controller = GetOwningController();
+    UPSMenuComponent* Menu = Controller ? Controller->GetMenuComponent() : nullptr;
+    if (!Menu || Menu->IsMenuOpen())
+    {
+        return false;
+    }
+    return Menu->OpenScreen(Menu->GetCatalog().PlayCallScreen);
+}
+
+void UPSPlayCallComponent::HandleHumanCallNeeded(bool bOffense)
+{
+    if (bOffense == IsCallingForOffense())
+    {
+        OpenCallScreen();
+    }
+}
+
+void UPSPlayCallComponent::HandleCatalogAction(FName ActionId)
+{
+    UPSPlayCallSubsystem* PlayCall = BoundPlayCall.Get();
+    if (ActionId != ConfirmActionId || !PlayCall || !PlayCall->IsCallWindowOpen())
+    {
+        return;
+    }
+
+    const bool bOffense = IsCallingForOffense();
+    if (PlayCall->IsWaitingForHuman(bOffense))
+    {
+        OpenCallScreen();
+    }
+    else if (bOffense)
+    {
+        PlayCall->RequestSnap();
+    }
+}
+
+APSPlayerController* UPSPlayCallComponent::GetOwningController() const
+{
+    return Cast<APSPlayerController>(GetOwner());
+}
+
+UPSPlayCallSubsystem* UPSPlayCallComponent::GetPlayCall() const
+{
+    const UWorld* World = GetWorld();
+    return World ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+}

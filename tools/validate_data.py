@@ -12,7 +12,7 @@ carrying "StickDeadZoneLower" against FInputTuningRow's ranges; files carrying
 identity fields (colors, abbreviation) on "Teams" files; "Tips" files against
 FPSLoadingTipCatalog; "Cues" + "MasterIntensity" files against FPSForceFeedbackTuning;
 "GlyphSets" files against FPSInputGlyphCatalog, including that every key the input
-catalog binds has a glyph.
+catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRow.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -170,8 +170,8 @@ def validate_input_catalog(path, payload):
                     err(path, f"{where}: key '{key}' is already bound to '{owner}' in context '{cid}'")
 
 
-MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame"}
-MENU_CONTENTS = {"Static", "TeamSelect", "Loading"}
+MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay"}
+MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays"}
 TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -203,6 +203,14 @@ def validate_menu_catalog(path, payload):
             err(path, f"LoadingScreen '{loading}' is not a screen")
         elif by_id[loading].get("Content") != "Loading":
             err(path, f"LoadingScreen '{loading}' must have Content Loading")
+    play_call = payload.get("PlayCallScreen")
+    if play_call:
+        if play_call not in by_id:
+            err(path, f"PlayCallScreen '{play_call}' is not a screen")
+        elif by_id[play_call].get("Content") != "PlayCallFormations":
+            err(path, f"PlayCallScreen '{play_call}' must have Content PlayCallFormations")
+        if not any(screen.get("Content") == "PlayCallPlays" for screen in by_id.values()):
+            err(path, "a PlayCallScreen needs a screen with Content PlayCallPlays to list a formation's plays")
     if payload.get("TransitionSeconds", 0) < 0:
         err(path, "TransitionSeconds must not be negative")
     for sid, screen in by_id.items():
@@ -210,7 +218,8 @@ def validate_menu_catalog(path, payload):
         if content not in MENU_CONTENTS:
             err(path, f"Screen '{sid}': unknown Content '{content}' ({sorted(MENU_CONTENTS)})")
         options = screen.get("Options", [])
-        if not options and not screen.get("bAllowBack", True) and content != "Loading":
+        # Generated screens get their options at runtime; Loading is left by its travel.
+        if not options and not screen.get("bAllowBack", True) and content == "Static":
             err(path, f"Screen '{sid}' has no options and blocks Back")
         seen = set()
         for option in options:
@@ -411,6 +420,16 @@ def validate_input_glyphs(path, payload, catalog):
                 reported.add(key)
 
 
+def validate_play_call_tuning(path, payload):
+    """FPlayCallTuningRow (Data/play_call.json)."""
+    delay = payload.get("CpuSnapDelaySeconds")
+    if not is_number(delay) or delay < 0:
+        err(path, f"CpuSnapDelaySeconds: '{delay}' must be a number of seconds, 0 or more")
+    extra = set(payload) - {"CpuSnapDelaySeconds"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPlayCallTuningRow exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -449,6 +468,8 @@ def main():
             validate_loading_tips(path, payload)
         if isinstance(payload, dict) and "Cues" in payload and "MasterIntensity" in payload:
             validate_force_feedback(path, payload)
+        if isinstance(payload, dict) and "CpuSnapDelaySeconds" in payload:
+            validate_play_call_tuning(path, payload)
         if isinstance(payload, dict) and "GlyphSets" in payload:
             validate_input_glyphs(path, payload, load_input_catalog())
     if errors:

@@ -35,6 +35,10 @@ editor handoff: what exists in code, and what an editor session adds.
   the same tip on the engine loading screen (MoviePlayer) for at least `MinimumDisplaySeconds`
   while the map loads; the editor has no MoviePlayer, so PIE shows only the in-world screen.
 
+- **Play calling (Epic 102).** Every scrimmage down opens the `PlayCall` screen for a human's
+  side: formations, then that formation's plays; choosing one calls it. `UPSPlayCallSubsystem`
+  owns the calls and the snap; see `Specs/Play_Call_Interface.md`.
+
 ## 2. Not yet (other epics)
 
 - `?mode=` and `?team=` are passed but nothing reads them yet: the match still loads

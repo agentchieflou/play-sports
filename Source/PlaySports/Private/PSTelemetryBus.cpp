@@ -216,3 +216,19 @@ void UPSTelemetryBus::PublishControlChange(const FPSTelemetryControlChangeEvent&
     }
     OnControlChangeMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishPlayCall(const FPSTelemetryPlayCallEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPlayCallEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("PlayCall: %s %s (%s), by %s"),
+        Event.bOffense ? TEXT("Offense") : TEXT("Defense"), *Event.DisplayName, *Event.Formation, Event.bHumanCall ? TEXT("human") : TEXT("CPU"));
+    RecordHistory(EPSTelemetryEventType::PlayCall, Description, JsonPayload);
+
+    if (OnPlayCall.IsBound())
+    {
+        OnPlayCall.Broadcast(Event);
+    }
+    OnPlayCallMC.Broadcast(Event);
+}

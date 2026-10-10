@@ -10,6 +10,7 @@
 #include "PSLoadingTips.h"
 #include "PSForceFeedbackTypes.h"
 #include "PSInputGlyphs.h"
+#include "PSPlayCallTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -61,6 +62,10 @@ public:
      *  file, malformed JSON, or an unrecognized Device string. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadInputGlyphsFromJson(const FString& JsonFilePath, FPSInputGlyphCatalog& OutCatalog);
+
+    /** Loads the play-call timing (Data/play_call.json, Epic 102). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlayCallTuningFromJson(const FString& JsonFilePath, FPlayCallTuningRow& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

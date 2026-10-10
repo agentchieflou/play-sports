@@ -48,14 +48,14 @@ Already sufficient and done: Epics 3, 4, 6–11, 13, C1, C2, C4.
 ## M5 — The CPU can play football
 
 - [ ] Epic 14 — skill-position behavior (QB/RB/WR/TE)
-- [ ] Epic 15 — line & defensive behavior (OL/DL/LB/DB)
-- [ ] Epic 16 — playbook & play data system
+- [x] Epic 15 — line & defensive behavior (OL/DL/LB/DB)
+- [x] Epic 16 — playbook & play data system
 - [ ] Epic 17 — 22-agent coordinated play orchestration
-- [ ] Epic 18.1–18.3 — coaching & play-selection AI (situation model, tendency profiles, 4th-down/clock logic; 18.4's LLM hook is not launch-blocking)
+- [x] Epic 18.1–18.3 — coaching & play-selection AI (situation model, tendency profiles, 4th-down/clock logic; 18.4's LLM hook is not launch-blocking)
 
 ## M6 — You can call a play
 
-- [ ] Epic 102 minimal subset — offensive formation/concept picker (102.1) and defensive call flow (102.4) as a **debug-grade list widget hosted by the Epic 5 HUD**. Waiver recorded here: the Epic 101 screen-stack dependency is deliberately bypassed for this milestone; the 102 story checkboxes are NOT ticked by this work — only this milestone box is
+- [x] Epic 102 minimal subset — offensive formation/concept picker (102.1) and defensive call flow (102.4) as a **debug-grade list widget hosted by the Epic 5 HUD**. Waiver recorded here: the Epic 101 screen-stack dependency is deliberately bypassed for this milestone; the 102 story checkboxes are NOT ticked by this work — only this milestone box is *(Delivered on Epic 101's screen stack instead of a HUD list once 101 landed: `UPSPlayCallSubsystem` owns the call, the CPU calls sides no human controls, the snap distributes both calls through `UPSPlayOrchestrator` — see `Specs/Play_Call_Interface.md`. 102.1 and 102.4 stay unticked: play art and defensive adjustments remain.)*
 
 ## M7 — Full-game validation
 

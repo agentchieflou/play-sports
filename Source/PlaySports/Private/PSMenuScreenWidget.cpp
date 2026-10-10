@@ -15,6 +15,7 @@ namespace PSMenuStyle
     static const int32 TitleFontSize = 40;
     static const int32 BodyFontSize = 18;
     static const int32 OptionFontSize = 24;
+    static const int32 DetailFontSize = 14;
     static const FMargin OptionPadding(0.f, 6.f);
     static const FMargin TitlePadding(0.f, 0.f, 0.f, 24.f);
 }
@@ -102,7 +103,23 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
         FSlateFontInfo Font = Label->GetFont();
         Font.Size = PSMenuStyle::OptionFontSize;
         Label->SetFont(Font);
-        Button->SetContent(Label);
+        if (Option.Detail.IsEmpty())
+        {
+            Button->SetContent(Label);
+        }
+        else
+        {
+            // A second, smaller line under the label (a play's assignments, Epic 102).
+            UVerticalBox* Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+            Lines->AddChildToVerticalBox(Label);
+            UTextBlock* Detail = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+            Detail->SetText(FText::FromString(Option.Detail));
+            FSlateFontInfo DetailFont = Detail->GetFont();
+            DetailFont.Size = PSMenuStyle::DetailFontSize;
+            Detail->SetFont(DetailFont);
+            Lines->AddChildToVerticalBox(Detail);
+            Button->SetContent(Lines);
+        }
 
         if (UVerticalBoxSlot* ButtonSlot = Column->AddChildToVerticalBox(Button))
         {

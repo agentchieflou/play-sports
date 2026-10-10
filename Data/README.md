@@ -28,6 +28,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `loading_tips.json` | `FPSLoadingTipCatalog` (single object: `MinimumDisplaySeconds`, `Tips`) | `UPSDataIngestion::LoadLoadingTipsFromJson`, via `UPSLoadingTips` |
 | `ui_menus.json` | `FPSMenuCatalog` (single object: `RootScreen`, `PauseScreen`, `TransitionSeconds`, `Screens`) | `UPSDataIngestion::LoadMenuCatalogFromJson`, via `UPSMenuComponent` |
 | `force_feedback.json` | `FPSForceFeedbackTuning` (single object: `MasterIntensity`, `Cues`) | `UPSDataIngestion::LoadForceFeedbackTuningFromJson`, via `UPSForceFeedbackComponent` |
+| `play_call.json` | `FPlayCallTuningRow` (single object) | `UPSDataIngestion::LoadPlayCallTuningFromJson`, via `UPSPlayCallSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
@@ -112,7 +113,9 @@ Each screen: `ScreenId` (unique), `Title`, optional `Body`, `bAllowBack` (defaul
 open, a `Command`, or both. `Command` is one of `EPSMenuCommand`: `None`, `Resume`,
 `StartPlayNow`, `StartFranchise`, `StartPractice`, `QuitToMainMenu`, `QuitGame`. A screen's
 `Content` is `Static` (its authored options), `TeamSelect` (one option per team, generated) or
-`Loading` (its body is the loading tip; `LoadingScreen` names it and it is left only by travel).
+`Loading` (its body is the loading tip; `LoadingScreen` names it and it is left only by travel),
+`PlayCallFormations` (the player's formations; `PlayCallScreen` names it) or `PlayCallPlays` (a
+formation's plays, each with the `CallPlay` command). Options may carry a `Detail` line.
 `UPSMenuComponent::ValidateCatalog` and `tools/validate_data.py` reject dangling targets,
 options that do nothing, a root screen Back could close, and screens that can never be left.
 
@@ -142,3 +145,9 @@ the text shown until then) and `Actions[]` (`ActionId`, `GlyphId`, `Label`: one 
 whole action, such as `WASD` for Move). Which key an action uses comes from `input_actions.json`,
 so a rebinding never needs a glyph edit; every key the input catalog binds must be drawable by
 its device's default set, which `UPSInputGlyphs::Validate` and `tools/validate_data.py` check.
+
+## Play-call tuning schema (`FPlayCallTuningRow`)
+
+Single object: `CpuSnapDelaySeconds` (0 or more) -- how long a CPU offense waits after both calls
+are in before it snaps (Epic 102; `Specs/Play_Call_Interface.md`). A human offense snaps when its
+player hikes.

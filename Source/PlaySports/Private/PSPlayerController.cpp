@@ -3,6 +3,7 @@
 #include "PSInputDeviceComponent.h"
 #include "PSForceFeedbackComponent.h"
 #include "PSMenuComponent.h"
+#include "PSPlayCallComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -36,6 +37,7 @@ APSPlayerController::APSPlayerController()
     InputDeviceComponent = CreateDefaultSubobject<UPSInputDeviceComponent>(TEXT("InputDeviceComp"));
     ForceFeedbackComponent = CreateDefaultSubobject<UPSForceFeedbackComponent>(TEXT("ForceFeedbackComp"));
     MenuComponent = CreateDefaultSubobject<UPSMenuComponent>(TEXT("MenuComp"));
+    PlayCallComponent = CreateDefaultSubobject<UPSPlayCallComponent>(TEXT("PlayCallComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()

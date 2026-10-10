@@ -48,7 +48,8 @@ public:
     FName GetTopScreenId() const;
 
     /** ScreenId as it is shown: catalog text and options, plus generated content -- one
-     *  option per team on a TeamSelect screen, the loading tip as a Loading screen's body. */
+     *  option per team on a TeamSelect screen, the loading tip as a Loading screen's body,
+     *  the player's formations and a formation's plays on the play-call screens (Epic 102). */
     UFUNCTION(BlueprintCallable, Category = "Menu")
     FPSMenuScreenDef GetPresentedScreen(FName ScreenId);
 
@@ -145,6 +146,10 @@ private:
 
     UPROPERTY(Transient)
     TArray<FPSTeamSummary> TeamSummaries;
+
+    /** The payload of the option that last opened each screen (a formation for its plays). */
+    UPROPERTY(Transient)
+    TMap<FName, FName> ScreenPayloads;
 
     /** Tips for worlds without a game instance (tests); the game uses the subsystem's. */
     UPROPERTY(Transient)
