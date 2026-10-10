@@ -280,6 +280,30 @@ TArray<FString> PSTouchControls::ValidateLayout(const FPSTouchLayout& Layout, co
         }
     }
 
+    // Every catalog context has a touch button set or is deliberately listed without one.
+    for (const FName& Uncovered : Layout.ContextsWithoutTouch)
+    {
+        if (ContextIds.Contains(Uncovered))
+        {
+            Problems.Add(FString::Printf(TEXT("ContextsWithoutTouch: '%s' also has a touch button set."), *Uncovered.ToString()));
+        }
+        else if (Catalog && !Catalog->Contexts.ContainsByPredicate([Uncovered](const FPSInputContextDef& Def) { return Def.ContextId == Uncovered; }))
+        {
+            Problems.Add(FString::Printf(TEXT("ContextsWithoutTouch: '%s' is not a context in the input catalog."), *Uncovered.ToString()));
+        }
+    }
+    if (Catalog)
+    {
+        for (const FPSInputContextDef& InputContext : Catalog->Contexts)
+        {
+            if (!ContextIds.Contains(InputContext.ContextId) && !Layout.ContextsWithoutTouch.Contains(InputContext.ContextId))
+            {
+                Problems.Add(FString::Printf(TEXT("Context '%s' has no touch button set: add it to TouchContexts, or deliberately to ContextsWithoutTouch."),
+                    *InputContext.ContextId.ToString()));
+            }
+        }
+    }
+
     if (Glyphs)
     {
         const FPSInputGlyphSetDef* TouchSet = Glyphs->GetDefaultSet(EPSInputDevice::Touch);

@@ -24,6 +24,8 @@
                 { "Key": "Gamepad_LeftY", "GlyphId": "Xbox_LS", "Label": "LS" },
                 { "Key": "Gamepad_RightX", "GlyphId": "Xbox_RS", "Label": "RS" },
                 { "Key": "Gamepad_RightY", "GlyphId": "Xbox_RS", "Label": "RS" },
+                { "Key": "Gamepad_RightStick_Left", "GlyphId": "Xbox_RS_Left", "Label": "RS Left" },
+                { "Key": "Gamepad_RightStick_Right", "GlyphId": "Xbox_RS_Right", "Label": "RS Right" },
                 { "Key": "Gamepad_DPad_Up", "GlyphId": "Xbox_DPad_Up", "Label": "D-pad Up" },
                 { "Key": "Gamepad_DPad_Down", "GlyphId": "Xbox_DPad_Down", "Label": "D-pad Down" },
                 { "Key": "Gamepad_DPad_Left", "GlyphId": "Xbox_DPad_Left", "Label": "D-pad Left" },
@@ -88,7 +90,13 @@
                 { "ActionId": "SlideProtection", "GlyphId": "Touch_SlideProtection", "Label": "Protection" },
                 { "ActionId": "BlockRelease", "GlyphId": "Touch_BlockRelease", "Label": "Block" },
                 { "ActionId": "Tempo", "GlyphId": "Touch_Tempo", "Label": "Tempo" },
-                { "ActionId": "Timeout", "GlyphId": "Touch_Timeout", "Label": "Timeout" }
+                { "ActionId": "Timeout", "GlyphId": "Touch_Timeout", "Label": "Timeout" },
+                { "ActionId": "FilmView", "GlyphId": "Touch_FilmView", "Label": "Film" },
+                { "ActionId": "PickPlayerLeft", "GlyphId": "Touch_PickPlayerLeft", "Label": "Pick Left" },
+                { "ActionId": "PickPlayerRight", "GlyphId": "Touch_PickPlayerRight", "Label": "Pick Right" },
+                { "ActionId": "Strip", "GlyphId": "Touch_Strip", "Label": "Strip" },
+                { "ActionId": "JumpSnap", "GlyphId": "Touch_JumpSnap", "Label": "Jump" },
+                { "ActionId": "Kick", "GlyphId": "Touch_Kick", "Label": "Kick" }
             ]
         }
     ]

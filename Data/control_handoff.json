@@ -1,0 +1,5 @@
+{
+    "CycleWindowSeconds": 1.5,
+    "PickLeftAction": "PickPlayerLeft",
+    "PickRightAction": "PickPlayerRight"
+}

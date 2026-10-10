@@ -158,6 +158,12 @@ struct FPSTouchLayout
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Touch")
     TArray<FPSTouchContextDef> TouchContexts;
+
+    /** Catalog contexts deliberately left without touch controls (menus take taps through
+     *  their own widgets). Every other catalog context needs a TouchContexts entry, so a new
+     *  context can't slip past touch unnoticed. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Touch")
+    TArray<FName> ContextsWithoutTouch;
 };
 
 /** One action value the touch layer hands Enhanced Input this frame. */
@@ -219,9 +225,10 @@ namespace PSTouchControls
      *  X right, Y forward (up the screen), full at Radius and clamped to the unit circle. */
     PLAYSPORTS_API FVector2D StickValue(const FVector2D& Delta, float Radius);
 
-    /** Problems with Layout, one line each (empty when sound). With Catalog: every bound
-     *  action exists and lives in its context with the right value type, and every action of
-     *  a listed context has a touch control there. With Glyphs: the default touch glyph set
-     *  draws every bound action. */
+    /** Problems with Layout, one line each (empty when sound). With Catalog: every catalog
+     *  context has a touch button set or is in ContextsWithoutTouch, every bound action exists
+     *  and lives in its context with the right value type, and every action of a covered
+     *  context has a touch control there. With Glyphs: the default touch glyph set draws every
+     *  bound action. */
     PLAYSPORTS_API TArray<FString> ValidateLayout(const FPSTouchLayout& Layout, const FPSInputCatalog* Catalog, const UPSInputGlyphs* Glyphs);
 }

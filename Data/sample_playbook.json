@@ -183,6 +183,34 @@
             ]
         },
         {
+            "PlayId": "Offense_SpreadSluggo",
+            "DisplayName": "Sluggo",
+            "Formation": "Spread",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "DeepPass",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -700, "Y": 0, "Z": 0 } },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "SlantGo" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Curl" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Offense_TwinsOption",
+            "DisplayName": "Option Choice",
+            "Formation": "Twins",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "ShortPass",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -300, "Y": 0, "Z": 0 } },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Option" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "OutAndUp" },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" }
+            ]
+        },
+        {
             "PlayId": "Defense_43Cover2",
             "DisplayName": "4-3 Cover 2",
             "Formation": "Base 4-3",

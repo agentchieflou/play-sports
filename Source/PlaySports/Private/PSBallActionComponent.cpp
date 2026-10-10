@@ -8,6 +8,7 @@
 #include "PSCombatRulesModel.h"
 #include "PSBallResolutionHelpers.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSDefenderTechniqueComponent.h"
 #include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -315,11 +316,14 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
     float CarrierSpeed = OwnerPawn->GetVelocity().Size();
     float DefenderSpeed = Defender->GetVelocity().Size();
 
-    // The carrier's move (Epic 104.2) changes the odds; a carrier who slid is simply down.
+    // The carrier's move (Epic 104.2) and the tackler's strip attempt (Epic 104.5) change the
+    // odds; a carrier who slid is simply down.
     const UPSCarrierMoveComponent* Moves = OwnerPawn->GetCarrierMoveComponent();
+    const UPSDefenderTechniqueComponent* Technique = Defender->GetDefenderTechniqueComponent();
     const bool bGaveUp = Moves && Moves->HasGivenUp();
+    const float OddsMultiplier = (Moves ? Moves->GetTackleChanceMultiplier() : 1.f) * (Technique ? Technique->GetTackleChanceScale() : 1.f);
     const float TackleChance = bGaveUp ? 1.f
-        : PSBallResolutionHelpers::ComputeTackleChance(CarrierAttr, DefenderAttr, CarrierSpeed, DefenderSpeed, Moves ? Moves->GetTackleChanceMultiplier() : 1.f);
+        : PSBallResolutionHelpers::ComputeTackleChance(CarrierAttr, DefenderAttr, CarrierSpeed, DefenderSpeed, OddsMultiplier);
 
     float Roll = FMath::FRand();
     if (Roll <= TackleChance)
@@ -327,9 +331,8 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Tackle SUCCESS! Defender %s tackled carrier %s (Roll: %.2f <= Chance: %.2f)"), 
             *DefenderAttr.DisplayName, *CarrierAttr.DisplayName, Roll, TackleChance);
 
-        // Fumble chance check (a slide protects the ball)
-        float FumbleChance = 0.02f + (DefenderSpeed * 0.0001f);
-        FumbleChance = FMath::Clamp(FumbleChance, 0.01f, 0.25f);
+        // Fumble chance check (a slide protects the ball; a strip attempt rips at it)
+        const float FumbleChance = PSBallResolutionHelpers::ComputeFumbleChance(DefenderSpeed, Technique ? Technique->GetFumbleChanceBonus() : 0.f);
         if (!bGaveUp && FMath::FRand() <= FumbleChance)
         {
             FumbleBall();

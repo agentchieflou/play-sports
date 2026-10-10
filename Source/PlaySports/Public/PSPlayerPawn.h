@@ -111,6 +111,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Moves")
     class UPSCarrierMoveComponent* GetCarrierMoveComponent() const { return CarrierMoveComponent; }
 
+    /** A defender's get-off at the snap and his strip attempt (Epic 104.5). */
+    UFUNCTION(BlueprintPure, Category = "Moves")
+    class UPSDefenderTechniqueComponent* GetDefenderTechniqueComponent() const { return DefenderTechniqueComponent; }
+
     /** True while a human player controller controls this pawn (Epic 127). HUD and camera
      *  read this rather than asking the controller. */
     UFUNCTION(BlueprintPure, Category = "Player")
@@ -179,6 +183,10 @@ protected:
     /** Juke, spin, truck, stiff-arm, hurdle, slide (Epic 104.2). */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     class UPSCarrierMoveComponent* CarrierMoveComponent;
+
+    /** Get-off and strip (Epic 104.5). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    class UPSDefenderTechniqueComponent* DefenderTechniqueComponent;
 
 
     const FPlayerAttributes* AttributesPtr = nullptr;

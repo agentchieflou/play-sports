@@ -100,7 +100,7 @@ action in the same place.
 
 ```
  +--------------------------------------------------------------------------+
- |     [DUp]                (View) (Pause)                                  |
+ |     [DUp]                (View) (Pause)                     (R3)         |
  | [DLeft]  [DRight]              [TrigLeft] [UpperLeft]       [UpperRight] |
  |     [DDown]                                                              |
  |                                                                          |
@@ -126,15 +126,22 @@ action in the same place.
 | `Sprint` | Button | 0.68, 0.86 | 0.09 (65 pt) | RT |
 | `Pause` | Button | 0.50, 0.07 | 0.065 (47 pt) | Menu (Start) |
 | `ButtonView` | Button | 0.40, 0.07 | 0.065 (47 pt) | View (Back) |
+| `ButtonRightStick` | Button | 0.82, 0.07 | 0.065 | R3 (right stick press) |
 | `TriggerLeft` | Button | 0.58, 0.18 | 0.07 | LT |
 | `DPadUp`, `DPadDown`, `DPadLeft`, `DPadRight` | Buttons, a cross at the top left, clear of the stick zone | 0.20, 0.07 / 0.20, 0.28 / 0.13, 0.175 / 0.27, 0.175 | 0.065 (47 pt) | D-pad |
 | `SwipeUp`, `SwipeDown`, `SwipeLeft`, `SwipeRight` | Swipe from anywhere in the gesture zone (x 0.45-1) that is not a button | — | at least 0.12 heights (43 pt), within 0.35 s | — |
 
-Every button is at least 44 pt across, Apple's minimum touch target. Only the controls the active
-contexts bind are drawn. The D-pad and the LT and View twins appear only before the snap, the busiest
-moment (fourteen buttons, while the play is not yet live); with the ball there are eight. The stick floats, because
-a phone has no physical stick to find by feel: the thumb lands anywhere in the left zone and
-steers from there.
+Every button is at least 44 pt across, Apple's minimum touch target.
+
+Only the controls the active contexts bind are drawn:
+
+- The D-pad and the LT and View twins appear only before the offense's snap. That is the busiest
+  moment, with fifteen buttons, but the play isn't live yet.
+- With the ball there are nine.
+- On defense before the snap there are nine, and during the play eight.
+
+The stick floats, because a phone has no physical stick to find by feel: the thumb lands anywhere
+in the left zone and steers from there.
 
 ## 4. The button set per context
 
@@ -143,7 +150,9 @@ always on during play; at most one depth context sits above it and takes over th
 binds. Touch mirrors the pad exactly: each button means what its pad twin means in the same
 context. The automation test checks this for every button in every gameplay context.
 
-| Control | `OnField` (`Defense`, and off the ball) | `PreSnap` (offense, before the snap) | `Passing` (QB with the ball behind the line) | `BallCarrier` (anyone else with the ball) |
+**Offense and the ball.**
+
+| Control | `OnField` (always on during play, and off the ball) | `PreSnap` (offense, before the snap) | `Passing` (QB with the ball behind the line) | `BallCarrier` (anyone else with the ball) |
 |---|---|---|---|---|
 | Stick | Move | Move | Move (also places the pass) | Move (also picks the juke's side) |
 | Sprint | Sprint | Sprint | Sprint | Sprint |
@@ -157,8 +166,20 @@ context. The automation test checks this for every button in every gameplay cont
 | TriggerLeft | — | Slide protection | — | — |
 | D-pad up / right / left / down | — | Audible / Hot route / Motion / Block or release | — | — |
 | Pause | Pause | Pause | Pause | Pause |
+| ButtonRightStick | Film view | Film view | Film view | Film view |
 | Swipe up / down | — | — | — | Hurdle / Slide |
-| Swipe left / right | — | — | — | Juke |
+| Swipe left / right | — | Pick the player to the left / right | — | Juke |
+
+**Defense and kicking.** Only the controls these contexts change are listed. Every other control
+does what it does on `OnField` (first table).
+
+| Control | `DefensePreSnap` (defense, before the snap) | `Defense` (defense, during the play) | `Kicking` (the human's side kicks) |
+|---|---|---|---|
+| ButtonBottom | Confirm | Confirm | Kick (the meter, `Data/kick_meter.json`) |
+| ButtonUpperRight | — | Strip | — |
+| TriggerLeft | Jump the snap | — | — |
+| ButtonView | Timeout | — | — |
+| Swipe left / right | Pick the player to the left / right | — | — |
 
 - **Hidden controls.** A control no active context binds (a dash above) is not drawn and doesn't
   respond. A finger there can still swipe.
@@ -167,13 +188,20 @@ context. The automation test checks this for every button in every gameplay cont
 - **Juke side.** A swiped juke cuts to the side **the stick** points, as on the pad. The swipe's
   own direction does not pick the side, because Juke carries no direction value. Making it do so
   is a catalog change for the input-depth owner (Epic 104).
+- **Picking a player.** The pad flicks the right stick left or right
+  (`Gamepad_RightStick_Left`/`Right`). Touch swipes left or right in the gesture zone: a flick of
+  the thumb on the right side of the screen, where the right stick would be.
 - **Duplicates.** The pad binds Switch player to both X and LB, so touch shows it on both too.
   A UX pass may drop a duplicate. If it does, update the test's twin table
   (`PSTouchInputTests.cpp`), which encodes "each button means what its pad twin means".
 
-**Adding an action to one of these contexts** means adding its touch control and its `Touch`
-glyph in the same change. `tools/validate_data.py` and `PSTouchControls::ValidateLayout` refuse
-a listed context that touch can't fully reach.
+**Adding an action, or a context,** means adding its touch control (or its touch button set) and
+the action's `Touch` glyph in the same change. `tools/validate_data.py` and
+`PSTouchControls::ValidateLayout` refuse:
+
+- a covered context that touch can't fully reach;
+- a catalog context that is neither in `TouchContexts` nor deliberately listed in
+  `ContextsWithoutTouch`.
 
 **Known gap: a press just before its context comes on.** The input buffer (Epic 104.4) replays a
 pad button pressed in the instant before its context came on, if that button meant nothing where
@@ -184,12 +212,11 @@ dormant presses and answering for their pad twins. It is small, but it touches t
 waits for its own change. Every other buffer behaviour (a press waiting for a busy carrier or
 passer) applies to touch already: those presses arrive as catalog actions like any other.
 
-Not covered by touch:
+Not covered by touch: these two, and only these, are in `ContextsWithoutTouch`.
 
-- `World`: pushed by nothing yet (Epic 143).
+- `World`: pushed by nothing yet (Epic 143). When it is, move it to `TouchContexts` with its button
+  set.
 - `Menu`: menus are Slate widgets, tapped directly.
-
-Add their touch sets when they arrive.
 
 ## 5. Glyphs
 

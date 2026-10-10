@@ -154,15 +154,30 @@ bool FPSTouchLayoutTest::RunTest(const FString& Parameters)
     }
     TestEqual(TEXT("The layout validates with no problems"), Problems.Num(), 0);
 
-    // Every gameplay context the controller pushes has a touch button set.
-    const TArray<FName> GameplayContexts = { TEXT("OnField"), TEXT("PreSnap"), TEXT("Passing"), TEXT("BallCarrier"), TEXT("Defense") };
+    // Every gameplay context the controller pushes has a touch button set, and every catalog
+    // context is either covered or deliberately listed without touch.
+    const TArray<FName> GameplayContexts = { TEXT("OnField"), TEXT("PreSnap"), TEXT("Passing"), TEXT("BallCarrier"), TEXT("Defense"),
+        TEXT("DefensePreSnap"), TEXT("Kicking") };
     for (const FName& ContextId : GameplayContexts)
     {
         TestTrue(*FString::Printf(TEXT("Touch covers %s"), *ContextId.ToString()),
             Layout.TouchContexts.ContainsByPredicate([ContextId](const FPSTouchContextDef& Def) { return Def.ContextId == ContextId; }));
     }
+    for (const FPSInputContextDef& InputContext : Config->Catalog.Contexts)
+    {
+        const FName ContextId = InputContext.ContextId;
+        const bool bCovered = Layout.TouchContexts.ContainsByPredicate([ContextId](const FPSTouchContextDef& Def) { return Def.ContextId == ContextId; });
+        TestTrue(*FString::Printf(TEXT("Catalog context %s is covered by touch or listed without it"), *ContextId.ToString()),
+            bCovered || Layout.ContextsWithoutTouch.Contains(ContextId));
+    }
 
     // Broken layouts report each mistake.
+    {
+        FPSTouchLayout Broken = Layout;
+        Broken.TouchContexts.RemoveAll([](const FPSTouchContextDef& Def) { return Def.ContextId == FName(TEXT("Kicking")); });
+        TestTrue(TEXT("A catalog context with no touch button set is reported"),
+            HasProblem(PSTouchControls::ValidateLayout(Broken, &Config->Catalog, nullptr), TEXT("Context 'Kicking' has no touch button set")));
+    }
     {
         FPSTouchLayout Broken = Layout;
         FPSTouchBindingDef Unknown;
@@ -408,12 +423,14 @@ bool FPSTouchMatchesGamepadTest::RunTest(const FString& Parameters)
         { TEXT("TriggerLeft"), EKeys::Gamepad_LeftTrigger },
         { TEXT("Pause"), EKeys::Gamepad_Special_Right },
         { TEXT("ButtonView"), EKeys::Gamepad_Special_Left },
+        { TEXT("ButtonRightStick"), EKeys::Gamepad_RightThumbstick },
         { TEXT("DPadUp"), EKeys::Gamepad_DPad_Up },
         { TEXT("DPadDown"), EKeys::Gamepad_DPad_Down },
         { TEXT("DPadLeft"), EKeys::Gamepad_DPad_Left },
         { TEXT("DPadRight"), EKeys::Gamepad_DPad_Right }
     };
-    const TArray<FName> DepthContexts = { NAME_None, TEXT("PreSnap"), TEXT("Passing"), TEXT("BallCarrier"), TEXT("Defense") };
+    const TArray<FName> DepthContexts = { NAME_None, TEXT("PreSnap"), TEXT("Passing"), TEXT("BallCarrier"), TEXT("Defense"),
+        TEXT("DefensePreSnap"), TEXT("Kicking") };
     for (const FName& Depth : DepthContexts)
     {
         Controller->SetDepthContext(Depth);
@@ -479,9 +496,11 @@ bool FPSTouchMatchesGamepadTest::RunTest(const FString& Parameters)
         Clock += 1.0;
     }
 
-    // Swipes: the carrier's moves, each equal to the pad button of the same move.
+    // Swipes: the carrier's moves, and the right-stick flicks that pick the player before the
+    // snap, each equal to the pad input of the same action.
     struct FSwipeCase
     {
+        FName Depth;
         FVector2D Drag;
         double Seconds;
         FName ExpectedAction;
@@ -489,17 +508,22 @@ bool FPSTouchMatchesGamepadTest::RunTest(const FString& Parameters)
     };
     const double Height = SafeHeight(Touch);
     const FVector2D SwipeStart = SafePoint(Touch, 0.6, 0.5);
-    Controller->SetDepthContext(TEXT("BallCarrier"));
     const TArray<FSwipeCase> Swipes = {
-        { FVector2D(0.0, -0.3), 0.15, TEXT("Hurdle"), TEXT("Swipe up") },
-        { FVector2D(0.0, 0.3), 0.15, TEXT("Slide"), TEXT("Swipe down") },
-        { FVector2D(-0.3, 0.05), 0.15, TEXT("Juke"), TEXT("Swipe left") },
-        { FVector2D(0.3, -0.05), 0.15, TEXT("Juke"), TEXT("Swipe right") },
-        { FVector2D(0.0, -0.3), 0.8, NAME_None, TEXT("A slow drag") },
-        { FVector2D(0.0, -0.03), 0.1, NAME_None, TEXT("A short flick") }
+        { TEXT("BallCarrier"), FVector2D(0.0, -0.3), 0.15, TEXT("Hurdle"), TEXT("Carrier: swipe up") },
+        { TEXT("BallCarrier"), FVector2D(0.0, 0.3), 0.15, TEXT("Slide"), TEXT("Carrier: swipe down") },
+        { TEXT("BallCarrier"), FVector2D(-0.3, 0.05), 0.15, TEXT("Juke"), TEXT("Carrier: swipe left") },
+        { TEXT("BallCarrier"), FVector2D(0.3, -0.05), 0.15, TEXT("Juke"), TEXT("Carrier: swipe right") },
+        { TEXT("BallCarrier"), FVector2D(0.0, -0.3), 0.8, NAME_None, TEXT("Carrier: a slow drag") },
+        { TEXT("BallCarrier"), FVector2D(0.0, -0.03), 0.1, NAME_None, TEXT("Carrier: a short flick") },
+        { TEXT("PreSnap"), FVector2D(-0.3, 0.0), 0.15, TEXT("PickPlayerLeft"), TEXT("Offense pre-snap: swipe left") },
+        { TEXT("PreSnap"), FVector2D(0.3, 0.0), 0.15, TEXT("PickPlayerRight"), TEXT("Offense pre-snap: swipe right") },
+        { TEXT("PreSnap"), FVector2D(0.0, -0.3), 0.15, NAME_None, TEXT("Offense pre-snap: swipe up does nothing") },
+        { TEXT("DefensePreSnap"), FVector2D(-0.3, 0.0), 0.15, TEXT("PickPlayerLeft"), TEXT("Defense pre-snap: swipe left") },
+        { TEXT("DefensePreSnap"), FVector2D(0.3, 0.0), 0.15, TEXT("PickPlayerRight"), TEXT("Defense pre-snap: swipe right") }
     };
     for (const FSwipeCase& Swipe : Swipes)
     {
+        Controller->SetDepthContext(Swipe.Depth);
         const int32 SwipeFinger = ++Finger;
         const FVector2D End = SwipeStart + Swipe.Drag * Height;
         Touch->TouchStarted(SwipeFinger, SwipeStart, Clock);

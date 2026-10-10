@@ -1,8 +1,16 @@
 #include "PSBroadcastCamera.h"
+#include "PSCameraAll22Component.h"
+#include "PSCameraDirectorComponent.h"
+#include "PSCameraSkycamComponent.h"
+#include "PSPlayerController.h"
 
 APSBroadcastCamera::APSBroadcastCamera()
 {
     PrimaryActorTick.bCanEverTick = true;
+
+    All22Component = CreateDefaultSubobject<UPSCameraAll22Component>(TEXT("All22Comp"));
+    DirectorComponent = CreateDefaultSubobject<UPSCameraDirectorComponent>(TEXT("DirectorComp"));
+    SkycamComponent = CreateDefaultSubobject<UPSCameraSkycamComponent>(TEXT("SkycamComp"));
 
     TargetActor = nullptr;
     SidelineY = -2800.0f; // Standard sideline placement (field width is Y = +/- 2438.4 cm)
@@ -29,7 +37,32 @@ void APSBroadcastCamera::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (bIsFreeCam || !bIsFollowing || !TargetActor)
+    // The skycam (Epic 39) flies whether or not it is on air.
+    if (SkycamComponent)
+    {
+        SkycamComponent->AdvanceTime(DeltaTime);
+    }
+
+    if (bIsFreeCam)
+    {
+        return;
+    }
+
+    // Film view (Epic 40) owns the camera while it is on; the broadcast follow resumes after.
+    if (All22Component && All22Component->IsFilmViewActive())
+    {
+        All22Component->StepFraming(DeltaTime);
+        return;
+    }
+
+    // The director (Epic 38) cuts the broadcast by itself while it is enabled.
+    if (DirectorComponent && DirectorComponent->IsDirectorEnabled())
+    {
+        DirectorComponent->AdvanceTime(DeltaTime);
+        return;
+    }
+
+    if (!bIsFollowing || !TargetActor)
     {
         return;
     }
@@ -103,4 +136,22 @@ void APSBroadcastCamera::SetTargetActor(AActor* NewTarget)
         bIsFollowing = false;
         UE_LOG(LogTemp, Warning, TEXT("APSBroadcastCamera: Target cleared. Following disabled."));
     }
+}
+
+void APSBroadcastCamera::BecomeViewTarget(APlayerController* PC)
+{
+    Super::BecomeViewTarget(PC);
+    if (All22Component)
+    {
+        All22Component->BindToController(Cast<APSPlayerController>(PC));
+    }
+}
+
+void APSBroadcastCamera::EndViewTarget(APlayerController* PC)
+{
+    if (All22Component)
+    {
+        All22Component->UnbindFromController(Cast<APSPlayerController>(PC));
+    }
+    Super::EndViewTarget(PC);
 }
