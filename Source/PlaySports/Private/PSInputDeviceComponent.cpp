@@ -1,5 +1,6 @@
 #include "PSInputDeviceComponent.h"
 #include "PSInputConfigTypes.h"
+#include "PSPlayerController.h"
 #include "Engine/World.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
@@ -24,13 +25,13 @@ public:
 
     virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override
     {
-        Forward(InKeyEvent.GetKey(), 1.f);
+        Forward(static_cast<int32>(InKeyEvent.GetUserIndex()), InKeyEvent.GetKey(), 1.f);
         return false;
     }
 
     virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override
     {
-        Forward(InAnalogInputEvent.GetKey(), FMath::Abs(InAnalogInputEvent.GetAnalogValue()));
+        Forward(static_cast<int32>(InAnalogInputEvent.GetUserIndex()), InAnalogInputEvent.GetKey(), FMath::Abs(InAnalogInputEvent.GetAnalogValue()));
         return false;
     }
 
@@ -41,20 +42,20 @@ public:
         {
             if (UPSInputDeviceComponent* Component = Owner.Get())
             {
-                Component->NotifyTouch();
+                Component->NotifyUserTouch(static_cast<int32>(MouseEvent.GetUserIndex()));
             }
             return false;
         }
-        Forward(MouseEvent.GetEffectingButton(), 1.f);
+        Forward(static_cast<int32>(MouseEvent.GetUserIndex()), MouseEvent.GetEffectingButton(), 1.f);
         return false;
     }
 
 private:
-    void Forward(const FKey& Key, float AnalogValue)
+    void Forward(int32 UserIndex, const FKey& Key, float AnalogValue)
     {
         if (UPSInputDeviceComponent* Component = Owner.Get())
         {
-            Component->NotifyInput(Key, AnalogValue);
+            Component->NotifyUserInput(UserIndex, Key, AnalogValue);
         }
     }
 
@@ -65,6 +66,7 @@ UPSInputDeviceComponent::UPSInputDeviceComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
     AnalogThreshold = FInputTuningRow().DeviceSwitchAnalogThreshold;
+    OwnerUserIndex = INDEX_NONE;
     bHasTouchScreen = FPlatformMisc::SupportsTouchInput();
     ActiveDevice = GetFallbackDevice();
 }
@@ -77,6 +79,30 @@ EPSInputDevice UPSInputDeviceComponent::GetFallbackDevice() const
 void UPSInputDeviceComponent::NotifyTouch()
 {
     SetActiveDevice(EPSInputDevice::Touch, false, true);
+}
+
+void UPSInputDeviceComponent::NotifyUserInput(int32 UserIndex, const FKey& Key, float AnalogValue)
+{
+    if (IsOwnUser(UserIndex))
+    {
+        NotifyInput(Key, AnalogValue);
+    }
+}
+
+void UPSInputDeviceComponent::NotifyUserTouch(int32 UserIndex)
+{
+    if (IsOwnUser(UserIndex))
+    {
+        NotifyTouch();
+    }
+}
+
+void UPSInputDeviceComponent::NotifyUserConnectionChange(int32 UserIndex, bool bConnected, bool bIsGamepad)
+{
+    if (IsOwnUser(UserIndex))
+    {
+        NotifyConnectionChange(bConnected, bIsGamepad);
+    }
 }
 
 void UPSInputDeviceComponent::BeginPlay()
@@ -94,7 +120,7 @@ void UPSInputDeviceComponent::BeginPlay()
         [this](EInputDeviceConnectionState NewState, FPlatformUserId UserId, FInputDeviceId DeviceId)
         {
             const bool bIsGamepad = DeviceId != IPlatformInputDeviceMapper::Get().GetDefaultInputDevice();
-            NotifyConnectionChange(NewState == EInputDeviceConnectionState::Connected, bIsGamepad);
+            NotifyUserConnectionChange(UserId.GetInternalId(), NewState == EInputDeviceConnectionState::Connected, bIsGamepad);
         });
 }
 
@@ -180,5 +206,7 @@ void UPSInputDeviceComponent::PublishDeviceEvent(EPSInputDevice PreviousDevice, 
     Event.PreviousDevice = PreviousDevice;
     Event.bFromConnectionChange = bFromConnectionChange;
     Event.bConnected = bConnected;
+    const APSPlayerController* OwningController = Cast<APSPlayerController>(GetOwner());
+    Event.HumanIndex = OwningController ? OwningController->HumanIndex : 0;
     Bus->PublishInputDeviceChange(Event);
 }

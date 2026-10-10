@@ -41,6 +41,11 @@ struct FControlHandoffTuningRow : public FTableRowBase
  *    nearest teammate on that side across the field (left is -Y, facing upfield +X), and
  *    PickPlayer takes a named teammate.
  *
+ * Head-to-head rules (Epic 107) arrive as two switches UPSVersusSubsystem sets per seat:
+ * bSwitchDuringPlay off holds a player to the one they had at the snap (switching to their own
+ * side's ball carrier after a takeaway still works), and bPreSnapPicks off disables the picks.
+ * Another human's player is never taken (APSPlayerController::TakeControlOf).
+ *
  * Downed players are never picked. Whether the play is live comes from the controller's
  * UPSPlayContextComponent; who has the ball from the possession component (rule 6). Pick
  * presses arrive through the controller's UPSInputBufferComponent.
@@ -92,6 +97,16 @@ public:
     /** True from the snap to the whistle, as the controller's play context sees it. */
     UFUNCTION(BlueprintPure, Category = "Control")
     bool IsPlayLive() const;
+
+    /** Whether the switch works once the ball is snapped. Off (a head-to-head defense under
+     *  Data/versus_rules.json), a press during the play only ever goes to the side's own ball
+     *  carrier. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Control")
+    bool bSwitchDuringPlay = true;
+
+    /** Whether the pre-snap picks (PickAcross, PickPlayer) work. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Control")
+    bool bPreSnapPicks = true;
 
 protected:
     virtual void BeginPlay() override;

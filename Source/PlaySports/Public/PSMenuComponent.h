@@ -13,6 +13,7 @@ class UPSMenuStack;
 class UPSMenuScreenWidget;
 class UPSLoadingTips;
 class UPSSettingsSubsystem;
+class UPSVersusSubsystem;
 
 /**
  * UPSMenuComponent runs every menu for its player: the front end (main menu, mode select),
@@ -23,6 +24,10 @@ class UPSSettingsSubsystem;
  *
  * While any screen is open the player is in UI input mode with a cursor; when the stack
  * empties, game input returns. Pausing goes through APlayerController::SetPause.
+ *
+ * In a local head-to-head game (Epic 107) the pause follows UPSVersusSubsystem's etiquette:
+ * the Pause button, the pause screen's Resume and Back, and its Quit go to the session, which
+ * pauses, waits for both players and forfeits for a quitter.
  */
 UCLASS(ClassGroup = "PlaySports", BlueprintType, meta = (BlueprintSpawnableComponent))
 class PLAYSPORTS_API UPSMenuComponent : public UActorComponent
@@ -183,6 +188,11 @@ private:
     void ExecuteCommand(EPSMenuCommand Command, FName Payload);
     void RedrawKeepingFocus(FName OptionId);
     void BeginTravel(EPSMenuCommand Command, FName Payload);
+    /** The world's head-to-head session while one is on, else null. */
+    UPSVersusSubsystem* GetActiveVersus() const;
+    /** The pause screen's Resume or Back in a head-to-head pause: the session takes it as this
+     *  player being ready. False when no such pause is on. */
+    bool DeferResumeToVersus();
     void PerformPendingTravel();
     FString PrepareLoadingTip(FName Context);
     APlayerController* GetOwningPlayer() const;

@@ -23,6 +23,11 @@ class FPSInputDevicePreProcessor;
  *    keyboard/mouse otherwise. That is also the device a run starts on.
  *
  * APSPlayerController owns one and sets AnalogThreshold from FInputTuningRow.
+ *
+ * Two players on one machine (Epic 107): each seat's controller has its own component, and
+ * UPSVersusSubsystem gives it the seat's user (OwnerUserIndex). It then counts only that
+ * user's input and connection changes, so one player picking up a pad never flips the other's
+ * glyphs or rumble; its events carry the controller's HumanIndex.
  */
 UCLASS(ClassGroup = "PlaySports", BlueprintType, meta = (BlueprintSpawnableComponent))
 class PLAYSPORTS_API UPSInputDeviceComponent : public UActorComponent
@@ -44,6 +49,26 @@ public:
 
     /** A finger touched the screen (Epic 130). */
     void NotifyTouch();
+
+    /** NotifyInput for input from Slate user UserIndex: ignored when it is another seat's. */
+    void NotifyUserInput(int32 UserIndex, const FKey& Key, float AnalogValue);
+
+    /** NotifyTouch for a finger of Slate user UserIndex: ignored when it is another seat's. */
+    void NotifyUserTouch(int32 UserIndex);
+
+    /** NotifyConnectionChange for a device of platform user UserIndex: ignored when it is
+     *  another seat's. */
+    void NotifyUserConnectionChange(int32 UserIndex, bool bConnected, bool bIsGamepad);
+
+    /** True when input from UserIndex is this component's to count: always, until a seat gives
+     *  it an owner. */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    bool IsOwnUser(int32 UserIndex) const { return OwnerUserIndex == INDEX_NONE || UserIndex == OwnerUserIndex; }
+
+    /** The user whose devices this component counts (the seat's local player, Epic 107);
+     *  INDEX_NONE counts every user's, which is right for one player. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    int32 OwnerUserIndex;
 
     /** The device used when nothing else is: Touch when bHasTouchScreen, else keyboard/mouse. */
     UFUNCTION(BlueprintPure, Category = "Input")

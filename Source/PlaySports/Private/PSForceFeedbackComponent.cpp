@@ -1,5 +1,6 @@
 #include "PSForceFeedbackComponent.h"
 #include "PSDataIngestion.h"
+#include "PSPlayerController.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/Paths.h"
@@ -235,8 +236,18 @@ void UPSForceFeedbackComponent::HandleScore(const FPSTelemetryScoreEvent& Event)
     Play(EPSForceFeedbackCue::Score, false);
 }
 
+bool UPSForceFeedbackComponent::IsOwnHuman(int32 HumanIndex) const
+{
+    const APSPlayerController* OwningController = Cast<APSPlayerController>(GetOwner());
+    return HumanIndex == (OwningController ? OwningController->HumanIndex : 0);
+}
+
 void UPSForceFeedbackComponent::HandleControlChange(const FPSTelemetryControlChangeEvent& Event)
 {
+    if (!IsOwnHuman(Event.HumanIndex))
+    {
+        return;
+    }
     if (Event.bHumanControlled)
     {
         ControlledPlayerName = Event.PlayerName;
@@ -249,5 +260,8 @@ void UPSForceFeedbackComponent::HandleControlChange(const FPSTelemetryControlCha
 
 void UPSForceFeedbackComponent::HandleInputDeviceChange(const FPSTelemetryInputDeviceEvent& Event)
 {
-    ActiveDevice = Event.ActiveDevice;
+    if (IsOwnHuman(Event.HumanIndex))
+    {
+        ActiveDevice = Event.ActiveDevice;
+    }
 }

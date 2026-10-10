@@ -55,8 +55,10 @@ against FPSDefensivePreSnapTuning (Epic 67), each action a Boolean in the Defens
 (Epic 41), each camera a named one or a rig in camera_all22.json; "DefenseNameFallback" files
 against FPSPersonnelPanelStyle (Epic 29); "MinSamples" files against FPSOpponentModelTuning, each
 counter pairing a play category the human calls with one the CPU answers on the other side (Epic
-78). Teams, the league config, the playbook, player rating ranges and every reference between files
-are tools/content_contracts.py's (Epic 125), run from here.
+78); "PausesPerHalf" files against FPSVersusRules (Epic 107): control roles on their sides, screen
+and overlay audiences, pause and resume etiquette. Teams, the league config, the playbook, player
+rating ranges and every reference between files are tools/content_contracts.py's (Epic 125), run
+from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -223,7 +225,7 @@ def validate_input_catalog(path, payload):
 
 
 MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay", "ApplyAdjustment",
-                 "StepSetting", "ResetSettings", "BeginRemap", "ResetRemaps"}
+                 "StepSetting", "ResetSettings", "BeginRemap", "ResetRemaps", "StartVersus"}
 MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays", "PlayCallRecent",
                  "PlayCallFavorites", "PlayCallAdjustments", "Settings", "SettingsCategory", "InputRemap"}
 TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
@@ -3157,6 +3159,40 @@ def validate_opponent_model(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(set(counter) - {'bOffense', 'Observed', 'Counter', 'Weight'})}")
 
 
+VERSUS_SCREENS = {"Shared", "Split"}
+VERSUS_AUDIENCES = {"Everyone", "OwnerOnly", "Nobody"}
+VERSUS_FLAGS = ("bResetControlEachDown", "bDefenseSwitchDuringPlay", "bDefensePreSnapPicks", "bPauseOnlyBetweenPlays",
+                "bResumeNeedsBoth", "bPauseOnDisconnect", "bQuitForfeits")
+VERSUS_FIELDS = {"OffenseControlRole", "DefenseControlRole", "Screen", "RouteArtAudience", "DefensiveIconsAudience",
+                 "PausesPerHalf", "ResumeCountdownSeconds"} | set(VERSUS_FLAGS)
+
+
+def validate_versus_rules(path, payload):
+    """FPSVersusRules (Data/versus_rules.json, Epic 107); mirrors UPSVersusSubsystem::ValidateRules."""
+    offense_role, defense_role = payload.get("OffenseControlRole"), payload.get("DefenseControlRole")
+    if offense_role not in OFFENSIVE_ROLES:
+        err(path, f"OffenseControlRole: '{offense_role}' must be an offensive role ({sorted(OFFENSIVE_ROLES)})")
+    if defense_role not in DEFENSIVE_ROLES:
+        err(path, f"DefenseControlRole: '{defense_role}' must be a defensive role ({sorted(DEFENSIVE_ROLES)})")
+    for flag in VERSUS_FLAGS:
+        if not isinstance(payload.get(flag), bool):
+            err(path, f"{flag}: must be true or false")
+    if payload.get("Screen") not in VERSUS_SCREENS:
+        err(path, f"Screen: '{payload.get('Screen')}' must be one of {sorted(VERSUS_SCREENS)}")
+    for field in ("RouteArtAudience", "DefensiveIconsAudience"):
+        if payload.get(field) not in VERSUS_AUDIENCES:
+            err(path, f"{field}: '{payload.get(field)}' must be one of {sorted(VERSUS_AUDIENCES)}")
+    pauses = payload.get("PausesPerHalf")
+    if not isinstance(pauses, int) or isinstance(pauses, bool) or pauses < -1:
+        err(path, f"PausesPerHalf: '{pauses}' must be a whole number, -1 (no limit) or 0 or more")
+    countdown = payload.get("ResumeCountdownSeconds")
+    if not is_number(countdown) or countdown < 0:
+        err(path, f"ResumeCountdownSeconds: '{countdown}' must be a number, 0 or more")
+    extra = set(payload) - VERSUS_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSVersusRules exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -3284,6 +3320,8 @@ def main():
             validate_replay_tuning(path, payload, load_all22_rig_ids())
         if isinstance(payload, dict) and "Counters" in payload and "MinSamples" in payload:
             validate_opponent_model(path, payload)
+        if isinstance(payload, dict) and "PausesPerHalf" in payload:
+            validate_versus_rules(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

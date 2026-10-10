@@ -50,6 +50,7 @@
 #include "PSPlayerDNA.h"
 #include "PSDefenderPreSnapTypes.h"
 #include "PSOpponentModelTypes.h"
+#include "PSVersusTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -197,6 +198,11 @@ public:
     /** Loads the player-switch tuning (Data/control_handoff.json, Epic 30). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadControlHandoffTuningFromJson(const FString& JsonFilePath, FControlHandoffTuningRow& OutTuning);
+
+    /** Loads the head-to-head rules (Data/versus_rules.json, Epic 107). False on a missing file,
+     *  malformed JSON or an unrecognized enum string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadVersusRulesFromJson(const FString& JsonFilePath, FPSVersusRules& OutRules);
 
     /** Loads the broadcast package: score bug and chyron theme and rules
      *  (Data/broadcast_overlay.json, Epic 33). False on a missing file, malformed JSON, or an

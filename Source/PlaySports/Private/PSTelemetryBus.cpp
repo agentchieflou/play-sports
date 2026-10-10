@@ -512,3 +512,22 @@ void UPSTelemetryBus::PublishOpponentAdjustment(const FPSTelemetryOpponentAdjust
     }
     OnOpponentAdjustmentMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishVersus(const FPSTelemetryVersusEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryVersusEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Versus: %s, seat %d"), *UEnum::GetValueAsString(Event.Kind), Event.Seat);
+    if (!Event.Reason.IsEmpty())
+    {
+        Description += FString::Printf(TEXT(" (%s)"), *Event.Reason);
+    }
+    RecordHistory(EPSTelemetryEventType::Versus, Description, JsonPayload);
+
+    if (OnVersus.IsBound())
+    {
+        OnVersus.Broadcast(Event);
+    }
+    OnVersusMC.Broadcast(Event);
+}

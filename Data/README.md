@@ -98,6 +98,7 @@ every CI build.
 | `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
 | `defensive_presnap.json` | `FPSDefensivePreSnapTuning` (single object) | `UPSDataIngestion::LoadDefensivePreSnapTuningFromJson`, via `UPSDefenderPreSnapSubsystem` |
 | `opponent_model.json` | `FPSOpponentModelTuning` (single object: distance buckets, read and strength tuning, `Counters`) | `UPSDataIngestion::LoadOpponentModelTuningFromJson`, via `UPSOpponentModel` |
+| `versus_rules.json` | `FPSVersusRules` (single object) | `UPSDataIngestion::LoadVersusRulesFromJson`, via `UPSVersusSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1187,3 +1188,27 @@ across the field from its centre:
   `DisguiseShell`, `Creep`), on while he controls a defender before the snap.
 
 `UPSDefenderPreSnapSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Head-to-head rules schema (`FPSVersusRules`)
+
+Single object (Epic 107; local head-to-head, `UPSVersusSubsystem`). House rules for two players on
+one machine:
+- `OffenseControlRole` (an offensive role), `DefenseControlRole` (a defensive one): the player each
+  seat controls at the start of a down on that side.
+- `bResetControlEachDown`: every new down puts both players back on those roles; off, a player
+  keeps whoever they had while their side is unchanged.
+- `bDefenseSwitchDuringPlay`: the defending player may switch after the snap; off, they keep the
+  defender they had at the snap (a takeaway's ball carrier is still theirs to take).
+- `bDefensePreSnapPicks`: the defending player may use the pre-snap pick buttons.
+- `Screen` (`Shared` or `Split`): one view both players watch, or one each.
+- `RouteArtAudience`, `DefensiveIconsAudience` (`Everyone`, `OwnerOnly`, `Nobody`): who may see the
+  offense's route art (Epic 27) and the defense's assignment icons (Epic 31) before the snap.
+  `OwnerOnly` is that side's own view on a split screen and nobody on a shared one.
+- `PausesPerHalf` (-1 for no limit, else 0 or more): pauses each player may call per half.
+- `bPauseOnlyBetweenPlays`: no pausing while the ball is live (a disconnect still pauses).
+- `bResumeNeedsBoth`: play resumes once both players are ready; off, the player who paused
+  resumes alone. `ResumeCountdownSeconds` (0 or more) then counts down, still paused.
+- `bPauseOnDisconnect`: a seat's controller disconnecting pauses the game, which can't resume
+  until it is back. `bQuitForfeits`: quitting forfeits the game to the other player.
+
+`UPSVersusSubsystem::ValidateRules` and `tools/validate_data.py` check it.

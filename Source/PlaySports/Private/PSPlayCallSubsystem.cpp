@@ -707,12 +707,21 @@ TArray<FName> UPSPlayCallSubsystem::GetRecentCalls(bool bOffense, int32 MaxCount
     TArray<FName> Recent;
     for (int32 Index = CallHistory.Num() - 1; Index >= 0 && Recent.Num() < MaxCount; --Index)
     {
-        if (CallHistory[Index].bOffense == bOffense)
+        if (IsOwnRecord(CallHistory[Index], bOffense))
         {
             Recent.AddUnique(CallHistory[Index].PlayId);
         }
     }
     return Recent;
+}
+
+bool UPSPlayCallSubsystem::IsOwnRecord(const FPSPlayCallRecord& Record, bool bOffense) const
+{
+    if (Record.bOffense != bOffense)
+    {
+        return false;
+    }
+    return !IsHeadToHead() || Record.bHomeTeam == IsHomeTeamCalling(bOffense);
 }
 
 FString UPSPlayCallSubsystem::DescribeTendencies(bool bOffense) const
@@ -722,7 +731,7 @@ FString UPSPlayCallSubsystem::DescribeTendencies(bool bOffense) const
     int32 Total = 0;
     for (const FPSPlayCallRecord& Record : CallHistory)
     {
-        if (Record.bOffense != bOffense)
+        if (!IsOwnRecord(Record, bOffense))
         {
             continue;
         }
@@ -836,7 +845,7 @@ bool UPSPlayCallSubsystem::RerunLastHumanCall()
     {
         const FPSPlayCallRecord& Record = CallHistory[Index];
         FPSPlayDefinition Play;
-        if (Record.bOffense && PSSituation::ClockPlayFromCategory(Record.PlayCategory) == EPSClockPlay::None && FindPlay(Record.PlayId, Play))
+        if (IsOwnRecord(Record, true) && PSSituation::ClockPlayFromCategory(Record.PlayCategory) == EPSClockPlay::None && FindPlay(Record.PlayId, Play))
         {
             SetCall(Play, EPSPlayCaller::Human);
             return true;
@@ -1006,7 +1015,7 @@ bool UPSPlayCallSubsystem::IsWaitingForHuman(bool bOffense) const
 
 bool UPSPlayCallSubsystem::RequestSnap()
 {
-    if (!bWindowOpen || OffenseCall.Caller != EPSPlayCaller::Human)
+    if (!bWindowOpen || OffenseCall.Caller != EPSPlayCaller::Human || IsWaitingForHuman(false))
     {
         return false;
     }
@@ -1076,6 +1085,7 @@ void UPSPlayCallSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
             Record.PlayId = Ran.PlayId;
             Record.PlayCategory = Ran.PlayCategory;
             Record.bOffense = bOffense;
+            Record.bHomeTeam = IsHomeTeamCalling(bOffense);
             CallHistory.Add(Record);
         }
     }

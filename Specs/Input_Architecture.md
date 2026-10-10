@@ -336,22 +336,28 @@ outcomes are published, and Hit (every landed tackle), Catch, Interception and F
 - **Input buffering** (the Gameplay category) switches `UPSInputBufferComponent` to pass
   everything straight through when off.
 
-### Epic 107: two players on one machine
+### Epic 107: two players on one machine (built)
 
-Each local player gets an `APSPlayerController` with its own device, rumble and menu components.
-Before that works, three gaps need closing:
+Each local player gets an `APSPlayerController` with its own catalog contexts, device, rumble and
+menu components; `UPSVersusSubsystem` seats them (seat 0 is player 1) and sets each controller's
+`HumanIndex`. The three gaps this section used to list are closed:
 
-1. **Device tracking is not per player.** `UPSInputDeviceComponent`'s pre-processor sees every
-   device's input. Filter by the event's `FInputDeviceId` and platform user against the
-   controller's own.
-2. **`InputDeviceChange` and `ControlChange` carry no player identity.** Add one (the local
-   player index or `FPlatformUserId`) so each controller's rumble and glyph consumers keep only
-   their own events. Until then every `UPSForceFeedbackComponent` follows every `ControlChange`.
-3. **`SwitchToBestPawn` can steal the other human's pawn.** It must skip pawns another human
-   controls (`APSPlayerPawn::IsUserControlled()`).
+1. **Device tracking is per player.** The pre-processor passes each event's Slate user index, and
+   a seated controller's `UPSInputDeviceComponent` counts only its seat's user
+   (`OwnerUserIndex`, which the session sets; unseated it counts everyone's, as for one player).
+   Connection changes are filtered by platform user the same way.
+2. **`InputDeviceChange` and `ControlChange` carry `HumanIndex`.** Each `UPSForceFeedbackComponent`
+   follows only its own human's events.
+3. **Nobody takes the other human's player.** `APSPlayerController::TakeControlOf` refuses a pawn
+   another player controller holds, and `UPSControlHandoffComponent` never offers one.
 
-Rumble itself is already per controller: `PlayDynamicForceFeedback` plays on that controller's
-own gamepad.
+Each controller keeps its own context stack, so the offense is in `PreSnap` / `Passing` while the
+defense is in `DefensePreSnap` / `Defense` at the same time. No catalog action was added: the
+Pause button goes through the session's etiquette (`UPSMenuComponent::TogglePause`).
+
+Keyboard and the first gamepad are both user 0, so player 2 needs the second gamepad. A keyboard
+player against one pad would need the engine's `bOffsetPlayerGamepadIds` (a project setting that
+also changes single-player pads), which is left for an editor session to decide.
 
 ### Epic 130: touch (built)
 
@@ -418,6 +424,8 @@ These automation tests run in CI's headless pass:
 | `PlaySports.PreSnap.HumanButtons` | The PreSnap context's buttons select, keep in, slide, hot-route, motion and audible, and do nothing on defense (Epic 66). |
 | `PlaySports.PreSnap.Defense.HumanButtons` | The defense's calls are their own Boolean actions in DefensePreSnap with glyphs, on keys free there and in `OnField`; pressed through the catalog they disguise, show blitz, creep, select, shadow and audible while the human controls a defender before the snap, and are off the stack on offense (Epic 67). |
 | `PlaySports.Camera.All22ToggleThroughCatalog` | FilmView is on the field with a key and an R3 glyph. Its keys are free in every context stacked over the field. It steps the film view on the viewing controller only (Epic 40). |
+| `PlaySports.Versus.SplitContextsAndDefenseSwitching` | Two controllers are in their own side's depth contexts at once; the defense's switch and picks follow the head-to-head rules, a takeaway's carrier is always theirs, and nobody takes the other human's player (Epic 107). |
+| `PlaySports.Versus.PerSeatDevicesAndRumble` | A seated controller counts only its own user's input and its events carry its `HumanIndex`; each player's rumble follows only their own device and player (Epic 107). |
 
 What CI cannot show is how the input feels in a player's hands: real rumble strength on a pad,
 glyph icons (none are imported yet; the labels stand in), the menu flow on a gamepad, and touch

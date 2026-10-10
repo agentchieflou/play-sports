@@ -72,6 +72,12 @@ struct FPSPlayCallRecord
 
     UPROPERTY(BlueprintReadOnly, Category = "PlayCall")
     bool bOffense = true;
+
+    /** The team that called it: the home team's when its side had the ball (for the
+     *  offense's call) or didn't (the defense's). In a head-to-head game each player's recent
+     *  list and tendencies are their own team's (Epic 107). */
+    UPROPERTY(BlueprintReadOnly, Category = "PlayCall")
+    bool bHomeTeam = true;
 };
 
 /** A pre-snap defensive adjustment (102.4): every defender of Role plays Kind on top of the

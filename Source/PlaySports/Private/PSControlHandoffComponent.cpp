@@ -159,7 +159,9 @@ TArray<APSPlayerPawn*> UPSControlHandoffComponent::GetPickableTeammates() const
     for (TActorIterator<APSPlayerPawn> It(World); It; ++It)
     {
         APSPlayerPawn* Candidate = *It;
-        if (IsValid(Candidate) && Candidate->TeamSide == Side && !PSControlHandoffPrivate::IsDowned(Candidate))
+        // Another human's player is never offered (Epic 107).
+        const APlayerController* OtherHuman = Cast<APlayerController>(Candidate->GetController());
+        if (IsValid(Candidate) && Candidate->TeamSide == Side && !PSControlHandoffPrivate::IsDowned(Candidate) && (!OtherHuman || OtherHuman == Controller))
         {
             Teammates.Add(Candidate);
         }
@@ -223,6 +225,12 @@ bool UPSControlHandoffComponent::CycleSwitch(const FVector& BallLocation, double
         return First != Current && Controller->TakeControlOf(First);
     }
 
+    // Held to his player until the whistle (Epic 107's versus rule): only the carrier above.
+    if (!bSwitchDuringPlay && IsPlayLive())
+    {
+        return false;
+    }
+
     // Otherwise on round the order, skipping whoever is now controlled or downed.
     for (int32 Step = 1; Step <= CycleOrder.Num(); ++Step)
     {
@@ -256,7 +264,7 @@ bool UPSControlHandoffComponent::PickAcross(int32 Direction)
 {
     APSPlayerController* Controller = GetPlayerController();
     APSPlayerPawn* Current = Controller ? Cast<APSPlayerPawn>(Controller->GetPawn()) : nullptr;
-    if (!Current || Direction == 0 || IsPlayLive())
+    if (!Current || Direction == 0 || !bPreSnapPicks || IsPlayLive())
     {
         return false;
     }
@@ -294,7 +302,7 @@ bool UPSControlHandoffComponent::PickAcross(int32 Direction)
 bool UPSControlHandoffComponent::PickPlayer(FName PlayerId)
 {
     APSPlayerController* Controller = GetPlayerController();
-    if (!Controller || PlayerId.IsNone() || IsPlayLive())
+    if (!Controller || PlayerId.IsNone() || !bPreSnapPicks || IsPlayLive())
     {
         return false;
     }

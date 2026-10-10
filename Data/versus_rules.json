@@ -1,0 +1,16 @@
+{
+    "OffenseControlRole": "Quarterback",
+    "DefenseControlRole": "Linebacker",
+    "bResetControlEachDown": true,
+    "bDefenseSwitchDuringPlay": true,
+    "bDefensePreSnapPicks": true,
+    "Screen": "Shared",
+    "RouteArtAudience": "OwnerOnly",
+    "DefensiveIconsAudience": "OwnerOnly",
+    "PausesPerHalf": 3,
+    "bPauseOnlyBetweenPlays": true,
+    "bResumeNeedsBoth": true,
+    "ResumeCountdownSeconds": 3.0,
+    "bPauseOnDisconnect": true,
+    "bQuitForfeits": true
+}

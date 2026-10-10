@@ -678,6 +678,24 @@ bool UPSDataIngestion::LoadControlHandoffTuningFromJson(const FString& JsonFileP
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
 }
 
+bool UPSDataIngestion::LoadVersusRulesFromJson(const FString& JsonFilePath, FPSVersusRules& OutRules)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutRules, 0, 0);
+}
+
 bool UPSDataIngestion::LoadBroadcastOverlayThemeFromJson(const FString& JsonFilePath, FPSBroadcastOverlayTheme& OutTheme)
 {
     FString JsonString;
