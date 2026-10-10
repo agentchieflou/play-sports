@@ -170,11 +170,11 @@
         {
             "ActionId": "FilmView",
             "ValueType": "Boolean",
-            "Description": "Step the camera from the broadcast view through the all-22 coaches film rigs and back (Epic 40, UPSCameraAll22Component). View and F belong to no pass, move or pre-snap button, so a press around the snap never cuts the camera.",
+            "Description": "Step the camera from the broadcast view through the all-22 coaches film rigs and back (Epic 40, UPSCameraAll22Component). R3 and F belong to no pass, move or pre-snap button, so the film view works before the snap and a press around the snap never cuts the camera.",
             "Contexts": ["OnField"],
             "Bindings": [
                 { "Key": "F" },
-                { "Key": "Gamepad_Special_Left" }
+                { "Key": "Gamepad_RightThumbstick" }
             ]
         },
         {

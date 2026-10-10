@@ -85,7 +85,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSFilmViewChangedSignature, FName, 
  * every frame holds every player. The end-zone rig stands behind the offense: which way it
  * attacks is read from the formation at each cut and at each snap on UPSTelemetryBus.
  *
- * Toggling: the catalog's FilmView action (View, or F) steps broadcast -> each rig in file order
+ * Toggling: the catalog's FilmView action (R3, or F) steps broadcast -> each rig in file order
  * -> broadcast. The component hears it on the APSPlayerController currently viewing through
  * the camera (APSBroadcastCamera binds it in BecomeViewTarget). Leaving film view puts the
  * broadcast view back as it was. Film view turns motion blur off: frames are for analysis.
