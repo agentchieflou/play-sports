@@ -23,7 +23,8 @@ enum class EPSTelemetryEventType : uint8
     PumpFake,
     PassRushMove,
     PreSnap,
-    RouteRunning
+    RouteRunning,
+    Pocket
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -54,6 +55,23 @@ enum class EPSRouteEventKind : uint8
     DoubleMove,
     /** An option route's read of the coverage. */
     OptionRead
+};
+
+/** Something the quarterback did with the pocket breaking down (Epic 71). */
+UENUM(BlueprintType)
+enum class EPSPocketEventKind : uint8
+{
+    /** He left the pocket: receivers go into the scramble drill. */
+    Escape,
+    /** He threw the ball away legally. */
+    Throwaway,
+    /** He threw it away with no receiver near it, inside the tackle box: a grounding risk for
+     *  the rules to flag. */
+    IntentionalGrounding,
+    /** A rusher tried to strip the ball as he sacked him. */
+    StripAttempt,
+    /** Running past the line, he slid to protect himself. */
+    Slide
 };
 
 /** Which kind of hardware the human player last used (Epic 127). */
@@ -425,6 +443,37 @@ struct FPSTelemetryRouteEvent
     float Seconds = 0.f;
 };
 
+/** The quarterback's pocket play (Epic 71): an escape (the scramble drill's trigger), a
+ *  throwaway, a grounding risk, a strip attempt or a protective slide. UPSPocketComponent
+ *  decides these; the grounding call itself is the rules' (Epic 73). */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPocketEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSPocketEventKind Kind = EPSPocketEventKind::Escape;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PasserName;
+
+    /** The rusher involved (the one he escaped, the stripper, the tackler he slid from). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString DefenderName;
+
+    /** Where the quarterback was. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Location = FVector::ZeroVector;
+
+    /** An escape: the side he scrambles to across the field (-1 left, +1 right). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float ScrambleSide = 0.f;
+
+    /** A strip attempt: whether the ball came out. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bSuccess = false;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -460,6 +509,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeSignature, const
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushSignature, const FPSTelemetryPassRushEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapSignature, const FPSTelemetryPreSnapEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteSignature, const FPSTelemetryRouteEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketSignature, const FPSTelemetryPocketEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -478,6 +528,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeMC, const FPSTelemetryPu
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushMC, const FPSTelemetryPassRushEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapMC, const FPSTelemetryPreSnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteMC, const FPSTelemetryRouteEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketMC, const FPSTelemetryPocketEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -539,6 +590,9 @@ public:
     void PublishRouteRunning(const FPSTelemetryRouteEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPocket(const FPSTelemetryPocketEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -595,6 +649,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryRouteSignature OnRouteRunning;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPocketSignature OnPocket;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -612,6 +669,7 @@ public:
     FPSTelemetryPassRushMC OnPassRushMoveMC;
     FPSTelemetryPreSnapMC OnPreSnapMC;
     FPSTelemetryRouteMC OnRouteRunningMC;
+    FPSTelemetryPocketMC OnPocketMC;
 
 private:
     UPROPERTY(Transient)

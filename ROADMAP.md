@@ -355,7 +355,7 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 
 - [x] Play-call distribution: one selected play resolves into 22 individual assignments
 - [x] Synchronized phase transitions: all agents react to snap/throw/turnover events from the play state machine
-- [ ] Broken-play adaptation: scramble drill, blown coverage reactions, blocked-kick chaos handling
+- [ ] Broken-play adaptation: scramble drill, blown coverage reactions, blocked-kick chaos handling *(scramble drill done: a QB's escape is a `Pocket` event on the bus and the orchestrator that handed out the play runs `TriggerScrambleDrill` (Epic 71). Blown coverage, offense side, done: a receiver `BlownCoverageSeparation` from every defender is read whatever his route's timing; the defense's own reactions belong to Epic 69. Blocked-kick chaos is still open: kicks are dice rolls in `UPSPlaySimulation`, so there is no live kick to block until Epic 75)*
 - [ ] Performance pass: 22 simultaneous behavior trees + physics at target frame rate
 - [x] Determinism/replay hooks: seedable decisions so a play can be re-simulated for debugging
 

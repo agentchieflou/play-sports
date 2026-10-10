@@ -22,7 +22,8 @@ DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDevi
 "MaxQueued" files against FInputBufferTuningRow, each buffered action a Boolean catalog action;
 "RushMoves" files against FPSRushMoveCatalog; "HotRouteSets" files against FPreSnapTuningRow, each
 route in the route library and each action a Boolean in the PreSnap context; "PressRadius" files against
-FRouteRunningTuningRow; "Routes" files against the FPSRoute library (timing, fakes, option branches).
+FRouteRunningTuningRow; "Routes" files against the FPSRoute library (timing, fakes, option branches); "PocketRadius" files
+against FPocketTuningRow.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -476,7 +477,8 @@ def validate_defensive_adjustments(path, payload):
 SKILL_AI_FIELDS = ("WaypointArrivalRadius", "OpenSeparation", "AwarenessMisreadSeparation", "MinReadSeconds",
                    "MaxReadSeconds", "PressureRadius", "PressuredThrowSeparation", "HandoffRadius",
                    "HandoffTimeoutSeconds", "CarrierAvoidRadius", "CarrierAvoidWeight", "ThrowLeadSpeed",
-                   "BlockSetDistance", "BlockEngageRadius", "ReadWindowSeconds", "MaxAnticipationSeconds")
+                   "BlockSetDistance", "BlockEngageRadius", "ReadWindowSeconds", "MaxAnticipationSeconds",
+                   "BlownCoverageSeparation")
 
 
 def validate_skill_ai_tuning(path, payload):
@@ -946,6 +948,34 @@ def validate_routes(path, payload):
                 err(path, f"Routes[{idx}].{field}: '{route.get(field)}' is itself an option route")
 
 
+POCKET_FIELDS = ("PocketRadius", "EngagedPressureWeight", "EdgeWidth", "MinPressure", "CollapsePressure",
+                 "EscapeRadius", "ClimbStopDistance", "SackImminentRadius", "StripBaseChance", "StripStrengthWeight",
+                 "ThrowawayMinAwareness", "GroundingAvoidAwareness", "TackleBoxHalfWidth", "ThrowawayReceiverRange",
+                 "ThrowawayShort", "ThrowawayDepth", "ThrowawayWidth", "ScrambleForwardBias", "ScrambleMaxSeconds",
+                 "RunLaneClearance", "RunLaneWidth", "SlideTriggerRadius", "SlideMinGain", "ScrambleDrillDepth",
+                 "ScrambleDrillWidth", "ScrambleDrillJitter", "ScrambleDeepDepth", "ScrambleDeepRunOn")
+
+
+def validate_pocket_tuning(path, payload):
+    """FPocketTuningRow (Data/pocket_tuning.json, Epic 71)."""
+    for field in POCKET_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("EngagedPressureWeight", "StripBaseChance"):
+        if is_number(payload.get(field)) and payload[field] > 1:
+            err(path, f"{field}: at most 1")
+    for field in ("ThrowawayMinAwareness", "GroundingAvoidAwareness"):
+        if is_number(payload.get(field)) and payload[field] > 100:
+            err(path, f"{field}: ratings run 0-100")
+    for low, high in (("MinPressure", "CollapsePressure"), ("ThrowawayMinAwareness", "GroundingAvoidAwareness")):
+        if is_number(payload.get(low)) and is_number(payload.get(high)) and payload[low] > payload[high]:
+            err(path, f"{low} must not exceed {high}")
+    extra = set(payload) - set(POCKET_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPocketTuningRow exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1000,6 +1030,8 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "PocketRadius" in payload:
+            validate_pocket_tuning(path, payload)
         if isinstance(payload, dict) and "PressRadius" in payload:
             validate_route_running(path, payload)
         if isinstance(payload, dict) and "Routes" in payload:

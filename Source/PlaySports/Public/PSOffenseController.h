@@ -9,6 +9,7 @@ class UBehaviorTree;
 class UBlackboardComponent;
 class UPSSkillPlayerAIComponent;
 class UPSRouteRunnerComponent;
+class UPSPocketComponent;
 
 /**
  * APSOffenseController drives offensive skill players (QB, RB, WR, TE). Its
@@ -61,6 +62,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "AI|Offense")
     UPSRouteRunnerComponent* GetRouteRunner() const { return RouteRunner; }
 
+    /** A quarterback's pocket: climb, slide, escape, scramble, and how a sack ends (Epic 71). */
+    UFUNCTION(BlueprintPure, Category = "AI|Offense")
+    UPSPocketComponent* GetPocket() const { return Pocket; }
+
 protected:
     virtual void OnPossess(APawn* InPawn) override;
     virtual void OnUnPossess() override;
@@ -76,6 +81,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
     UPSRouteRunnerComponent* RouteRunner;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+    UPSPocketComponent* Pocket;
 
 private:
     UFUNCTION()

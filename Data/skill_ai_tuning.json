@@ -14,5 +14,6 @@
     "BlockSetDistance": 150.0,
     "BlockEngageRadius": 500.0,
     "ReadWindowSeconds": 0.8,
-    "MaxAnticipationSeconds": 0.3
+    "MaxAnticipationSeconds": 0.3,
+    "BlownCoverageSeparation": 1000.0
 }
