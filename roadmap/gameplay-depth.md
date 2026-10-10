@@ -87,10 +87,10 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** The QB navigates a live pocket — climbs, slides, escapes, and decides to run.
 **Depends on:** Core 14, Core 9
 
-- [ ] Pocket-shape awareness from live line-play state (climb/slide directions)
-- [ ] Escape triggers and scramble-drill activation (receivers break off per Epic 17's rules)
-- [ ] Run/throw decision layer past the LOS constraint, slide/protect-self endings
-- [ ] Sack resolution variety (strip attempts, throwaways under `Awareness` gates, grounding risk)
+- [x] Pocket-shape awareness from live line-play state (climb/slide directions) *(`UPSPocketComponent` on `APSOffenseController` reads the rushers around the QB, a blocked one pressing less: edge pressure makes him climb (never onto the line), one-sided inside pressure slide away from it. Tuning: `Data/pocket_tuning.json`)*
+- [x] Escape triggers and scramble-drill activation (receivers break off per Epic 17's rules) *(a collapsed pocket (free rusher within `EscapeRadius`, or too much pressure) with nobody open sends him out to the side with room, announced as a `Pocket` Escape on the bus; the orchestrator that handed out the play hears it and runs `TriggerScrambleDrill`: receivers on routes break upfield of him toward that side, deep ones on further, blockers keep blocking)*
+- [x] Run/throw decision layer past the LOS constraint, slide/protect-self endings *(scrambling behind the line he throws on the run to a man who comes open (for `ScrambleMaxSeconds`), tucks it up a clear lane, and once past the line is a runner who can't throw and slides (`UPSCarrierMoveComponent`'s Slide) ahead of a closing tackler after `SlideMinGain`)*
+- [x] Sack resolution variety (strip attempts, throwaways under `Awareness` gates, grounding risk) *(a sack about to land: a rusher from the blind side tries a strip (`StripChance`, seeded per snap); one the QB sees gets the ball thrown away from `ThrowawayMinAwareness`, at a receiver's feet or out wide past the line, and a throwaway from the tackle box with nobody near it is announced as `IntentionalGrounding` for the rules (Epic 73) to flag, unless the QB is aware enough (`GroundingAvoidAwareness`) to take the sack. Tests: `Tests/PSPocketTests.cpp`)*
 
 ### Epic 72: Play-Action, RPO & Option Football
 
@@ -132,10 +132,10 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** Beyond Epic 13's basics — blocks, returns as schemes, fakes, and onside kicks.
 **Depends on:** Core 13
 
-- [ ] Kick/punt block mechanics (edge timing, interior push, block-or-return unit choice)
-- [ ] Return schemes: wall/wedge setups from playbook data, lane discipline for coverage
-- [ ] Fake punt/FG plays integrated into playbook + AI call logic (Epic 18 risk model)
-- [ ] Onside kicks and desperation kick-return laterals
+- [x] Kick/punt block mechanics (edge timing, interior push, block-or-return unit choice) *(`UPSSpecialTeamsModel::GetBlockChance`: a base chance per kick, plus edge timing (the rushers' fastest player over the cover men's) and interior push (linemen's strength over the protection's), times `BlockUnitMultiplier` when the defense calls `KickBlock`; a blocked punt recoils and can be scored. The CPU defense calls the block or the return against the kick the offense's formation shows (`UPSSpecialTeamsAI::DecideReceiving`), re-calling when a human offense lines up to kick; a block unit returns short. All tuning in `Data/special_teams.json`)*
+- [x] Return schemes: wall/wedge setups from playbook data, lane discipline for coverage *(`KickReturn` plays in `sample_playbook.json` (`Return Wall`, `Return Wedge`); the receiving play's formation names its `ReturnSchemes` entry (yards and big-return chance); the coverage's awareness sets its lane discipline, which takes yards and big returns away. Kickoffs, punts and field goals all resolve through the model now, replacing the sim's hardcoded rolls)*
+- [x] Fake punt/FG plays integrated into playbook + AI call logic (Epic 18 risk model) *(`Offense_FakePunt` / `Offense_FakeFieldGoal` share the real kick's formation; `UPSSpecialTeamsAI::DecideOffense` fakes on 4th and short when the coach's aggression clears `FakeMinAggression` and a roll beats `FakeCallChance` times it, after `ShouldGoForItOnFourthDown`. A played game's 4th down is now a call (punt, field goal, fake or go) instead of the sim's automatic kick; the sim resolves a fake at the snap, better against a block unit)*
+- [x] Onside kicks and desperation kick-return laterals *(after a score the scorers kick off through a call window (`FPlayState::bKickoff`; a safety's free kick from the 20), fixing the old double possession flip that gave the scorers the ball back; the kicking team calls `OnsideKick` when it needs the ball late (or rarely by surprise), the receivers answer with the `HandsTeam`, and with seconds left and a touchdown needed they call `ReturnLaterals`: a touchdown or a fumble the kickers recover)*
 
 ### Epic 76: Situational Football Intelligence
 

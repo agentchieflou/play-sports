@@ -57,6 +57,47 @@
             "Actions": [
                 { "ActionId": "Move", "GlyphId": "Key_WASD", "Label": "WASD" }
             ]
+        },
+        {
+            "GlyphSetId": "Touch",
+            "Device": "Touch",
+            "bDefaultForDevice": true,
+            "bFallbackToKeyName": false,
+            "Keys": [],
+            "Actions": [
+                { "ActionId": "Move", "GlyphId": "Touch_Stick", "Label": "Stick" },
+                { "ActionId": "Sprint", "GlyphId": "Touch_Sprint", "Label": "Sprint" },
+                { "ActionId": "Confirm", "GlyphId": "Touch_Confirm", "Label": "Go" },
+                { "ActionId": "Cancel", "GlyphId": "Touch_Cancel", "Label": "Back" },
+                { "ActionId": "Pause", "GlyphId": "Touch_Pause", "Label": "Pause" },
+                { "ActionId": "SwitchPlayer", "GlyphId": "Touch_Switch", "Label": "Switch" },
+                { "ActionId": "PassTarget1", "GlyphId": "Touch_Receiver1", "Label": "1" },
+                { "ActionId": "PassTarget2", "GlyphId": "Touch_Receiver2", "Label": "2" },
+                { "ActionId": "PassTarget3", "GlyphId": "Touch_Receiver3", "Label": "3" },
+                { "ActionId": "PassTarget4", "GlyphId": "Touch_Receiver4", "Label": "4" },
+                { "ActionId": "PassTarget5", "GlyphId": "Touch_Receiver5", "Label": "5" },
+                { "ActionId": "PumpFake", "GlyphId": "Touch_PumpFake", "Label": "Fake" },
+                { "ActionId": "Juke", "GlyphId": "Touch_Juke", "Label": "Juke" },
+                { "ActionId": "Spin", "GlyphId": "Touch_Spin", "Label": "Spin" },
+                { "ActionId": "Truck", "GlyphId": "Touch_Truck", "Label": "Truck" },
+                { "ActionId": "StiffArm", "GlyphId": "Touch_StiffArm", "Label": "Stiff Arm" },
+                { "ActionId": "Hurdle", "GlyphId": "Touch_Hurdle", "Label": "Hurdle" },
+                { "ActionId": "Slide", "GlyphId": "Touch_Slide", "Label": "Slide" },
+                { "ActionId": "Audible", "GlyphId": "Touch_Audible", "Label": "Audible" },
+                { "ActionId": "PreSnapSelect", "GlyphId": "Touch_PreSnapSelect", "Label": "Select" },
+                { "ActionId": "HotRoute", "GlyphId": "Touch_HotRoute", "Label": "Hot Route" },
+                { "ActionId": "Motion", "GlyphId": "Touch_Motion", "Label": "Motion" },
+                { "ActionId": "SlideProtection", "GlyphId": "Touch_SlideProtection", "Label": "Protection" },
+                { "ActionId": "BlockRelease", "GlyphId": "Touch_BlockRelease", "Label": "Block" },
+                { "ActionId": "Tempo", "GlyphId": "Touch_Tempo", "Label": "Tempo" },
+                { "ActionId": "Timeout", "GlyphId": "Touch_Timeout", "Label": "Timeout" },
+                { "ActionId": "FilmView", "GlyphId": "Touch_FilmView", "Label": "Film" },
+                { "ActionId": "PickPlayerLeft", "GlyphId": "Touch_PickPlayerLeft", "Label": "Pick Left" },
+                { "ActionId": "PickPlayerRight", "GlyphId": "Touch_PickPlayerRight", "Label": "Pick Right" },
+                { "ActionId": "Strip", "GlyphId": "Touch_Strip", "Label": "Strip" },
+                { "ActionId": "JumpSnap", "GlyphId": "Touch_JumpSnap", "Label": "Jump" },
+                { "ActionId": "Kick", "GlyphId": "Touch_Kick", "Label": "Kick" }
+            ]
         }
     ]
 }

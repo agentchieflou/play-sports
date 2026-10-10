@@ -17,6 +17,9 @@ public:
     int32 SafetyPoints = 2;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Scoring")
+    int32 FieldGoalPoints = 3;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Scoring")
     float PATSuccessChance = 0.94f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Scoring")

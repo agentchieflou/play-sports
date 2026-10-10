@@ -170,7 +170,8 @@ def build_report(repo):
     plays = league["plays"]
     by_category = Counter((bool(p.get("bIsOffensivePlay")), p.get("PlayCategory")) for p in plays)
     for offense, categories in ((True, content_contracts.OFFENSE_CATEGORIES), (False, content_contracts.DEFENSE_CATEGORIES)):
-        for category in sorted(categories - CLOCK_CATEGORIES):
+        # The clock and special-teams plays are called only when due, not weighted.
+        for category in sorted(categories - CLOCK_CATEGORIES - content_contracts.OFFENSE_SPECIAL_TEAMS - content_contracts.DEFENSE_SPECIAL_TEAMS):
             if plays and by_category[(offense, category)] == 0:
                 side = "offensive" if offense else "defensive"
                 warnings.append(f"no {side} {category} play - the coaching AI has nothing to call there")

@@ -43,8 +43,9 @@ have to be measured on the phone.
 - **Input.** Two routes, both through the action catalog (`Specs/Input_Architecture.md`):
   - A paired Bluetooth controller (Xbox or PlayStation) works through the existing gamepad
     path today.
-  - Touch is Epic 130. It must drive the same actions; a touch-only gameplay path is a
-    review-rejection.
+  - Touch is Epic 130's layer (`Specs/Touch_Controls_Spec.md`): a virtual stick, buttons and
+    swipes that drive the same catalog actions through their gamepad mappings. A touch-only
+    gameplay path is a review-rejection.
 - **Build and signing.** Building and signing for iOS needs a Mac with Xcode, and an Apple
   account to install on the phone: a free Apple ID for 7-day test builds, or the Developer
   Program for TestFlight. The how is Epic 131's decision record (`Specs/ADR_iOS_Build.md`)
@@ -91,6 +92,7 @@ Landed so far:
 |---|---|---|---|---|
 | Telemetry sampling, which overlays, trails and replay read (Epic 26) | `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` | 30 Hz, 0.25 ms a frame | 15 Hz, 0.15 ms | 10 Hz, 0.1 ms |
 | Broadcast overlays (Track A; first user: the Epic 30 reticle) | `OverlayDetail` | `Full`: animated | `Simplified`: no pulses or animated transitions | `Minimal`: score bug and the control reticle, static |
+| Ball-flight indicators (Epic 32), on the same field | `OverlayDetail` | Arc that shortens behind the ball, landing spot, receiver lead, kick readout | Whole arc, static; landing spot, lead, readout | Landing spot and kick readout only |
 
 The sampler also halves its own rate when its frames run over the tier's budget
 (`PlaySports.TelemetrySampling.BudgetDegradesAndRecovers`); `stat PSTelemetrySampling` shows its

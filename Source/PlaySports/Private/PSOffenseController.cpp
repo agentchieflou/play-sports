@@ -1,6 +1,7 @@
 #include "PSOffenseController.h"
 #include "PSSkillPlayerAIComponent.h"
 #include "PSRouteRunnerComponent.h"
+#include "PSPocketComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSGameMode.h"
 #include "PSBall.h"
@@ -27,6 +28,7 @@ APSOffenseController::APSOffenseController()
 
     SkillAI = CreateDefaultSubobject<UPSSkillPlayerAIComponent>(TEXT("SkillAI"));
     RouteRunner = CreateDefaultSubobject<UPSRouteRunnerComponent>(TEXT("RouteRunner"));
+    Pocket = CreateDefaultSubobject<UPSPocketComponent>(TEXT("Pocket"));
 }
 
 void APSOffenseController::OnPossess(APawn* InPawn)

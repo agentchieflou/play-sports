@@ -29,7 +29,11 @@ enum class EPSTelemetryEventType : uint8
     RouteRunning,
     Kick,
     JumpSnap,
-    GameState
+    GameState,
+    BlownCoverage,
+    Personnel,
+    Speech,
+    Pocket
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -62,12 +66,31 @@ enum class EPSRouteEventKind : uint8
     OptionRead
 };
 
-/** Which kind of hardware the human player last used (Epic 127). */
+/** Something the quarterback did with the pocket breaking down (Epic 71). */
+UENUM(BlueprintType)
+enum class EPSPocketEventKind : uint8
+{
+    /** He left the pocket: receivers go into the scramble drill. */
+    Escape,
+    /** He threw the ball away legally. */
+    Throwaway,
+    /** He threw it away with no receiver near it, inside the tackle box: a grounding risk for
+     *  the rules to flag. */
+    IntentionalGrounding,
+    /** A rusher tried to strip the ball as he sacked him. */
+    StripAttempt,
+    /** Running past the line, he slid to protect himself. */
+    Slide
+};
+
+/** Which kind of hardware the human player last used (Epic 127; Touch is Epic 130's
+ *  touch screen). */
 UENUM(BlueprintType)
 enum class EPSInputDevice : uint8
 {
     KeyboardMouse,
-    Gamepad
+    Gamepad,
+    Touch
 };
 
 USTRUCT(BlueprintType)
@@ -589,6 +612,10 @@ struct FPSTelemetryGameStateEvent
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bHomeHasPossession = true;
 
+    /** The next snap is a kickoff (Epic 75): the possessing team kicks, from before its call. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bKickoff = false;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     int32 HomeScore = 0;
 
@@ -626,10 +653,114 @@ struct FPSTelemetryGameStateEvent
         return Phase == Other.Phase && Quarter == Other.Quarter
             && bGameClockRunning == Other.bGameClockRunning && bPlayClockRunning == Other.bPlayClockRunning
             && Down == Other.Down && Distance == Other.Distance && YardLine == Other.YardLine && YardLineToGain == Other.YardLineToGain
-            && bHomeHasPossession == Other.bHomeHasPossession && HomeScore == Other.HomeScore && AwayScore == Other.AwayScore
+            && bHomeHasPossession == Other.bHomeHasPossession && bKickoff == Other.bKickoff && HomeScore == Other.HomeScore && AwayScore == Other.AwayScore
             && HomeTimeoutsRemaining == Other.HomeTimeoutsRemaining && AwayTimeoutsRemaining == Other.AwayTimeoutsRemaining
             && MaxTimeouts == Other.MaxTimeouts && CompletedDrives == Other.CompletedDrives;
     }
+};
+
+/** A receiver is running free downfield, every defender far from him (Epic 17's broken-play
+ *  reactions). UPSBlownCoverageSubsystem spots it once per receiver per play and names the
+ *  defender who leaves his zone to pick him up (empty when nobody can). */
+USTRUCT(BlueprintType)
+struct FPSTelemetryBlownCoverageEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString ReceiverName;
+
+    /** The defender who rotates to him; empty when no zone defender was free to. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString HelperName;
+
+    /** How far the nearest defender was from him (cm). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Separation = 0.f;
+
+    /** Where the receiver was. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Location = FVector::ZeroVector;
+};
+
+/** A side's personnel changed (Epic 19.5): a new package came on, or players were
+ *  substituted within one (a sit-out, a tired player). UPSPersonnelManager publishes it; a
+ *  personnel panel (Track A, Epic 29) reads it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPersonnelEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bOffense = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PackageId;
+
+    /** The package's display name, e.g. "12 Personnel". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PackageName;
+
+    /** PlayerIds who came on, in the same order as the PlayersOut they replaced. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    TArray<FName> PlayersIn;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    TArray<FName> PlayersOut;
+};
+
+/** Someone said something the player should be able to read (Epic 103.3): the commentary booth
+ *  (Epic 96), the PA, a referee. UPSUIAccessibilitySubsystem captions it when captions are on. */
+USTRUCT(BlueprintType)
+struct FPSTelemetrySpeechEvent
+{
+    GENERATED_BODY()
+
+    /** Who is speaking, as the caption names them; empty for none. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Speaker;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Text;
+
+    /** Where it comes from: Commentary, PA, Referee... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Channel;
+
+    /** How long it is spoken; 0 lets the caption time it from its length. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float DurationSeconds = 0.f;
+};
+
+/** The quarterback's pocket play (Epic 71): an escape (the scramble drill's trigger), a
+ *  throwaway, a grounding risk, a strip attempt or a protective slide. UPSPocketComponent
+ *  decides these; the grounding call itself is the rules' (Epic 73). */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPocketEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSPocketEventKind Kind = EPSPocketEventKind::Escape;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PasserName;
+
+    /** The rusher involved (the one he escaped, the stripper, the tackler he slid from). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString DefenderName;
+
+    /** Where the quarterback was. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Location = FVector::ZeroVector;
+
+    /** An escape: the side he scrambles to across the field (-1 left, +1 right). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float ScrambleSide = 0.f;
+
+    /** A strip attempt: whether the ball came out. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bSuccess = false;
 };
 
 USTRUCT(BlueprintType)
@@ -679,6 +810,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteSignature, const FP
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryKickSignature, const FPSTelemetryKickEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryJumpSnapSignature, const FPSTelemetryJumpSnapEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryGameStateSignature, const FPSTelemetryGameStateEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageSignature, const FPSTelemetryBlownCoverageEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelSignature, const FPSTelemetryPersonnelEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetrySpeechSignature, const FPSTelemetrySpeechEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketSignature, const FPSTelemetryPocketEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -705,6 +840,10 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryGameStateMC, const FPSTelemetryG
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryEventRecordedMC, const FPSTelemetryEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegrityMC, const FPSTelemetryGapIntegrityEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteMC, const FPSTelemetryRouteEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageMC, const FPSTelemetryBlownCoverageEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelMC, const FPSTelemetryPersonnelEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySpeechMC, const FPSTelemetrySpeechEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketMC, const FPSTelemetryPocketEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -779,6 +918,18 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishGameState(const FPSTelemetryGameStateEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPersonnel(const FPSTelemetryPersonnelEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishSpeech(const FPSTelemetrySpeechEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPocket(const FPSTelemetryPocketEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -872,6 +1023,18 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryGameStateSignature OnGameState;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryBlownCoverageSignature OnBlownCoverage;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPersonnelSignature OnPersonnel;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetrySpeechSignature OnSpeech;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPocketSignature OnPocket;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -898,6 +1061,10 @@ public:
     FPSTelemetryEventRecordedMC OnEventRecordedMC;
     FPSTelemetryGapIntegrityMC OnGapIntegrityMC;
     FPSTelemetryRouteMC OnRouteRunningMC;
+    FPSTelemetryBlownCoverageMC OnBlownCoverageMC;
+    FPSTelemetryPersonnelMC OnPersonnelMC;
+    FPSTelemetrySpeechMC OnSpeechMC;
+    FPSTelemetryPocketMC OnPocketMC;
 
 private:
     UPROPERTY(Transient)

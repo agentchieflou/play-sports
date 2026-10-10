@@ -33,7 +33,11 @@ bool UPSInputGlyphs::LoadFromJson(const FString& JsonFilePath)
 
 EPSInputDevice UPSInputGlyphs::GetDeviceForKey(const FKey& Key)
 {
-    return Key.IsGamepadKey() ? EPSInputDevice::Gamepad : EPSInputDevice::KeyboardMouse;
+    if (Key.IsGamepadKey())
+    {
+        return EPSInputDevice::Gamepad;
+    }
+    return Key.IsTouch() ? EPSInputDevice::Touch : EPSInputDevice::KeyboardMouse;
 }
 
 const FPSInputGlyphSetDef* UPSInputGlyphs::GetDefaultSet(EPSInputDevice Device) const
@@ -80,6 +84,21 @@ bool UPSInputGlyphs::GetGlyphForAction(const FPSInputCatalog& InCatalog, FName A
     if (!Set || !Action || !Action->Contexts.Contains(ContextId))
     {
         return false;
+    }
+
+    // Touch controls name actions, not keys (Epic 130): the set's action glyph is the glyph.
+    if (Device == EPSInputDevice::Touch)
+    {
+        const FPSActionGlyphDef* TouchGlyph = Set->Actions.FindByPredicate([ActionId](const FPSActionGlyphDef& Def) { return Def.ActionId == ActionId; });
+        if (!TouchGlyph)
+        {
+            return false;
+        }
+        OutGlyph.GlyphSetId = Set->GlyphSetId;
+        OutGlyph.GlyphId = TouchGlyph->GlyphId;
+        OutGlyph.Label = TouchGlyph->Label;
+        OutGlyph.Key = FKey();
+        return true;
     }
 
     // The catalog decides which key the action uses on this device.

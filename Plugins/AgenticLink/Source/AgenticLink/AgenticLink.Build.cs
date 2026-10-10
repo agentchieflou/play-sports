@@ -11,7 +11,9 @@ public class AgenticLink : ModuleRules
             "Core",
             "CoreUObject",
             "Engine",
-            "Projects"
+            "Projects",
+            "Json",
+            "HTTPServer"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
@@ -19,5 +21,11 @@ public class AgenticLink : ModuleRules
             "Slate",
             "SlateCore"
         });
+
+        // Undoable edits (FScopedTransaction) exist only in the editor.
+        if (Target.bBuildEditor)
+        {
+            PrivateDependencyModuleNames.Add("UnrealEd");
+        }
     }
 }

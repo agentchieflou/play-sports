@@ -1,0 +1,634 @@
+{
+    "Schemes": [
+        {
+            "SchemeId": "WestCoast",
+            "Label": "West Coast",
+            "bOffense": true,
+            "Formations": [
+                "Trips Right",
+                "Twins",
+                "I-Form",
+                "Ace",
+                "Shotgun"
+            ],
+            "CategoryWeights": {
+                "ShortPass": 1.4,
+                "Screen": 1.2,
+                "PlayAction": 1.0,
+                "Run": 0.9,
+                "DeepPass": 0.7
+            },
+            "FitWeights": [
+                {
+                    "Role": "Quarterback",
+                    "Attribute": "Awareness",
+                    "Weight": 0.7
+                },
+                {
+                    "Role": "Quarterback",
+                    "Attribute": "Agility",
+                    "Weight": 0.3
+                },
+                {
+                    "Role": "WideReceiver",
+                    "Attribute": "Agility",
+                    "Weight": 0.6
+                },
+                {
+                    "Role": "WideReceiver",
+                    "Attribute": "Awareness",
+                    "Weight": 0.4
+                },
+                {
+                    "Role": "RunningBack",
+                    "Attribute": "Agility",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "RunningBack",
+                    "Attribute": "Awareness",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Agility",
+                    "Weight": 0.4
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Awareness",
+                    "Weight": 0.4
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Strength",
+                    "Weight": 0.2
+                }
+            ],
+            "Description": "Timing throws underneath stand in for the run game; quick, smart players fit it."
+        },
+        {
+            "SchemeId": "AirRaid",
+            "Label": "Air Raid",
+            "bOffense": true,
+            "Formations": [
+                "Spread",
+                "Trips Left",
+                "Trips Right",
+                "Twins",
+                "Shotgun"
+            ],
+            "CategoryWeights": {
+                "DeepPass": 1.5,
+                "ShortPass": 1.2,
+                "Screen": 1.1,
+                "PlayAction": 0.8,
+                "Run": 0.6
+            },
+            "FitWeights": [
+                {
+                    "Role": "Quarterback",
+                    "Attribute": "Awareness",
+                    "Weight": 0.6
+                },
+                {
+                    "Role": "Quarterback",
+                    "Attribute": "Strength",
+                    "Weight": 0.4
+                },
+                {
+                    "Role": "WideReceiver",
+                    "Attribute": "Speed",
+                    "Weight": 0.7
+                },
+                {
+                    "Role": "WideReceiver",
+                    "Attribute": "Acceleration",
+                    "Weight": 0.3
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Agility",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Awareness",
+                    "Weight": 0.3
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Strength",
+                    "Weight": 0.2
+                }
+            ],
+            "Description": "Four and five wide, attacking every level; it wants speed outside and pass protectors."
+        },
+        {
+            "SchemeId": "PowerRun",
+            "Label": "Power Run",
+            "bOffense": true,
+            "Formations": [
+                "I-Form",
+                "Strong-I",
+                "Ace",
+                "Twins"
+            ],
+            "CategoryWeights": {
+                "Run": 1.5,
+                "PlayAction": 1.3,
+                "ShortPass": 0.8,
+                "Screen": 0.7,
+                "DeepPass": 0.6
+            },
+            "FitWeights": [
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Strength",
+                    "Weight": 0.7
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Awareness",
+                    "Weight": 0.3
+                },
+                {
+                    "Role": "RunningBack",
+                    "Attribute": "Strength",
+                    "Weight": 0.6
+                },
+                {
+                    "Role": "RunningBack",
+                    "Attribute": "Acceleration",
+                    "Weight": 0.4
+                },
+                {
+                    "Role": "TightEnd",
+                    "Attribute": "Strength",
+                    "Weight": 0.6
+                },
+                {
+                    "Role": "TightEnd",
+                    "Attribute": "Awareness",
+                    "Weight": 0.4
+                }
+            ],
+            "Description": "Downhill gap runs behind pulling guards, then play action off them; strength up front."
+        },
+        {
+            "SchemeId": "ZoneRun",
+            "Label": "Zone Run",
+            "bOffense": true,
+            "Formations": [
+                "I-Form",
+                "Trips Right",
+                "Shotgun",
+                "Ace"
+            ],
+            "CategoryWeights": {
+                "Run": 1.4,
+                "PlayAction": 1.2,
+                "Screen": 1.0,
+                "ShortPass": 0.9,
+                "DeepPass": 0.7
+            },
+            "FitWeights": [
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Agility",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Speed",
+                    "Weight": 0.2
+                },
+                {
+                    "Role": "OffensiveLineman",
+                    "Attribute": "Awareness",
+                    "Weight": 0.3
+                },
+                {
+                    "Role": "RunningBack",
+                    "Attribute": "Agility",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "RunningBack",
+                    "Attribute": "Awareness",
+                    "Weight": 0.3
+                },
+                {
+                    "Role": "RunningBack",
+                    "Attribute": "Acceleration",
+                    "Weight": 0.2
+                },
+                {
+                    "Role": "TightEnd",
+                    "Attribute": "Agility",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "TightEnd",
+                    "Attribute": "Speed",
+                    "Weight": 0.5
+                }
+            ],
+            "Description": "Linemen move in unison and the back cuts off them; agile linemen and patient backs."
+        },
+        {
+            "SchemeId": "Cover2Zone",
+            "Label": "Cover 2 Zone",
+            "bOffense": false,
+            "Formations": [
+                "Base 4-3",
+                "Nickel",
+                "Goal Line",
+                "Blitz Package"
+            ],
+            "CategoryWeights": {
+                "Base": 1.3,
+                "Prevent": 1.3,
+                "Blitz": 0.6
+            },
+            "FitWeights": [
+                {
+                    "Role": "DefensiveBack",
+                    "Attribute": "Awareness",
+                    "Weight": 0.6
+                },
+                {
+                    "Role": "DefensiveBack",
+                    "Attribute": "Agility",
+                    "Weight": 0.4
+                },
+                {
+                    "Role": "Linebacker",
+                    "Attribute": "Awareness",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "Linebacker",
+                    "Attribute": "Speed",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "DefensiveLineman",
+                    "Attribute": "Speed",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "DefensiveLineman",
+                    "Attribute": "Acceleration",
+                    "Weight": 0.5
+                }
+            ],
+            "Description": "Four rush, seven drop: keep everything in front; disciplined zone eyes and quick ends."
+        },
+        {
+            "SchemeId": "Pressure34",
+            "Label": "3-4 Pressure",
+            "bOffense": false,
+            "Formations": [
+                "Base 3-4",
+                "Blitz Package",
+                "Nickel",
+                "Goal Line"
+            ],
+            "CategoryWeights": {
+                "Blitz": 1.6,
+                "Base": 1.0,
+                "Prevent": 0.5
+            },
+            "FitWeights": [
+                {
+                    "Role": "DefensiveLineman",
+                    "Attribute": "Strength",
+                    "Weight": 0.7
+                },
+                {
+                    "Role": "DefensiveLineman",
+                    "Attribute": "Awareness",
+                    "Weight": 0.3
+                },
+                {
+                    "Role": "Linebacker",
+                    "Attribute": "Speed",
+                    "Weight": 0.4
+                },
+                {
+                    "Role": "Linebacker",
+                    "Attribute": "Acceleration",
+                    "Weight": 0.4
+                },
+                {
+                    "Role": "Linebacker",
+                    "Attribute": "Strength",
+                    "Weight": 0.2
+                },
+                {
+                    "Role": "DefensiveBack",
+                    "Attribute": "Speed",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "DefensiveBack",
+                    "Attribute": "Awareness",
+                    "Weight": 0.5
+                }
+            ],
+            "Description": "Big men two-gap so the linebackers can come from anywhere; never sits back in prevent."
+        },
+        {
+            "SchemeId": "NickelMan",
+            "Label": "Nickel Man",
+            "bOffense": false,
+            "Formations": [
+                "Nickel",
+                "Base 4-3",
+                "Blitz Package",
+                "Goal Line"
+            ],
+            "CategoryWeights": {
+                "Base": 1.1,
+                "Blitz": 1.2,
+                "Prevent": 0.9
+            },
+            "FitWeights": [
+                {
+                    "Role": "DefensiveBack",
+                    "Attribute": "Speed",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "DefensiveBack",
+                    "Attribute": "Agility",
+                    "Weight": 0.3
+                },
+                {
+                    "Role": "DefensiveBack",
+                    "Attribute": "Acceleration",
+                    "Weight": 0.2
+                },
+                {
+                    "Role": "Linebacker",
+                    "Attribute": "Agility",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "Linebacker",
+                    "Attribute": "Awareness",
+                    "Weight": 0.5
+                },
+                {
+                    "Role": "DefensiveLineman",
+                    "Attribute": "Acceleration",
+                    "Weight": 0.6
+                },
+                {
+                    "Role": "DefensiveLineman",
+                    "Attribute": "Strength",
+                    "Weight": 0.4
+                }
+            ],
+            "Description": "Press man with five defensive backs; it lives on corners who can run."
+        }
+    ],
+    "Coaches": [
+        {
+            "CoachId": "Coach_Grant",
+            "DisplayName": "R. Grant",
+            "Role": "HeadCoach",
+            "SchemeId": "WestCoast",
+            "PlayCalling": 72,
+            "Development": 70,
+            "Aggression": 0.45
+        },
+        {
+            "CoachId": "Coach_Hale",
+            "DisplayName": "D. Hale",
+            "Role": "OffensiveCoordinator",
+            "SchemeId": "WestCoast",
+            "PlayCalling": 74,
+            "Development": 62,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Ortiz",
+            "DisplayName": "M. Ortiz",
+            "Role": "DefensiveCoordinator",
+            "SchemeId": "Cover2Zone",
+            "PlayCalling": 68,
+            "Development": 66,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Mercer",
+            "DisplayName": "J. Mercer",
+            "Role": "HeadCoach",
+            "SchemeId": "AirRaid",
+            "PlayCalling": 70,
+            "Development": 64,
+            "Aggression": 0.7
+        },
+        {
+            "CoachId": "Coach_Pike",
+            "DisplayName": "S. Pike",
+            "Role": "OffensiveCoordinator",
+            "SchemeId": "AirRaid",
+            "PlayCalling": 78,
+            "Development": 58,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Vance",
+            "DisplayName": "L. Vance",
+            "Role": "DefensiveCoordinator",
+            "SchemeId": "NickelMan",
+            "PlayCalling": 66,
+            "Development": 70,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Stone",
+            "DisplayName": "B. Stone",
+            "Role": "HeadCoach",
+            "SchemeId": "PowerRun",
+            "PlayCalling": 64,
+            "Development": 74,
+            "Aggression": 0.3
+        },
+        {
+            "CoachId": "Coach_Bishop",
+            "DisplayName": "T. Bishop",
+            "Role": "OffensiveCoordinator",
+            "SchemeId": "PowerRun",
+            "PlayCalling": 70,
+            "Development": 72,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Kerr",
+            "DisplayName": "A. Kerr",
+            "Role": "DefensiveCoordinator",
+            "SchemeId": "Pressure34",
+            "PlayCalling": 72,
+            "Development": 60,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Rowe",
+            "DisplayName": "K. Rowe",
+            "Role": "HeadCoach",
+            "SchemeId": "Pressure34",
+            "PlayCalling": 66,
+            "Development": 68,
+            "Aggression": 0.6
+        },
+        {
+            "CoachId": "Coach_Lowell",
+            "DisplayName": "E. Lowell",
+            "Role": "OffensiveCoordinator",
+            "SchemeId": "ZoneRun",
+            "PlayCalling": 68,
+            "Development": 70,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Abbott",
+            "DisplayName": "G. Abbott",
+            "Role": "DefensiveCoordinator",
+            "SchemeId": "Pressure34",
+            "PlayCalling": 74,
+            "Development": 64,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Dunn",
+            "DisplayName": "P. Dunn",
+            "Role": "HeadCoach",
+            "SchemeId": "ZoneRun",
+            "PlayCalling": 68,
+            "Development": 72,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Fisk",
+            "DisplayName": "H. Fisk",
+            "Role": "HeadCoach",
+            "SchemeId": "Cover2Zone",
+            "PlayCalling": 62,
+            "Development": 66,
+            "Aggression": 0.35
+        },
+        {
+            "CoachId": "Coach_Price",
+            "DisplayName": "W. Price",
+            "Role": "HeadCoach",
+            "SchemeId": "AirRaid",
+            "PlayCalling": 60,
+            "Development": 58,
+            "Aggression": 0.8
+        },
+        {
+            "CoachId": "Coach_Quinn",
+            "DisplayName": "N. Quinn",
+            "Role": "OffensiveCoordinator",
+            "SchemeId": "ZoneRun",
+            "PlayCalling": 66,
+            "Development": 68,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Reyes",
+            "DisplayName": "C. Reyes",
+            "Role": "OffensiveCoordinator",
+            "SchemeId": "WestCoast",
+            "PlayCalling": 64,
+            "Development": 70,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Sato",
+            "DisplayName": "Y. Sato",
+            "Role": "OffensiveCoordinator",
+            "SchemeId": "AirRaid",
+            "PlayCalling": 72,
+            "Development": 52,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Tate",
+            "DisplayName": "F. Tate",
+            "Role": "DefensiveCoordinator",
+            "SchemeId": "Cover2Zone",
+            "PlayCalling": 64,
+            "Development": 68,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Udall",
+            "DisplayName": "O. Udall",
+            "Role": "DefensiveCoordinator",
+            "SchemeId": "NickelMan",
+            "PlayCalling": 70,
+            "Development": 62,
+            "Aggression": 0.5
+        },
+        {
+            "CoachId": "Coach_Voss",
+            "DisplayName": "V. Voss",
+            "Role": "DefensiveCoordinator",
+            "SchemeId": "Pressure34",
+            "PlayCalling": 60,
+            "Development": 72,
+            "Aggression": 0.5
+        }
+    ],
+    "Staffs": [
+        {
+            "TeamId": "Falcons",
+            "HeadCoachId": "Coach_Grant",
+            "OffensiveCoordinatorId": "Coach_Hale",
+            "DefensiveCoordinatorId": "Coach_Ortiz",
+            "HeadCoachSeasons": 3
+        },
+        {
+            "TeamId": "Hawks",
+            "HeadCoachId": "Coach_Mercer",
+            "OffensiveCoordinatorId": "Coach_Pike",
+            "DefensiveCoordinatorId": "Coach_Vance",
+            "HeadCoachSeasons": 1
+        },
+        {
+            "TeamId": "Wolves",
+            "HeadCoachId": "Coach_Stone",
+            "OffensiveCoordinatorId": "Coach_Bishop",
+            "DefensiveCoordinatorId": "Coach_Kerr",
+            "HeadCoachSeasons": 4
+        },
+        {
+            "TeamId": "Bears",
+            "HeadCoachId": "Coach_Rowe",
+            "OffensiveCoordinatorId": "Coach_Lowell",
+            "DefensiveCoordinatorId": "Coach_Abbott",
+            "HeadCoachSeasons": 2
+        }
+    ],
+    "Tuning": {
+        "MinSchemeAdherence": 0.5,
+        "MaxSchemeAdherence": 1.25,
+        "FitSpan": 10.0,
+        "BestFitMultiplier": 1.05,
+        "WorstFitMultiplier": 0.9,
+        "DevelopmentMisfitRelief": 0.5,
+        "FitLabelThreshold": 0.25,
+        "FireWinPercentage": 0.35,
+        "GraceSeasons": 1,
+        "CoordinatorFiresPerSide": 1,
+        "CoordinatorSafeWinPercentage": 0.5,
+        "PromoteWinPercentage": 0.65,
+        "PromotionBonus": 5.0,
+        "SchemeMatchBonus": 10.0
+    }
+}

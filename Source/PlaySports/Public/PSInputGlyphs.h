@@ -44,7 +44,7 @@ struct FPSActionGlyphDef
     FString Label;
 };
 
-/** One family of button pictures (Xbox, keyboard and mouse; later PlayStation, touch). */
+/** One family of button pictures (Xbox, keyboard and mouse, touch; later PlayStation). */
 USTRUCT(BlueprintType)
 struct FPSInputGlyphSetDef
 {
@@ -142,10 +142,12 @@ public:
 
     /** The glyph for ActionId in ContextId on Device: the set's action glyph if it has one,
      *  otherwise the glyph of the first key of that device the catalog binds to the action
-     *  there. False when the action has no binding for the device in that context. */
+     *  there. False when the action has no binding for the device in that context. Touch
+     *  binds no keys (its controls name actions, Epic 130), so on Touch it is the action
+     *  glyph, for any action that lives in ContextId. */
     bool GetGlyphForAction(const FPSInputCatalog& InCatalog, FName ActionId, FName ContextId, EPSInputDevice Device, FPSInputGlyph& OutGlyph) const;
 
-    /** The device a key belongs to (gamepad keys vs. everything else). */
+    /** The device a key belongs to: gamepad keys, touch keys, or keyboard and mouse. */
     static EPSInputDevice GetDeviceForKey(const FKey& Key);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")

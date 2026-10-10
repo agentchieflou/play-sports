@@ -1,9 +1,31 @@
 #include "PSCoachingAI.h"
 #include "PSSituationAI.h"
+#include "PSSpecialTeamsAI.h"
+#include "PSSpecialTeamsModel.h"
+
+namespace PSCoachingAIPrivate
+{
+    /** A down where a special-teams call can gamble: a kickoff, 4th down, or a kick to face. */
+    bool IsSpecialTeamsDown(const FPSSituationContext& Situation)
+    {
+        return Situation.bKickoff || Situation.Down == 4 || Situation.OffenseKick != EPSSpecialTeamsPlay::None;
+    }
+}
 
 UPSCoachingAI::UPSCoachingAI()
 {
     SituationAI = CreateDefaultSubobject<UPSSituationAI>(TEXT("SituationAI"));
+    SpecialTeamsAI = CreateDefaultSubobject<UPSSpecialTeamsAI>(TEXT("SpecialTeamsAI"));
+}
+
+UPSSpecialTeamsAI* UPSCoachingAI::GetSpecialTeamsAI() const
+{
+    if (SpecialTeamsAI && !bSpecialTeamsTuningLoaded)
+    {
+        bSpecialTeamsTuningLoaded = true;
+        SpecialTeamsAI->LoadTuningFromJson(UPSSpecialTeamsModel::GetDefaultTuningPath());
+    }
+    return SpecialTeamsAI;
 }
 
 UPSSituationAI* UPSCoachingAI::GetSituationAI() const
@@ -26,7 +48,7 @@ void UPSCoachingAI::SetSuggestionProvider(TScriptInterface<IPSCoachingSuggestion
     SuggestionProvider = InProvider;
 }
 
-float UPSCoachingAI::GetPlayWeight(const FPSPlayDefinition& Play, const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, bool bOffense, TArray<FString>* OutReasons) const
+float UPSCoachingAI::GetPlayWeight(const FPSPlayDefinition& Play, const FPSSituationContext& Situation, const FPSTendencyProfile& Tendency, bool bOffense, TArray<FString>* OutReasons, float SpecialTeamsRoll) const
 {
     const FString& Category = Play.PlayCategory;
     float Weight = 1.f;
@@ -104,12 +126,26 @@ float UPSCoachingAI::GetPlayWeight(const FPSPlayDefinition& Play, const FPSSitua
         }
     }
 
+    // Special teams (Epic 75): the kick, return or block that is due, and nothing else.
+    if (const UPSSpecialTeamsAI* SpecialTeamsRead = GetSpecialTeamsAI())
+    {
+        bool bExcluded = false;
+        Weight += SpecialTeamsRead->GetPlayAdjustment(Play, Situation, Tendency, bOffense, ShouldGoForItOnFourthDown(Situation, Tendency), SpecialTeamsRoll, OutReasons, bExcluded);
+        if (bExcluded)
+        {
+            return 0.f;
+        }
+    }
+
     if (const float* TendencyWeight = Tendency.CategoryWeights.Find(Category))
     {
         Weight *= FMath::Max(*TendencyWeight, 0.01f);
         if (OutReasons && !FMath::IsNearlyEqual(*TendencyWeight, 1.f))
         {
-            OutReasons->Add(FString::Printf(TEXT("Team tendency (x%.1f)"), *TendencyWeight));
+            // A coordinator's scheme names itself (Epic 89).
+            OutReasons->Add(Tendency.Label.IsEmpty()
+                ? FString::Printf(TEXT("Team tendency (x%.1f)"), *TendencyWeight)
+                : FString::Printf(TEXT("%s scheme (x%.1f)"), *Tendency.Label, *TendencyWeight));
         }
     }
 
@@ -153,6 +189,22 @@ FName UPSCoachingAI::SelectWeightedPlay(const FPSSituationContext& Situation, co
         }
     }
 
+    // Then special teams (Epic 75): a due kick, return or block is called outright, one of the
+    // playbook's plays for it (a return scheme, say) at random.
+    const float SpecialTeamsRoll = PSCoachingAIPrivate::IsSpecialTeamsDown(Situation) ? DeterminismStream.FRand() : 1.f;
+    const UPSSpecialTeamsAI* SpecialTeamsRead = GetSpecialTeamsAI();
+    const EPSSpecialTeamsPlay Due = SpecialTeamsRead
+        ? SpecialTeamsRead->DecideCall(Situation, Tendency, bOffense, ShouldGoForItOnFourthDown(Situation, Tendency), SpecialTeamsRoll)
+        : EPSSpecialTeamsPlay::None;
+    if (Due != EPSSpecialTeamsPlay::None)
+    {
+        const TArray<FPSPlayDefinition> DueCalls = Candidates.FilterByPredicate([Due](const FPSPlayDefinition& Candidate) { return PSSpecialTeams::FromCategory(Candidate.PlayCategory) == Due; });
+        if (DueCalls.Num() > 0)
+        {
+            return DueCalls[DueCalls.Num() > 1 ? DeterminismStream.RandRange(0, DueCalls.Num() - 1) : 0].PlayId;
+        }
+    }
+
     if (SuggestionProvider)
     {
         const FName Suggested = IPSCoachingSuggestionProvider::Execute_SuggestPlay(SuggestionProvider.GetObject(), Situation, bOffense);
@@ -175,7 +227,7 @@ FName UPSCoachingAI::SelectWeightedPlay(const FPSSituationContext& Situation, co
     int32 LastEligible = INDEX_NONE;
     for (int32 Index = 0; Index < Candidates.Num(); ++Index)
     {
-        const float Weight = GetPlayWeight(Candidates[Index], Situation, Tendency, bOffense);
+        const float Weight = GetPlayWeight(Candidates[Index], Situation, Tendency, bOffense, nullptr, SpecialTeamsRoll);
         Weights.Add(Weight);
         TotalWeight += Weight;
         if (Weight > 0.f)

@@ -44,6 +44,7 @@ every CI build.
 | File | Schema struct | Loader |
 | --- | --- | --- |
 | `sample_players.json` | `FPlayerAttributes` (array field `Players`) | `UPSDataIngestion::LoadPlayerAttributesFromJson` |
+| `personnel_packages.json` | `FPSPersonnelCatalog` (single object: `DefaultOffensePackage`, `DefaultDefensePackage`, `FatigueSubstitutionThreshold`, `Packages`) | `UPSDataIngestion::LoadPersonnelCatalogFromJson`, via `UPSPersonnelManager` |
 | `rosters/team_*.json` | `FPlayerAttributes` (array field `Players`) | same, one file per non-Falcons team |
 | `sample_teams.json` | `FPSTeamInfo` (array field `Teams`) | `UPSDataIngestion::LoadTeamsFromJson` |
 | `sample_league_config.json` | `FPSLeagueConfig` (single object) | `UPSDataIngestion::LoadLeagueConfigFromJson` |
@@ -61,12 +62,17 @@ every CI build.
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `pocket_tuning.json` | `FPocketTuningRow` (single object) | `UPSDataIngestion::LoadPocketTuningFromJson`, via `UPSPocketComponent` and `UPSPlayOrchestrator` |
 | `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
+| `blown_coverage.json` | `FBlownCoverageTuningRow` (single object) | `UPSDataIngestion::LoadBlownCoverageTuningFromJson`, via `UPSBlownCoverageSubsystem` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `defensive_techniques.json` | `FDefensiveTechniqueTuningRow` (single object) | `UPSDataIngestion::LoadDefensiveTechniquesFromJson`, via `UPSDefenderTechniqueComponent` |
 | `kick_meter.json` | `FKickMeterTuningRow` (single object) | `UPSDataIngestion::LoadKickMeterTuningFromJson`, via `UPSKickMeterComponent` |
 | `ui_settings.json` | `FPSSettingsCatalog` (single object: `Categories`, `Settings`) | `UPSDataIngestion::LoadSettingsCatalogFromJson`, via `UPSSettingsSubsystem` |
+| `ui_accessibility.json` | `FPSUIAccessibilityTuning` (single object) | `UPSDataIngestion::LoadUIAccessibilityTuningFromJson`, via `UPSUIAccessibilitySubsystem` |
+| `ui_text.csv` | UE string table `PSUI` (CSV: `Key`, `SourceString`, `Comment`) | `UPSLocalization::RegisterStringTables` (`LOCTABLE_FROMFILE_GAME`) |
+| `ui_text_data.csv` | UE string table `PSUIData`, **generated** by `tools/ui_text.py` | same |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
 | `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
@@ -74,11 +80,15 @@ every CI build.
 | `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
 | `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
+| `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
+| `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
+| `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
 | `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
+| `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -100,6 +110,32 @@ if (!Ingestion->ValidatePlayersJson(JsonPath, Errors))
     // Errors[i] is "Row N: <what's wrong>" -- points straight at the bad row.
 }
 ```
+
+`sample_players.json` is the in-game roster (`APSGameMode::RosterJsonPath`): 22 starters followed
+by 9 backups (`QB_002`, `RB_002`, `WR_004`, `TE_002`, `DL_005`, `DL_006`, `LB_004`, `DB_005`,
+`DB_006`). The depth chart is roster order, so a backup goes after the starters at his role.
+
+## Personnel package schema (`FPSPersonnelCatalog`)
+
+Who takes the field (Epic 19.5). `UPSPersonnelManager` picks each side's players from the roster's
+depth chart by package:
+- `Packages[]`, each: `PackageId` (unique), `DisplayName`, `bOffense`, `RoleCounts` (an object of
+  `EPlayerRole` name to count; the roles all on the package's side, 11 players in all, and an
+  offense needs at least one `Quarterback` and one `OffensiveLineman`), and `Formations` (the
+  play formations, `FPSPlayDefinition::Formation`, that bring the package on; a formation belongs
+  to at most one package per side).
+- `DefaultOffensePackage`, `DefaultDefensePackage`: each side's package at kickoff and for a
+  formation no package lists.
+- `FatigueSubstitutionThreshold` (0-1): a player whose stamina falls below this fraction of his
+  maximum rests the next play when someone is behind him on the depth chart.
+
+When a side calls a play, its formation's package comes on: per role, the first players on the
+depth chart who can play (a ball carrier sitting out and a resting player are skipped). Only the
+players who change come off. A roster that can't fill a package gets the side's default instead.
+Every playbook formation has a package: the clock plays (kneel, spike) use 11 personnel, and the
+special-teams formations (Epic 75) bring on the `KickingUnit` (punt, field goal, kickoff), the
+`ReturnUnit` (kick returns and desperation laterals), the `BlockUnit` and the `HandsTeam`.
+`UPSPersonnelManager::ValidateCatalog` and `tools/validate_data.py` check it.
 
 ## Team schema (`FPSTeamInfo`)
 
@@ -140,6 +176,14 @@ Two `PlayCategory` values are clock plays (Epic 76): `Spike` and `Kneel` (the `C
 The CPU calls them only when the clock does (`UPSSituationAI::DecideClockPlay`), and
 `UPSPlaySimulation` resolves them at the snap: a spike is an incompletion, a kneel is down for
 `UPSRulesConfig::KneelYardage` with the clock running.
+
+Special-teams `PlayCategory` values (Epic 75) name `EPSSpecialTeamsPlay` calls: `Punt`, `FieldGoal`,
+`FakePunt`, `FakeFieldGoal` (the offense on a scrimmage down), `Kickoff`, `OnsideKick` (the kicking
+team), `KickReturn` (a return; its `Formation` names the scheme in `special_teams.json`),
+`KickBlock`, `HandsTeam` and `ReturnLaterals` (the receiving team). A kickoff down offers kickoff
+calls and returns only; a scrimmage down everything else. The CPU calls one only when
+`UPSSpecialTeamsAI` says it's due, and `UPSPlaySimulation` resolves it through
+`UPSSpecialTeamsModel`.
 
 ## Adding a new team
 
@@ -212,14 +256,17 @@ controls; false: everyone feels it). `UPSForceFeedbackComponent::ValidateTuning`
 
 ## Button glyph schema (`FPSInputGlyphCatalog`)
 
-`GlyphSets[]`, each: `GlyphSetId` (unique, e.g. `Xbox`), `Device` (`KeyboardMouse` or
-`Gamepad`), `bDefaultForDevice` (exactly one default set per device), `bFallbackToKeyName`
+`GlyphSets[]`, each: `GlyphSetId` (unique, e.g. `Xbox`), `Device` (`KeyboardMouse`, `Gamepad`
+or `Touch`), `bDefaultForDevice` (exactly one default set per device), `bFallbackToKeyName`
 (unlisted keys get a keycap with the key's name -- for keyboards), `Keys[]` (`Key` an engine
 `EKeys` name of that device, `GlyphId` the icon an imported texture is registered under, `Label`
 the text shown until then) and `Actions[]` (`ActionId`, `GlyphId`, `Label`: one glyph for a
 whole action, such as `WASD` for Move). Which key an action uses comes from `input_actions.json`,
 so a rebinding never needs a glyph edit; every key the input catalog binds must be drawable by
 its device's default set, which `UPSInputGlyphs::Validate` and `tools/validate_data.py` check.
+The `Touch` set (Epic 130) lists no keys, because touch controls name actions rather than keys:
+it has one `Actions[]` glyph per action a touch control drives, and `touch_controls.json`'s
+validation checks that each one is there.
 
 ## Play-call tuning schema (`FPlayCallTuningRow`)
 
@@ -263,6 +310,8 @@ more; distances are cm, times seconds:
 - `ReadWindowSeconds`, `MaxAnticipationSeconds` (Epic 68): a receiver on a planned route is read
   from his break (as much as `MaxAnticipationSeconds` before it at Awareness 100) until
   `ReadWindowSeconds` after it.
+- `BlownCoverageSeparation` (Epic 17's broken-play reactions): a receiver this far from every
+  defender is read whatever his route's timing.
 
 ## Defensive AI tuning schema (`FDefenderAITuningRow`)
 
@@ -452,6 +501,56 @@ is dropped from the profile on load; a stored value outside today's range is sna
 Code refers to settings by ID (`UPSSettingsSubsystem` and `UPSSettingsComponent` name the
 ones they apply). `UPSSettingsSubsystem::ValidateCatalog` and `tools/validate_data.py` check it.
 
+## Accessibility tuning schema (`FPSUIAccessibilityTuning`)
+
+Single object (Epic 103.2/103.3; captions and color vision, `Specs/Front_End_Shell.md`):
+- `CaptionMinSeconds` (positive) and `CaptionMaxSeconds` (no less): how long a caption stays up
+  when the speech doesn't say how long it is spoken.
+- `CaptionWordsPerSecond` (positive): the reading pace that times such a caption, between those
+  bounds.
+- `CaptionMaxLines` (a whole number, 1 or more): the most captions on screen; the oldest goes.
+- `MinMatchupColorDistance` (0 or more): how different (CIE76 delta E, as the player sees them)
+  home and away colors must look before one side falls back to its secondary color.
+
+The settings that switch these on and size them (`Captions`, `CaptionSize`, `Narration`,
+`ColorblindMode`) are in `ui_settings.json`. `UPSUIAccessibilitySubsystem::ValidateTuning` and
+`tools/validate_data.py` check it.
+
+## UI text tables (`ui_text.csv`, `ui_text_data.csv`)
+
+Epic 106: everything the UI shows comes from one of two UE string tables, so a translation is
+UE's gather, translate and compile, and needs no code change. `UPSLocalization`
+(`Source/PlaySports/Public/PSLocalization.h`) registers both tables and is the only way UI code
+reads them.
+
+- `ui_text.csv` (table `PSUI`) is written by hand: the code's own text. Columns are `Key`,
+  `SourceString` and `Comment` (for translators). Patterns use FText's `{Name}` placeholders.
+  Code names keys literally: `UPSLocalization::GetText(TEXT("Menu.ResetToDefaults"))`,
+  `UPSLocalization::Format(TEXT("Menu.Option"), Arguments)`. Families the code builds:
+  `Input.Action.<ActionId>` (one per remappable action), `Input.Context.<ContextId>`,
+  `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`.
+- `ui_text_data.csv` (table `PSUIData`) is **generated** from the user-facing strings of
+  `ui_menus.json`, `ui_settings.json` and `loading_tips.json`. Don't edit it. After changing one
+  of those files, run `python tools/ui_text.py --write`. Keys: `Menu.<ScreenId>.Title|Body`,
+  `Menu.<ScreenId>.<OptionId>.Label|Detail`, `Setting.Category.<CategoryId>`,
+  `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`, `Tip.<TipId>`.
+- Not translated, shown through `UPSLocalization::Verbatim`: team, player and formation names,
+  button glyph labels (`input_glyphs.json`), and the engine's key names.
+- UI strings may not contain backslashes, because the string table import reads them as
+  escapes. A real newline is fine.
+
+`tools/validate_data.py` (through `tools/ui_text.py`) fails on any of these:
+- a stale `ui_text_data.csv`;
+- a key the code names that isn't in `ui_text.csv`;
+- a remappable action, or one of its contexts, without a name row;
+- duplicate or empty keys, or unbalanced placeholders;
+- FText built from a raw string in UI code (`Private/PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`,
+  `PSSettings*`).
+
+The `Units` setting (`ui_settings.json`, Gameplay) picks feet and pounds or centimeters and
+kilograms for `WeightKg`/`HeightCm` wherever they are shown (`UPSLocalization::FormatWeight`,
+`FormatHeight`). Team select shows each roster's average size in those units.
+
 ## Situational tuning schema (`FPSSituationalTuning`)
 
 Single object (Epic 76; how the coaching AI reads the end of a half). Times are game-clock
@@ -481,6 +580,63 @@ seconds left in the quarter; yard lines count from the offense's goal line (0) t
   `Delta` and the `Reason` the play-call screen shows.
 
 `tools/validate_data.py` checks it.
+
+## Special-teams tuning schema (`FPSSpecialTeamsTuning`)
+
+Single object (Epic 75). Yard lines (1-99) count from the team's own goal line; chances are 0-1.
+- Kickoffs: `KickoffYardLine` (after a touchdown or field goal), `SafetyKickYardLine`,
+  `KickoffTouchbackChance`, `TouchbackYardLine`, a return's `KickoffReturnMinYardLine` to
+  `KickoffReturnMaxYardLine`, `OnsideKickYards`, `OnsideRecoveryChance` (by surprise) and
+  `OnsideRecoveryVsHandsTeamChance`, `HandsTeamReturnPenaltyYards`, and laterals'
+  `LateralTouchdownChance` and `LateralFumbleLostChance`.
+- Punts: `PuntGrossYardsMin`/`Max`, `PuntTouchbackYardLine`, `PuntReturnYardsMin`/`Max`.
+- Field goals: `FieldGoalSnapYards` (added to the line of scrimmage's distance from the goal line),
+  `FieldGoalRanges[]` (`MaxYards`, `MakeChance`, shortest first; no chance beyond the last), and the
+  missed kick's spot clamp `MissedFieldGoalMinYardLine`/`MaxYardLine`.
+- Blocks: `PuntBlockChance` and `FieldGoalBlockChance` against a return unit, times
+  `BlockUnitMultiplier` when the defense calls the block, plus `EdgeSpeedFactor` per point of edge
+  speed and `InteriorStrengthFactor` per point of interior strength the rushers have over the
+  protection, at most `MaxBlockChance`. `BlockedPuntRecoilYards`, `BlockedKickTouchdownChance`,
+  `BlockUnitReturnPenaltyYards`.
+- Returns: `ReturnSchemes[]` (`Formation` of a `KickReturn` play, `ReturnYardsBonus`,
+  `BigReturnChance`), `DefaultBigReturnChance`, `BigReturnYards`; lane discipline from the
+  coverage's awareness over `CoverageAwarenessSpan` takes up to `LaneDisciplineYards` and
+  `LaneDisciplineBigReturnScale` of the big-return chance.
+- Fakes: `FakePuntSuccessChance`, `FakeFieldGoalSuccessChance`, `FakeVsBlockUnitDelta`,
+  `FakeExtraYardsMax`.
+- The CPU's calls: `MaxFieldGoalAttemptYards`, `LastPlaySeconds`, `NoPuntTrailingSeconds`; the fake
+  risk model `FakeMaxDistance`, `FakeMinAggression`, `FakeCallChance`; onside kicks
+  `OnsideMaxDeficit`, `OnsideWindowSeconds`, `SurpriseOnsideChance`; laterals `LateralsMaxDeficit`,
+  `LateralsWindowSeconds`; blocks `BlockWindowSeconds`, `BaseBlockCallChance`; and
+  `SpecialTeamsPlayWeight`.
+
+`tools/validate_data.py` checks it, including that each return scheme is a `KickReturn` play's
+formation.
+
+## Coaching staffs schema (`FPSCoachingLeague`)
+
+Single object (Epic 89), read by `UPSStaffManager`; the franchise save keeps the coaches and
+staffs after each carousel, while the schemes and tuning always come from here.
+- `Schemes[]`: `SchemeId`, `Label` (shown on the call screen and in the play-call reasons),
+  `bOffense`, `Formations` (the playbook formations the scheme runs on its side: they make the
+  team's playbook, plus every special-teams and clock play), `CategoryWeights` (`PlayCategory` ->
+  weight, 1 neutral: the CPU's lean), `FitWeights[]` (`Role`, `Attribute` -- `Speed`, `Agility`,
+  `Strength`, `Acceleration`, `Awareness` or `Stamina` -- and `Weight`: what the scheme asks of a
+  position), `Description`.
+- `Coaches[]`: `CoachId`, `DisplayName`, `Role` (`HeadCoach`, `OffensiveCoordinator`,
+  `DefensiveCoordinator`), `SchemeId` (a coordinator's on his side; a head coach's either side, the
+  scheme he brings), `PlayCalling` and `Development` (0-100), `Aggression` (0-1, a head coach's).
+  A coach on no staff is a free agent the carousel can hire.
+- `Staffs[]`: `TeamId` (a `sample_teams.json` team), `HeadCoachId`, `OffensiveCoordinatorId`,
+  `DefensiveCoordinatorId`, `HeadCoachSeasons`.
+- `Tuning`: scheme adherence `MinSchemeAdherence`/`MaxSchemeAdherence` (at play calling 0/100);
+  player fit `FitSpan`, `BestFitMultiplier`, `WorstFitMultiplier`, `DevelopmentMisfitRelief`,
+  `FitLabelThreshold`; the carousel's `FireWinPercentage`, `GraceSeasons`,
+  `CoordinatorFiresPerSide`, `CoordinatorSafeWinPercentage`, `PromoteWinPercentage`,
+  `PromotionBonus`, `SchemeMatchBonus`.
+
+`tools/validate_data.py` checks it, including that each scheme's formations are in the playbook on
+its side (an offense keeping a run and a pass, a defense a `Base` call).
 
 ## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
 
@@ -565,6 +721,19 @@ and `PSRouteRunning`). Every field is a number, 0 or more; distances are cm, cha
   own Awareness / 100 times its weight, clamped; one who bites freezes `BiteFreezeSeconds`.
 - `ManReadRadius`: an option route's receiver reads man when a defender is this close at the
   read point.
+
+## Blown-coverage tuning schema (`FBlownCoverageTuningRow`)
+
+Single object (Epic 17.4; the defense's reaction to a receiver running free,
+`UPSBlownCoverageSubsystem`). Every field is a number, 0 or more; distances are cm:
+- `CheckIntervalSeconds` (above 0): how often the defense looks, while the quarterback holds the
+  ball behind the line.
+- `UncoveredSeparation`, `MinDepthPastLine`: a receiver at least `MinDepthPastLine` past the
+  line with every defender this far from him is running free.
+- `HelpRadius`: the nearest defender playing a zone (or in man with nobody to cover) within this
+  distance of him leaves his zone to cover him. Each receiver and each helper once per play.
+
+`tools/validate_data.py` checks it.
 
 ## Route schema extras (`FPSRoute`, Epic 68)
 
@@ -696,3 +865,93 @@ Single object (Epic 39; `UPSCameraSkycamComponent`, a camera hung from four cabl
 - `LookAheadCm`: how far ahead of whoever it follows it looks. `FieldOfView` (0-170 degrees).
 
 `UPSCameraSkycamComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Ball-flight overlay schema (`FPSBallFlightStyle`)
+
+Single object (Epic 32; the pass and kick indicators, `UPSOverlayBallFlightSubsystem`, drawn by
+`APSOverlayBallFlight`). Lengths are cm in the game mode's field frame: 100 units a yard along the
+field, the offense attacking +X from its own goal line at X = 0.
+- Colors (`#RRGGBB`): `ArcColor`, `LandingColor`, `LeadOnTargetColor` and `LeadOffTargetColor`
+  (the receiver's lead ring, by whether he gets to the ball), `GoodColor` and `NoGoodColor` (the
+  kick readout).
+- `DotMeshPath`, `RingMeshPath`, `MaterialPath`, `ColorParameter`: the arc's dots, the rings, their
+  material and its color parameter. Engine basic shapes until an editor session authors a ribbon
+  (`Specs/Ball_Flight_Overlay_Spec.md`). `MeshDiameter` (above 0): both meshes' size at scale 1.
+- `ArcPoints` (2 or more, release to landing, evenly in time), `ArcDotDiameter` (above 0),
+  `RingThickness`, `GroundClearance` (0 or more), `GroundZ` (the field's surface; kicks come down to
+  it).
+- `LandingRadiusFallback` (above 0): the landing ring when no receiver gives one (a pass's ring is
+  the receiver's catch radius, his capsule plus the ball). `LeadRadius` (above 0).
+- `DeviationTolerance` (above 0): the ball this far off its predicted path has been touched or has
+  bounced, and the flight is over. `MaxFlightSeconds` (above 0): the longest flight drawn.
+- `LingerSeconds`, `ReadoutSeconds` (0 or more): how long a pass's marks and a kick's readout stay
+  up after the flight.
+- Goal posts: `GoalPostX` (each end line's X; a kick is judged at the first ahead of it),
+  `GoalPostY`, `UprightWidth` (above 0, inside width), `CrossbarHeight`, `ReadoutHeight` (above the
+  bar) and `ReadoutTextSize` (above 0).
+- `GoodLabel`, `WideLeftLabel`, `WideRightLabel`, `ShortLabel`: the readout's words.
+
+`UPSOverlayBallFlightSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Pocket tuning schema (`FPocketTuningRow`)
+
+Single object (Epic 71; the quarterback's pocket and scramble, `UPSPocketComponent`, and the
+scramble drill, `UPSPlayOrchestrator::TriggerScrambleDrill`). Every field is a number, 0 or
+more; distances are cm, chances 0-1, ratings 0-100:
+- `PocketRadius`, `EngagedPressureWeight` (at most 1), `EdgeWidth`: rushers within the radius
+  press on the pocket, a blocked one at the weight of a free one, more the closer; one further
+  than `EdgeWidth` across the field from the quarterback comes off the edge.
+- `MinPressure`, `CollapsePressure` (min below collapse), `EscapeRadius`: below `MinPressure`
+  he holds; edge pressure makes him climb (never within `ClimbStopDistance` of the line),
+  inside pressure slide away from it. The pocket has collapsed at `CollapsePressure`, or with a
+  free rusher within `EscapeRadius`: time to escape.
+- `SackImminentRadius`: a free rusher this close is about to sack him.
+- `StripBaseChance`, `StripStrengthWeight`: a rusher sacking him from behind (his blind side)
+  strips the ball with the base chance plus the weight per point of Strength he has on him.
+- `ThrowawayMinAwareness`, `GroundingAvoidAwareness` (min not above avoid): a quarterback who
+  sees the sack coming throws the ball away from the first Awareness on; from the second he
+  takes the sack rather than ground it.
+- `TackleBoxHalfWidth`: a throwaway from inside the tackle box with no receiver near it is a
+  grounding risk (announced for the rules to flag).
+- `ThrowawayReceiverRange`, `ThrowawayShort`, `ThrowawayDepth`, `ThrowawayWidth`: he throws it
+  away at the feet of a receiver within the range (`ThrowawayShort` short of him), else past the
+  line and out toward his sideline.
+- `ScrambleForwardBias`, `ScrambleMaxSeconds`, `RunLaneClearance`, `RunLaneWidth`: scrambling,
+  he runs across the field this much upfield, looks to throw on the run for this long, and tucks
+  it and runs when no defender is in his lane this far ahead.
+- `SlideTriggerRadius`, `SlideMinGain`: past the line he slides ahead of a defender this close
+  once he has gained `SlideMinGain`.
+- `ScrambleDrillDepth`, `ScrambleDrillWidth`, `ScrambleDrillJitter`, `ScrambleDeepDepth`,
+  `ScrambleDeepRunOn`: in the scramble drill a receiver breaks to `ScrambleDrillDepth` upfield of
+  the quarterback, `ScrambleDrillWidth` toward his side, give or take the jitter; one already
+  `ScrambleDeepDepth` downfield of him runs `ScrambleDeepRunOn` further, toward that side.
+
+## Touch layout schema (`FPSTouchLayout`)
+
+The on-screen controls of Epic 130 (`Specs/Touch_Controls_Spec.md`). Positions are in the
+HUD-safe area, 0 to 1 across its width and height from the top left. Sizes and distances are
+fractions of the safe area's height, so a round button stays round on any screen.
+
+- `SafeZone` (`Left`, `Top`, `Right`, `Bottom`): margins, as fractions of the viewport, that no
+  control enters: the Dynamic Island, the corners and the home indicator.
+- `LayoutAspect`: the safe area's width over its height that the layout is checked against
+  (buttons must fit and must not overlap at it).
+- `bFloatingStick`: the stick centres where the finger lands in `StickZone`.
+- `StickZone`, `GestureZone` (`Min`, `Max`): where a touch that misses every button takes the
+  stick, or may swipe.
+- `SwipeMinDistance` (safe-area heights) and `SwipeMaxSeconds`: what counts as a swipe.
+- `TouchControls[]`: `ControlId`, `Kind` (`Stick`, `Button` or `Swipe`), and `Position` plus
+  `Radius` (a button's hit radius, or the stick's full-push distance) or a swipe's `Direction`
+  (`Left`, `Right`, `Up`, `Down`, one control each). One stick at most.
+- `TouchContexts[]`: per input-catalog context, `Bindings[]` of `ControlId` and `ActionId`. The
+  action must live in that context, as a 2D-axis action for a stick or a Boolean one for a
+  button or swipe, and must have a gamepad binding: touch values go through it. Every action of a
+  listed context needs a touch control there, and a glyph in the default `Touch` glyph set.
+- `ContextsWithoutTouch[]`: catalog contexts deliberately left without touch (`World`, `Menu`).
+  Every catalog context must be in exactly one of `TouchContexts` and this list.
+
+Contexts stack as their mapping contexts do: the highest-priority active context that binds a
+control decides what it does. `PSTouchControls::ValidateLayout` and `tools/validate_data.py`
+check all of this. **Adding an action means adding its touch control and its Touch glyph in
+the same change; adding a context means adding its touch button set (or listing it in
+`ContextsWithoutTouch`).**

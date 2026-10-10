@@ -79,9 +79,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Settings")
     void ResetToDefaults(FName Category);
 
-    /** The value as the menu shows it: On/Off, the choice's name, or the number and unit. */
+    /** The value as the menu shows it, in the player's language (Epic 106): On/Off, the
+     *  choice's name, or the number and its unit (a percentage as the culture writes one). */
     UFUNCTION(BlueprintCallable, Category = "Settings")
-    FString FormatValue(FName SettingId);
+    FText FormatValue(FName SettingId);
 
     /** The player's own keys over the input catalog's (Epic 103.4), as saved. Each player
      *  controller's UPSSettingsComponent applies them to its input config. */

@@ -1,6 +1,7 @@
 #include "PSPlaySimulation.h"
 #include "PSGameStateEvents.h"
 #include "PSRulesConfig.h"
+#include "PSSpecialTeamsModel.h"
 #include "PSGameMode.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
@@ -53,9 +54,11 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     CurrentState.bIsClockRunning = false;
     CurrentState.HomeTimeoutsRemaining = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
     CurrentState.AwayTimeoutsRemaining = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
+    CurrentState.bKickoff = false;
     CurrentPlayResult = FPlayResult();
     PendingClockPlay = EPSClockPlay::None;
     PendingSnapPlayClock = -1.f;
+    PendingSpecialTeams = FPSSpecialTeamsCall();
     ActivePenalty = EPSPenaltyType::None;
     bPenaltyDeclined = false;
     PhaseTimer = 0.f;
@@ -82,7 +85,11 @@ void UPSPlaySimulation::TriggerSnap()
             UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! Offsides penalty called at the snap!"));
         }
 
-        CurrentState.Phase = EPlayPhase::Snap;
+        // A kickoff, or a punt or field-goal call, snaps into its kick (Epic 75).
+        CurrentState.Phase = CurrentState.bKickoff ? EPlayPhase::Kickoff
+            : PendingSpecialTeams.Kicking == EPSSpecialTeamsPlay::Punt ? EPlayPhase::Punt
+            : PendingSpecialTeams.Kicking == EPSSpecialTeamsPlay::FieldGoal ? EPlayPhase::FieldGoal
+            : EPlayPhase::Snap;
         CurrentState.bIsClockRunning = true;
         PhaseTimer = 0.f;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
@@ -102,7 +109,7 @@ void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
 
 void UPSPlaySimulation::RecordTackle(int32 YardsGained)
 {
-    if (CurrentState.Phase == EPlayPhase::Scoring)
+    if (IsBallDead())
     {
         return;
     }
@@ -114,7 +121,7 @@ void UPSPlaySimulation::RecordTackle(int32 YardsGained)
 
 void UPSPlaySimulation::RecordOutOfBounds(int32 YardsGained)
 {
-    if (CurrentState.Phase == EPlayPhase::Scoring)
+    if (IsBallDead())
     {
         return;
     }
@@ -196,6 +203,13 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         {
             ResolveClockPlay();
         }
+        else if (PendingSpecialTeams.Kicking == EPSSpecialTeamsPlay::FakePunt || PendingSpecialTeams.Kicking == EPSSpecialTeamsPlay::FakeFieldGoal)
+        {
+            // A fake is decided at the snap: converted or stopped (Epic 75).
+            const int32 Gain = GetSpecialTeams()->ResolveFake(PendingSpecialTeams, CurrentState.Distance);
+            PendingSpecialTeams = FPSSpecialTeamsCall();
+            RecordTackle(Gain);
+        }
         else if (PhaseTimer >= 0.5f)
         {
             CurrentState.Phase = EPlayPhase::PassRush;
@@ -223,57 +237,13 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         }
         break;
     case EPlayPhase::Kickoff:
-        if (IsKickReady())
-        {
-            const float KickRoll = ConsumeKickRoll();
-            CurrentPlayResult.ResultType = EPlayResultType::KickoffResult;
-            if (KickRoll < 0.60f)
-            {
-                CurrentPlayResult.YardsGained = 25;
-                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Kickoff resulted in Touchback."));
-            }
-            else
-            {
-                CurrentPlayResult.YardsGained = FMath::RandRange(15, 30);
-                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Kickoff returned to own %d yard line."), CurrentPlayResult.YardsGained);
-            }
-            CurrentState.Phase = EPlayPhase::Scoring;
-            PhaseTimer = 0.f;
-        }
-        break;
     case EPlayPhase::Punt:
-        if (IsKickReady())
-        {
-            // 35 to 45 yards net, evenly for the CPU's random roll; a better kick goes farther.
-            const float KickRoll = ConsumeKickRoll();
-            CurrentPlayResult.ResultType = EPlayResultType::PuntResult;
-            CurrentPlayResult.YardsGained = 35 + FMath::Min(10, FMath::FloorToInt((1.f - KickRoll) * 11.f));
-            UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Punt net distance: %d yards."), CurrentPlayResult.YardsGained);
-            CurrentState.Phase = EPlayPhase::Scoring;
-            PhaseTimer = 0.f;
-        }
-        break;
     case EPlayPhase::FieldGoal:
+        // The kick resolves through the special-teams model when the kicker is ready: the
+        // human's meter roll (Epic 104.5), or the CPU's after its two seconds.
         if (IsKickReady())
         {
-            float DistToGoal = 100.f - CurrentState.YardLine + 17.f;
-            float SuccessChance = 0.95f;
-            if (DistToGoal > 50.f) SuccessChance = 0.30f;
-            else if (DistToGoal > 40.f) SuccessChance = 0.70f;
-            else if (DistToGoal > 30.f) SuccessChance = 0.85f;
-
-            if (ConsumeKickRoll() < SuccessChance)
-            {
-                CurrentPlayResult.ResultType = EPlayResultType::FieldGoalGood;
-                UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Field Goal is GOOD from %.1f yards!"), DistToGoal);
-            }
-            else
-            {
-                CurrentPlayResult.ResultType = EPlayResultType::FieldGoalMissed;
-                UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: Field Goal is MISSED from %.1f yards!"), DistToGoal);
-            }
-            CurrentState.Phase = EPlayPhase::Scoring;
-            PhaseTimer = 0.f;
+            ResolveKick(ConsumeKickRoll());
         }
         break;
     case EPlayPhase::Scoring:
@@ -369,6 +339,14 @@ void UPSPlaySimulation::ResolvePlayResult()
 
 void UPSPlaySimulation::EndPlayAndPrepareNext()
 {
+    // A kick's outcome is the special-teams model's (Epic 75): no penalty or yardage rule changes it.
+    const bool bKickResult = CurrentPlayResult.ResultType == EPlayResultType::KickoffResult || CurrentPlayResult.ResultType == EPlayResultType::PuntResult
+        || CurrentPlayResult.ResultType == EPlayResultType::FieldGoalGood || CurrentPlayResult.ResultType == EPlayResultType::FieldGoalMissed;
+    if (bKickResult)
+    {
+        ActivePenalty = EPSPenaltyType::None;
+    }
+
     // 1. Safety detection
     if (CurrentPlayResult.ResultType == EPlayResultType::Tackle && CurrentState.YardLine + CurrentPlayResult.YardsGained <= 0)
     {
@@ -493,8 +471,11 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Next play: Kickoff."), 
             CurrentState.HomeScore, CurrentState.AwayScore);
 
-        NextPhase = EPlayPhase::Kickoff;
-        bTurnover = true;
+        // The scoring team kicks off (Epic 75).
+        CurrentState.bKickoff = true;
+        CurrentState.YardLine = GetSpecialTeams()->GetTuning().KickoffYardLine;
+        CurrentState.Down = 1;
+        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
     }
     // Safety Score Tracking
     else if (CurrentPlayResult.ResultType == EPlayResultType::Safety)
@@ -512,53 +493,18 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: SAFETY! Score: Home %d - Away %d. Next play: Kickoff."), 
             CurrentState.HomeScore, CurrentState.AwayScore);
 
-        NextPhase = EPlayPhase::Kickoff;
-        bTurnover = true;
-    }
-    // Kickoff Outcome Resolution
-    else if (CurrentPlayResult.ResultType == EPlayResultType::KickoffResult)
-    {
-        CurrentState.YardLine = CurrentPlayResult.YardsGained;
+        // The team scored on free-kicks from its own 20 (Epic 75).
+        CurrentState.bKickoff = true;
+        CurrentState.YardLine = GetSpecialTeams()->GetTuning().SafetyKickYardLine;
         CurrentState.Down = 1;
-        CurrentState.Distance = 10;
         CurrentState.YardLineToGain = CurrentState.YardLine + 10;
-        bTurnover = true; // Swap possession to receiving team
-        NextPhase = EPlayPhase::PreSnap;
     }
-    // Punt Outcome Resolution
-    else if (CurrentPlayResult.ResultType == EPlayResultType::PuntResult)
+    // Special teams (Epic 75): the kick's outcome sets the score, the spot and who has the ball.
+    else if (bKickResult)
     {
-        CurrentState.YardLine = FMath::Clamp(100 - (CurrentState.YardLine + CurrentPlayResult.YardsGained), 1, 99);
-        CurrentState.Down = 1;
-        CurrentState.Distance = 10;
-        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
-        bTurnover = true; // Swap possession to receiving team
-        NextPhase = EPlayPhase::PreSnap;
-    }
-    // Field Goal Good Resolution
-    else if (CurrentPlayResult.ResultType == EPlayResultType::FieldGoalGood)
-    {
-        if (CurrentState.bHomeHasPossession)
-        {
-            CurrentState.HomeScore += 3;
-        }
-        else
-        {
-            CurrentState.AwayScore += 3;
-        }
-        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Field Goal points recorded. Next play: Kickoff."));
-        NextPhase = EPlayPhase::Kickoff;
-        bTurnover = true;
-    }
-    // Field Goal Missed Resolution
-    else if (CurrentPlayResult.ResultType == EPlayResultType::FieldGoalMissed)
-    {
-        CurrentState.YardLine = FMath::Clamp(100 - CurrentState.YardLine, 20, 80);
-        CurrentState.Down = 1;
-        CurrentState.Distance = 10;
-        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
-        bTurnover = true;
-        NextPhase = EPlayPhase::PreSnap;
+        const UPSRulesConfig* Rules = RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>();
+        bTurnover = GetSpecialTeams()->ApplyOutcome(CurrentState, LastSpecialTeamsOutcome, Rules->TouchdownPoints, Rules->FieldGoalPoints, Rules->PATSuccessChance);
+        CurrentDriveSummary.Result = UEnum::GetValueAsString(LastSpecialTeamsOutcome.Result);
     }
     else
     {
@@ -576,7 +522,12 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
             {
                 CurrentState.Down = 4;
                 const bool bPuntingAllowed = RulesConfig ? RulesConfig->bAllowPunting : true;
-                if (CurrentState.YardLine >= 60)
+                if (!bQuickSimMode)
+                {
+                    // A played game's 4th down is a call like any other: punt, field goal, fake
+                    // or go for it (Epic 75). Quick sim has no calls, so it kicks by rule.
+                }
+                else if (CurrentState.YardLine >= 60)
                 {
                     NextPhase = EPlayPhase::FieldGoal;
                     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: 4th Down. Offense chooses Special Teams: %s"), *UEnum::GetValueAsString(NextPhase));
@@ -611,7 +562,7 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         }
     }
 
-    if (bTurnover)
+    if (bTurnover || CurrentState.bKickoff)
     {
         // Log final drive summary before reset
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Drive complete. Plays: %d, Yards: %d, Result: %s"), 
@@ -624,7 +575,10 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         CurrentDriveSummary.Plays = 0;
         CurrentDriveSummary.Yards = 0;
         CurrentDriveSummary.Result = TEXT("");
+    }
 
+    if (bTurnover)
+    {
         TArray<FPlayerAttributes> Temp = OffenseRoster;
         OffenseRoster = DefenseRoster;
         DefenseRoster = Temp;
@@ -650,12 +604,18 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     CurrentState.YardLineToGain = FMath::Min(CurrentState.YardLineToGain, 100);
     CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
 
+    // Quick sim has no calls: a kickoff goes straight to the kick (Epic 75).
+    if (bQuickSimMode && CurrentState.bKickoff)
+    {
+        NextPhase = EPlayPhase::Kickoff;
+    }
     SetPlayPhase(NextPhase);
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
     CurrentPlayResult.bOutOfBounds = false;
     PendingClockPlay = EPSClockPlay::None;
     PendingSnapPlayClock = -1.f;
+    PendingSpecialTeams = FPSSpecialTeamsCall();
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play resolved. New State: Down %d, Distance %d, YardLine %d, YardToGain %d"), 
         CurrentState.Down, CurrentState.Distance, CurrentState.YardLine, CurrentState.YardLineToGain);
@@ -724,7 +684,7 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
 void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
 {
     // Physical tackle resolves the play, unless the whistle already blew.
-    if (bQuickSimMode || CurrentState.Phase == EPlayPhase::Scoring)
+    if (bQuickSimMode || IsBallDead())
     {
         return;
     }
@@ -748,11 +708,20 @@ void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
 
 void UPSPlaySimulation::OnBusPlayCallEvent(const FPSTelemetryPlayCallEvent& Event)
 {
-    // Only the offense's call for the coming snap; a call made at or after a snap is not for it.
-    if (!Event.bOffense || CurrentState.Phase != EPlayPhase::PreSnap)
+    // Only calls for the coming snap; a call made at or after a snap is not for it.
+    if (CurrentState.Phase != EPlayPhase::PreSnap)
     {
         return;
     }
+    const EPSSpecialTeamsPlay SpecialTeamsPlay = PSSpecialTeams::FromCategory(Event.PlayCategory);
+    if (!Event.bOffense)
+    {
+        // The receiving team's return or block, and its formation: the return scheme (Epic 75).
+        PendingSpecialTeams.Receiving = SpecialTeamsPlay;
+        PendingSpecialTeams.ReturnFormation = Event.Formation;
+        return;
+    }
+    PendingSpecialTeams.Kicking = SpecialTeamsPlay;
     PendingClockPlay = PSSituation::ClockPlayFromCategory(Event.PlayCategory);
     PendingSnapPlayClock = Event.SnapAtPlayClockSeconds;
 }
@@ -804,6 +773,50 @@ bool UPSPlaySimulation::CallTimeout(bool bHomeTeam)
         bHomeTeam ? TEXT("Home") : TEXT("Away"), TimeoutsRemaining);
     PublishGameStateIfChanged();
     return true;
+}
+
+UPSSpecialTeamsModel* UPSPlaySimulation::GetSpecialTeams()
+{
+    if (!SpecialTeams)
+    {
+        SpecialTeams = NewObject<UPSSpecialTeamsModel>(this);
+        SpecialTeams->LoadTuningFromJson(UPSSpecialTeamsModel::GetDefaultTuningPath());
+    }
+    return SpecialTeams;
+}
+
+bool UPSPlaySimulation::IsBallDead() const
+{
+    const EPlayPhase Phase = CurrentState.Phase;
+    return Phase == EPlayPhase::Scoring || Phase == EPlayPhase::Kickoff || Phase == EPlayPhase::Punt || Phase == EPlayPhase::FieldGoal;
+}
+
+void UPSPlaySimulation::ResolveKick(float KickRoll)
+{
+    // The kicking team has the ball for the kick; the other side receives (or rushes it).
+    UPSSpecialTeamsModel* Model = GetSpecialTeams();
+    const FPSSpecialTeamsUnitRatings Kicking = UPSSpecialTeamsModel::RateUnit(OffenseRoster);
+    const FPSSpecialTeamsUnitRatings Receiving = UPSSpecialTeamsModel::RateUnit(DefenseRoster);
+    switch (CurrentState.Phase)
+    {
+    case EPlayPhase::Kickoff:
+        LastSpecialTeamsOutcome = Model->ResolveKickoff(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving, KickRoll);
+        CurrentPlayResult.ResultType = EPlayResultType::KickoffResult;
+        break;
+    case EPlayPhase::Punt:
+        LastSpecialTeamsOutcome = Model->ResolvePunt(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving, KickRoll);
+        CurrentPlayResult.ResultType = EPlayResultType::PuntResult;
+        break;
+    default:
+        LastSpecialTeamsOutcome = Model->ResolveFieldGoal(PendingSpecialTeams, CurrentState.YardLine, Kicking, Receiving, KickRoll);
+        CurrentPlayResult.ResultType = LastSpecialTeamsOutcome.Result == EPSSpecialTeamsResult::FieldGoalGood ? EPlayResultType::FieldGoalGood : EPlayResultType::FieldGoalMissed;
+        break;
+    }
+    CurrentPlayResult.YardsGained = 0;
+    PendingSpecialTeams = FPSSpecialTeamsCall();
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: %s: %s (%d yards)."), *UEnum::GetValueAsString(CurrentState.Phase),
+        *UEnum::GetValueAsString(LastSpecialTeamsOutcome.Result), LastSpecialTeamsOutcome.Yards);
+    SetPlayPhase(EPlayPhase::Scoring);
 }
 
 void UPSPlaySimulation::OnBusKickEvent(const FPSTelemetryKickEvent& Event)

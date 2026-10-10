@@ -39,8 +39,9 @@ keeps that mapping.
 | Action catalog | `Data/input_actions.json` → `UPSInputConfig` (read through `UPSDataIngestion`) | Actions, contexts, priorities and key bindings. Builds one `UInputAction` per action and one `UInputMappingContext` per context at runtime, so nothing in `Content/` is needed. |
 | Stick tuning | `Data/input_tuning.json` → `FInputTuningRow` | Radial dead zone, response curve and the device-switch threshold, applied as Enhanced Input modifiers on every gamepad stick binding. |
 | Player controller | `APSPlayerController` | The context stack, the Move/Sprint/SwitchPlayer/Pause handlers, and human↔AI possession (Epic 127). |
-| Device tracking | `UPSInputDeviceComponent` (on the controller) | The active device (`EPSInputDevice`), from a Slate input pre-processor and gamepad connect/disconnect, published as `InputDeviceChange`. |
-| Glyphs | `Data/input_glyphs.json` → `UPSInputGlyphs` (owned by `UPSInputConfig`) | Which button picture stands for a key, per glyph set (Xbox, keyboard and mouse). |
+| Device tracking | `UPSInputDeviceComponent` (on the controller) | The active device (`EPSInputDevice`: keyboard/mouse, gamepad or touch), from a Slate input pre-processor and gamepad connect/disconnect, published as `InputDeviceChange`. |
+| Glyphs | `Data/input_glyphs.json` → `UPSInputGlyphs` (owned by `UPSInputConfig`) | Which button picture stands for a key, per glyph set (Xbox, keyboard and mouse), and for an action on touch. |
+| Touch | `Data/touch_controls.json` → `UPSTouchInputComponent` (on the controller, Epic 130) | The virtual stick, on-screen buttons and swipes: per-context button sets that name catalog actions, fed to Enhanced Input through each action's gamepad mapping (`Specs/Touch_Controls_Spec.md`). |
 | Rumble | `Data/force_feedback.json` → `UPSForceFeedbackComponent` (on the controller) | Which gameplay events shake the gamepad, and how. |
 | Menus | `UPSMenuComponent` (on the controller, Epic 101) | Screen stack, UI input mode, Back keys read from the catalog's `Menu` context. |
 | Play calling | `UPSPlayCallComponent` (on the controller, Epic 102) | Opens the play-call screens for the player's side; Confirm on the field hikes. |
@@ -147,16 +148,23 @@ consumer's busy check says so, and carry the hold time from the physical press (
    context it lives in. `tools/validate_data.py` and `UPSInputConfig::Validate()` refuse it
    otherwise, and also refuse a key bound twice in one context.
 2. Make sure the Xbox glyph set can draw its gamepad key (the validators check this too).
-3. Consume it through `OnCatalogActionStarted`. If it drives the pawn, use a new component
+3. Give it a touch control in `Data/touch_controls.json`, in each of its contexts that touch
+   covers, and a glyph in the `Touch` glyph set. Touch covers every context except those listed
+   in `ContextsWithoutTouch` (`World`, `Menu`). A new context needs its touch button set, or a
+   deliberate place on that list. The validators refuse anything touch can't reach (Epic 130).
+4. Consume it through `OnCatalogActionStarted`. If it drives the pawn, use a new component
    rather than growing the controller (rule 1).
 
 ## 5. Devices, glyphs and rumble
 
-**Active device.** `UPSInputDeviceComponent` watches every key, button and analog move through an
-observe-only Slate pre-processor. Analog moves count only past `DeviceSwitchAnalogThreshold`, so
-stick drift can't flip the device. Gamepad connect and disconnect come from
-`IPlatformInputDeviceMapper`; a disconnect while the gamepad is active falls back to
-keyboard/mouse. Each change is published as `InputDeviceChange`.
+**Active device.** `UPSInputDeviceComponent` watches every key, button, analog move and finger
+touch through an observe-only Slate pre-processor. Analog moves count only past
+`DeviceSwitchAnalogThreshold`, so stick drift can't flip the device. A touch is a pointer event
+flagged as touch, and switches to `Touch`. Gamepad connect and disconnect come from
+`IPlatformInputDeviceMapper`; a disconnect while the gamepad is active falls back to `Touch` on
+a device with a touch screen (`FPlatformMisc::SupportsTouchInput`) and to keyboard/mouse
+otherwise, which is also the device a run starts on. Each change is published as
+`InputDeviceChange`.
 
 **Glyphs (Epic 128).** `Data/input_glyphs.json` maps physical keys to glyphs per glyph set. Each
 glyph is a `GlyphId` that an imported icon texture is registered under, plus a text `Label`
@@ -172,7 +180,10 @@ shows its new button with no glyph edit.
   that context.
 - Keyboard sets fall back to a keycap labelled with the key's own name, so a remapped key still
   shows. Gamepad sets list every button and never guess.
-- Each device has exactly one default set: `Xbox` for gamepads, `KeyboardMouse` otherwise.
+- Touch binds no keys: its controls name actions (Epic 130). So on `Touch` the answer is the
+  `Touch` set's action glyph, for any action that lives in the context.
+- Each device has exactly one default set: `Xbox` for gamepads, `KeyboardMouse` for keyboard and
+  mouse, `Touch` for the touch screen.
   Picking another set (a PlayStation pad, for instance) is an extension: add the set, then
   choose it from the connected hardware.
 
@@ -325,12 +336,26 @@ Before that works, three gaps need closing:
 Rumble itself is already per controller: `PlayDynamicForceFeedback` plays on that controller's
 own gamepad.
 
-### Epic 130: touch
+### Epic 130: touch (built)
 
-- Touch drives the same catalog actions through Enhanced Input; a virtual stick feeds Move.
-- `EPSInputDevice` gains `Touch`. `UPSInputGlyphs::Validate` then requires a default touch glyph
-  set by itself, because it checks one default set per device value.
-- Whether rumble cues map to phone haptics is Epic 130's decision.
+`Specs/Touch_Controls_Spec.md` is the full account. In short:
+
+- `UPSTouchInputComponent` turns a floating virtual stick, on-screen buttons and swipes into
+  catalog actions. Each control names an action per context in `Data/touch_controls.json`;
+  contexts stack by priority exactly as mapping contexts do.
+- The value goes through the gamepad mapping the catalog gives that action in that context (the
+  stick through the left stick's dead zone and curve), and `APSPlayerController::InjectCatalogInput`
+  hands it to Enhanced Input. Every handler and `OnCatalogActionStarted` consumer hears touch as
+  it hears the pad; there is no touch-only gameplay path.
+- A finger is latched to the action it pressed. A context change that gives its control another
+  action silences it until it lifts, as Enhanced Input does for a held key, so the buffer's
+  "never replay A as slot 5" rule holds on touch. The buffer's replay of a press made just before
+  its context came on doesn't reach touch yet. Touch has no key state; `KeyStateQuery` is the
+  hook for it (`Specs/Touch_Controls_Spec.md` section 4).
+- `EPSInputDevice` gained `Touch`, and `input_glyphs.json` a default `Touch` set.
+- Rumble stays gamepad-only: cues play only while a gamepad is the active device, so a phone
+  played by touch does not vibrate. Phone haptics would be a separate decision, with its own
+  per-device setting.
 
 ## 7. Feel (from the world's walking, for Epic 104)
 
@@ -363,6 +388,8 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.ForceFeedbackTuningValidates` | The rumble patterns load and validate (Epic 128). |
 | `PlaySports.Input.TelemetryEventsDriveForceFeedback` | Bus events become rumble dispatches (Epic 128). |
 | `PlaySports.Input.GlyphTableCoversCatalog` | The glyph table loads, validates and draws every bound key (Epic 128). |
+| `PlaySports.Input.TouchLayoutValidates` | The touch layout and the Touch glyphs validate against the catalog, each layout mistake is reported, and the active device and its prompt glyph follow a finger (Epic 130). |
+| `PlaySports.Input.TouchGesturesMatchGamepad` | The virtual stick, every on-screen button in every gameplay context, and swipes give the same actions and values as their gamepad equivalents; touch stands down while a menu is open (Epic 130). |
 | `PlaySports.Input.BufferTuningValidates` | The buffer windows load and validate, every move and pass button is buffered, and the catalog says what a key means in a context (Epic 104.4). |
 | `PlaySports.Input.BufferWaitsOutCommitment` | A move pressed during another's commitment, or near the end of its cooldown, fires as soon as it can; the newest press wins; an early press is dropped; letting the player go empties the buffer (Epic 104.4). |
 | `PlaySports.Input.BufferHoldsPassForTheBall` | A pass button pressed before the ball arrives throws once it does; a stale press throws nothing; a hold is timed from the press; leaving Passing drops a waiting press (Epic 104.4). |
@@ -375,5 +402,6 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Camera.All22ToggleThroughCatalog` | FilmView is on the field with a key and an R3 glyph. Its keys are free in every context stacked over the field. It steps the film view on the viewing controller only (Epic 40). |
 
 What CI cannot show is how the input feels in a player's hands: real rumble strength on a pad,
-glyph icons (none are imported yet; the labels stand in), and the menu flow on a gamepad. Those
-need a person with a controller in PIE or a packaged build.
+glyph icons (none are imported yet; the labels stand in), the menu flow on a gamepad, and touch
+on a real screen (the Slate touch events and the Enhanced Input injection never run headless).
+Those need a person with a controller in PIE or a packaged build, and a phone for touch.

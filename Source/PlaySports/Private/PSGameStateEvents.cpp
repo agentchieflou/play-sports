@@ -25,6 +25,7 @@ FPSTelemetryGameStateEvent PSGameStateEvents::MakeEvent(const FPlayState& State,
     Event.YardLine = State.YardLine;
     Event.YardLineToGain = State.YardLineToGain;
     Event.bHomeHasPossession = State.bHomeHasPossession;
+    Event.bKickoff = State.bKickoff;
     Event.HomeScore = State.HomeScore;
     Event.AwayScore = State.AwayScore;
     Event.HomeTimeoutsRemaining = State.HomeTimeoutsRemaining;

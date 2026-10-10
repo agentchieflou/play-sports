@@ -1,6 +1,15 @@
 // PSHUDWidget.cpp - Epic 5: Scoreboard and Play Result Widget C++ base classes
 #include "PSHUDWidget.h"
+#include "PSLocalization.h"
 #include "Engine/World.h"
+
+namespace PSHUDDefaults
+{
+    // What the scoreboard shows before the first snap: a full quarter and play clock.
+    static const float QuarterSeconds = 900.f;
+    static const int32 PlayClockSeconds = 40;
+    static const TCHAR* const FirstPhase = TEXT("PreSnap");
+}
 
 void UPSScoreboardWidget::NativeConstruct()
 {
@@ -18,9 +27,26 @@ void UPSScoreboardWidget::NativeConstruct()
         }
     }
 
-    GameClockText = FText::FromString(TEXT("15:00"));
-    PlayClockText = FText::FromString(TEXT("40"));
-    PlayPhaseText = FText::FromString(TEXT("PreSnap"));
+    GameClockText = MakeGameClockText(PSHUDDefaults::QuarterSeconds);
+    PlayClockText = FText::AsNumber(PSHUDDefaults::PlayClockSeconds);
+    PlayPhaseText = MakePhaseText(PSHUDDefaults::FirstPhase);
+}
+
+FText UPSScoreboardWidget::MakeGameClockText(float GameClockSeconds)
+{
+    const int32 TotalSeconds = FMath::Max(0, FMath::RoundToInt(GameClockSeconds));
+    FNumberFormattingOptions TwoDigits = FNumberFormattingOptions::DefaultNoGrouping();
+    TwoDigits.SetMinimumIntegralDigits(2);
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Minutes"), FText::AsNumber(TotalSeconds / 60, &FNumberFormattingOptions::DefaultNoGrouping()));
+    Arguments.Add(TEXT("Seconds"), FText::AsNumber(TotalSeconds % 60, &TwoDigits));
+    return UPSLocalization::Format(TEXT("HUD.GameClock"), Arguments);
+}
+
+FText UPSScoreboardWidget::MakePhaseText(const FString& PhaseName)
+{
+    const FString Key = FString::Printf(TEXT("HUD.Phase.%s"), *PhaseName);
+    return UPSLocalization::HasText(Key) ? UPSLocalization::GetText(Key) : UPSLocalization::Verbatim(PhaseName);
 }
 
 void UPSScoreboardWidget::HandleOnSnap(const FPSTelemetrySnapEvent& Event)
@@ -39,17 +65,14 @@ void UPSScoreboardWidget::HandleOnScore(const FPSTelemetryScoreEvent& Event)
 
 void UPSScoreboardWidget::HandleOnPhaseChange(const FPSTelemetryPhaseChangeEvent& Event)
 {
-    PlayPhaseText = FText::FromString(Event.NewPhase);
+    PlayPhaseText = MakePhaseText(Event.NewPhase);
     FormatGameClock(Event.GameClockSeconds);
     FormatPlayClock(Event.PlayClockSeconds);
 }
 
 void UPSScoreboardWidget::FormatGameClock(float GameClockSeconds)
 {
-    int32 TotalSeconds = FMath::Max(0, FMath::RoundToInt(GameClockSeconds));
-    int32 Minutes = TotalSeconds / 60;
-    int32 Seconds = TotalSeconds % 60;
-    GameClockText = FText::FromString(FString::Printf(TEXT("%02d:%02d"), Minutes, Seconds));
+    GameClockText = MakeGameClockText(GameClockSeconds);
 }
 
 void UPSScoreboardWidget::FormatPlayClock(float PlayClockSeconds)
@@ -75,17 +98,37 @@ void UPSPlayResultWidget::NativeConstruct()
     }
 }
 
+FText UPSPlayResultWidget::MakeYardsBanner(int32 YardsGained)
+{
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Yards"), FText::AsNumber(YardsGained));
+    return YardsGained >= 0
+        ? UPSLocalization::Format(TEXT("HUD.YardsGained"), Arguments)
+        : UPSLocalization::Format(TEXT("HUD.YardsLost"), Arguments);
+}
+
+FText UPSPlayResultWidget::MakeScoreBanner(const FString& ScoreType)
+{
+    const FString Key = FString::Printf(TEXT("HUD.Score.%s"), *ScoreType);
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Score"), UPSLocalization::HasText(Key) ? UPSLocalization::GetText(Key) : UPSLocalization::Verbatim(ScoreType.ToUpper()));
+    return UPSLocalization::Format(TEXT("HUD.Score"), Arguments);
+}
+
+FText UPSPlayResultWidget::MakeIncompletePassBanner()
+{
+    return UPSLocalization::GetText(TEXT("HUD.IncompletePass"));
+}
+
 void UPSPlayResultWidget::HandleOnTackle(const FPSTelemetryTackleEvent& Event)
 {
-    BannerText = FText::Format(FText::FromString(TEXT("{0}{1} YARDS")), 
-        Event.YardsGained >= 0 ? FText::FromString(TEXT("+")) : FText::FromString(TEXT("")), 
-        Event.YardsGained);
+    BannerText = MakeYardsBanner(Event.YardsGained);
     OnShowPlayResultBanner();
 }
 
 void UPSPlayResultWidget::HandleOnScore(const FPSTelemetryScoreEvent& Event)
 {
-    BannerText = FText::FromString(Event.ScoreType.ToUpper() + TEXT("!"));
+    BannerText = MakeScoreBanner(Event.ScoreType);
     OnShowPlayResultBanner();
 }
 
@@ -93,7 +136,7 @@ void UPSPlayResultWidget::HandleOnPhaseChange(const FPSTelemetryPhaseChangeEvent
 {
     if (Event.NewPhase == TEXT("Scoring") && Event.OldPhase == TEXT("PassRush"))
     {
-        BannerText = FText::FromString(TEXT("INCOMPLETE PASS"));
+        BannerText = MakeIncompletePassBanner();
         OnShowPlayResultBanner();
     }
 }

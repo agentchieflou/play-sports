@@ -355,7 +355,7 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 
 - [x] Play-call distribution: one selected play resolves into 22 individual assignments
 - [x] Synchronized phase transitions: all agents react to snap/throw/turnover events from the play state machine
-- [ ] Broken-play adaptation: scramble drill, blown coverage reactions, blocked-kick chaos handling
+- [ ] Broken-play adaptation: scramble drill, blown coverage reactions, blocked-kick chaos handling *(scramble drill done: a QB's escape is a `Pocket` event on the bus and the orchestrator that handed out the play runs `TriggerScrambleDrill` (Epic 71). Blown coverage, offense side, done: a receiver `BlownCoverageSeparation` from every defender is read whatever his route's timing; the defense's own reaction is `UPSBlownCoverageSubsystem` (#106): the nearest free zone defender leaves his zone and takes the free receiver in man. Blocked-kick chaos is still open: Epic 75's `UPSSpecialTeamsModel` decides blocks and what follows (recoil yards, a return for a touchdown) as rolls, but no live players play a loose blocked ball yet)*
 - [ ] Performance pass: 22 simultaneous behavior trees + physics at target frame rate
   *Code-level pass done: `UPSAIFieldSnapshot` scans the field once a frame for every AI player
   (it used to be several actor scans per decision), the decisions carry `stat PSAI` counters, and
@@ -384,7 +384,7 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Depends on:** Epic 1
 
 - [x] Team/roster model: 53-player rosters, depth chart per position
-- [ ] Substitution and personnel packages tied into formations (11 personnel, nickel, etc.)
+- [x] Substitution and personnel packages tied into formations (11 personnel, nickel, etc.) — *`UPSPersonnelManager` + `Data/personnel_packages.json` (11/12/21/10 personnel; base 4-3/3-4, nickel, dime, goal line), each package listing the formations that bring it on. The game mode spawns the default packages from `UPSRoster`'s depth chart and the pawns point at the roster's rows; a play call swaps only the players who change and re-lines the side; between plays a sitting-out carrier (Epic 139) or a tired player (19.3's hook) gives way to the next man up. `sample_players.json` gained 9 backups. Bus: `Personnel` event. Tests: `PSPersonnelTests.cpp`. Formation-specific alignment (trips vs twins) is still the role-based `ComputeLineup`.*
 - [x] Stamina/fatigue consuming the hooks left in Epic 6, driving rotation
 - [x] Progression/regression: attribute changes from play, age, and training
 - [x] Injury model (probability, severity, recovery timeline)
@@ -459,7 +459,7 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 
 - [ ] Autonomix: T3D import helpers — spawn/mutate level actors from agent-generated T3D text, wrapped in undoable transactions
 - [ ] Autonomix: Python escape hatch — run agent-supplied scripts via `PythonScriptPlugin` with result capture
-- [ ] AgenticLink: MCP server exposing engine reflection (list actors, get/set properties, invoke `UFUNCTION`s) with transaction safety
-- [ ] Register the real server in `.mcp.json` + `.vscode/mcp.json`, and document the Antigravity global-config entry in `AGENTS.md`
+- [x] AgenticLink: MCP server exposing engine reflection (list actors, get/set properties, invoke `UFUNCTION`s) with transaction safety — *`FAgenticLinkMcpServer` (JSON-RPC 2.0, MCP 2024-11-05 to 2025-06-18) on Streamable HTTP (`FAgenticLinkHttpTransport`, `http://127.0.0.1:8790/mcp`, opt-in with `-AgenticLinkMcp`/`-AgenticLinkMcpPort=`, localhost-only Origin). Tools: `list_actors`, `get_property`, `set_property` (instance-editable only), `call_function` (BlueprintCallable only), `spawn_actor`; each edit is one `FScopedTransaction` (Undo works) on the game thread. Tests: `PlaySports.AgenticLink.*`. Not verified against a live MCP client: no editor here.*
+- [ ] Register the real server in `.mcp.json` + `.vscode/mcp.json`, and document the Antigravity global-config entry in `AGENTS.md` — *documented in `AGENTS.md` (all three entries); the two repo config files are left for the owner to register*
 - [x] Model router honoring the `.env` contract (`OLLAMA_HOST`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`) so bridge tasks can be delegated to free-tier models — *consumes Epic 135's router rather than twinning it: an `OllamaClient` (`OLLAMA_HOST`, stdlib HTTP) and a `bridge` tier (Ollama, then Gemini low, then an OpenRouter `:free` model, each skipped when unconfigured), driven by `python -m tools.orchestrator delegate`. Tests use mocked HTTP; no live model was called*
 - [ ] Agent smoke test: an external agent connects over MCP, spawns an actor in the gym map, runs an Epic 24 test, reports results
