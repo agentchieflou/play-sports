@@ -76,6 +76,16 @@ public:
      *  (UPSCombatRulesModel::SeedDeterminism). */
     int32 RollSeed(const TCHAR* Domain, FName Key = NAME_None);
 
+    /** Roll from the streams of WorldContext's world; from the engine's global stream when it
+     *  has none (an object outside any game world). */
+    static float RollFor(const UObject* WorldContext, const TCHAR* Domain, FName Key = NAME_None);
+
+    /** RollUnitVector from the streams of WorldContext's world; the global stream without. */
+    static FVector RollUnitVectorFor(const UObject* WorldContext, const TCHAR* Domain, FName Key = NAME_None);
+
+    /** RollSeed from the streams of WorldContext's world; the global stream without. */
+    static int32 RollSeedFor(const UObject* WorldContext, const TCHAR* Domain, FName Key = NAME_None);
+
     /** A seed that stays the same all match, for a system that rolls on its own stream from
      *  kickoff to the final whistle (the play simulation): the match seed mixed with Domain. */
     int32 MakeMatchSeed(const TCHAR* Domain) const;

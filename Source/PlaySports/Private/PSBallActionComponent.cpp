@@ -321,7 +321,8 @@ void UPSBallActionComponent::FumbleBall()
     if (Ball)
     {
         FVector FumbleVelocity = OwnerPawn->GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f);
-        FumbleVelocity += FMath::VRand() * 100.f;
+        // Which way it squirts is the fumbler's roll on the play's seeded streams (Epic 108).
+        FumbleVelocity += UPSNetRandomStreams::RollUnitVectorFor(this, TEXT("FumbleBounce"), OwnerPawn->GetAttributes().PlayerId) * 100.f;
         FumbleVelocity.Z = FMath::Max(50.f, FumbleVelocity.Z);
 
         Ball->Fumble(FumbleVelocity);
@@ -359,7 +360,9 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
     const float TackleChance = bGaveUp ? 1.f
         : PSBallResolutionHelpers::ComputeTackleChance(CarrierAttr, DefenderAttr, CarrierSpeed, DefenderSpeed, OddsMultiplier);
 
-    float Roll = FMath::FRand();
+    // The contest's rolls are the carrier's, on the play's seeded streams (Epic 108).
+    const FName CarrierId = CarrierAttr.PlayerId;
+    float Roll = UPSNetRandomStreams::RollFor(this, TEXT("Tackle"), CarrierId);
     if (Roll <= TackleChance)
     {
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Tackle SUCCESS! Defender %s tackled carrier %s (Roll: %.2f <= Chance: %.2f)"), 
@@ -367,7 +370,7 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
 
         // Fumble chance check (a slide protects the ball; a strip attempt rips at it)
         const float FumbleChance = PSBallResolutionHelpers::ComputeFumbleChance(DefenderSpeed, Technique ? Technique->GetFumbleChanceBonus() : 0.f);
-        if (!bGaveUp && FMath::FRand() <= FumbleChance)
+        if (!bGaveUp && UPSNetRandomStreams::RollFor(this, TEXT("TackleFumble"), CarrierId) <= FumbleChance)
         {
             FumbleBall();
             return true;
@@ -407,7 +410,10 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         UPSHealthComponent* CarrierHealth = OwnerPawn->GetHealthComponent();
         if (CarrierHealth && !bGaveUp)
         {
+            // A fresh model's stream starts at seed 0, so unseeded every hit drew the same spread;
+            // seeded from the carrier's stream, each hit draws its own, the same on a replay.
             UPSCombatRulesModel* CombatRules = NewObject<UPSCombatRulesModel>(this);
+            CombatRules->SeedDeterminism(UPSNetRandomStreams::RollSeedFor(this, TEXT("TackleDamage"), CarrierId));
             const float Damage = CombatRules->ResolveTackleDamage(CarrierAttr, DefenderAttr, ArchetypeTuning);
             bCarrierDowned = CarrierHealth->ApplyDamage(Damage);
 

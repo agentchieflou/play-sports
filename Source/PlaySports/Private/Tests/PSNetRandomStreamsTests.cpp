@@ -9,6 +9,9 @@
 //   2. A pass's scatter rolls on the play's seeded stream: the same match seed and snap throw
 //      the same ball to the same spot, whatever the global stream holds; another seed misses
 //      elsewhere; every miss is within the passer's inaccuracy.
+//   3. The tackle contest (the tackle, the strip and the hit's damage) rolls on the carrier's
+//      seeded streams: the same seed and snap resolve the same series of tackles, hit for hit;
+//      each hit draws its own damage spread.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -127,6 +130,59 @@ namespace PSNetRandomStreamsTests
             DestroyTestWorld(World);
         }
         return Outcome;
+    }
+
+    /** What a series of tackle attempts on one carrier came to: each attempt's result and the
+     *  damage of each hit that landed. */
+    struct FTackleSeries
+    {
+        TArray<bool> Results;
+        TArray<float> Damage;
+    };
+
+    /** A fresh world, MatchSeed set, 1st and 10 snapped, then a strong linebacker tries Attempts
+     *  tackles on a weak back, with the global stream seeded with GlobalSeed. */
+    FTackleSeries TackleSeries(int32 MatchSeed, int32 GlobalSeed, int32 Attempts)
+    {
+        FTackleSeries Series;
+        UWorld* World = CreateTestWorld();
+        UPSNetRandomStreams* Streams = World ? World->GetSubsystem<UPSNetRandomStreams>() : nullptr;
+        UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+        if (Streams && Bus)
+        {
+            Streams->SetMatchSeed(MatchSeed);
+            Bus->PublishSnap(MakeSnap(1, 10, 20, 900.f));
+            APSPlayerPawn* Carrier = SpawnPlayer(World, TEXT("RB_01"), EPlayerRole::RunningBack, 50.f, FVector(2800.f, 0.f, 100.f));
+            APSPlayerPawn* Tackler = SpawnPlayer(World, TEXT("LB_01"), EPlayerRole::Linebacker, 70.f, FVector(2850.f, 0.f, 100.f));
+            if (Carrier && Tackler)
+            {
+                FPlayerAttributes Strong = Tackler->GetAttributes();
+                Strong.Strength = 99.f;
+                Tackler->InitializePlayer(Strong);
+                FPlayerAttributes Weak = Carrier->GetAttributes();
+                Weak.Strength = 40.f;
+                Weak.Agility = 40.f;
+                Carrier->InitializePlayer(Weak);
+                Carrier->GainPossession();
+
+                const FDelegateHandle Handle = Bus->OnDamageMC.AddLambda([&Series](const FPSTelemetryDamageEvent& Event)
+                {
+                    Series.Damage.Add(Event.Amount);
+                });
+                FMath::RandInit(GlobalSeed);
+                for (int32 Attempt = 0; Attempt < Attempts; ++Attempt)
+                {
+                    Series.Results.Add(Carrier->GetBallActionComponent()->ResolveTackle(Tackler));
+                }
+                Bus->OnDamageMC.Remove(Handle);
+            }
+        }
+        FMath::RandInit(static_cast<int32>(FPlatformTime::Cycles()));
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return Series;
     }
 
     /** Count draws from one domain's stream for Key. */
@@ -287,6 +343,46 @@ bool FPSNetRandomStreamsThrowScatterTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("The miss is on the ground plane"), FMath::Abs(Outcome->Landing.Z - Outcome->Target.Z) < 1e-3);
         TestTrue(TEXT("...and within the passer's inaccuracy"), FVector::Dist2D(Outcome->Landing, Outcome->Target) <= Outcome->MaxMiss + 0.01);
     }
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 3. The tackle contest's rolls are the play's seeded rolls
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSNetRandomStreamsTackleTest,
+    "PlaySports.Net.RandomStreams.TackleContestIsSeeded",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSNetRandomStreamsTackleTest::RunTest(const FString& Parameters)
+{
+    using namespace PSNetRandomStreamsTests;
+
+    const int32 Attempts = 10;
+    const FTackleSeries First = TackleSeries(31, 5, Attempts);
+    const FTackleSeries Again = TackleSeries(31, 55555, Attempts);
+    const FTackleSeries Other = TackleSeries(32, 5, Attempts);
+    if (!TestEqual(TEXT("Every attempt was resolved"), First.Results.Num(), Attempts))
+    {
+        return false;
+    }
+    FString Hits;
+    for (const float Amount : First.Damage)
+    {
+        Hits += FString::Printf(TEXT(" %.3f"), Amount);
+    }
+    AddInfo(FString::Printf(TEXT("Seed 31: %d hits landed, damage%s."), First.Damage.Num(), *Hits));
+
+    TestTrue(TEXT("The same match seed and snap resolve the same tackles, whatever the global stream held"), First.Results == Again.Results);
+    TestTrue(TEXT("...with the same damage, hit for hit"), First.Damage == Again.Damage);
+    TestTrue(TEXT("A strong tackler lands hits"), First.Damage.Num() >= 2);
+    bool bSpreadVaries = false;
+    for (int32 Index = 1; Index < First.Damage.Num(); ++Index)
+    {
+        bSpreadVaries |= First.Damage[Index] != First.Damage[0];
+    }
+    TestTrue(TEXT("Each hit draws its own damage spread (an unseeded model drew the same one every time)"), bSpreadVaries);
+    TestTrue(TEXT("Another match seed resolves them otherwise"), !(Other.Results == First.Results && Other.Damage == First.Damage));
     return true;
 }
 

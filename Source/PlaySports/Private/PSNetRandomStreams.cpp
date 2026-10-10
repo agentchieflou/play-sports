@@ -85,6 +85,24 @@ int32 UPSNetRandomStreams::RollSeed(const TCHAR* Domain, FName Key)
     return static_cast<int32>(FindStream(Domain, Key).GetUnsignedInt());
 }
 
+float UPSNetRandomStreams::RollFor(const UObject* WorldContext, const TCHAR* Domain, FName Key)
+{
+    UPSNetRandomStreams* Streams = Get(WorldContext);
+    return Streams ? Streams->Roll(Domain, Key) : FMath::FRand();
+}
+
+FVector UPSNetRandomStreams::RollUnitVectorFor(const UObject* WorldContext, const TCHAR* Domain, FName Key)
+{
+    UPSNetRandomStreams* Streams = Get(WorldContext);
+    return Streams ? Streams->RollUnitVector(Domain, Key) : FMath::VRand();
+}
+
+int32 UPSNetRandomStreams::RollSeedFor(const UObject* WorldContext, const TCHAR* Domain, FName Key)
+{
+    UPSNetRandomStreams* Streams = Get(WorldContext);
+    return Streams ? Streams->RollSeed(Domain, Key) : FMath::Rand();
+}
+
 int32 UPSNetRandomStreams::MakeMatchSeed(const TCHAR* Domain) const
 {
     return MixSeed(MatchSeed, HashText(Domain));
