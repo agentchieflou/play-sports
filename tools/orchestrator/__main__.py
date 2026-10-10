@@ -2,6 +2,7 @@
 
 Epic 135: `models`, `health`. Epic 136: `run`. Epic 137: `duel`.
 Epic 138: `graph`, `status`, `resume`, `check-parallel`.
+Core 25 (.env model router): `delegate`.
 """
 
 from __future__ import annotations
@@ -18,7 +19,10 @@ def cmd_models(config: OrchestratorConfig) -> int:
         print(f"{tier}:")
         for index, spec in enumerate(specs):
             role = "primary" if index == 0 else f"fallback[{index}]"
-            key_state = "key set" if spec.api_key else "KEY MISSING"
+            if spec.provider == "ollama":
+                key_state = f"host {spec.base_url}" if spec.base_url else "HOST MISSING (OLLAMA_HOST)"
+            else:
+                key_state = "key set" if spec.api_key else "KEY MISSING"
             print(f"  {role}: {spec.label} [{key_state}]")
     return 0
 
@@ -81,6 +85,21 @@ def cmd_duel(config: OrchestratorConfig, args: argparse.Namespace) -> int:
     if result.pr_url:
         print(f"PR: {result.pr_url}")
     return 0 if result.winner in ("a", "b") else 1
+
+
+def cmd_delegate(config: OrchestratorConfig, args: argparse.Namespace) -> int:
+    from .delegate import delegate
+    from .models.router import ModelRouter
+
+    prompt = args.prompt if args.prompt is not None else sys.stdin.read()
+    result = delegate(ModelRouter(config), prompt, tier=args.tier, system=args.system,
+                      max_tokens=args.max_tokens)
+    if not result.ok:
+        print(f"delegate: {result.error}", file=sys.stderr)
+        return 1
+    print(result.text)
+    print(f"[answered by {result.model}]", file=sys.stderr)
+    return 0
 
 
 def cmd_check_parallel() -> int:
@@ -184,6 +203,13 @@ def main(argv: list[str] | None = None) -> int:
     status_parser = subparsers.add_parser("status")
     status_parser.add_argument("--run-id", help="default: the latest run")
     subparsers.add_parser("check-parallel")
+    delegate_parser = subparsers.add_parser(
+        "delegate", help="send one task to a free-tier model and print the answer")
+    delegate_parser.add_argument("prompt", nargs="?", help="the task (default: read stdin)")
+    delegate_parser.add_argument("--tier", default="bridge",
+                                 choices=["bridge", "worker", "supervisor"])
+    delegate_parser.add_argument("--system", default="", help="an optional system prompt")
+    delegate_parser.add_argument("--max-tokens", type=int, default=2048)
     args = parser.parse_args(argv)
 
     if args.command == "check-parallel":
@@ -194,6 +220,8 @@ def main(argv: list[str] | None = None) -> int:
     config = OrchestratorConfig.load()
     if args.command in ("graph", "resume"):
         return cmd_graph(config, args)
+    if args.command == "delegate":
+        return cmd_delegate(config, args)
     if args.command == "models":
         return cmd_models(config)
     if args.command == "run":
