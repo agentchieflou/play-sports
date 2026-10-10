@@ -39,7 +39,7 @@ These groups can run at the same time (see the scope note under the table):
 |---|---|---|---|
 | G2 | Orchestrator (Track P) | Done (135–138); `python -m tools.orchestrator check-parallel` now validates this file | — |
 | G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
-| G4 | Platform ports (Track N, iPhone first) | 130 touch (129 done; 131 done but its ADR, which waits on the owner's answer about a Mac and an Apple account) | Claude Code; packaging waits on a Mac |
+| G4 | Platform ports (Track N, iPhone first) | Code done: 129 and 130 (touch drives every gameplay context; the touch HUD widget is an editor handoff). 131 is done but its ADR, which waits on the owner's answer about a Mac and an Apple account | Claude Code; packaging waits on a Mac |
 | G5 | Bridge track | 25: 25.3 MCP server and 25.5 router done; 25.1–25.2 Autonomix and 25.6 smoke test need an editor, 25.4 registration waits on the owner (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 17.4 (scramble drill and blown coverage done; live blocked-kick chaos is open), 17.5's device measurement (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
@@ -229,7 +229,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "127": {"track": "M", "mode": "code", "status": "done", "depends_on": ["126", "C3-ff-A"]},
     "128": {"track": "M", "mode": "code", "status": "done", "depends_on": ["127"]},
     "129": {"track": "N", "mode": "code", "status": "done", "depends_on": []},
-    "130": {"track": "N", "mode": "code", "status": "open", "depends_on": ["126", "128", "129"]},
+    "130": {"track": "N", "mode": "code", "status": "done", "depends_on": ["126", "128", "129"]},
     "131": {"track": "N", "mode": "mixed", "status": "partial", "depends_on": ["129"], "open_stories": ["131.1 ADR_iOS_Build.md accepted (Proposed; waits on the owner's answer about a Mac and an Apple account)"]},
     "132": {"track": "O", "mode": "code", "status": "partial", "depends_on": [], "open_stories": ["132.1 compliance review (written: NOT cleared; owner chooses manual authoring or permission, tools/playbook_scraper/COMPLIANCE.md)", "132.2 site recon (blocked by the compliance gate)"]},
     "133": {"track": "O", "mode": "code", "status": "open", "depends_on": ["132"]},
