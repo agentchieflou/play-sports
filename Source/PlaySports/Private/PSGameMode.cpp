@@ -1,5 +1,6 @@
 #include "PSGameMode.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSFieldReads.h"
 #include "PSDataIngestion.h"
 #include "PSPlaySimulation.h"
 #include "Misc/Paths.h"
@@ -425,47 +426,8 @@ APSPlayerPawn* APSGameMode::FindPlayerPawnByRole(EPlayerRole PlayerRole) const
 
 FVector APSGameMode::GetLargestRunLaneGap() const
 {
-    TArray<APSPlayerPawn*> OffensiveLinemen;
-    for (APSPlayerPawn* Pawn : CachedPawns)
-    {
-        if (Pawn && Pawn->GetAttributes().Role == EPlayerRole::OffensiveLineman)
-        {
-            OffensiveLinemen.Add(Pawn);
-        }
-    }
-
-    if (OffensiveLinemen.Num() == 0)
-    {
-        return FVector::ZeroVector;
-    }
-
-    if (OffensiveLinemen.Num() == 1)
-    {
-        return OffensiveLinemen[0]->GetActorLocation();
-    }
-
-    OffensiveLinemen.Sort([](const APSPlayerPawn& A, const APSPlayerPawn& B) {
-        return A.GetActorLocation().Y < B.GetActorLocation().Y;
-    });
-
-    float LargestGapSize = 0.f;
-    FVector LargestGapCenter = FVector::ZeroVector;
-
-    for (int32 i = 0; i < OffensiveLinemen.Num() - 1; ++i)
-    {
-        FVector LocA = OffensiveLinemen[i]->GetActorLocation();
-        FVector LocB = OffensiveLinemen[i+1]->GetActorLocation();
-        float GapSize = FVector::Dist(LocA, LocB);
-        if (GapSize > LargestGapSize)
-        {
-            LargestGapSize = GapSize;
-            LargestGapCenter = (LocA + LocB) * 0.5f;
-        }
-    }
-
-    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Largest run lane gap found at %s with size %.1f cm."), 
-        *LargestGapCenter.ToString(), LargestGapSize);
-
+    const FVector LargestGapCenter = PSFieldReads::LargestRunLaneGap(CachedPawns);
+    UE_LOG(LogTemp, Display, TEXT("PSGameMode: Largest run lane gap found at %s."), *LargestGapCenter.ToString());
     return LargestGapCenter;
 }
 
@@ -509,81 +471,58 @@ void APSGameMode::ResetPawnPositions()
         ExtraDefenderPawn = nullptr;
     }
 
-    float OffenseY = -150.f;
-    float DefenseY = -150.f;
-
+    // Every down starts from the same lineup (APSFieldGrid::ComputeLineup).
+    TArray<APSPlayerPawn*> FieldPawns;
+    TArray<EPlayerRole> Roles;
     for (APSPlayerPawn* Pawn : CachedPawns)
     {
         if (Pawn)
         {
-            // Epic 139: heal every on-field pawn's live HP pool back to full for the
-            // new play, and mirror that into the authoritative roster live-state.
-            if (UPSHealthComponent* Health = Pawn->GetHealthComponent())
-            {
-                Health->Respawn();
-                if (ActiveRoster)
-                {
-                    ActiveRoster->RespawnForNewPlay(Pawn->GetAttributes().PlayerId, Health->GetMaxHitPoints());
-                }
-            }
-
-            // Epic 141: award participation XP for the play just completed (and a
-            // bonus to whoever is still holding the ball if it ended in a touchdown).
-            if (ActiveRoster && PlayerLeveling)
-            {
-                const bool bTouchdown = PlaySimulation && PlaySimulation->GetPlayResult().ResultType == EPlayResultType::Touchdown && Pawn->HasPossession();
-                const float XpAmount = PlayerLeveling->ComputeXpForPlay(bTouchdown, LevelingTuningSettings);
-                PlayerLeveling->AwardXpForPlay(ActiveRoster, Pawn->GetAttributes().PlayerId, XpAmount, LevelingTuningSettings);
-            }
-
-            // Reset velocities
-            if (Pawn->GetFloatingMovementComponent())
-            {
-                Pawn->GetFloatingMovementComponent()->Velocity = FVector::ZeroVector;
-                Pawn->GetFloatingMovementComponent()->StopActiveMovement();
-            }
-
-            // Clear possession and block engagement
-            Pawn->LosePossession();
-            Pawn->bIsEngaged = false;
-            Pawn->EngagedOpponent = nullptr;
-
-            // Determine role-based position alignment
-            EPlayerRole PawnRole = Pawn->GetAttributes().Role;
-            FVector TargetLoc(0.f);
-
-            if (Pawn->TeamSide == EPSTeamSide::Offense)
-            {
-                if (PawnRole == EPlayerRole::Quarterback)
-                {
-                    TargetLoc = FVector(ScrimmageX - APSFieldGrid::QBDropbackDistance, 0.f, 100.f);
-                }
-                else if (PawnRole == EPlayerRole::OffensiveLineman)
-                {
-                    TargetLoc = FVector(ScrimmageX, 0.f, 100.f);
-                }
-                else
-                {
-                    TargetLoc = FVector(ScrimmageX - 100.f, OffenseY, 100.f);
-                    OffenseY += APSFieldGrid::FormationLateralSpacing;
-                }
-            }
-            else
-            {
-                if (PawnRole == EPlayerRole::DefensiveLineman)
-                {
-                    TargetLoc = FVector(ScrimmageX + 100.f, 0.f, 100.f);
-                }
-                else
-                {
-                    TargetLoc = FVector(ScrimmageX + 250.f, DefenseY, 100.f);
-                    DefenseY += APSFieldGrid::FormationLateralSpacing;
-                }
-            }
-
-            Pawn->SetActorLocation(TargetLoc, false, nullptr, ETeleportType::TeleportPhysics);
-            Pawn->SetStartingLocation(TargetLoc);
+            FieldPawns.Add(Pawn);
+            Roles.Add(Pawn->GetAttributes().Role);
         }
+    }
+    const TArray<FVector> Lineup = APSFieldGrid::ComputeLineup(Roles, ScrimmageX);
+
+    for (int32 PawnIndex = 0; PawnIndex < FieldPawns.Num(); ++PawnIndex)
+    {
+        APSPlayerPawn* Pawn = FieldPawns[PawnIndex];
+
+        // Epic 139: heal every on-field pawn's live HP pool back to full for the
+        // new play, and mirror that into the authoritative roster live-state.
+        if (UPSHealthComponent* Health = Pawn->GetHealthComponent())
+        {
+            Health->Respawn();
+            if (ActiveRoster)
+            {
+                ActiveRoster->RespawnForNewPlay(Pawn->GetAttributes().PlayerId, Health->GetMaxHitPoints());
+            }
+        }
+
+        // Epic 141: award participation XP for the play just completed (and a
+        // bonus to whoever is still holding the ball if it ended in a touchdown).
+        if (ActiveRoster && PlayerLeveling)
+        {
+            const bool bTouchdown = PlaySimulation && PlaySimulation->GetPlayResult().ResultType == EPlayResultType::Touchdown && Pawn->HasPossession();
+            const float XpAmount = PlayerLeveling->ComputeXpForPlay(bTouchdown, LevelingTuningSettings);
+            PlayerLeveling->AwardXpForPlay(ActiveRoster, Pawn->GetAttributes().PlayerId, XpAmount, LevelingTuningSettings);
+        }
+
+        // Reset velocities
+        if (Pawn->GetFloatingMovementComponent())
+        {
+            Pawn->GetFloatingMovementComponent()->Velocity = FVector::ZeroVector;
+            Pawn->GetFloatingMovementComponent()->StopActiveMovement();
+        }
+
+        // Clear possession and block engagement
+        Pawn->LosePossession();
+        Pawn->bIsEngaged = false;
+        Pawn->EngagedOpponent = nullptr;
+
+        const FVector TargetLoc = Lineup[PawnIndex];
+        Pawn->SetActorLocation(TargetLoc, false, nullptr, ETeleportType::TeleportPhysics);
+        Pawn->SetStartingLocation(TargetLoc);
     }
 
     // Re-attach ball to Center

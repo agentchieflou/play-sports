@@ -1,4 +1,5 @@
 #include "PSOffenseController.h"
+#include "PSSkillPlayerAIComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSGameMode.h"
 #include "PSBall.h"
@@ -22,6 +23,8 @@ APSOffenseController::APSOffenseController()
     // fails UseBlackboard() and leaves every key at KeyID 65535 (invalid).
     BlackboardComp = CreateDefaultSubobject<UBlackboardComponent>(TEXT("BlackboardComponent"));
     Blackboard = BlackboardComp;
+
+    SkillAI = CreateDefaultSubobject<UPSSkillPlayerAIComponent>(TEXT("SkillAI"));
 }
 
 void APSOffenseController::OnPossess(APawn* InPawn)

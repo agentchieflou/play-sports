@@ -29,8 +29,13 @@ public:
     bool ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr);
 
     /** Perform an instant handoff of the ball to a target player pawn */
+    /** Hands the carried ball to TargetPlayer (within 200 cm). */
     UFUNCTION(BlueprintCallable, Category = "BallAction")
     bool ExecuteHandoff(APSPlayerPawn* TargetPlayer);
+
+    /** The ball attached to the owning pawn, or null when it isn't carrying one. */
+    UFUNCTION(BlueprintPure, Category = "BallAction")
+    APSBall* GetCarriedBall() const;
 
     /** Perform a lateral/pitch toss of the ball to a target player pawn */
     UFUNCTION(BlueprintCallable, Category = "BallAction")

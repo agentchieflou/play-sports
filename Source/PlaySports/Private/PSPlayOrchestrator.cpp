@@ -94,7 +94,14 @@ void UPSPlayOrchestrator::DistributePlayCall(const FPSPlayDefinition& Play, cons
 
             if (MatchedAssignment->Kind == EPSAssignmentKind::Route)
             {
-                const TArray<FVector> Waypoints = ResolveRouteWaypoints(MatchedAssignment->RouteId, RouteLibrary, LineOfScrimmage + MatchedAssignment->FormationOffset);
+                const FVector Origin = LineOfScrimmage + MatchedAssignment->FormationOffset;
+                TArray<FVector> Waypoints = ResolveRouteWaypoints(MatchedAssignment->RouteId, RouteLibrary, Origin);
+                // A route with no RouteId is "go to your spot": the QB's drop, the RB's mesh
+                // point on a run (Epic 14).
+                if (Waypoints.Num() == 0 && MatchedAssignment->RouteId.IsNone())
+                {
+                    Waypoints.Add(Origin);
+                }
                 OffenseController->SetAssignedRoute(Waypoints);
             }
         }

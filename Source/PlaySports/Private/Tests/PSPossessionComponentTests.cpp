@@ -97,8 +97,9 @@ bool FPSC3FieldGridFormationSpawnTest::RunTest(const FString& Parameters)
             }
             else
             {
-                TestEqual(TEXT("Non-QB pawn is spawned on the scrimmage line"),
-                    static_cast<double>(Pawn->GetActorLocation().X), static_cast<double>(ScrimmageX));
+                // Epic 14's lineup: the offensive line sets up just behind the ball.
+                TestEqual(TEXT("The offensive lineman sets up at the line"),
+                    static_cast<double>(Pawn->GetActorLocation().X), static_cast<double>(ScrimmageX - APSFieldGrid::LineSetback));
             }
         }
     }

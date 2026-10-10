@@ -83,6 +83,7 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
                 ThrowEvt.TargetReceiverName = IntendedTarget->GetAttributes().DisplayName;
                 ThrowEvt.StartLocation = StartLocation;
                 ThrowEvt.TargetLocation = TargetLocation;
+                ThrowEvt.LandingLocation = ScatterTarget;
                 Bus->PublishThrow(ThrowEvt);
             }
         }
@@ -123,17 +124,34 @@ bool UPSBallActionComponent::ExecuteHandoff(APSPlayerPawn* TargetPlayer)
         return false;
     }
 
-    APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
-    if (GM && GM->ActiveBall)
+    // The ball this pawn carries, not the game mode's (rule 5: no reach-through).
+    APSBall* Ball = GetCarriedBall();
+    if (Ball && OwnerPawn->TransferPossessionTo(TargetPlayer))
     {
-        if (OwnerPawn->TransferPossessionTo(TargetPlayer))
-        {
-            GM->ActiveBall->AttachToCarrier(TargetPlayer, TEXT("HandSocket"));
-            UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Executed handoff from %s to %s."), *OwnerPawn->GetAttributes().DisplayName, *TargetPlayer->GetAttributes().DisplayName);
-            return true;
-        }
+        Ball->AttachToCarrier(TargetPlayer, TEXT("HandSocket"));
+        UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Executed handoff from %s to %s."), *OwnerPawn->GetAttributes().DisplayName, *TargetPlayer->GetAttributes().DisplayName);
+        return true;
     }
     return false;
+}
+
+APSBall* UPSBallActionComponent::GetCarriedBall() const
+{
+    const AActor* OwnerActor = GetOwner();
+    if (!OwnerActor)
+    {
+        return nullptr;
+    }
+    TArray<AActor*> Attached;
+    OwnerActor->GetAttachedActors(Attached);
+    for (AActor* Actor : Attached)
+    {
+        if (APSBall* Ball = Cast<APSBall>(Actor))
+        {
+            return Ball;
+        }
+    }
+    return nullptr;
 }
 
 bool UPSBallActionComponent::ExecutePitch(APSPlayerPawn* TargetPlayer)
@@ -156,8 +174,8 @@ bool UPSBallActionComponent::ExecutePitch(APSPlayerPawn* TargetPlayer)
         return false;
     }
 
-    APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
-    if (!GM || !GM->ActiveBall)
+    APSBall* Ball = GetCarriedBall();
+    if (!Ball)
     {
         return false;
     }
@@ -182,7 +200,7 @@ bool UPSBallActionComponent::ExecutePitch(APSPlayerPawn* TargetPlayer)
 
     if (bSuccess)
     {
-        GM->ActiveBall->Launch(OutVelocity);
+        Ball->Launch(OutVelocity);
         OwnerPawn->LosePossession();
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Executed lateral pitch from %s to %s. Launch velocity: %s"), 
             *OwnerPawn->GetAttributes().DisplayName, 

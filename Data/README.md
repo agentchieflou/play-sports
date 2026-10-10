@@ -30,6 +30,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `force_feedback.json` | `FPSForceFeedbackTuning` (single object: `MasterIntensity`, `Cues`) | `UPSDataIngestion::LoadForceFeedbackTuningFromJson`, via `UPSForceFeedbackComponent` |
 | `play_call.json` | `FPlayCallTuningRow` (single object) | `UPSDataIngestion::LoadPlayCallTuningFromJson`, via `UPSPlayCallSubsystem` |
 | `defensive_adjustments.json` | `FPSDefensiveAdjustmentCatalog` (single object: `Adjustments`) | `UPSDataIngestion::LoadDefensiveAdjustmentsFromJson`, via `UPSPlayCallSubsystem` |
+| `skill_ai_tuning.json` | `FSkillPlayerAITuningRow` (single object) | `UPSDataIngestion::LoadSkillPlayerAITuningFromJson`, via `UPSSkillPlayerAIComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
@@ -166,3 +167,21 @@ Single object (Epic 102; `Specs/Play_Call_Interface.md`):
 screen makes every defender of `Role` play `Kind` over the called play for that snap (Epic 102).
 `UPSPlayCallSubsystem::ValidateAdjustments` and `tools/validate_data.py` check it.
 
+## Offensive AI tuning schema (`FSkillPlayerAITuningRow`)
+
+Single object (Epic 14; how CPU offensive players play the call). Every field is a number, 0 or
+more; distances are cm, times seconds:
+- `WaypointArrivalRadius`: how close counts as reaching a route waypoint (or the throw's spot).
+- `OpenSeparation`, `AwarenessMisreadSeparation`: a receiver is open to the QB at
+  `OpenSeparation + AwarenessMisreadSeparation * (1 - Awareness/100)` from the nearest defender.
+- `MinReadSeconds`, `MaxReadSeconds` (min not above max): the QB reads no sooner than the first;
+  by the second he throws to his best receiver or scrambles.
+- `PressureRadius`: a defender this close forces the QB's decision now.
+- `PressuredThrowSeparation`: forced to decide, the QB still throws to a receiver this open.
+- `HandoffRadius` (at most 200, the hand-off's own reach), `HandoffTimeoutSeconds`: on a run the
+  QB hands off when the back is this close, or keeps it and runs after the timeout.
+- `CarrierAvoidRadius`, `CarrierAvoidWeight`: the ball carrier veers from defenders inside the
+  radius, by up to the weight (1 = as much as upfield).
+- `ThrowLeadSpeed` (above 0): ball speed for leading a receiver.
+- `BlockSetDistance`, `BlockEngageRadius`: a blocker sets up this far in front of the QB and
+  takes on rushers within the radius of him.

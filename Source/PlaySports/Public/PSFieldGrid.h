@@ -3,9 +3,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "PSPlayerAttributes.h"
+#include "PSPlayerPawn.h"
 #include "PSFieldGrid.generated.h"
-
-class APSPlayerPawn;
 
 USTRUCT(BlueprintType)
 struct FPSFormationSpawnPoint
@@ -82,13 +81,33 @@ protected:
     virtual void BeginPlay() override;
 
 public:
-    /** How far behind the scrimmage line a QB lines up (world units). Shared by
-     *  SpawnPlayersFromRoster and GameMode::ResetPawnPositions so the two formation
-     *  call sites don't each hardcode their own copy (Epic C3: "field constants
-     *  live in one place"). */
-    static constexpr float QBDropbackDistance = 300.f;
+    /** The side a role plays on: linemen, linebackers and backs of the defense defend. */
+    static EPSTeamSide GetSideForRole(EPlayerRole Role);
 
-    /** Lateral spacing between formation-mates who aren't on the scrimmage line. */
-    static constexpr float FormationLateralSpacing = 150.f;
+    /**
+     * The pre-snap lineup for players of these roles at ScrimmageX (world X of the line; +X
+     * is upfield), one location per role in order (Epic 14). The offense sets up behind the
+     * ball -- line centred on it, QB under centre, back behind him, receivers split wide
+     * and alternating sides -- and the defense across from it: line, then linebackers, then
+     * backs over the receivers. Shared by SpawnPlayersFromRoster and the game mode's reset
+     * between plays, so every down starts from the same picture (Epic C3: "field constants
+     * live in one place").
+     */
+    static TArray<FVector> ComputeLineup(const TArray<EPlayerRole>& Roles, float ScrimmageX);
+
+    /** Default lineup geometry (cm) until formations come from play data (Epic 19.5). */
+    static constexpr float LineSetback = 50.f;
+    static constexpr float QBDepth = 100.f;
+    static constexpr float RunningBackDepth = 500.f;
+    static constexpr float LinemanSpacing = 150.f;
+    static constexpr float ReceiverSplit = 900.f;
+    static constexpr float ReceiverStagger = 300.f;
+    static constexpr float TightEndSplit = 450.f;
+    static constexpr float DefensiveLineDepth = 100.f;
+    static constexpr float DefensiveLineSpacing = 200.f;
+    static constexpr float LinebackerDepth = 450.f;
+    static constexpr float LinebackerSpacing = 400.f;
+    static constexpr float SecondaryDepth = 900.f;
+    static constexpr float PawnHeight = 100.f;
 };
 

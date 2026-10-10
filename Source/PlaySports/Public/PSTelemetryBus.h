@@ -77,6 +77,11 @@ struct FPSTelemetryThrowEvent
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     FVector TargetLocation = FVector::ZeroVector;
+
+    /** Where the ball will actually come down: TargetLocation plus the passer's inaccuracy.
+     *  Receivers converge on this (Epic 14). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector LandingLocation = FVector::ZeroVector;
 };
 
 USTRUCT(BlueprintType)

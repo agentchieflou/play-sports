@@ -1,4 +1,5 @@
 #include "PSPlayerPawn.h"
+#include "PSFieldGrid.h"
 #include "PSBallActionComponent.h"
 #include "PSArchetypeTuning.h"
 #include "Components/CapsuleComponent.h"
@@ -275,17 +276,8 @@ void APSPlayerPawn::InitializePlayer(const FPlayerAttributes& InAttributes)
     Attributes = InAttributes;
     bHasPossession = false;
 
-    // Set TeamSide dynamically based on Role
-    if (Attributes.Role == EPlayerRole::DefensiveLineman ||
-        Attributes.Role == EPlayerRole::Linebacker ||
-        Attributes.Role == EPlayerRole::DefensiveBack)
-    {
-        TeamSide = EPSTeamSide::Defense;
-    }
-    else
-    {
-        TeamSide = EPSTeamSide::Offense;
-    }
+    // The side follows the role (one mapping, shared with the lineup).
+    TeamSide = APSFieldGrid::GetSideForRole(Attributes.Role);
 
     if (!CachedGameMode && GetWorld())
     {

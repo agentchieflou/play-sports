@@ -319,10 +319,10 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Depends on:** Epics 6, 7, 9
 
 - [x] `AAIController` + behavior tree scaffolding for offensive skill positions
-- [ ] QB: dropback, progression reads through eligible receivers, throw/scramble/sack decision driven by `Awareness`
-- [ ] WR/TE: route running from route data (Epic 16 feeds this; hardcode 3 routes to start)
-- [ ] RB: handoff acceptance, run-lane reading from line-play outcomes (Epic 9), pass-blocking fallback
-- [ ] Catch-point convergence: receivers adjust to the thrown ball's landing point
+- [x] QB: dropback, progression reads through eligible receivers, throw/scramble/sack decision driven by `Awareness` *(`UPSSkillPlayerAIComponent` on `APSOffenseController`: drop to the play's spot, read from `MinReadSeconds`, throw to the most open receiver with a lead, under pressure or past `MaxReadSeconds` throw if anyone is open enough or scramble; a sack is the tackle system catching the scramble. `Awareness` sets how open a receiver must look. Tuning: `Data/skill_ai_tuning.json`)*
+- [x] WR/TE: route running from route data (Epic 16 feeds this; hardcode 3 routes to start) *(routes come from the route library through `UPSPlayOrchestrator`; no hardcoded routes needed)*
+- [x] RB: handoff acceptance, run-lane reading from line-play outcomes (Epic 9), pass-blocking fallback *(the QB meets the back and hands off; the back heads for `PSFieldReads::LargestRunLaneGap`; a player with no route blocks the rusher nearest the QB)*
+- [x] Catch-point convergence: receivers adjust to the thrown ball's landing point *(the throw event now carries `LandingLocation`, the spot after the passer's inaccuracy)*
 
 ### Epic 15: Line & Defensive Behavior (OL/DL/LB/DB)
 

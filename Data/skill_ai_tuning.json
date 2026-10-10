@@ -1,0 +1,16 @@
+{
+    "WaypointArrivalRadius": 100.0,
+    "OpenSeparation": 300.0,
+    "AwarenessMisreadSeparation": 150.0,
+    "MinReadSeconds": 0.6,
+    "MaxReadSeconds": 3.0,
+    "PressureRadius": 250.0,
+    "PressuredThrowSeparation": 150.0,
+    "HandoffRadius": 150.0,
+    "HandoffTimeoutSeconds": 1.5,
+    "CarrierAvoidRadius": 500.0,
+    "CarrierAvoidWeight": 1.0,
+    "ThrowLeadSpeed": 2000.0,
+    "BlockSetDistance": 150.0,
+    "BlockEngageRadius": 500.0
+}
