@@ -84,9 +84,10 @@ public:
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
     TArray<APSPlayerPawn*> CachedPawns;
 
-    /** The whole roster loaded from RosterJsonPath, with its depth chart and the
-     *  combat/leveling live-state (Epic 139/141): who's downed, sitting out, or leveled
-     *  up. The on-field pawns point at its rows. */
+    /** The match's players: the home team's offense and the away team's defense, each from its
+     *  own team's roster at its staff's scheme fit (MatchSetup), or RosterJsonPath's players when
+     *  the match has no teams; with its depth chart and the combat/leveling live-state (Epic
+     *  139/141): who's downed, sitting out, or leveled up. The on-field pawns point at its rows. */
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay|Combat")
     UPSRoster* ActiveRoster;
 

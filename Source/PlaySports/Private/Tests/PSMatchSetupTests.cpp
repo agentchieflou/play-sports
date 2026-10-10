@@ -13,14 +13,21 @@
 //      team and fit on the Air Raid one; a team with no staff plays the whole playbook unfitted.
 //   4. The franchise flow plays a season week by week through the quick sim and, once the last
 //      week is played, ends it: the coaching carousel runs once on the final standings.
+//   5. Each side takes the field from its own team: the home team's offense and the away team's
+//      defense, from their own roster files, at their own staffs' scheme fit; spawned as the game
+//      mode spawns them, each side's pawns carry their own team's players at those ratings.
+//      Without teams the game mode's own roster stays.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "PSFieldGrid.h"
 #include "PSFranchiseFlow.h"
 #include "PSFranchiseSeason.h"
 #include "PSMatchSetup.h"
 #include "PSMenuComponent.h"
+#include "PSPersonnelManager.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSPlayerPawn.h"
 #include "PSRoster.h"
 #include "PSScheduleEngine.h"
 #include "PSStaffManager.h"
@@ -375,6 +382,117 @@ bool FPSFranchiseFlowSeasonEndTest::RunTest(const FString& Parameters)
     }
     TestFalse(TEXT("Unplayed games keep the season open"), bEnded || Unplayed->HasSeasonEnded());
     TestEqual(TEXT("...with no carousel"), Unplayed->GetCarouselEvents().Num(), 0);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 5 -- Each side takes the field from its own team
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSMatchSetupFieldTest,
+    "PlaySports.Match.EachSideTakesTheFieldFromItsOwnTeam",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSMatchSetupFieldTest::RunTest(const FString& Parameters)
+{
+    using namespace PSMatchSetupTests;
+
+    UWorld* World = CreateTestWorld();
+    UPSPlayCallSubsystem* PlayCall = World ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+    if (!TestNotNull(TEXT("Play-call subsystem"), PlayCall))
+    {
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return false;
+    }
+
+    const FString TeamsPath = UPSUITeamCatalog::GetDefaultTeamsPath();
+    const FName Hawks(TEXT("Hawks"));
+    const FName Wolves(TEXT("Wolves"));
+    TArray<FPlayerAttributes> HawksPlayers;
+    TArray<FPlayerAttributes> WolvesPlayers;
+    if (!TestTrue(TEXT("Both teams' rosters load"), UPSMatchSetup::LoadTeamPlayers(TeamsPath, Hawks, HawksPlayers) && UPSMatchSetup::LoadTeamPlayers(TeamsPath, Wolves, WolvesPlayers)))
+    {
+        DestroyTestWorld(World);
+        return false;
+    }
+    const auto IsOnTeam = [](const TArray<FPlayerAttributes>& Team, FName PlayerId)
+    {
+        return Team.ContainsByPredicate([PlayerId](const FPlayerAttributes& Player) { return Player.PlayerId == PlayerId; });
+    };
+    const auto CountSide = [](const TArray<FPlayerAttributes>& Team, EPSTeamSide Side)
+    {
+        return Team.FilterByPredicate([Side](const FPlayerAttributes& Player) { return APSFieldGrid::GetSideForRole(Player.Role) == Side; }).Num();
+    };
+
+    // The Hawks host the Wolves: the Hawks' offense against the Wolves' defense.
+    UPSMatchSetup* Match = NewObject<UPSMatchSetup>();
+    TestTrue(TEXT("Hawks vs Wolves"), Match->SetTeams(Hawks, Wolves));
+    TArray<FPlayerAttributes> Field;
+    if (!TestTrue(TEXT("The field's players load"), Match->LoadFieldPlayers(TeamsPath, Field)))
+    {
+        DestroyTestWorld(World);
+        return false;
+    }
+    TestEqual(TEXT("Every Hawks offensive player and every Wolves defender"), Field.Num(),
+        CountSide(HawksPlayers, EPSTeamSide::Offense) + CountSide(WolvesPlayers, EPSTeamSide::Defense));
+    for (const FPlayerAttributes& Player : Field)
+    {
+        const bool bOffense = APSFieldGrid::GetSideForRole(Player.Role) == EPSTeamSide::Offense;
+        TestTrue(*FString::Printf(TEXT("%s plays for his side's team"), *Player.PlayerId.ToString()),
+            bOffense ? IsOnTeam(HawksPlayers, Player.PlayerId) : IsOnTeam(WolvesPlayers, Player.PlayerId));
+    }
+
+    // At kickoff each side plays at its own staff's scheme fit, in place.
+    const TArray<FPlayerAttributes> OwnRatings = Field;
+    UPSStaffManager* Staffs = LoadStaffs();
+    TestTrue(TEXT("Both staffs take over"), Match->ApplyStaffsToField(Staffs, PlayCall, Field));
+    TestTrue(TEXT("The plans are the Hawks' and the Wolves'"), PlayCall->GetTeamPlan(true).TeamId == Hawks && PlayCall->GetTeamPlan(false).TeamId == Wolves);
+    for (int32 Index = 0; Index < Field.Num(); ++Index)
+    {
+        const bool bOffense = APSFieldGrid::GetSideForRole(OwnRatings[Index].Role) == EPSTeamSide::Offense;
+        const FPlayerAttributes Fitted = Staffs->ApplySchemeFit(bOffense ? Hawks : Wolves, OwnRatings[Index]);
+        TestTrue(*FString::Printf(TEXT("%s at his own team's fit"), *OwnRatings[Index].PlayerId.ToString()),
+            Field[Index].PlayerId == OwnRatings[Index].PlayerId && FMath::IsNearlyEqual(Field[Index].Speed, Fitted.Speed)
+            && FMath::IsNearlyEqual(Field[Index].Agility, Fitted.Agility) && FMath::IsNearlyEqual(Field[Index].Awareness, Fitted.Awareness));
+    }
+
+    // Spawned as the game mode spawns them (the roster, the default packages, the field grid):
+    // each side's pawns carry their own team's players, at their team's fit.
+    UPSRoster* Roster = NewObject<UPSRoster>();
+    Roster->InitializeRoster(Field);
+    Roster->BuildDefaultDepthChart();
+    UPSPersonnelManager* Personnel = NewObject<UPSPersonnelManager>();
+    Personnel->Initialize(Roster);
+    Personnel->LoadCatalogFromJson(UPSPersonnelManager::GetDefaultCatalogPath());
+    const TArray<APSPlayerPawn*> Pawns = APSFieldGrid::SpawnPlayersFromRoster(Personnel->GetStartingLineup(), 2000.f, World);
+    int32 OffensePawns = 0;
+    int32 DefensePawns = 0;
+    for (const APSPlayerPawn* Pawn : Pawns)
+    {
+        const FPlayerAttributes Player = Pawn->GetAttributes();
+        const bool bOffense = Pawn->TeamSide == EPSTeamSide::Offense;
+        OffensePawns += bOffense ? 1 : 0;
+        DefensePawns += bOffense ? 0 : 1;
+        TestTrue(*FString::Printf(TEXT("The %s pawn %s is his team's"), bOffense ? TEXT("offense's") : TEXT("defense's"), *Player.PlayerId.ToString()),
+            bOffense ? IsOnTeam(HawksPlayers, Player.PlayerId) : IsOnTeam(WolvesPlayers, Player.PlayerId));
+        const FPlayerAttributes* Row = Field.FindByPredicate([&Player](const FPlayerAttributes& Candidate) { return Candidate.PlayerId == Player.PlayerId; });
+        TestTrue(*FString::Printf(TEXT("...at his team's fit (%s)"), *Player.PlayerId.ToString()), Row && FMath::IsNearlyEqual(Player.Speed, Row->Speed));
+    }
+    TestTrue(TEXT("Both sides take the field"), OffensePawns > 0 && DefensePawns > 0);
+    TestEqual(TEXT("...the Hawks' offense"), OffensePawns, CountSide(HawksPlayers, EPSTeamSide::Offense));
+
+    // Without teams, or with a team the league has no roster for, the game mode keeps its own.
+    TArray<FPlayerAttributes> Fallback = MakeSide();
+    TestFalse(TEXT("No teams, no field players"), NewObject<UPSMatchSetup>()->LoadFieldPlayers(TeamsPath, Fallback));
+    TestEqual(TEXT("...the game mode's roster is untouched"), Fallback.Num(), 3);
+    TestTrue(TEXT("Hawks vs a team with no roster"), Match->SetTeams(Hawks, FName(TEXT("Sharks"))));
+    TestFalse(TEXT("...fields nobody"), Match->LoadFieldPlayers(TeamsPath, Fallback));
+    TestEqual(TEXT("...and leaves the game mode's roster"), Fallback.Num(), 3);
+
+    DestroyTestWorld(World);
     return true;
 }
 

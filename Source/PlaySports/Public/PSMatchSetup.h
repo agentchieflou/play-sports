@@ -32,6 +32,9 @@ enum class EPSMatchMode : uint8
  *  - Without options (a level opened in the editor), the league's first two teams play.
  *  - At kickoff (ApplyStaffs) both teams' coaching staffs take over (Epic 89): each team's plan
  *    goes to the play-call authority, and each team's players play at their scheme fit.
+ *  - The field (LoadFieldPlayers, ApplyStaffsToField): the game mode spawns the home team's
+ *    offense against the away team's defense, each from its own team's roster and at its own
+ *    staff's scheme fit.
  */
 UCLASS(BlueprintType)
 class PLAYSPORTS_API UPSMatchSetup : public UObject
@@ -75,9 +78,31 @@ public:
      */
     bool ApplyStaffs(const UPSStaffManager* Staffs, UPSPlayCallSubsystem* PlayCall, TArray<FPlayerAttributes>& HomePlayers, TArray<FPlayerAttributes>& AwayPlayers) const;
 
+    /**
+     * The players who take the field at kickoff, with the home team on offense (it has the ball
+     * first): the home team's offensive players, then the away team's defensive players (sides
+     * by APSFieldGrid::GetSideForRole), each from its own team's roster (LoadTeamPlayers), at
+     * their own ratings. False, with OutPlayers untouched, when the teams aren't set or either
+     * team's roster can't be read; the game mode then keeps its RosterJsonPath players.
+     */
+    bool LoadFieldPlayers(const FString& TeamsJsonPath, TArray<FPlayerAttributes>& OutPlayers) const;
+
+    /**
+     * ApplyStaffs for the players on the field, both sides in one list: the offense plays at the
+     * home team's scheme fit and the defense at the away team's, in place and in order. The game
+     * mode applies it to the roster rows its pawns point at, so the pawns and the play
+     * simulation's copies of them play at the same ratings.
+     */
+    bool ApplyStaffsToField(const UPSStaffManager* Staffs, UPSPlayCallSubsystem* PlayCall, TArray<FPlayerAttributes>& Players) const;
+
     /** The league's TeamIds in file order (Data/sample_teams.json), read through
      *  UPSDataIngestion; empty when the file can't be read. */
     static TArray<FName> LoadLeagueTeamIds(const FString& TeamsJsonPath);
+
+    /** TeamId's players, from the roster file its TeamsJsonPath row names (RosterDataTablePath,
+     *  under the project directory), read through UPSDataIngestion. False, with OutPlayers
+     *  untouched, when the league has no such team or its roster can't be read. */
+    static bool LoadTeamPlayers(const FString& TeamsJsonPath, FName TeamId, TArray<FPlayerAttributes>& OutPlayers);
 
     UFUNCTION(BlueprintPure, Category = "Match")
     EPSMatchMode GetMode() const { return Mode; }
