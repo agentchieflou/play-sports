@@ -293,6 +293,8 @@ bool FPSAgingFranchiseTest::RunTest(const FString& Parameters)
         }
     }
 
+    // The statistics number the season by the contracts' league year.
+    const int32 SeasonNumber = Stats->GetSeason();
     TestEqual(TEXT("The week's games"), Flow->SimulateWeek(true), 2);
     TestTrue(TEXT("The season ends"), Flow->AdvanceWeek());
 
@@ -300,9 +302,10 @@ bool FPSAgingFranchiseTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("The veteran has retired"), Hawks->FindPlayerById(Veteran, Gone));
     TestTrue(TEXT("...the flow lists him"), Flow->GetRetirements().ContainsByPredicate([&Veteran](const FPSRetirementDecision& Decision) { return Decision.PlayerId == Veteran; }));
     FPSSeasonArchive First;
-    TestTrue(TEXT("...the first season's archive keeps him"), History->FindSeason(1, First) && First.Retired.Contains(Veteran));
+    TestTrue(TEXT("...the season's archive keeps him"), History->FindSeason(SeasonNumber, First) && First.Retired.Contains(Veteran));
     FPSRetiredPlayer Record;
-    TestTrue(TEXT("...with his career"), History->FindRetiredPlayer(Veteran, Record) && Record.Career.PassAttempts > 0 && Record.LastTeamId == FName(TEXT("Hawks")));
+    TestTrue(TEXT("...with his career"), History->FindRetiredPlayer(Veteran, Record) && Record.Career.PassAttempts > 0 && Record.LastTeamId == FName(TEXT("Hawks"))
+        && Record.RetiredAfterSeason == SeasonNumber);
     FPSFreeAgent NotAFreeAgent;
     TestFalse(TEXT("...and not as a free agent"), Flow->GetFreeAgency() && Flow->GetFreeAgency()->GetFreeAgent(Veteran, NotAFreeAgent));
     for (const FName& TeamId : TeamIds)
