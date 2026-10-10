@@ -42,7 +42,8 @@ enum class EPSTelemetryEventType : uint8
     Coverage,
     LooseBall,
     Deception,
-    BoundaryCrossed
+    BoundaryCrossed,
+    BallGrounded
 };
 
 /** What a statistic counts (Epic 92). Player categories first, then team ones. */
@@ -332,6 +333,19 @@ struct FPSTelemetryBoundaryCrossedEvent
     /** Into an end zone, not out of bounds. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bEndZone = false;
+};
+
+/** A ball in the air -- thrown or kicked, not fumbled -- touched the ground (APSBall). The ball only
+ *  reports it; the play simulation, the outcome authority, rules on it: a pass that lands before
+ *  anyone catches it is incomplete. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryBallGroundedEvent
+{
+    GENERATED_BODY()
+
+    /** Where it came down. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector Location = FVector::ZeroVector;
 };
 
 USTRUCT(BlueprintType)
@@ -1325,6 +1339,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageSignature, const
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallSignature, const FPSTelemetryLooseBallEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionSignature, const FPSTelemetryDeceptionEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBoundaryCrossedSignature, const FPSTelemetryBoundaryCrossedEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedSignature, const FPSTelemetryBallGroundedEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -1364,6 +1379,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCoverageMC, const FPSTelemetryCo
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryLooseBallMC, const FPSTelemetryLooseBallEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDeceptionMC, const FPSTelemetryDeceptionEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBoundaryCrossedMC, const FPSTelemetryBoundaryCrossedEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBallGroundedMC, const FPSTelemetryBallGroundedEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1479,6 +1495,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishBoundaryCrossed(const FPSTelemetryBoundaryCrossedEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishBallGrounded(const FPSTelemetryBallGroundedEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -1611,6 +1630,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryBoundaryCrossedSignature OnBoundaryCrossed;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryBallGroundedSignature OnBallGrounded;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -1650,6 +1672,7 @@ public:
     FPSTelemetryLooseBallMC OnLooseBallMC;
     FPSTelemetryDeceptionMC OnDeceptionMC;
     FPSTelemetryBoundaryCrossedMC OnBoundaryCrossedMC;
+    FPSTelemetryBallGroundedMC OnBallGroundedMC;
 
 private:
     UPROPERTY(Transient)

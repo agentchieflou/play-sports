@@ -24,6 +24,12 @@ namespace PSGameStateEvents
      *  the game mode lines the pawns up, the Snap event's line and the GameState event's. */
     PLAYSPORTS_API FVector LineOfScrimmageFor(int32 YardLine);
 
+    /** The PhaseChange to announce when the simulation's phase is no longer Announced, the phase
+     *  last announced: from it to State's, with the clocks. False, with OutEvent untouched, when
+     *  nothing changed. Every change counts, whether the simulation's clock made it or a bus
+     *  event did (a catch, a tackle, a boundary, a pass that came down). */
+    PLAYSPORTS_API bool MakePhaseChange(EPlayPhase Announced, const FPlayState& State, FPSTelemetryPhaseChangeEvent& OutEvent);
+
     /** The GameState event for State, with the last finished drive. */
     PLAYSPORTS_API FPSTelemetryGameStateEvent MakeEvent(const FPlayState& State, const FDriveSummary& LastDrive, int32 CompletedDrives, int32 MaxTimeouts);
 

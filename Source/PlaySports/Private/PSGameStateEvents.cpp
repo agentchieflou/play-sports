@@ -46,6 +46,20 @@ FPSTelemetryGameStateEvent PSGameStateEvents::MakeEvent(const FPlayState& State,
     return Event;
 }
 
+bool PSGameStateEvents::MakePhaseChange(EPlayPhase Announced, const FPlayState& State, FPSTelemetryPhaseChangeEvent& OutEvent)
+{
+    if (State.Phase == Announced)
+    {
+        return false;
+    }
+    const UEnum* PhaseEnum = StaticEnum<EPlayPhase>();
+    OutEvent.OldPhase = PhaseEnum ? PhaseEnum->GetNameStringByValue(static_cast<int64>(Announced)) : FString();
+    OutEvent.NewPhase = PhaseEnum ? PhaseEnum->GetNameStringByValue(static_cast<int64>(State.Phase)) : FString();
+    OutEvent.GameClockSeconds = State.GameClockSeconds;
+    OutEvent.PlayClockSeconds = State.PlayClockSeconds;
+    return true;
+}
+
 FPlayState PSGameStateEvents::ToPlayState(const FPSTelemetryGameStateEvent& Event)
 {
     FPlayState State;

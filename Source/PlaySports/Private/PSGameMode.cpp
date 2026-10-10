@@ -309,43 +309,18 @@ void APSGameMode::Tick(float DeltaSeconds)
 
     if (PlaySimulation)
     {
-        EPlayPhase PreviousPhase = PlaySimulation->GetPlayState().Phase;
         PlaySimulation->AdvancePlay(DeltaSeconds);
         EPlayPhase CurrentPhase = PlaySimulation->GetPlayState().Phase;
 
-        if (PreviousPhase != CurrentPhase)
+        // Every change of phase since the last announcement goes out, including the ones bus
+        // events made between ticks (the snap, a catch, a tackle, a pass that came down).
+        FPSTelemetryPhaseChangeEvent PhaseEvt;
+        if (PSGameStateEvents::MakePhaseChange(AnnouncedPhase, PlaySimulation->GetPlayState(), PhaseEvt))
         {
-            FString OldPhaseStr;
-            FString NewPhaseStr;
-            auto PhaseToString = [](EPlayPhase P) -> FString
+            AnnouncedPhase = CurrentPhase;
+            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Play Phase Transitioned to %s at simulation time %f"), *PhaseEvt.NewPhase, PlaySimulation->GetPlayState().GameTimeSeconds);
+            if (UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>())
             {
-                switch (P)
-                {
-                case EPlayPhase::PreSnap:             return TEXT("PreSnap");
-                case EPlayPhase::Snap:                return TEXT("Snap");
-                case EPlayPhase::PassRush:            return TEXT("PassRush");
-                case EPlayPhase::BallCarrierMovement: return TEXT("BallCarrierMovement");
-                case EPlayPhase::Scoring:             return TEXT("Scoring");
-                case EPlayPhase::Kickoff:             return TEXT("Kickoff");
-                case EPlayPhase::Punt:                return TEXT("Punt");
-                case EPlayPhase::FieldGoal:           return TEXT("FieldGoal");
-                default:                              return TEXT("Unknown");
-                }
-            };
-            OldPhaseStr = PhaseToString(PreviousPhase);
-            NewPhaseStr = PhaseToString(CurrentPhase);
-
-            UE_LOG(LogTemp, Display, TEXT("PSGameMode: Play Phase Transitioned to %s at simulation time %f"), *NewPhaseStr, PlaySimulation->GetPlayState().GameTimeSeconds);
-
-            // Publish phase-change event on bus
-            UPSTelemetryBus* Bus = GetWorld()->GetSubsystem<UPSTelemetryBus>();
-            if (Bus)
-            {
-                FPSTelemetryPhaseChangeEvent PhaseEvt;
-                PhaseEvt.OldPhase         = OldPhaseStr;
-                PhaseEvt.NewPhase         = NewPhaseStr;
-                PhaseEvt.GameClockSeconds = PlaySimulation->GetPlayState().GameClockSeconds;
-                PhaseEvt.PlayClockSeconds = PlaySimulation->GetPlayState().PlayClockSeconds;
                 Bus->PublishPhaseChange(PhaseEvt);
             }
 

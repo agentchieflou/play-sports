@@ -725,6 +725,9 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
     // The field's volumes: out of bounds and the end zones.
     Bus->OnBoundaryCrossed.AddDynamic(this, &UPSPlaySimulation::OnBusBoundaryCrossedEvent);
+    // The ball: a fumble recovered, a pass that came down untouched.
+    Bus->OnFumble.AddDynamic(this, &UPSPlaySimulation::OnBusFumbleEvent);
+    Bus->OnBallGrounded.AddDynamic(this, &UPSPlaySimulation::OnBusBallGroundedEvent);
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Subscribed to TelemetryBus (C2)."));
     PublishGameStateIfChanged();
@@ -950,6 +953,35 @@ void UPSPlaySimulation::OnBusBoundaryCrossedEvent(const FPSTelemetryBoundaryCros
     else if (Spot >= 100)
     {
         RecordTouchdown();
+    }
+}
+
+void UPSPlaySimulation::OnBusFumbleEvent(const FPSTelemetryFumbleEvent& Event)
+{
+    if (bQuickSimMode || IsBallDead() || Event.RecoveryName.IsEmpty())
+    {
+        return;
+    }
+    if (CurrentState.Phase == EPlayPhase::Snap || CurrentState.Phase == EPlayPhase::PassRush)
+    {
+        SetPlayPhase(EPlayPhase::BallCarrierMovement);
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusFumble -- %s recovered; transitioning to BallCarrierMovement."), *Event.RecoveryName);
+    }
+}
+
+void UPSPlaySimulation::OnBusBallGroundedEvent(const FPSTelemetryBallGroundedEvent& Event)
+{
+    if (bQuickSimMode || IsBallDead())
+    {
+        return;
+    }
+    if (CurrentState.Phase == EPlayPhase::Snap || CurrentState.Phase == EPlayPhase::PassRush)
+    {
+        // A pass that lands before anyone catches it: incomplete (the play's default result).
+        CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
+        CurrentPlayResult.YardsGained = 0;
+        SetPlayPhase(EPlayPhase::Scoring);
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusBallGrounded -- the pass came down untouched: incomplete."));
     }
 }
 

@@ -7,6 +7,7 @@
 #include "PSTelemetryBus.h"
 #include "PSArchetypeTuning.h"
 #include "PSLevelingTuning.h"
+#include "PSPlaySimulation.h"
 #include "PSGameMode.generated.h"
 
 class UPSPlaySimulation;
@@ -153,6 +154,10 @@ public:
 private:
     /** Opens UPSPlayCallSubsystem's call window for the current down (Epic 102). */
     void OpenPlayCallWindow();
+
+    /** The simulation's phase as last announced on the bus (PhaseChange). Each tick announces any
+     *  change since, whether the simulation's clock made it or a bus event did between ticks. */
+    EPlayPhase AnnouncedPhase = EPlayPhase::PreSnap;
 
     UFUNCTION()
     void OnBusScoreEvent(const FPSTelemetryScoreEvent& Event);

@@ -626,3 +626,18 @@ void UPSTelemetryBus::PublishBoundaryCrossed(const FPSTelemetryBoundaryCrossedEv
     }
     OnBoundaryCrossedMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishBallGrounded(const FPSTelemetryBallGroundedEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryBallGroundedEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Description = FString::Printf(TEXT("BallGrounded: at %s"), *Event.Location.ToString());
+    RecordHistory(EPSTelemetryEventType::BallGrounded, Description, JsonPayload);
+
+    if (OnBallGrounded.IsBound())
+    {
+        OnBallGrounded.Broadcast(Event);
+    }
+    OnBallGroundedMC.Broadcast(Event);
+}
