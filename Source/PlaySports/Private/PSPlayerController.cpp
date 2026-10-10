@@ -7,6 +7,7 @@
 #include "PSPlayContextComponent.h"
 #include "PSPassingComponent.h"
 #include "PSCarrierInputComponent.h"
+#include "PSPreSnapInputComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -44,6 +45,7 @@ APSPlayerController::APSPlayerController()
     PlayContextComponent = CreateDefaultSubobject<UPSPlayContextComponent>(TEXT("PlayContextComp"));
     PassingComponent = CreateDefaultSubobject<UPSPassingComponent>(TEXT("PassingComp"));
     CarrierInputComponent = CreateDefaultSubobject<UPSCarrierInputComponent>(TEXT("CarrierInputComp"));
+    PreSnapInputComponent = CreateDefaultSubobject<UPSPreSnapInputComponent>(TEXT("PreSnapInputComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()
