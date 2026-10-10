@@ -9,6 +9,8 @@ UPSPlayCallComponent::UPSPlayCallComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
     ConfirmActionId = TEXT("Confirm");
+    TempoActionId = TEXT("Tempo");
+    TimeoutActionId = TEXT("Timeout");
 }
 
 void UPSPlayCallComponent::BeginPlay()
@@ -118,12 +120,29 @@ void UPSPlayCallComponent::HandlePlayCall(const FPSTelemetryPlayCallEvent& Event
 void UPSPlayCallComponent::HandleCatalogAction(FName ActionId)
 {
     UPSPlayCallSubsystem* PlayCall = BoundPlayCall.Get();
-    if (ActionId != ConfirmActionId || !PlayCall || !PlayCall->IsCallWindowOpen())
+    if (!PlayCall)
     {
         return;
     }
 
+    // The clock controls (Epic 76): the tempo holds from down to down; a timeout needs the
+    // call window open.
     const bool bOffense = IsCallingForOffense();
+    if (ActionId == TempoActionId && bOffense)
+    {
+        PlayCall->CycleHumanTempo();
+        return;
+    }
+    if (ActionId == TimeoutActionId)
+    {
+        PlayCall->RequestTimeout(bOffense, true);
+        return;
+    }
+    if (ActionId != ConfirmActionId || !PlayCall->IsCallWindowOpen())
+    {
+        return;
+    }
+
     if (PlayCall->IsWaitingForHuman(bOffense))
     {
         OpenCallScreen();

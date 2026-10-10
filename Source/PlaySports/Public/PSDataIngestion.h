@@ -19,6 +19,7 @@
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
 #include "PSPreSnapTypes.h"
+#include "PSSituationData.h"
 #include "PSCameraFraming.h"
 #include "PSDataIngestion.generated.h"
 
@@ -115,6 +116,11 @@ public:
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRushMovesFromJson(const FString& JsonFilePath, FPSRushMoveCatalog& OutCatalog);
+
+    /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
+     *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSituationalTuningFromJson(const FString& JsonFilePath, FPSSituationalTuning& OutTuning);
 
     /** Loads the all-22 film camera rigs (Data/camera_all22.json, Epic 40). False on a
      *  missing file, malformed JSON, or an unrecognized Placement. */
