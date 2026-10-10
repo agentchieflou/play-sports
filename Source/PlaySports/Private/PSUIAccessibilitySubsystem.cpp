@@ -181,6 +181,13 @@ float UPSUIAccessibilitySubsystem::GetCameraFollowSpeed(float AuthoredSpeed)
     return IsReducedMotion() ? 0.f : AuthoredSpeed;
 }
 
+float UPSUIAccessibilitySubsystem::GetCameraFollowSpeedIn(const UObject* WorldContext, float AuthoredSpeed)
+{
+    const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;
+    UPSUIAccessibilitySubsystem* Accessibility = World ? World->GetSubsystem<UPSUIAccessibilitySubsystem>() : nullptr;
+    return Accessibility ? Accessibility->GetCameraFollowSpeed(AuthoredSpeed) : AuthoredSpeed;
+}
+
 bool UPSUIAccessibilitySubsystem::StartCameraShake(APlayerController* Player, TSubclassOf<UCameraShakeBase> Shake, float Scale)
 {
     const float Played = Scale * GetCameraShakeScale();

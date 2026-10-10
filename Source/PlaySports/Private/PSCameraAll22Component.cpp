@@ -1,6 +1,7 @@
 #include "PSCameraAll22Component.h"
 #include "PSDataIngestion.h"
 #include "PSPlayerController.h"
+#include "PSUIAccessibilitySubsystem.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/GameViewportClient.h"
@@ -281,7 +282,9 @@ void UPSCameraAll22Component::StepFraming(float DeltaTime)
     {
         // Each face of the framed box eases toward the players' box but never inside it: the
         // frame widens at once to take in a breakaway and closes in gently once play bunches.
-        const double Alpha = Tuning.ReframeSpeed > 0.f ? FMath::Clamp<double>(DeltaTime * Tuning.ReframeSpeed, 0.0, 1.0) : 1.0;
+        // With reduced motion (Epic 103.5) the speed is 0 and the frame closes in at once.
+        const float ReframeSpeed = UPSUIAccessibilitySubsystem::GetCameraFollowSpeedIn(this, Tuning.ReframeSpeed);
+        const double Alpha = ReframeSpeed > 0.f ? FMath::Clamp<double>(DeltaTime * ReframeSpeed, 0.0, 1.0) : 1.0;
         const FVector EasedMin = FramedBox.Min + (Target.Min - FramedBox.Min) * Alpha;
         const FVector EasedMax = FramedBox.Max + (Target.Max - FramedBox.Max) * Alpha;
         FramedBox = FBox(Target.Min.ComponentMin(EasedMin), Target.Max.ComponentMax(EasedMax));

@@ -73,6 +73,7 @@ every CI build.
 | `ui_accessibility.json` | `FPSUIAccessibilityTuning` (single object) | `UPSDataIngestion::LoadUIAccessibilityTuningFromJson`, via `UPSUIAccessibilitySubsystem` |
 | `ui_text.csv` | UE string table `PSUI` (CSV: `Key`, `SourceString`, `Comment`) | `UPSLocalization::RegisterStringTables` (`LOCTABLE_FROMFILE_GAME`) |
 | `ui_text_data.csv` | UE string table `PSUIData`, **generated** by `tools/ui_text.py` | same |
+| `ui_hints.json` | `FPSHintCatalog` (single object: `Hints`) | `UPSDataIngestion::LoadHintCatalogFromJson`, via `UPSUIHintSubsystem` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
 | `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
@@ -554,6 +555,23 @@ The settings that switch these on and size them (`Captions`, `CaptionSize`, `Nar
 `ColorblindMode`) are in `ui_settings.json`. `UPSUIAccessibilitySubsystem::ValidateTuning` and
 `tools/validate_data.py` check it.
 
+## Hints schema (`FPSHintCatalog`)
+
+Single object (Epic 105.4; first-time hints on the play-call screen, `Specs/Front_End_Shell.md`):
+- `Hints[]`, each with:
+  - `HintId` (unique): the profile remembers it once shown (`UPSProfileSaveGame::SeenHints`);
+  - `Trigger`: an `EPSHintTrigger`:
+    - `OffenseCall` and `DefenseCall`: the human's first call on that side;
+    - `FourthDown`: the human's offense on 4th down;
+    - `TwoMinuteDrill`: the human's offense in a two-minute drill, as `UPSSituationAI` reads it;
+    - `Kickoff`: the human's side kicking off;
+  - `Text`: what the hint says. Keep it free of button names, so it reads the same on every
+    device. It is translated through `ui_text_data.csv` (`Hint.<HintId>`).
+
+Hints are tried in order and the first that applies and hasn't been seen comes up, so the
+specific ones go first. The `Hints` setting (Gameplay, `ui_settings.json`) turns them off.
+`UPSUIHintSubsystem::ValidateCatalog` and `tools/validate_data.py` check it.
+
 ## UI text tables (`ui_text.csv`, `ui_text_data.csv`)
 
 Epic 106: everything the UI shows comes from one of two UE string tables, so a translation is
@@ -566,14 +584,19 @@ reads them.
   Code names keys literally: `UPSLocalization::GetText(TEXT("Menu.ResetToDefaults"))`,
   `UPSLocalization::Format(TEXT("Menu.Option"), Arguments)`. Families the code builds:
   `Input.Action.<ActionId>` (one per remappable action), `Input.Context.<ContextId>`,
-  `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`.
+  `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`, `PlayCall.Category.<PlayCategory>` (a
+  category without a row shows its ID split into words).
 - `ui_text_data.csv` (table `PSUIData`) is **generated** from the user-facing strings of
-  `ui_menus.json`, `ui_settings.json` and `loading_tips.json`. Don't edit it. After changing one
-  of those files, run `python tools/ui_text.py --write`. Keys: `Menu.<ScreenId>.Title|Body`,
-  `Menu.<ScreenId>.<OptionId>.Label|Detail`, `Setting.Category.<CategoryId>`,
-  `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`, `Tip.<TipId>`.
-- Not translated, shown through `UPSLocalization::Verbatim`: team, player and formation names,
-  button glyph labels (`input_glyphs.json`), and the engine's key names.
+  `ui_menus.json`, `ui_settings.json`, `loading_tips.json`, `defensive_adjustments.json` and
+  `ui_hints.json`. Don't edit it. After changing one of those files, run `python tools/ui_text.py --write`.
+  Keys: `Menu.<ScreenId>.Title|Body`, `Menu.<ScreenId>.<OptionId>.Label|Detail`,
+  `Setting.Category.<CategoryId>`, `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`,
+  `Tip.<TipId>`, `Adjustment.<AdjustmentId>.Label|Description`, `Hint.<HintId>`.
+- Not translated, shown through `UPSLocalization::Verbatim`:
+  - names: team, player, play, formation, front, coverage and route names;
+  - button glyph labels (`input_glyphs.json`) and the engine's key names;
+  - for now, text other systems write in English: the coaching AI's suggestion reasons, the
+    situation AI's moments and the tempo labels (`situational_tuning.json`).
 - UI strings may not contain backslashes, because the string table import reads them as
   escapes. A real newline is fine.
 
@@ -583,7 +606,7 @@ reads them.
 - a remappable action, or one of its contexts, without a name row;
 - duplicate or empty keys, or unbalanced placeholders;
 - FText built from a raw string in UI code (`Private/PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`,
-  `PSSettings*`).
+  `PSSettings*`, `PSPlayCall*`).
 
 The `Units` setting (`ui_settings.json`, Gameplay) picks feet and pounds or centimeters and
 kilograms for `WeightKg`/`HeightCm` wherever they are shown (`UPSLocalization::FormatWeight`,

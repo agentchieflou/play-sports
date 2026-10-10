@@ -61,6 +61,10 @@
             "Description": "How players' heights and weights are shown."
         },
         {
+            "SettingId": "Hints", "Category": "Gameplay", "Label": "Hints", "Kind": "Toggle", "Default": 1,
+            "Description": "A tip on the play-call screen the first time a situation comes up: a fourth down, the two-minute drill, a kickoff."
+        },
+        {
             "SettingId": "Vibration", "Category": "Controls", "Label": "Vibration", "Kind": "Toggle", "Default": 1,
             "Description": "The controller rumbles on hits, catches and scores."
         },

@@ -3,6 +3,7 @@
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
 #include "PSPlayerController.h"
+#include "PSUIAccessibilitySubsystem.h"
 
 APSBroadcastCamera::APSBroadcastCamera()
 {
@@ -72,7 +73,8 @@ void APSBroadcastCamera::Tick(float DeltaTime)
 
     // Slide along the X-axis tracking target's X position, keeping it bounded within MinX/MaxX
     float TargetX = FMath::Clamp(TargetLocation.X, MinX, MaxX);
-    float NewX = FMath::FInterpTo(CurrentLocation.X, TargetX, DeltaTime, TrackingSpeed);
+    // With reduced motion (Epic 103.5) the speed is 0 and FInterpTo snaps: no lag to swing through.
+    float NewX = FMath::FInterpTo(CurrentLocation.X, TargetX, DeltaTime, UPSUIAccessibilitySubsystem::GetCameraFollowSpeedIn(this, TrackingSpeed));
 
     // Enforce sideline and height boundaries
     float ClampedY = FMath::Clamp(SidelineY, MinY, MaxY);

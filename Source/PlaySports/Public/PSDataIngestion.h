@@ -27,6 +27,7 @@
 #include "PSControlHandoffComponent.h"
 #include "PSOverlayBroadcastTypes.h"
 #include "PSUIAccessibilitySubsystem.h"
+#include "PSUIHintSubsystem.h"
 #include "PSOverlayBallFlightTypes.h"
 #include "PSOverlayBadgeTypes.h"
 #include "PSOverlayEmphasisTypes.h"
@@ -170,6 +171,10 @@ public:
     /** Loads the caption and color tuning (Data/ui_accessibility.json, Epic 103). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadUIAccessibilityTuningFromJson(const FString& JsonFilePath, FPSUIAccessibilityTuning& OutTuning);
+
+    /** Loads the first-time hints (Data/ui_hints.json, Epic 105.4). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadHintCatalogFromJson(const FString& JsonFilePath, FPSHintCatalog& OutCatalog);
 
     /** Loads the pass-rush move library (Data/pass_rush_moves.json, Epic 70). False on a
      *  missing file or malformed JSON. */

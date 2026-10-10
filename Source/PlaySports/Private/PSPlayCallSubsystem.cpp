@@ -1,6 +1,7 @@
 #include "PSPlayCallSubsystem.h"
 #include "PSCoachingAI.h"
 #include "PSDataIngestion.h"
+#include "PSLocalization.h"
 #include "PSPlaybookIngestion.h"
 #include "PSPlayOrchestrator.h"
 #include "PSPlayerPawn.h"
@@ -44,47 +45,70 @@ namespace PSPlayCallPrivate
         return Out;
     }
 
-    const TCHAR* DownOrdinal(int32 Down)
+    FText DownOrdinal(int32 Down)
     {
         switch (Down)
         {
-        case 1:  return TEXT("1st");
-        case 2:  return TEXT("2nd");
-        case 3:  return TEXT("3rd");
-        default: return TEXT("4th");
+        case 1:  return UPSLocalization::GetText(TEXT("PlayCall.Down1"));
+        case 2:  return UPSLocalization::GetText(TEXT("PlayCall.Down2"));
+        case 3:  return UPSLocalization::GetText(TEXT("PlayCall.Down3"));
+        default: return UPSLocalization::GetText(TEXT("PlayCall.Down4"));
         }
     }
 
-    const TCHAR* RoleAbbreviation(EPlayerRole Role)
+    FText RoleAbbreviation(EPlayerRole Role)
     {
         switch (Role)
         {
-        case EPlayerRole::Quarterback:      return TEXT("QB");
-        case EPlayerRole::RunningBack:      return TEXT("RB");
-        case EPlayerRole::WideReceiver:     return TEXT("WR");
-        case EPlayerRole::TightEnd:         return TEXT("TE");
-        case EPlayerRole::OffensiveLineman: return TEXT("OL");
-        case EPlayerRole::DefensiveLineman: return TEXT("DL");
-        case EPlayerRole::Linebacker:       return TEXT("LB");
-        case EPlayerRole::DefensiveBack:    return TEXT("DB");
-        default:                            return TEXT("?");
+        case EPlayerRole::Quarterback:      return UPSLocalization::GetText(TEXT("PlayCall.Role.Quarterback"));
+        case EPlayerRole::RunningBack:      return UPSLocalization::GetText(TEXT("PlayCall.Role.RunningBack"));
+        case EPlayerRole::WideReceiver:     return UPSLocalization::GetText(TEXT("PlayCall.Role.WideReceiver"));
+        case EPlayerRole::TightEnd:         return UPSLocalization::GetText(TEXT("PlayCall.Role.TightEnd"));
+        case EPlayerRole::OffensiveLineman: return UPSLocalization::GetText(TEXT("PlayCall.Role.OffensiveLineman"));
+        case EPlayerRole::DefensiveLineman: return UPSLocalization::GetText(TEXT("PlayCall.Role.DefensiveLineman"));
+        case EPlayerRole::Linebacker:       return UPSLocalization::GetText(TEXT("PlayCall.Role.Linebacker"));
+        case EPlayerRole::DefensiveBack:    return UPSLocalization::GetText(TEXT("PlayCall.Role.DefensiveBack"));
+        default:                            return UPSLocalization::Verbatim(TEXT("?"));
         }
     }
 
-    const TCHAR* KindLabel(EPSAssignmentKind Kind)
+    FText KindLabel(EPSAssignmentKind Kind)
     {
         switch (Kind)
         {
-        case EPSAssignmentKind::Route:        return TEXT("route");
-        case EPSAssignmentKind::PassBlock:    return TEXT("pass block");
-        case EPSAssignmentKind::RunBlock:     return TEXT("run block");
-        case EPSAssignmentKind::ManCoverage:  return TEXT("man");
-        case EPSAssignmentKind::ZoneCoverage: return TEXT("zone");
-        case EPSAssignmentKind::PassRush:     return TEXT("rush");
-        case EPSAssignmentKind::RunFit:       return TEXT("run fit");
-        case EPSAssignmentKind::Blitz:        return TEXT("blitz");
-        default:                              return TEXT("?");
+        case EPSAssignmentKind::Route:        return UPSLocalization::GetText(TEXT("PlayCall.Kind.Route"));
+        case EPSAssignmentKind::PassBlock:    return UPSLocalization::GetText(TEXT("PlayCall.Kind.PassBlock"));
+        case EPSAssignmentKind::RunBlock:     return UPSLocalization::GetText(TEXT("PlayCall.Kind.RunBlock"));
+        case EPSAssignmentKind::ManCoverage:  return UPSLocalization::GetText(TEXT("PlayCall.Kind.ManCoverage"));
+        case EPSAssignmentKind::ZoneCoverage: return UPSLocalization::GetText(TEXT("PlayCall.Kind.ZoneCoverage"));
+        case EPSAssignmentKind::PassRush:     return UPSLocalization::GetText(TEXT("PlayCall.Kind.PassRush"));
+        case EPSAssignmentKind::RunFit:       return UPSLocalization::GetText(TEXT("PlayCall.Kind.RunFit"));
+        case EPSAssignmentKind::Blitz:        return UPSLocalization::GetText(TEXT("PlayCall.Kind.Blitz"));
+        default:                              return UPSLocalization::Verbatim(TEXT("?"));
         }
+    }
+
+    /** A play category's name (PlayCall.Category.<Category>), else its ID split into words. */
+    FText CategoryName(const FString& Category)
+    {
+        const FString Key = FString::Printf(TEXT("PlayCall.Category.%s"), *Category);
+        return UPSLocalization::HasText(Key) ? UPSLocalization::GetText(Key) : UPSLocalization::Verbatim(SplitCategory(Category));
+    }
+
+    /** Parts of a readout, joined by the separator dot. */
+    FText JoinParts(const TArray<FText>& Parts)
+    {
+        return FText::Join(UPSLocalization::GetText(TEXT("PlayCall.Separator")), Parts);
+    }
+
+    /** A play listed with its formation (recent plays, favorites); both names are the
+     *  playbook's own. */
+    FString PlayWithFormation(const FPSPlayDefinition& Play)
+    {
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Play"), UPSLocalization::Verbatim(Play.DisplayName));
+        Arguments.Add(TEXT("Formation"), UPSLocalization::Verbatim(Play.Formation));
+        return UPSLocalization::Format(TEXT("PlayCall.PlayWithFormation"), Arguments).ToString();
     }
 }
 
@@ -276,8 +300,10 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildFormationOptions(bool bOffen
     {
         FPSMenuOptionDef Option;
         Option.OptionId = FName(*Formation);
-        Option.Label = Formation;
-        Option.Detail = FString::Printf(TEXT("%d play(s)"), GetPlaysInFormation(Formation, bOffense).Num());
+        Option.Label = UPSLocalization::Verbatim(Formation).ToString();
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Count"), FText::AsNumber(GetPlaysInFormation(Formation, bOffense).Num()));
+        Option.Detail = UPSLocalization::Format(TEXT("PlayCall.PlayCount"), Arguments).ToString();
         Option.TargetScreen = PlaysScreenId;
         Option.Payload = FName(*Formation);
         Options.Add(Option);
@@ -290,9 +316,15 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildPlayOptions(const FString& F
     TArray<FPSMenuOptionDef> Options;
     for (const FPSPlayDefinition& Play : GetPlaysInFormation(Formation, bOffense))
     {
+        // Play, formation, front and coverage names are the playbook's own, not translated.
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Play"), UPSLocalization::Verbatim(Play.DisplayName));
+        Arguments.Add(TEXT("Category"), PSPlayCallPrivate::CategoryName(Play.PlayCategory));
+        Arguments.Add(TEXT("Front"), UPSLocalization::Verbatim(Play.Front));
+        Arguments.Add(TEXT("Coverage"), UPSLocalization::Verbatim(Play.CoverageShell));
         Options.Add(MakePlayOption(Play, bOffense
-            ? FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *PSPlayCallPrivate::SplitCategory(Play.PlayCategory))
-            : FString::Printf(TEXT("%s    %s %s"), *Play.DisplayName, *Play.Front, *Play.CoverageShell)));
+            ? UPSLocalization::Format(TEXT("PlayCall.PlayWithCategory"), Arguments).ToString()
+            : UPSLocalization::Format(TEXT("PlayCall.PlayWithDefense"), Arguments).ToString()));
     }
     return Options;
 }
@@ -302,7 +334,9 @@ FPSMenuOptionDef UPSPlayCallSubsystem::MakePlayOption(const FPSPlayDefinition& P
     FPSMenuOptionDef Option;
     Option.OptionId = Play.PlayId;
     // Starred plays are marked wherever they are listed.
-    Option.Label = IsFavorite(Play.PlayId) ? FString::Printf(TEXT("* %s"), *Label) : Label;
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Play"), UPSLocalization::FromLocalized(Label));
+    Option.Label = IsFavorite(Play.PlayId) ? UPSLocalization::Format(TEXT("PlayCall.Favorite"), Arguments).ToString() : Label;
     Option.Detail = DescribePlay(Play);
     Option.Command = EPSMenuCommand::CallPlay;
     Option.Payload = Play.PlayId;
@@ -331,8 +365,16 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildSuggestionOptions(bool bOffe
     const FPSPlaySuggestion& Top = Ranked[0];
     FPSMenuOptionDef Option;
     Option.OptionId = TEXT("Suggested");
-    Option.Label = FString::Printf(TEXT("Suggested: %s"), *Top.DisplayName);
-    Option.Detail = Top.Reasons.Num() > 0 ? FString::Join(Top.Reasons, TEXT(" \u00B7 ")) : FString(TEXT("Nothing in the situation leans either way"));
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Play"), UPSLocalization::Verbatim(Top.DisplayName));
+    Option.Label = UPSLocalization::Format(TEXT("PlayCall.Suggested"), Arguments).ToString();
+    // The coaching AI's reasons are its own English for now (shown verbatim).
+    TArray<FText> Reasons;
+    for (const FString& Reason : Top.Reasons)
+    {
+        Reasons.Add(UPSLocalization::Verbatim(Reason));
+    }
+    Option.Detail = (Reasons.Num() > 0 ? PSPlayCallPrivate::JoinParts(Reasons) : UPSLocalization::GetText(TEXT("PlayCall.NoLean"))).ToString();
     Option.Command = EPSMenuCommand::CallPlay;
     Option.Payload = Top.PlayId;
     Options.Add(Option);
@@ -349,7 +391,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildRecentOptions(bool bOffense)
         {
             continue;
         }
-        Options.Add(MakePlayOption(Play, FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *Play.Formation)));
+        Options.Add(MakePlayOption(Play, PSPlayCallPrivate::PlayWithFormation(Play)));
     }
     return Options;
 }
@@ -362,7 +404,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildFavoriteOptions(bool bOffens
         FPSPlayDefinition Play;
         if (FindPlay(PlayId, Play))
         {
-            Options.Add(MakePlayOption(Play, FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *Play.Formation)));
+            Options.Add(MakePlayOption(Play, PSPlayCallPrivate::PlayWithFormation(Play)));
         }
     }
     return Options;
@@ -466,8 +508,8 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildAdjustmentOptions()
     TArray<FPSMenuOptionDef> Options;
     FPSMenuOptionDef AsCalled;
     AsCalled.OptionId = TEXT("NoAdjustment");
-    AsCalled.Label = TEXT("No adjustment");
-    AsCalled.Detail = TEXT("Play the call as it is");
+    AsCalled.Label = UPSLocalization::GetText(TEXT("PlayCall.NoAdjustment")).ToString();
+    AsCalled.Detail = UPSLocalization::GetText(TEXT("PlayCall.AsCalled")).ToString();
     AsCalled.Command = EPSMenuCommand::ApplyAdjustment;
     Options.Add(AsCalled);
 
@@ -475,8 +517,8 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildAdjustmentOptions()
     {
         FPSMenuOptionDef Option;
         Option.OptionId = Adjustment.AdjustmentId;
-        Option.Label = Adjustment.Label;
-        Option.Detail = Adjustment.Description;
+        Option.Label = UPSLocalization::GetDataText(UPSLocalization::AdjustmentKey(Adjustment.AdjustmentId, TEXT("Label")), Adjustment.Label).ToString();
+        Option.Detail = UPSLocalization::GetDataText(UPSLocalization::AdjustmentKey(Adjustment.AdjustmentId, TEXT("Description")), Adjustment.Description).ToString();
         Option.Command = EPSMenuCommand::ApplyAdjustment;
         Option.Payload = Adjustment.AdjustmentId;
         Options.Add(Option);
@@ -490,7 +532,13 @@ FString UPSPlayCallSubsystem::BuildAdjustmentScreenBody() const
     const FPSPlayDefinition* Offense = OffenseCall.IsSet()
         ? Plays.FindByPredicate([this](const FPSPlayDefinition& Play) { return Play.PlayId == OffenseCall.PlayId; })
         : nullptr;
-    return Offense ? FString::Printf(TEXT("Offense lines up in %s"), *Offense->Formation) : FString(TEXT("Offense hasn't lined up yet"));
+    if (!Offense)
+    {
+        return UPSLocalization::GetText(TEXT("PlayCall.OffenseNotLinedUp")).ToString();
+    }
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Formation"), UPSLocalization::Verbatim(Offense->Formation));
+    return UPSLocalization::Format(TEXT("PlayCall.OffenseLinesUp"), Arguments).ToString();
 }
 
 UPSSaveSubsystem* UPSPlayCallSubsystem::GetSaveSubsystem() const
@@ -582,7 +630,8 @@ TArray<FName> UPSPlayCallSubsystem::GetFavorites(bool bOffense)
 FString UPSPlayCallSubsystem::BuildCallScreenBody(bool bOffense) const
 {
     const FString Tendencies = DescribeTendencies(bOffense);
-    FString SituationLine = DescribeSituation(Situation);
+    FText SituationLine = UPSLocalization::FromLocalized(DescribeSituation(Situation));
+    FText TempoLine;
 
     // The leverage moment, and the offense's tempo (Epic 76).
     if (const UPSSituationAI* Read = CoachingAI ? CoachingAI->GetSituationAI() : nullptr)
@@ -590,46 +639,66 @@ FString UPSPlayCallSubsystem::BuildCallScreenBody(bool bOffense) const
         const FString Moment = UPSSituationAI::DescribeSituation(Read->ClassifySituation(Situation));
         if (!Moment.IsEmpty())
         {
-            SituationLine += FString::Printf(TEXT(" \u00B7 %s"), *Moment);
+            // The situation AI's words are its own English for now (shown verbatim).
+            FFormatNamedArguments Arguments;
+            Arguments.Add(TEXT("Situation"), SituationLine);
+            Arguments.Add(TEXT("Moment"), UPSLocalization::Verbatim(Moment));
+            SituationLine = UPSLocalization::Format(TEXT("PlayCall.WithMoment"), Arguments);
         }
         const FPSTempoDef* TempoDef = bOffense ? Read->FindTempo(HumanTempo) : nullptr;
         if (TempoDef)
         {
-            SituationLine += FString::Printf(TEXT("\nTempo: %s"), *TempoDef->Label);
+            FFormatNamedArguments Arguments;
+            Arguments.Add(TEXT("Tempo"), UPSLocalization::Verbatim(TempoDef->Label));
+            TempoLine = UPSLocalization::Format(TEXT("PlayCall.Tempo"), Arguments);
         }
     }
+    TArray<FText> Lines = { SituationLine };
+    if (!TempoLine.IsEmpty())
+    {
+        Lines.Add(TempoLine);
+    }
 
-    // The team's scheme (Epic 89).
+    // The team's scheme (Epic 89); its label is the coaching data's own English for now.
     const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
     const FString& Scheme = bOffense ? Plan.OffenseTendency.Label : Plan.DefenseTendency.Label;
     if (!Scheme.IsEmpty())
     {
-        SituationLine += FString::Printf(TEXT("\nScheme: %s"), *Scheme);
+        FFormatNamedArguments SchemeArguments;
+        SchemeArguments.Add(TEXT("Scheme"), UPSLocalization::Verbatim(Scheme));
+        Lines.Add(UPSLocalization::Format(TEXT("PlayCall.Scheme"), SchemeArguments));
     }
-    return Tendencies.IsEmpty() ? SituationLine : FString::Printf(TEXT("%s\n%s"), *SituationLine, *Tendencies);
+    if (!Tendencies.IsEmpty())
+    {
+        Lines.Add(UPSLocalization::FromLocalized(Tendencies));
+    }
+    return UPSLocalization::JoinLines(Lines).ToString();
 }
 
 FString UPSPlayCallSubsystem::DescribeSituation(const FPSSituationContext& InSituation)
 {
     // YardLine counts from the offense's own goal line (0) to the opponent's (100).
+    FFormatNamedArguments Arguments;
     if (InSituation.bKickoff)
     {
-        return FString::Printf(TEXT("Kickoff from own %d"), InSituation.YardLine);
+        Arguments.Add(TEXT("Yard"), FText::AsNumber(InSituation.YardLine));
+        return UPSLocalization::Format(TEXT("PlayCall.Kickoff"), Arguments).ToString();
     }
-    FString Spot;
+    FText Spot;
     if (InSituation.YardLine == 50)
     {
-        Spot = TEXT("midfield");
-    }
-    else if (InSituation.YardLine < 50)
-    {
-        Spot = FString::Printf(TEXT("own %d"), InSituation.YardLine);
+        Spot = UPSLocalization::GetText(TEXT("PlayCall.Midfield"));
     }
     else
     {
-        Spot = FString::Printf(TEXT("opp %d"), 100 - InSituation.YardLine);
+        FFormatNamedArguments Yard;
+        Yard.Add(TEXT("Yard"), FText::AsNumber(InSituation.YardLine < 50 ? InSituation.YardLine : 100 - InSituation.YardLine));
+        Spot = InSituation.YardLine < 50 ? UPSLocalization::Format(TEXT("PlayCall.Own"), Yard) : UPSLocalization::Format(TEXT("PlayCall.Opp"), Yard);
     }
-    return FString::Printf(TEXT("%s & %d at %s"), PSPlayCallPrivate::DownOrdinal(InSituation.Down), InSituation.Distance, *Spot);
+    Arguments.Add(TEXT("Down"), PSPlayCallPrivate::DownOrdinal(InSituation.Down));
+    Arguments.Add(TEXT("Distance"), FText::AsNumber(InSituation.Distance));
+    Arguments.Add(TEXT("Spot"), Spot);
+    return UPSLocalization::Format(TEXT("PlayCall.Situation"), Arguments).ToString();
 }
 
 TArray<FName> UPSPlayCallSubsystem::GetRecentCalls(bool bOffense, int32 MaxCount) const
@@ -670,17 +739,22 @@ FString UPSPlayCallSubsystem::DescribeTendencies(bool bOffense) const
 
     // Most-called first, so the readout leads with what an opponent would key on.
     Order.StableSort([&Counts](const FString& A, const FString& B) { return Counts[A] > Counts[B]; });
-    TArray<FString> Parts;
+    TArray<FText> Parts;
     for (const FString& Category : Order)
     {
-        Parts.Add(FString::Printf(TEXT("%s %d%%"), *PSPlayCallPrivate::SplitCategory(Category), FMath::RoundToInt(100.f * Counts[Category] / Total)));
+        FFormatNamedArguments Share;
+        Share.Add(TEXT("Category"), PSPlayCallPrivate::CategoryName(Category));
+        Share.Add(TEXT("Percent"), UPSLocalization::FormatPercent(FMath::RoundToInt(100.f * Counts[Category] / Total) / 100.f));
+        Parts.Add(UPSLocalization::Format(TEXT("PlayCall.CategoryShare"), Share));
     }
-    return FString::Printf(TEXT("Your calls: %s"), *FString::Join(Parts, TEXT(" \u00B7 ")));
+    FFormatNamedArguments Arguments;
+    Arguments.Add(TEXT("Calls"), PSPlayCallPrivate::JoinParts(Parts));
+    return UPSLocalization::Format(TEXT("PlayCall.YourCalls"), Arguments).ToString();
 }
 
 FString UPSPlayCallSubsystem::DescribePlay(const FPSPlayDefinition& Play)
 {
-    TArray<FString> Parts;
+    TArray<FText> Parts;
     for (const FPSPlayAssignment& Assignment : Play.Assignments)
     {
         // The quarterback's dropback is implied; a named route says what everyone runs.
@@ -688,12 +762,15 @@ FString UPSPlayCallSubsystem::DescribePlay(const FPSPlayDefinition& Play)
         {
             continue;
         }
-        const FString What = (Assignment.Kind == EPSAssignmentKind::Route && !Assignment.RouteId.IsNone())
-            ? Assignment.RouteId.ToString()
-            : FString(PSPlayCallPrivate::KindLabel(Assignment.Kind));
-        Parts.Add(FString::Printf(TEXT("%s %s"), PSPlayCallPrivate::RoleAbbreviation(Assignment.Role), *What));
+        // Route names are the route library's own, not translated.
+        FFormatNamedArguments Arguments;
+        Arguments.Add(TEXT("Role"), PSPlayCallPrivate::RoleAbbreviation(Assignment.Role));
+        Arguments.Add(TEXT("What"), (Assignment.Kind == EPSAssignmentKind::Route && !Assignment.RouteId.IsNone())
+            ? UPSLocalization::Verbatim(Assignment.RouteId.ToString())
+            : PSPlayCallPrivate::KindLabel(Assignment.Kind));
+        Parts.Add(UPSLocalization::Format(TEXT("PlayCall.Assignment"), Arguments));
     }
-    return FString::Join(Parts, TEXT(" \u00B7 "));
+    return PSPlayCallPrivate::JoinParts(Parts).ToString();
 }
 
 FPSSituationContext UPSPlayCallSubsystem::MakeSituation(const FPlayState& State)

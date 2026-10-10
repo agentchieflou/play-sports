@@ -8,10 +8,10 @@
 //   2. Units and numbers: weights and heights in either unit system, the Units setting
 //      picking one, team select showing a roster's size in it, and numbers and dates
 //      following the culture.
-//   3. Pseudo-localization: with ps.Loc.Pseudo on, every menu screen (play calling aside;
-//      its text is still built in UPSPlayCallSubsystem), every narration, setting value,
-//      caption, HUD banner and loading tip shows no plain letter outside Verbatim's marks.
-//      A string that bypassed the tables would.
+//   3. Pseudo-localization: with ps.Loc.Pseudo on, every menu screen, every play-call
+//      screen's text (formations, plays, the suggestion, adjustments, the situation readout),
+//      every narration, setting value, caption, HUD banner and loading tip shows no plain
+//      letter outside Verbatim's marks. A string that bypassed the tables would.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -20,6 +20,7 @@
 #include "PSLoadingTips.h"
 #include "PSLocalization.h"
 #include "PSMenuComponent.h"
+#include "PSPlayCallSubsystem.h"
 #include "PSPlayerController.h"
 #include "PSSettingsSubsystem.h"
 #include "PSUIAccessibilitySubsystem.h"
@@ -318,13 +319,52 @@ bool FPSPseudoLocalizationTest::RunTest(const FString& Parameters)
         }
     };
 
-    // Every screen as presented, play calling aside.
+    // Play calling (Epic 102) on a first down, so its screens have a situation to show.
+    UPSPlayCallSubsystem* PlayCall = World->GetSubsystem<UPSPlayCallSubsystem>();
+    FPSSituationContext FirstAndTen;
+    FirstAndTen.Down = 1;
+    FirstAndTen.Distance = 10;
+    FirstAndTen.YardLine = 20;
+    if (TestNotNull(TEXT("Play-call subsystem"), PlayCall))
+    {
+        PlayCall->OpenPlayCall(FirstAndTen);
+    }
+
+    // Every screen as presented.
     for (const FPSMenuScreenDef& Authored : Menu->GetCatalog().Screens)
     {
-        if (!UPSMenuComponent::IsPlayCallContent(Authored.Content))
+        CheckScreen(Menu->GetPresentedScreen(Authored.ScreenId));
+    }
+
+    // Each formation's plays, both sides' readouts, the adjustments and every kind of spot.
+    if (PlayCall)
+    {
+        for (const bool bOffense : { true, false })
         {
-            CheckScreen(Menu->GetPresentedScreen(Authored.ScreenId));
+            Check(TEXT("call screen body"), PlayCall->BuildCallScreenBody(bOffense));
+            TArray<FPSMenuOptionDef> PlayCallOptions = PlayCall->BuildSuggestionOptions(bOffense);
+            PlayCallOptions.Append(PlayCall->BuildFormationOptions(bOffense, NAME_None));
+            for (const FString& Formation : PlayCall->GetFormations(bOffense))
+            {
+                PlayCallOptions.Append(PlayCall->BuildPlayOptions(Formation, bOffense));
+            }
+            PlayCallOptions.Append(PlayCall->BuildAdjustmentOptions());
+            for (const FPSMenuOptionDef& PlayCallOption : PlayCallOptions)
+            {
+                Check(PlayCallOption.OptionId.ToString(), PlayCallOption.Label);
+                Check(PlayCallOption.OptionId.ToString() + TEXT(" detail"), PlayCallOption.Detail);
+            }
         }
+        Check(TEXT("adjustment body"), PlayCall->BuildAdjustmentScreenBody());
+        for (const int32 YardLine : { 20, 50, 80 })
+        {
+            FPSSituationContext Spot = FirstAndTen;
+            Spot.YardLine = YardLine;
+            Check(TEXT("situation"), UPSPlayCallSubsystem::DescribeSituation(Spot));
+        }
+        FPSSituationContext Kickoff = FirstAndTen;
+        Kickoff.bKickoff = true;
+        Check(TEXT("kickoff"), UPSPlayCallSubsystem::DescribeSituation(Kickoff));
     }
 
     // Each settings category, the remap prompt, and what narration says on the way.

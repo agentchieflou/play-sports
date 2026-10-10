@@ -37,4 +37,8 @@ public:
     /** The player's own keys over the input catalog's (Epic 103.4). */
     UPROPERTY(BlueprintReadWrite, Category = "Profile")
     TArray<FPSInputRemap> InputRemaps;
+
+    /** The first-time hints the player has been shown (UPSUIHintSubsystem, Epic 105.4). */
+    UPROPERTY(BlueprintReadWrite, Category = "Profile")
+    TArray<FName> SeenHints;
 };

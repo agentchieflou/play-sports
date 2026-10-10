@@ -95,6 +95,19 @@ public:
     /** The remaps changed. */
     FPSInputRemapsChangedMC OnInputRemapsChangedMC;
 
+    /** The first-time hints this player has seen (Epic 105.4), kept in the profile so each is
+     *  shown once. UPSUIHintSubsystem reads and marks them. */
+    UFUNCTION(BlueprintPure, Category = "Settings")
+    bool HasSeenHint(FName HintId) const { return SeenHints.Contains(HintId); }
+
+    /** Records HintId as seen and saves the profile. */
+    UFUNCTION(BlueprintCallable, Category = "Settings")
+    void MarkHintSeen(FName HintId);
+
+    /** Forgets every seen hint, so they show again, and saves the profile. */
+    UFUNCTION(BlueprintCallable, Category = "Settings")
+    void ResetHints();
+
     /** Reads the player's values from the profile in Slot (keeping defaults for the rest). */
     bool LoadFromProfile(UPSSaveSubsystem* InSaves, const FString& InSlot);
 
@@ -142,6 +155,9 @@ private:
 
     UPROPERTY(Transient)
     TArray<FPSInputRemap> InputRemaps;
+
+    UPROPERTY(Transient)
+    TArray<FName> SeenHints;
 
     /** Where SetValue saves: the game's save subsystem and profile slot. */
     UPROPERTY(Transient)
