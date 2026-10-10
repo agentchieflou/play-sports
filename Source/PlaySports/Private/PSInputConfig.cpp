@@ -49,7 +49,15 @@ bool UPSInputConfig::LoadTuningFromJson(const FString& JsonFilePath)
     }
 
     Tuning = LoadedTuning;
+    AuthoredTuning = LoadedTuning;
     return true;
+}
+
+void UPSInputConfig::SetStickDeadZoneScale(float Scale)
+{
+    // Never so large that no deflection is left to read.
+    Tuning.StickDeadZoneLower = FMath::Clamp(AuthoredTuning.StickDeadZoneLower * FMath::Max(0.f, Scale), 0.f, Tuning.StickDeadZoneUpper - 0.05f);
+    BuildRuntimeObjects();
 }
 
 bool UPSInputConfig::LoadFromJson(const FString& JsonFilePath)
@@ -72,6 +80,8 @@ bool UPSInputConfig::LoadFromJson(const FString& JsonFilePath)
 
 void UPSInputConfig::BuildRuntimeObjects()
 {
+    // Keep the actions already handed out: input components bound them.
+    TMap<FName, UInputAction*> PreviousActions = MoveTemp(RuntimeActions);
     RuntimeActions.Reset();
     RuntimeContexts.Reset();
 
@@ -92,10 +102,14 @@ void UPSInputConfig::BuildRuntimeObjects()
         {
             continue;
         }
-        const FName ObjectName = MakeUniqueObjectName(this, UInputAction::StaticClass(),
-            *FString::Printf(TEXT("IA_%s"), *ActionDef.ActionId.ToString()));
-        UInputAction* Action = NewObject<UInputAction>(this, ObjectName, RF_Transient);
-        Action->ValueType = ActionDef.ValueType;
+        UInputAction* Action = PreviousActions.FindRef(ActionDef.ActionId);
+        if (!Action || Action->ValueType != ActionDef.ValueType)
+        {
+            const FName ObjectName = MakeUniqueObjectName(this, UInputAction::StaticClass(),
+                *FString::Printf(TEXT("IA_%s"), *ActionDef.ActionId.ToString()));
+            Action = NewObject<UInputAction>(this, ObjectName, RF_Transient);
+            Action->ValueType = ActionDef.ValueType;
+        }
         RuntimeActions.Add(ActionDef.ActionId, Action);
 
         for (const FName& ContextId : ActionDef.Contexts)

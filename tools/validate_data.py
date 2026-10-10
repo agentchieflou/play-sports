@@ -181,9 +181,10 @@ def validate_input_catalog(path, payload):
                     err(path, f"{where}: key '{key}' is already bound to '{owner}' in context '{cid}'")
 
 
-MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay", "ApplyAdjustment"}
+MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay", "ApplyAdjustment",
+                 "StepSetting", "ResetSettings"}
 MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays", "PlayCallRecent",
-                 "PlayCallFavorites", "PlayCallAdjustments"}
+                 "PlayCallFavorites", "PlayCallAdjustments", "Settings", "SettingsCategory"}
 TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -223,6 +224,9 @@ def validate_menu_catalog(path, payload):
             err(path, f"PlayCallScreen '{play_call}' must have Content PlayCallFormations")
         if not any(screen.get("Content") == "PlayCallPlays" for screen in by_id.values()):
             err(path, "a PlayCallScreen needs a screen with Content PlayCallPlays to list a formation's plays")
+    contents = {screen.get("Content") for screen in by_id.values()}
+    if "Settings" in contents and "SettingsCategory" not in contents:
+        err(path, "a Settings screen needs a screen with Content SettingsCategory to list a category's settings")
     if payload.get("TransitionSeconds", 0) < 0:
         err(path, "TransitionSeconds must not be negative")
     for sid, screen in by_id.items():
@@ -912,6 +916,67 @@ def validate_presnap_tuning(path, payload, catalog, route_ids):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPreSnapTuningRow exactly")
 
 
+SETTING_KINDS = {"Toggle", "Choice", "Slider"}
+
+
+def validate_settings_catalog(path, payload):
+    """FPSSettingsCatalog (Data/ui_settings.json, Epic 103); mirrors
+    UPSSettingsSubsystem::ValidateCatalog."""
+    categories = payload.get("Categories")
+    settings = payload.get("Settings")
+    if not isinstance(categories, list) or not isinstance(settings, list):
+        err(path, "'Categories' and 'Settings' must be arrays")
+        return
+    category_ids = set()
+    for idx, row in enumerate(categories):
+        cid = row.get("CategoryId") if isinstance(row, dict) else None
+        if not isinstance(cid, str) or not cid or cid in category_ids:
+            err(path, f"Categories[{idx}].CategoryId: empty or used twice")
+        category_ids.add(cid)
+        if isinstance(row, dict) and not isinstance(row.get("Label"), str):
+            err(path, f"Categories[{idx}].Label: must be text")
+    setting_ids = set()
+    allowed = {"SettingId", "Category", "Label", "Kind", "Choices", "Values", "Min", "Max", "Step", "Unit", "Default", "Description"}
+    for idx, row in enumerate(settings):
+        where = f"Settings[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        sid = row.get("SettingId")
+        if not isinstance(sid, str) or not sid or sid in setting_ids:
+            err(path, f"{where}.SettingId: empty or used twice")
+        setting_ids.add(sid)
+        if row.get("Category") not in category_ids:
+            err(path, f"{where}.Category: '{row.get('Category')}' is not a category")
+        kind = row.get("Kind", "Toggle")
+        default = row.get("Default", 0)
+        extra = set(row) - allowed
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+        if kind not in SETTING_KINDS:
+            err(path, f"{where}.Kind: '{kind}' is not one of {sorted(SETTING_KINDS)}")
+        elif not is_number(default):
+            err(path, f"{where}.Default: must be a number")
+        elif kind == "Toggle" and default not in (0, 1):
+            err(path, f"{where}.Default: a toggle's default is 0 or 1")
+        elif kind == "Choice":
+            choices = row.get("Choices", [])
+            values = row.get("Values", [])
+            if not isinstance(choices, list) or len(choices) < 2:
+                err(path, f"{where}.Choices: a choice needs at least two")
+                choices = []
+            if values and (not isinstance(values, list) or len(values) != len(choices) or not all(is_number(v) for v in values)):
+                err(path, f"{where}.Values: empty, or one number per choice")
+            if default != int(default) or not 0 <= default < max(len(choices), 1):
+                err(path, f"{where}.Default: the index of one of its Choices")
+        elif kind == "Slider":
+            low, high, step = row.get("Min", 0), row.get("Max", 1), row.get("Step", 1)
+            if not all(is_number(v) for v in (low, high, step)) or step <= 0 or high <= low:
+                err(path, f"{where}: a slider needs Min below Max and a positive Step")
+            elif not low <= default <= high:
+                err(path, f"{where}.Default: outside Min..Max")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -976,6 +1041,8 @@ def main():
             validate_kick_meter(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "RushMoves" in payload:
             validate_rush_moves(path, payload)
+        if isinstance(payload, dict) and "Settings" in payload and "Categories" in payload:
+            validate_settings_catalog(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

@@ -20,6 +20,7 @@
 #include "PSRushMoveComponent.h"
 #include "PSDefenderTechniqueComponent.h"
 #include "PSKickMeterComponent.h"
+#include "PSSettingsTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSDataIngestion.generated.h"
 
@@ -119,6 +120,10 @@ public:
     /** Loads the kick meter (Data/kick_meter.json, Epic 104.5). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadKickMeterTuningFromJson(const FString& JsonFilePath, FKickMeterTuningRow& OutTuning);
+
+    /** Loads the settings catalog (Data/ui_settings.json, Epic 103). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSettingsCatalogFromJson(const FString& JsonFilePath, FPSSettingsCatalog& OutCatalog);
 
     /** Loads the pass-rush move library (Data/pass_rush_moves.json, Epic 70). False on a
      *  missing file or malformed JSON. */

@@ -21,6 +21,7 @@ class UPSPreSnapInputComponent;
 class UPSInputBufferComponent;
 class UPSDefenseInputComponent;
 class UPSKickMeterComponent;
+class UPSSettingsComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -113,6 +114,15 @@ public:
     /** The human kicker's meter (Epic 104.5). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSKickMeterComponent* GetKickMeterComponent() const { return KickMeterComponent; }
+
+    /** Applies the player's settings to this controller's input and rumble (Epic 103). */
+    UFUNCTION(BlueprintPure, Category = "Settings")
+    UPSSettingsComponent* GetSettingsComponent() const { return SettingsComponent; }
+
+    /** Re-applies the context stack to the local player's Enhanced Input subsystem after the
+     *  input config rebuilt its mapping contexts (a settings change or a remap). */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    void RefreshInputMappings();
 
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -258,6 +268,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSKickMeterComponent* KickMeterComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Settings")
+    UPSSettingsComponent* SettingsComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

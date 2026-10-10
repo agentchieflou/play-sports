@@ -184,6 +184,11 @@ public:
     /** Where key state comes from. Unbound, the owning controller's player input. */
     FPSInputKeyStateQuery KeyStateQuery;
 
+    /** The player's Input buffering setting (Epic 103). Off, every press passes straight
+     *  through, busy or not, and nothing is carried into a new context. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    bool bBufferingEnabled = true;
+
 protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

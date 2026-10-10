@@ -39,6 +39,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `defensive_techniques.json` | `FDefensiveTechniqueTuningRow` (single object) | `UPSDataIngestion::LoadDefensiveTechniquesFromJson`, via `UPSDefenderTechniqueComponent` |
 | `kick_meter.json` | `FKickMeterTuningRow` (single object) | `UPSDataIngestion::LoadKickMeterTuningFromJson`, via `UPSKickMeterComponent` |
+| `ui_settings.json` | `FPSSettingsCatalog` (single object: `Categories`, `Settings`) | `UPSDataIngestion::LoadSettingsCatalogFromJson`, via `UPSSettingsSubsystem` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
@@ -359,3 +360,20 @@ Single object (Epic 66; the offense's audibles, hot routes, motion and protectio
   catalog's `PreSnap` context.
 
 `tools/validate_data.py` checks it, including the routes and the actions.
+
+## Settings schema (`FPSSettingsCatalog`)
+
+Single object (Epic 103; the settings menu, `Specs/Front_End_Shell.md`):
+- `Categories[]`: `CategoryId` (unique) and `Label`. Each is one screen in the settings menu.
+- `Settings[]`, each with:
+  - `SettingId` (unique), `Category` (one of the categories), `Label` and `Description`;
+  - `Kind`: `Toggle` (value 0 or 1), `Choice` (value is the index into `Choices`, at least two)
+    or `Slider` (`Min` < `Max`, a positive `Step`, an optional `Unit` shown after the value);
+  - `Values` (choices only, optional): the number each choice stands for, one per choice. A
+    frame-rate cap's 60, a dead-zone scale's 1.5.
+  - `Default`: the value before the player changes it.
+
+The player's values live in the profile save, by `SettingId`. A setting removed from this file
+is dropped from the profile on load; a stored value outside today's range is snapped into it.
+Code refers to settings by ID (`UPSSettingsSubsystem` and `UPSSettingsComponent` name the
+ones they apply). `UPSSettingsSubsystem::ValidateCatalog` and `tools/validate_data.py` check it.

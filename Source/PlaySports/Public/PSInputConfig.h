@@ -49,9 +49,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Input")
     bool LoadFromJson(const FString& JsonFilePath);
 
-    /** (Re)creates the UInputAction / UInputMappingContext objects from Catalog. Every
-     *  gamepad stick binding gets a radial dead zone and a response curve from Tuning. Keys
-     *  that are not valid engine keys are skipped here and reported by Validate(). */
+    /** (Re)creates the UInputMappingContext objects from Catalog, and a UInputAction for each
+     *  action that has none yet (existing actions are kept, so bindings made on them survive a
+     *  rebuild). Every gamepad stick binding gets a radial dead zone and a response curve from
+     *  Tuning. Keys that are not valid engine keys are skipped here and reported by Validate().
+     *  A controller that already applied contexts re-applies them after a rebuild
+     *  (APSPlayerController::RefreshInputMappings). */
     UFUNCTION(BlueprintCallable, Category = "Input")
     void BuildRuntimeObjects();
 
@@ -98,7 +101,16 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     FInputTuningRow Tuning;
 
+    /** Scales the stick dead zone from the authored tuning (the player's setting, Epic 103: 1 is
+     *  as tuned) and rebuilds the runtime objects. */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    void SetStickDeadZoneScale(float Scale);
+
 private:
+    /** Tuning as loaded from Data/input_tuning.json, before the player's settings. */
+    UPROPERTY(Transient)
+    FInputTuningRow AuthoredTuning;
+
     UPROPERTY(Transient)
     UPSInputGlyphs* Glyphs;
 

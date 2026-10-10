@@ -1,4 +1,4 @@
-// PSProfileSaveGame.h - Epic 102: the player's profile save (favourite plays so far)
+// PSProfileSaveGame.h - Epic 102/103: the player's profile save (favourite plays, settings)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,9 +7,8 @@
 
 /**
  * UPSProfileSaveGame is the player's own data across games, saved through UPSSaveSubsystem
- * in the Profile category. It starts with favourite plays (Epic 102.3); Epic 103's settings
- * are the obvious next tenant. Load the existing object, change your field and save it back,
- * so one feature never clobbers another's.
+ * in the Profile category: favourite plays (Epic 102.3) and settings (Epic 103). Load the
+ * existing object, change your field and save it back, so one feature never clobbers another's.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API UPSProfileSaveGame : public UPSSaveGame
@@ -28,4 +27,9 @@ public:
     /** Plays the player starred on the play-call screens. */
     UPROPERTY(BlueprintReadWrite, Category = "Profile")
     TArray<FName> FavoritePlays;
+
+    /** The player's settings by ID (UPSSettingsSubsystem, Epic 103); a setting missing here is
+     *  at its default. */
+    UPROPERTY(BlueprintReadWrite, Category = "Profile")
+    TMap<FName, float> Settings;
 };

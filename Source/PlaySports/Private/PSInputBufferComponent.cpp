@@ -198,7 +198,7 @@ void UPSInputBufferComponent::PressActionAt(FName ActionId, float PressedAt)
     FPSBufferedPress& Press = Held.Add(ActionId);
     Press.PressedAt = PressedAt;
 
-    if (!FindDef(ActionId) || !IsBusy(ActionId))
+    if (!bBufferingEnabled || !FindDef(ActionId) || !IsBusy(ActionId))
     {
         Deliver(ActionId);
         return;
@@ -302,7 +302,7 @@ void UPSInputBufferComponent::CarryEarlyPresses()
 {
     APSPlayerController* Controller = GetPlayerController();
     const UPSInputConfig* Config = Controller ? Controller->GetInputConfig() : nullptr;
-    if (!Config)
+    if (!Config || !bBufferingEnabled)
     {
         EnteredContexts.Reset();
         return;

@@ -54,7 +54,7 @@ never direct sim/GameMode reads.
 **Goal:** The game is configurable and playable by more people — visual, audio, input, and difficulty accessibility.
 **Depends on:** 101
 
-- [ ] Settings framework (persisted user config; video/audio/gameplay/controls categories)
+- [x] Settings framework (persisted user config; video/audio/gameplay/controls categories) *(`Data/ui_settings.json` declares Video, Audio, Gameplay, Controls and Accessibility settings (toggles, choices, sliders). `UPSSettingsSubsystem` (game instance) keeps the values, saves them in `UPSProfileSaveGame::Settings` as they change, and applies video (outside the editor) and the master volume to the engine. `UPSSettingsComponent` on the player controller applies vibration, its strength, the stick dead zone (a scale on the tuned value) and input buffering. The `Settings` menu lists the categories; a category lists its settings with their values, and choosing one steps it. Other volumes wait on sound classes)*
 - [ ] Colorblind-safe modes flowing through team-color resolution (37) and overlay palettes
 - [ ] Subtitle/caption system for commentary (96) and UI narration hooks
 - [ ] Input remapping surface (consumes 104's action mapping)

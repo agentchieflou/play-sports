@@ -276,9 +276,17 @@ outcomes are published, and Hit (every landed tackle), Catch, Interception and F
   - Run `UPSInputConfig::Validate()` before accepting a remap, so a player can't unbind an
     action from a device or bind one key twice.
   - Glyphs follow on their own.
-- **Vibration** is `UPSForceFeedbackComponent::bEnabled`. Use the engine's per-controller
-  `ForceFeedbackScale` for a strength slider rather than editing the authored patterns.
-- **Stick dead zone and curve sliders** set `FInputTuningRow` and rebuild.
+- **Vibration** (as built, Epic 103.1) is the `Vibration` setting, applied by
+  `UPSSettingsComponent` to `UPSForceFeedbackComponent::bEnabled`. `VibrationStrength` sets the
+  controller's `ForceFeedbackScale`; the authored patterns stay as they are.
+- **Stick dead zone** (as built). The `StickDeadZone` setting is a scale on the tuned value
+  (Small 0.5, Standard 1, Large 1.5), so `Data/input_tuning.json` stays the authority on the
+  number itself. `UPSInputConfig::SetStickDeadZoneScale` rebuilds the mapping contexts.
+  `BuildRuntimeObjects` now keeps the `UInputAction` objects it already made, so the
+  controller's bindings survive a rebuild, and `APSPlayerController::RefreshInputMappings`
+  re-applies the context stack to the Enhanced Input subsystem.
+- **Input buffering** (the Gameplay category) switches `UPSInputBufferComponent` to pass
+  everything straight through when off.
 
 ### Epic 107: two players on one machine
 
