@@ -1,0 +1,9 @@
+{
+    "bLogDecisions": false,
+    "bWritePostMortems": false,
+    "PostMortemDirectory": "AIPostMortems",
+    "MaxPostMortemFiles": 50,
+    "MaxRecordsPerPlay": 5000,
+    "OverlayHeightCm": 160.0,
+    "OverlayFontScale": 1.0
+}

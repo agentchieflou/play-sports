@@ -1,4 +1,5 @@
 #include "PSDefenderAIComponent.h"
+#include "PSAIDecisionLog.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSDefenseController.h"
@@ -410,6 +411,9 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
     }
     const FDefenderAITuningRow& Settings = GetTuning();
     TimeSinceSnap += DeltaSeconds;
+    // The decision log (Epic 85) hears what he decides and why, while it listens.
+    UPSAIDecisionLog* DecisionLog = UPSAIDecisionLog::Get(GetWorld());
+    const bool bLogging = DecisionLog && DecisionLog->IsLogging();
 
     if (bSnapPending)
     {
@@ -463,6 +467,10 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
     // One who bit on a pump fake stands still until it wears off.
     if (IsFrozen())
     {
+        if (bLogging)
+        {
+            RecordDecision(DecisionLog, Self, Carrier, TEXT("Frozen: he bit on a fake"));
+        }
         return;
     }
 
@@ -479,6 +487,11 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
                 DesiredDirection = FVector(0.f, FMath::Sign(Across), 0.f);
                 Self->AddMovementInput(DesiredDirection, FMath::Min(1.f, FMath::Abs(Across) / FMath::Max(1.f, Settings.ArrivalRadius)));
             }
+        }
+        if (bLogging)
+        {
+            RecordDecision(DecisionLog, Self, Carrier, Action == EPSDefenderAction::Fit ? TEXT("Engaged: working across the blocker to his gap")
+                : TEXT("Engaged with a blocker"));
         }
         return;
     }
@@ -520,6 +533,74 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
         Self->AddMovementInput(Direction, 1.f);
     }
     DesiredDirection = Direction;
+    if (bLogging)
+    {
+        RecordDecision(DecisionLog, Self, Carrier, FString());
+    }
+}
+
+void UPSDefenderAIComponent::RecordDecision(UPSAIDecisionLog* DecisionLog, const APSPlayerPawn* Self, const APSPlayerPawn* Carrier, const FString& Reason)
+{
+    FPSAIDecisionRecord Entry;
+    Entry.AgentId = Self->GetAttributes().PlayerId;
+    Entry.System = TEXT("DefenderAI");
+    Entry.TimeSinceSnap = TimeSinceSnap;
+    Entry.Direction = DesiredDirection;
+    const APSDefenseController* Controller = GetDefenseController();
+    if (Controller)
+    {
+        Entry.Assignment = StaticEnum<EPSDefensiveAssignmentType>()->GetNameStringByValue(static_cast<int64>(Controller->GetAssignment()));
+    }
+    Entry.Action = StaticEnum<EPSDefenderAction>()->GetNameStringByValue(static_cast<int64>(Action));
+
+    const APSPlayerPawn* Target = nullptr;
+    const TCHAR* Usual = TEXT("Out of the play");
+    switch (Action)
+    {
+    case EPSDefenderAction::Rush:
+        Target = FindOpponent(EPlayerRole::Quarterback);
+        Usual = TEXT("After the passer");
+        break;
+    case EPSDefenderAction::Contain:
+        Target = FindOpponent(EPlayerRole::Quarterback);
+        Usual = TEXT("Keeping the passer inside");
+        break;
+    case EPSDefenderAction::Cover:
+        Target = CoveredReceiver.Get();
+        Usual = TEXT("Covering his man");
+        break;
+    case EPSDefenderAction::Zone:
+        Entry.TargetLocation = ZoneSpot;
+        Usual = TEXT("Holding his zone");
+        break;
+    case EPSDefenderAction::Read:
+        Usual = TEXT("Reading run or pass");
+        break;
+    case EPSDefenderAction::Pursue:
+        Target = Carrier;
+        Usual = TEXT("Chasing the ball carrier");
+        break;
+    case EPSDefenderAction::Fit:
+        Target = Carrier;
+        Usual = TEXT("Filling his gap against the run");
+        break;
+    case EPSDefenderAction::BallHawk:
+        Entry.TargetLocation = LandingSpot;
+        Usual = TEXT("Breaking on the throw");
+        break;
+    case EPSDefenderAction::Return:
+        Usual = TEXT("Returning the takeaway");
+        break;
+    default:
+        break;
+    }
+    if (Target)
+    {
+        Entry.Target = Target->GetAttributes().DisplayName;
+        Entry.TargetLocation = Target->GetActorLocation();
+    }
+    Entry.Reason = Reason.IsEmpty() ? FString(Usual) : Reason;
+    DecisionLog->Record(Entry);
 }
 
 FVector UPSDefenderAIComponent::SteerToward(const APSPlayerPawn* Self, const FVector& Target) const

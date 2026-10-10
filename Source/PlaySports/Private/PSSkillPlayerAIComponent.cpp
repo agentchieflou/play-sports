@@ -1,4 +1,5 @@
 #include "PSSkillPlayerAIComponent.h"
+#include "PSAIDecisionLog.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSBall.h"
 #include "PSBallActionComponent.h"
@@ -22,6 +23,16 @@ namespace PSSkillPlayerAIPrivate
         FVector Direction = To - From;
         Direction.Z = 0.f;
         return Direction.GetSafeNormal();
+    }
+
+    /** A receiver the QB read, for the decision log. */
+    FPSAIDecisionOption ReadOption(const APSPlayerPawn* Receiver, float Separation, const TCHAR* Note)
+    {
+        FPSAIDecisionOption Read;
+        Read.Option = Receiver->GetAttributes().DisplayName;
+        Read.Score = Separation;
+        Read.Note = Note;
+        return Read;
     }
 }
 
@@ -235,6 +246,14 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
         return;
     }
 
+    // The decision log (Epic 85) hears what he decides and why, while it listens.
+    UPSAIDecisionLog* DecisionLog = UPSAIDecisionLog::Get(GetWorld());
+    bLoggingDecision = DecisionLog && DecisionLog->IsLogging();
+    if (bLoggingDecision)
+    {
+        PendingDecision = FPSAIDecisionRecord();
+    }
+
     if (bSnapPending)
     {
         StartOpeningAction(Self);
@@ -328,6 +347,82 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
         Self->AddMovementInput(Direction, 1.f);
     }
     DesiredDirection = Direction;
+    if (bLoggingDecision)
+    {
+        RecordDecision(Self, DecisionLog);
+    }
+}
+
+void UPSSkillPlayerAIComponent::NoteDecision(const FString& InAction, const FString& InReason, const APSPlayerPawn* InTarget)
+{
+    if (!InAction.IsEmpty())
+    {
+        PendingDecision.Action = InAction;
+    }
+    PendingDecision.Reason = InReason;
+    if (InTarget)
+    {
+        PendingDecision.Target = InTarget->GetAttributes().DisplayName;
+        PendingDecision.TargetLocation = InTarget->GetActorLocation();
+    }
+}
+
+void UPSSkillPlayerAIComponent::RecordDecision(const APSPlayerPawn* Self, UPSAIDecisionLog* DecisionLog)
+{
+    const FPlayerAttributes Attributes = Self->GetAttributes();
+    const APSOffenseController* Controller = GetOffenseController();
+    const bool bHasRoute = Controller && Controller->GetRouteWaypointCount() > 0;
+    FPSAIDecisionRecord& Entry = PendingDecision;
+    Entry.AgentId = Attributes.PlayerId;
+    Entry.System = TEXT("SkillAI");
+    Entry.TimeSinceSnap = TimeSinceSnap;
+    Entry.Assignment = bRunPlay ? TEXT("Run") : (bHasRoute ? TEXT("Route") : (Attributes.Role == EPlayerRole::Quarterback ? TEXT("Pass") : TEXT("Block")));
+    Entry.Direction = DesiredDirection;
+    if (Entry.Action.IsEmpty())
+    {
+        Entry.Action = StaticEnum<EPSSkillPlayerAction>()->GetNameStringByValue(static_cast<int64>(Action));
+    }
+    if (Entry.Reason.IsEmpty())
+    {
+        switch (Action)
+        {
+        case EPSSkillPlayerAction::RunRoute:
+            Entry.Reason = TEXT("Running his route");
+            Entry.TargetLocation = bHasRoute ? Controller->GetCurrentTargetLocation() : FVector::ZeroVector;
+            break;
+        case EPSSkillPlayerAction::ReadDefense:
+            Entry.Reason = TEXT("Reading the defense");
+            break;
+        case EPSSkillPlayerAction::WaitHandoff:
+            Entry.Reason = TEXT("Waiting for the hand-off");
+            break;
+        case EPSSkillPlayerAction::CarryBall:
+        {
+            float Distance = TNumericLimits<float>::Max();
+            const APSPlayerPawn* Defender = PSFieldReads::NearestOpponent(GetFieldPawns(), Self->TeamSide, Self->GetActorLocation(), &Distance);
+            if (Defender && Distance < Tuning.CarrierAvoidRadius)
+            {
+                NoteDecision(FString(), FString::Printf(TEXT("Carrying: away from %s at %.0f cm"), *Defender->GetAttributes().DisplayName, Distance), Defender);
+            }
+            else
+            {
+                Entry.Reason = TEXT("Carrying upfield");
+            }
+            break;
+        }
+        case EPSSkillPlayerAction::TrackBall:
+            Entry.Reason = TEXT("Converging on the throw");
+            Entry.TargetLocation = TrackTarget;
+            break;
+        case EPSSkillPlayerAction::Block:
+            Entry.Reason = TEXT("Blocking for the passer");
+            break;
+        default:
+            Entry.Reason = TEXT("Out of the play");
+            break;
+        }
+    }
+    DecisionLog->Record(Entry);
 }
 
 void UPSSkillPlayerAIComponent::StartOpeningAction(const APSPlayerPawn* Self)
@@ -401,11 +496,20 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
         if (RunningBack && FVector::Dist2D(Self->GetActorLocation(), RunningBack->GetActorLocation()) <= Settings.HandoffRadius && Self->ExecuteHandoff(RunningBack))
         {
             Action = EPSSkillPlayerAction::Idle;
+            if (bLoggingDecision)
+            {
+                NoteDecision(TEXT("HandOff"), TEXT("Run play: hands off"), RunningBack);
+            }
             return;
         }
         // Meet the back (RunRoute steers to him) until the hand-off or the timeout, then keep
         // it and run.
         Action = (RunningBack && TimeSinceSnap < Settings.HandoffTimeoutSeconds) ? EPSSkillPlayerAction::RunRoute : EPSSkillPlayerAction::CarryBall;
+        if (bLoggingDecision)
+        {
+            NoteDecision(FString(), Action == EPSSkillPlayerAction::RunRoute ? TEXT("Run play: meeting the back for the hand-off")
+                : TEXT("Run play: no hand-off in time, he keeps it"), RunningBack);
+        }
         return;
     }
 
@@ -416,6 +520,10 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
     if (Pocket && Pocket->ResolveImminentSack(Self, Pawns, LineOfScrimmage))
     {
         Action = EPSSkillPlayerAction::Idle;
+        if (bLoggingDecision)
+        {
+            NoteDecision(TEXT("BallOut"), TEXT("A sack about to land: the ball is out (thrown away or stripped)"));
+        }
         return;
     }
     const FPSPocketRead PocketRead = Pocket ? Pocket->ReadPocket(Self, Pawns, LineOfScrimmage) : FPSPocketRead();
@@ -425,6 +533,10 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
     const bool bPressured = PressureDistance <= Settings.PressureRadius || PocketRead.bCollapsed;
     if (TimeSinceSnap < Settings.MinReadSeconds && !bPressured)
     {
+        if (bLoggingDecision)
+        {
+            NoteDecision(FString(), FString::Printf(TEXT("Reading: %.1f s into the play, his read comes at %.1f s"), TimeSinceSnap, Settings.MinReadSeconds));
+        }
         return;
     }
 
@@ -433,25 +545,46 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
     APSPlayerPawn* Receiver = ChooseReceiver(bOpen, Separation);
     if (Receiver && bOpen)
     {
+        if (bLoggingDecision)
+        {
+            NoteDecision(TEXT("Throw"), FString::Printf(TEXT("Open: %s at %.0f cm (needs %.0f)"), *Receiver->GetAttributes().DisplayName, Separation, LastOpenThreshold), Receiver);
+        }
         ThrowTo(Self, Receiver);
     }
     else if (bPressured || TimeSinceSnap >= Settings.MaxReadSeconds)
     {
         // Out of time: whoever is most open, whatever his route's timing.
+        const TCHAR* Why = bPressured ? TEXT("Pressured") : TEXT("Out of time");
         Receiver = ChooseReceiver(bOpen, Separation, true);
         if (Receiver && Separation >= Settings.PressuredThrowSeparation)
         {
+            if (bLoggingDecision)
+            {
+                NoteDecision(TEXT("Throw"), FString::Printf(TEXT("%s: the most open man, %s at %.0f cm (needs %.0f)"), Why,
+                    *Receiver->GetAttributes().DisplayName, Separation, Settings.PressuredThrowSeparation), Receiver);
+            }
             ThrowTo(Self, Receiver);
         }
         else
         {
             // Out of the pocket: the escape sends the receivers into the scramble drill.
             Action = EPSSkillPlayerAction::CarryBall;
+            if (bLoggingDecision)
+            {
+                NoteDecision(TEXT("Scramble"), FString::Printf(TEXT("%s and nobody open enough (best %.0f cm, needs %.0f)"), Why,
+                    Receiver ? Separation : 0.f, Settings.PressuredThrowSeparation));
+            }
             if (Pocket)
             {
                 Pocket->BeginScramble(Self, PocketRead, TimeSinceSnap);
             }
         }
+    }
+    else if (bLoggingDecision)
+    {
+        NoteDecision(FString(), Receiver
+            ? FString::Printf(TEXT("Reading: nobody open yet (best %s at %.0f cm, needs %.0f)"), *Receiver->GetAttributes().DisplayName, Separation, LastOpenThreshold)
+            : FString(TEXT("Reading: nobody to read yet")));
     }
 }
 
@@ -469,6 +602,10 @@ void UPSSkillPlayerAIComponent::TickScrambler(APSPlayerPawn* Self)
         if (Pocket->ResolveImminentSack(Self, Pawns, LineOfScrimmage))
         {
             Action = EPSSkillPlayerAction::Idle;
+            if (bLoggingDecision)
+            {
+                NoteDecision(TEXT("BallOut"), TEXT("A sack about to land on the run: the ball is out"));
+            }
             return;
         }
         if (Pocket->CanThrowOnTheRun(TimeSinceSnap))
@@ -478,13 +615,20 @@ void UPSSkillPlayerAIComponent::TickScrambler(APSPlayerPawn* Self)
             APSPlayerPawn* Receiver = ChooseReceiver(bOpen, Separation, true);
             if (Receiver && bOpen)
             {
+                if (bLoggingDecision)
+                {
+                    NoteDecision(TEXT("Throw"), FString::Printf(TEXT("On the run: %s open at %.0f cm"), *Receiver->GetAttributes().DisplayName, Separation), Receiver);
+                }
                 ThrowTo(Self, Receiver);
             }
         }
         return;
     }
     // Past it he is a runner, and protects himself.
-    Pocket->MaybeSlide(Self, Pawns, LineOfScrimmage);
+    if (Pocket->MaybeSlide(Self, Pawns, LineOfScrimmage) && bLoggingDecision)
+    {
+        NoteDecision(TEXT("Slide"), TEXT("Past the line: slides ahead of the tackler"));
+    }
 }
 
 APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& OutSeparation, bool bWholeField)
@@ -530,6 +674,7 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& 
         Runners.Add(Runner);
     }
     const bool bLate = bWholeField || TimeSinceSnap > LastWindowCloses;
+    TArray<FPSAIDecisionOption> ReadOptions;
     const float Anticipation = Settings.MaxAnticipationSeconds * Awareness / 100.f;
 
     APSPlayerPawn* Best = nullptr;
@@ -542,6 +687,10 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& 
         const bool bBlown = Separation >= Settings.BlownCoverageSeparation;
         if (Runner && !bLate && !bBlown && (TimeSinceSnap < Runner->GetReadTime() - Anticipation || TimeSinceSnap > Runner->GetReadTime() + Settings.ReadWindowSeconds))
         {
+            if (bLoggingDecision)
+            {
+                ReadOptions.Add(PSSkillPlayerAIPrivate::ReadOption(Candidate, Separation, TEXT("not his read now")));
+            }
             continue;
         }
         if (Runner && Runner->HasBreak() && !Runner->HasBroken())
@@ -550,15 +699,24 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& 
             const APSPlayerPawn* Defender = PSFieldReads::NearestOpponent(Pawns, Candidate->TeamSide, Candidate->GetActorLocation());
             Separation += PSRouteRunning::BreakSeparationGain(Candidate->GetAttributes().Agility, Defender ? Defender->GetAttributes().Agility : 0.f, Runner->GetTuning());
         }
+        if (bLoggingDecision)
+        {
+            ReadOptions.Add(PSSkillPlayerAIPrivate::ReadOption(Candidate, Separation, bBlown ? TEXT("coverage blown") : TEXT("")));
+        }
         if (!Best || Separation > OutSeparation)
         {
             Best = Candidate;
             OutSeparation = Separation;
         }
     }
+    if (bLoggingDecision)
+    {
+        PendingDecision.Options = MoveTemp(ReadOptions);
+    }
 
     // A less aware QB needs a receiver more open before he sees it (Awareness 0-100).
     const float Required = Settings.OpenSeparation + Settings.AwarenessMisreadSeparation * (1.f - Awareness / 100.f);
+    LastOpenThreshold = Required;
     bOutOpen = Best && OutSeparation >= Required;
     return Best;
 }
@@ -577,6 +735,13 @@ void UPSSkillPlayerAIComponent::ThrowTo(APSPlayerPawn* Self, APSPlayerPawn* Rece
     if (Self->ThrowPass(Ball, Lead, false, Receiver))
     {
         Action = EPSSkillPlayerAction::Idle;
+        if (bLoggingDecision)
+        {
+            for (FPSAIDecisionOption& Read : PendingDecision.Options)
+            {
+                Read.bChosen = Read.Option == Receiver->GetAttributes().DisplayName;
+            }
+        }
     }
 }
 
