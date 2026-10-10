@@ -11,7 +11,11 @@
       "Strength": 78.1,
       "Acceleration": 86.0,
       "Awareness": 90.5,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "Mobility": -0.32,
+        "Gunslinger": 0.31
+      }
     },
     {
       "PlayerId": "RB_001",
@@ -24,7 +28,10 @@
       "Strength": 80.5,
       "Acceleration": 95.0,
       "Awareness": 84.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RunPower": -0.25
+      }
     },
     {
       "PlayerId": "WR_001",
@@ -37,7 +44,10 @@
       "Strength": 70.0,
       "Acceleration": 94.5,
       "Awareness": 87.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RouteStyle": -0.14
+      }
     },
     {
       "PlayerId": "WR_002",
@@ -50,7 +60,10 @@
       "Strength": 68.0,
       "Acceleration": 92.0,
       "Awareness": 89.5,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RouteStyle": -0.23
+      }
     },
     {
       "PlayerId": "WR_003",
@@ -63,7 +76,10 @@
       "Strength": 74.0,
       "Acceleration": 93.0,
       "Awareness": 82.5,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RouteStyle": 0.7
+      }
     },
     {
       "PlayerId": "TE_001",
@@ -76,7 +92,10 @@
       "Strength": 84.5,
       "Acceleration": 88.0,
       "Awareness": 86.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RouteStyle": -0.03
+      }
     },
     {
       "PlayerId": "OL_001",
@@ -154,7 +173,10 @@
       "Strength": 91.0,
       "Acceleration": 82.0,
       "Awareness": 80.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": -0.41
+      }
     },
     {
       "PlayerId": "DL_002",
@@ -167,7 +189,10 @@
       "Strength": 95.0,
       "Acceleration": 70.0,
       "Awareness": 83.5,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": 0.98
+      }
     },
     {
       "PlayerId": "DL_003",
@@ -180,7 +205,10 @@
       "Strength": 93.8,
       "Acceleration": 72.5,
       "Awareness": 79.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": 0.25
+      }
     },
     {
       "PlayerId": "DL_004",
@@ -193,7 +221,10 @@
       "Strength": 88.5,
       "Acceleration": 85.0,
       "Awareness": 81.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": -0.17
+      }
     },
     {
       "PlayerId": "LB_001",
@@ -206,7 +237,11 @@
       "Strength": 85.0,
       "Acceleration": 89.0,
       "Awareness": 88.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": 0.12,
+        "BallHawk": 0.08
+      }
     },
     {
       "PlayerId": "LB_002",
@@ -219,7 +254,11 @@
       "Strength": 82.0,
       "Acceleration": 91.0,
       "Awareness": 84.5,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": -0.41,
+        "BallHawk": -0.36
+      }
     },
     {
       "PlayerId": "LB_003",
@@ -232,7 +271,11 @@
       "Strength": 87.5,
       "Acceleration": 87.0,
       "Awareness": 85.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": 0.72,
+        "BallHawk": -0.38
+      }
     },
     {
       "PlayerId": "DB_001",
@@ -245,7 +288,10 @@
       "Strength": 65.0,
       "Acceleration": 94.8,
       "Awareness": 89.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "BallHawk": 0.83
+      }
     },
     {
       "PlayerId": "DB_002",
@@ -258,7 +304,10 @@
       "Strength": 68.0,
       "Acceleration": 93.0,
       "Awareness": 91.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "BallHawk": 0.05
+      }
     },
     {
       "PlayerId": "DB_003",
@@ -271,7 +320,10 @@
       "Strength": 63.5,
       "Acceleration": 95.5,
       "Awareness": 86.5,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "BallHawk": -0.68
+      }
     },
     {
       "PlayerId": "DB_004",
@@ -284,7 +336,10 @@
       "Strength": 75.0,
       "Acceleration": 91.0,
       "Awareness": 85.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "BallHawk": 0.29
+      }
     },
     {
       "PlayerId": "QB_002",
@@ -297,7 +352,11 @@
       "Strength": 74.0,
       "Acceleration": 79.0,
       "Awareness": 81.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "Mobility": 0.65,
+        "Gunslinger": 0.92
+      }
     },
     {
       "PlayerId": "RB_002",
@@ -310,7 +369,10 @@
       "Strength": 88.0,
       "Acceleration": 85.0,
       "Awareness": 80.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RunPower": 0.77
+      }
     },
     {
       "PlayerId": "WR_004",
@@ -323,7 +385,10 @@
       "Strength": 64.0,
       "Acceleration": 93.0,
       "Awareness": 83.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RouteStyle": 0.01
+      }
     },
     {
       "PlayerId": "TE_002",
@@ -336,7 +401,10 @@
       "Strength": 89.0,
       "Acceleration": 82.0,
       "Awareness": 82.5,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RouteStyle": 0.2
+      }
     },
     {
       "PlayerId": "DL_005",
@@ -349,7 +417,10 @@
       "Strength": 96.5,
       "Acceleration": 68.0,
       "Awareness": 77.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": 0.71
+      }
     },
     {
       "PlayerId": "DL_006",
@@ -362,7 +433,10 @@
       "Strength": 90.0,
       "Acceleration": 80.0,
       "Awareness": 78.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": -0.04
+      }
     },
     {
       "PlayerId": "LB_004",
@@ -375,7 +449,11 @@
       "Strength": 88.0,
       "Acceleration": 85.0,
       "Awareness": 81.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "RushPower": 0.63,
+        "BallHawk": -0.27
+      }
     },
     {
       "PlayerId": "DB_005",
@@ -388,7 +466,10 @@
       "Strength": 62.0,
       "Acceleration": 94.0,
       "Awareness": 84.0,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "BallHawk": 0.01
+      }
     },
     {
       "PlayerId": "DB_006",
@@ -401,7 +482,10 @@
       "Strength": 66.0,
       "Acceleration": 92.0,
       "Awareness": 83.5,
-      "Stamina": 90.0
+      "Stamina": 90.0,
+      "DNA": {
+        "BallHawk": -0.17
+      }
     }
   ]
 }
