@@ -20,6 +20,46 @@ UPSBallActionComponent::UPSBallActionComponent()
     PrimaryComponentTick.bCanEverTick = false;
 }
 
+void UPSBallActionComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    BindToBus();
+}
+
+void UPSBallActionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    UnbindFromBus();
+    Super::EndPlay(EndPlayReason);
+}
+
+void UPSBallActionComponent::BindToBus()
+{
+    UWorld* World = GetWorld();
+    UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Bus || BoundBus.Get() == Bus)
+    {
+        return;
+    }
+    UnbindFromBus();
+    Bus->OnSnapMC.AddUObject(this, &UPSBallActionComponent::HandleSnap);
+    BoundBus = Bus;
+}
+
+void UPSBallActionComponent::UnbindFromBus()
+{
+    if (UPSTelemetryBus* Bus = BoundBus.Get())
+    {
+        Bus->OnSnapMC.RemoveAll(this);
+    }
+    BoundBus.Reset();
+}
+
+void UPSBallActionComponent::HandleSnap(const FPSTelemetrySnapEvent& Event)
+{
+    LineOfScrimmageX = Event.LineOfScrimmage.X;
+    bHasLineOfScrimmage = true;
+}
+
 bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc, APSPlayerPawn* IntendedTarget, float SpeedScale)
 {
     APSPlayerPawn* OwnerPawn = Cast<APSPlayerPawn>(GetOwner());
@@ -400,8 +440,6 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
             OwnerPawn->GetFloatingMovementComponent()->StopActiveMovement();
         }
 
-        int32 YardsGained = FMath::RoundToInt((OwnerPawn->GetActorLocation().X - OwnerPawn->GetStartingLocation().X) / 100.f);
-
         // Hitpoint resolution (Epic 139): a successful tackle deals damage rather than
         // automatically ending the play -- the snap isn't over until the carrier is
         // downed (hitpoints reach 0). A carrier who survives the hit has broken the
@@ -438,19 +476,20 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
         if (bCarrierDowned)
         {
             // The tackle goes out on the bus (rule 5): the play simulation, the outcome authority,
-            // records it from there (one path, rule 6), and the stats, cameras, rumble, overlays
-            // and controllers hear the same event. The spot is the yard line he went down on
-            // (the game mode places the line of scrimmage at YardLine * 100 cm).
+            // records it from there (one path, rule 6) and measures the play's yards from the
+            // line of scrimmage; the stats, cameras, rumble, overlays and controllers hear the
+            // same event, and the play's yards with its result. The spot is the yard line he went
+            // down on (the game mode places the line of scrimmage at YardLine * 100 cm).
             if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
             {
                 FPSTelemetryTackleEvent TackleEvt;
                 TackleEvt.TacklerName = DefenderAttr.DisplayName;
                 TackleEvt.BallCarrierName = CarrierAttr.DisplayName;
                 TackleEvt.YardLine = FMath::Clamp(FMath::RoundToInt(OwnerPawn->GetActorLocation().X / 100.f), 0, 100);
-                TackleEvt.YardsGained = YardsGained;
-                // A quarterback still holding the ball, brought down behind where he lined up
-                // (itself behind the line), was sacked.
-                TackleEvt.bIsSack = CarrierAttr.Role == EPlayerRole::Quarterback && YardsGained < 0;
+                // A quarterback still holding the ball, brought down behind the snap's line of
+                // scrimmage, was sacked.
+                TackleEvt.bIsSack = CarrierAttr.Role == EPlayerRole::Quarterback && bHasLineOfScrimmage
+                    && OwnerPawn->GetActorLocation().X < LineOfScrimmageX;
                 Bus->PublishTackle(TackleEvt);
             }
         }

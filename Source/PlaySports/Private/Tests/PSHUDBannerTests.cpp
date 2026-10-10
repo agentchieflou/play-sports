@@ -128,7 +128,6 @@ bool FPSPlayResultBannerTest::RunTest(const FString& Parameters)
     Tackle.TacklerName = Defense[0].DisplayName;
     Tackle.BallCarrierName = Offense[0].DisplayName;
     Tackle.YardLine = 23;
-    Tackle.YardsGained = 3;
     Bus->PublishTackle(Tackle);
     FPSTelemetryPhaseChangeEvent Whistle;
     Whistle.OldPhase = TEXT("PassRush");

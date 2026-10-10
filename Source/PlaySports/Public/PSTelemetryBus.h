@@ -387,6 +387,10 @@ struct FPSTelemetryCatchEvent
     bool bIsInterception = false;
 };
 
+/** A ball carrier was brought down (UPSBallActionComponent::ResolveTackle): who, where, and
+ *  whether it was a sack. The play's yards are not here: the play simulation, the outcome
+ *  authority (rule 6), measures them from the line of scrimmage to YardLine and announces them
+ *  with the play's result (FPSTelemetryPlayResultEvent::YardsGained), penalties included. */
 USTRUCT(BlueprintType)
 struct FPSTelemetryTackleEvent
 {
@@ -398,14 +402,14 @@ struct FPSTelemetryTackleEvent
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     FString BallCarrierName;
 
+    /** Where he went down, in the offense's yard lines (0 its goal line, 100 the goal it
+     *  attacks). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     int32 YardLine = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
-    int32 YardsGained = 0;
-
-    /** The carrier was the quarterback, down behind the line before throwing. The publisher
-     *  (the play-outcome authority) decides; subscribers such as rumble only read it. */
+    /** The carrier was the quarterback, still holding the ball, brought down behind the snap's
+     *  line of scrimmage. The publisher decides; the simulation and subscribers such as rumble
+     *  only read it. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bIsSack = false;
 };

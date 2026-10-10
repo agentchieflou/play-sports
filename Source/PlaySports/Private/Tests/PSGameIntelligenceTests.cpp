@@ -628,19 +628,27 @@ bool FPSPostGameAnalysisTest::RunTest(const FString& Parameters)
         Event.bIsInterception = bInterception;
         Bus->PublishCatch(Event);
     };
-    auto Tackle = [Bus](int32 Yards)
+    auto Tackle = [Bus]()
     {
         FPSTelemetryTackleEvent Event;
-        Event.YardsGained = Yards;
+        Event.BallCarrierName = TEXT("WR_01");
         Bus->PublishTackle(Event);
+    };
+    auto AnnounceResult = [Bus](int32 Yards)
+    {
+        FPSTelemetryPlayResultEvent Event;
+        Event.Result = TEXT("Tackle");
+        Event.YardsGained = Yards;
+        Bus->PublishPlayResult(Event);
     };
 
     // Home's opening drive: a 45-yard catch and run, then a touchdown pass.
     Bus->PublishGameState(MakeState(TEXT("PreSnap"), 1, 20, true, 0, 0, 0));
     Snap();
     Catch(12, false);
-    Tackle(45);
+    Tackle();
     Whistle();
+    AnnounceResult(45);
     Bus->PublishGameState(MakeState(TEXT("PreSnap"), 1, 65, true, 0, 0, 0));
     Snap();
     Catch(35, false);

@@ -89,6 +89,7 @@ void UPSOverlayBroadcastSubsystem::Initialize(FSubsystemCollectionBase& Collecti
         Bus->OnScoreMC.AddUObject(this, &UPSOverlayBroadcastSubsystem::HandleScore);
         Bus->OnCatchMC.AddUObject(this, &UPSOverlayBroadcastSubsystem::HandleCatch);
         Bus->OnTackleMC.AddUObject(this, &UPSOverlayBroadcastSubsystem::HandleTackle);
+        Bus->OnPlayResultMC.AddUObject(this, &UPSOverlayBroadcastSubsystem::HandlePlayResult);
         BoundBus = Bus;
     }
 }
@@ -101,6 +102,7 @@ void UPSOverlayBroadcastSubsystem::Deinitialize()
         Bus->OnScoreMC.RemoveAll(this);
         Bus->OnCatchMC.RemoveAll(this);
         Bus->OnTackleMC.RemoveAll(this);
+        Bus->OnPlayResultMC.RemoveAll(this);
     }
     BoundBus.Reset();
     Super::Deinitialize();
@@ -436,13 +438,33 @@ void UPSOverlayBroadcastSubsystem::HandleCatch(const FPSTelemetryCatchEvent& Eve
 
 void UPSOverlayBroadcastSubsystem::HandleTackle(const FPSTelemetryTackleEvent& Event)
 {
-    if (Event.bIsSack)
+    // The first tackle ends the play; a late hit after it changes nothing.
+    if (bTacklePending)
     {
-        PushChyron(EPSChyronKind::PlayStat, UPSLocalization::GetText(TEXT("Broadcast.Sack")).ToString(),
-            MakeSackDetail(Event.TacklerName, Event.BallCarrierName, Event.YardsGained));
         return;
     }
-    PushChyron(EPSChyronKind::PlayStat, PSOverlayBroadcastPrivate::Name(Event.BallCarrierName), MakeGainText(Event.YardsGained));
+    PendingTacklerName = Event.TacklerName;
+    PendingCarrierName = Event.BallCarrierName;
+    bTacklePending = true;
+}
+
+void UPSOverlayBroadcastSubsystem::HandlePlayResult(const FPSTelemetryPlayResultEvent& Event)
+{
+    // A tackle's line, with the play's yards as the simulation measured them. An interception
+    // had its own line; a touchdown or a kick has its score alert or drive summary.
+    const bool bTacklePlay = bTacklePending && (Event.Result == TEXT("Tackle") || Event.Result == TEXT("Safety"));
+    bTacklePending = false;
+    if (!bTacklePlay)
+    {
+        return;
+    }
+    if (Event.bSack)
+    {
+        PushChyron(EPSChyronKind::PlayStat, UPSLocalization::GetText(TEXT("Broadcast.Sack")).ToString(),
+            MakeSackDetail(PendingTacklerName, PendingCarrierName, Event.YardsGained));
+        return;
+    }
+    PushChyron(EPSChyronKind::PlayStat, PSOverlayBroadcastPrivate::Name(PendingCarrierName), MakeGainText(Event.YardsGained));
 }
 
 bool UPSOverlayBroadcastSubsystem::PushStatLine(const FString& PlayerName, const FString& StatText)

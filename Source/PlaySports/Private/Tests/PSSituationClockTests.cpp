@@ -295,7 +295,7 @@ bool FPSSituationSpikeKneelTest::RunTest(const FString& Parameters)
 
     // A late hit after the whistle changes nothing.
     FPSTelemetryTackleEvent LateHit;
-    LateHit.YardsGained = 12;
+    LateHit.YardLine = 40;
     Sim->OnBusTackleEvent(LateHit);
     Sim->RecordTackle(12);
     TestEqual(TEXT("A tackle after the whistle doesn't change the result"), Sim->GetPlayResult().YardsGained, Rules->KneelYardage);
