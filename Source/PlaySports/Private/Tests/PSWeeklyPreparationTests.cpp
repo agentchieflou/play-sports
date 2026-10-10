@@ -601,11 +601,12 @@ bool FPSWeeklyPrepFranchiseTest::RunTest(const FString& Parameters)
 
     // Week 1: every team practises before its game, then plays tired.
     TestEqual(TEXT("Week 1's two games"), Flow->SimulateWeek(true), 2);
+    const TArray<FPSWeekMatchup> Week1Games = Season->GetMatchupsForWeek(1);
     for (const FName& TeamId : TeamIds)
     {
         const FPSTeamTraining Week = TeamOf(Prep, *TeamId.ToString());
         TestEqual(*FString::Printf(TEXT("%s prepared week 1"), *TeamId.ToString()), Week.PreparedWeek, 1);
-        const FPSWeekMatchup* Game = Season->GetMatchupsForWeek(1).FindByPredicate([&TeamId](const FPSWeekMatchup& Matchup) { return Matchup.HomeTeamId == TeamId || Matchup.AwayTeamId == TeamId; });
+        const FPSWeekMatchup* Game = Week1Games.FindByPredicate([&TeamId](const FPSWeekMatchup& Matchup) { return Matchup.HomeTeamId == TeamId || Matchup.AwayTeamId == TeamId; });
         if (TestNotNull(*FString::Printf(TEXT("%s plays in week 1"), *TeamId.ToString()), Game))
         {
             TestEqual(*FString::Printf(TEXT("%s's gameplan is for its opponent"), *TeamId.ToString()), Week.Gameplan.OpponentId, Game->HomeTeamId == TeamId ? Game->AwayTeamId : Game->HomeTeamId);
