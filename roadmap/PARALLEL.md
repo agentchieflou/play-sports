@@ -124,7 +124,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "22":  {"track": "core", "mode": "editor", "status": "open", "depends_on": ["6", "7", "8"]},
     "23":  {"track": "core", "mode": "mixed", "status": "open", "depends_on": ["8", "11"]},
     "24":  {"track": "core", "mode": "code", "status": "open", "depends_on": []},
-    "25":  {"track": "core", "mode": "code", "status": "open", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"]},
+    "25":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"], "open_stories": ["25.1 Autonomix T3D injection", "25.2 Autonomix Python escape hatch", "25.3 AgenticLink MCP server (PR #91 in progress)", "25.4 register the server in .mcp.json and .vscode/mcp.json", "25.6 agent smoke test over MCP"]},
     "26":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["C1", "3", "6"]},
     "27":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "16"]},
     "28":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
