@@ -125,7 +125,13 @@
                 { "ActionId": "PickPlayerRight", "GlyphId": "Touch_PickPlayerRight", "Label": "Pick Right" },
                 { "ActionId": "Strip", "GlyphId": "Touch_Strip", "Label": "Strip" },
                 { "ActionId": "JumpSnap", "GlyphId": "Touch_JumpSnap", "Label": "Jump" },
-                { "ActionId": "Kick", "GlyphId": "Touch_Kick", "Label": "Kick" }
+                { "ActionId": "Kick", "GlyphId": "Touch_Kick", "Label": "Kick" },
+                { "ActionId": "DefenseAudible", "GlyphId": "Touch_DefenseAudible", "Label": "Audible" },
+                { "ActionId": "ShadowSelect", "GlyphId": "Touch_ShadowSelect", "Label": "Select" },
+                { "ActionId": "Shadow", "GlyphId": "Touch_Shadow", "Label": "Shadow" },
+                { "ActionId": "ShowBlitz", "GlyphId": "Touch_ShowBlitz", "Label": "Show Blitz" },
+                { "ActionId": "DisguiseShell", "GlyphId": "Touch_DisguiseShell", "Label": "Disguise" },
+                { "ActionId": "Creep", "GlyphId": "Touch_Creep", "Label": "Creep" }
             ]
         }
     ]

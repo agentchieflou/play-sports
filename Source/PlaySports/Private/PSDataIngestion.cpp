@@ -516,6 +516,24 @@ bool UPSDataIngestion::LoadSessionTelemetryTuningFromJson(const FString& JsonFil
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
 }
 
+bool UPSDataIngestion::LoadDefensivePreSnapTuningFromJson(const FString& JsonFilePath, FPSDefensivePreSnapTuning& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
 bool UPSDataIngestion::LoadRunFitsFromJson(const FString& JsonFilePath, FPSRunFitCatalog& OutCatalog)
 {
     FString JsonString;
@@ -750,6 +768,24 @@ bool UPSDataIngestion::LoadPhotoModeTuningFromJson(const FString& JsonFilePath, 
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
 }
 
+bool UPSDataIngestion::LoadContractTuningFromJson(const FString& JsonFilePath, FPSContractTuning& OutTuning)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutTuning, 0, 0);
+}
+
 bool UPSDataIngestion::LoadReplayTuningFromJson(const FString& JsonFilePath, FPSReplayTuning& OutTuning)
 {
     FString JsonString;
@@ -877,6 +913,42 @@ bool UPSDataIngestion::LoadOverlayBadgeStyleFromJson(const FString& JsonFilePath
 }
 
 bool UPSDataIngestion::LoadEmphasisStyleFromJson(const FString& JsonFilePath, FPSEmphasisStyle& OutStyle)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutStyle, 0, 0);
+}
+
+bool UPSDataIngestion::LoadHintCatalogFromJson(const FString& JsonFilePath, FPSHintCatalog& OutCatalog)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutCatalog, 0, 0);
+}
+
+bool UPSDataIngestion::LoadPersonnelPanelStyleFromJson(const FString& JsonFilePath, FPSPersonnelPanelStyle& OutStyle)
 {
     FString JsonString;
     if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))

@@ -26,7 +26,9 @@
 #include "PSOverlayReticle.h"
 #include "PSControlHandoffComponent.h"
 #include "PSOverlayBroadcastTypes.h"
+#include "PSOverlayPersonnelTypes.h"
 #include "PSUIAccessibilitySubsystem.h"
+#include "PSUIHintSubsystem.h"
 #include "PSOverlayBallFlightTypes.h"
 #include "PSOverlayBadgeTypes.h"
 #include "PSOverlayEmphasisTypes.h"
@@ -44,8 +46,10 @@
 #include "PSPhotoModeTypes.h"
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
+#include "PSContractData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
+#include "PSDefenderPreSnapTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -171,6 +175,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadUIAccessibilityTuningFromJson(const FString& JsonFilePath, FPSUIAccessibilityTuning& OutTuning);
 
+    /** Loads the first-time hints (Data/ui_hints.json, Epic 105.4). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadHintCatalogFromJson(const FString& JsonFilePath, FPSHintCatalog& OutCatalog);
+
     /** Loads the pass-rush move library (Data/pass_rush_moves.json, Epic 70). False on a
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
@@ -195,6 +203,11 @@ public:
      *  unrecognized Anchor or Kind. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadBroadcastOverlayThemeFromJson(const FString& JsonFilePath, FPSBroadcastOverlayTheme& OutTheme);
+
+    /** Loads the personnel panels' style (Data/personnel_panel.json, Epic 29). False on a
+     *  missing file, malformed JSON, or an unrecognized Role. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPersonnelPanelStyleFromJson(const FString& JsonFilePath, FPSPersonnelPanelStyle& OutStyle);
 
     /** Loads the ball-flight overlay's look and rules (Data/ball_flight_overlay.json, Epic 32).
      *  False on a missing file or malformed JSON. */
@@ -259,6 +272,17 @@ public:
      *  on a missing file or malformed JSON; PSPlayerDNA::ValidateCatalog checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPlayerDNACatalogFromJson(const FString& JsonFilePath, FPSPlayerDNACatalog& OutCatalog);
+
+    /** Loads the league's economics: the salary cap, contract rules, negotiation and free agency
+     *  (Data/contracts.json, Epic 87). False on a missing file, malformed JSON or an unknown Role;
+     *  UPSContractManager::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadContractTuningFromJson(const FString& JsonFilePath, FPSContractTuning& OutTuning);
+
+    /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
+     *  missing file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadDefensivePreSnapTuningFromJson(const FString& JsonFilePath, FPSDefensivePreSnapTuning& OutTuning);
 
     /** Loads how replays are cut, played and saved (Data/replay.json, Epic 41). False on a
      *  missing file or malformed JSON; UPSReplaySubsystem::ValidateTuning checks the rest. */

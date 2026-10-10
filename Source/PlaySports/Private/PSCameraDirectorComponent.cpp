@@ -5,6 +5,7 @@
 #include "PSPlayerPawn.h"
 #include "PSTelemetrySamplingSubsystem.h"
 #include "PSTelemetrySamplingTypes.h"
+#include "PSUIAccessibilitySubsystem.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/World.h"
@@ -576,13 +577,15 @@ void UPSCameraDirectorComponent::ApplyToCamera(bool bSnap, float DeltaSeconds)
     {
         return;
     }
-    if (bSnap || Tuning.FollowInterpSpeed <= 0.f)
+    // With reduced motion (Epic 103.5) the follow speed is 0, so the camera stays on its target.
+    const float FollowSpeed = UPSUIAccessibilitySubsystem::GetCameraFollowSpeedIn(this, Tuning.FollowInterpSpeed);
+    if (bSnap || FollowSpeed <= 0.f)
     {
         Camera->SetActorLocationAndRotation(TargetShot.Location, TargetShot.Rotation);
         CameraComponent->SetFieldOfView(TargetShot.FieldOfView);
         return;
     }
-    const double Alpha = FMath::Clamp<double>(DeltaSeconds * Tuning.FollowInterpSpeed, 0.0, 1.0);
+    const double Alpha = FMath::Clamp<double>(DeltaSeconds * FollowSpeed, 0.0, 1.0);
     const FVector Location = FMath::Lerp(Camera->GetActorLocation(), TargetShot.Location, Alpha);
     const FQuat Rotation = FQuat::Slerp(Camera->GetActorQuat(), TargetShot.Rotation.Quaternion(), Alpha);
     Camera->SetActorLocationAndRotation(Location, Rotation);

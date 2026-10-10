@@ -13,10 +13,20 @@
 //   4. Reduced motion: shakes and flashes follow their settings; with reduced motion nothing
 //      shakes, a camera follows without lag, menus don't fade and the controller's blended
 //      change of view is a cut.
+//   5. Reduced motion on the broadcast cameras: the director's camera stays on its shot
+//      instead of easing after it, the all-22 frame closes in at once, and the plain sideline
+//      follow is on its target in one step.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "PSBroadcastCamera.h"
+#include "PSCameraAll22Component.h"
+#include "PSCameraDirectorComponent.h"
+#include "PSCameraFraming.h"
+#include "PSFieldGrid.h"
 #include "PSMenuComponent.h"
+#include "PSPlayerPawn.h"
+#include "PSTelemetrySamplingSubsystem.h"
 #include "PSPlayerController.h"
 #include "PSSettingsSubsystem.h"
 #include "PSTelemetryBus.h"
@@ -316,21 +326,167 @@ bool FPSReducedMotionTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("A camera following at the reduced speed is on its target at once"),
         FMath::FInterpTo(0.f, 100.f, 1.f / 60.f, Accessibility->GetCameraFollowSpeed(AuthoredFollow)), 100.f);
 
+    // A headless world never initializes actors for play, so the controller spawned no camera
+    // manager; give it one.
     APlayerCameraManager* CameraManager = Controller->PlayerCameraManager;
+    if (!CameraManager)
+    {
+        CameraManager = World->SpawnActor<APlayerCameraManager>(APlayerCameraManager::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+        if (CameraManager)
+        {
+            CameraManager->InitializeFor(Controller);
+            Controller->PlayerCameraManager = CameraManager;
+        }
+    }
     AActor* First = World->SpawnActor<AActor>(AActor::StaticClass(), FVector(100.f, 0.f, 0.f), FRotator::ZeroRotator, SpawnParams);
     AActor* Second = World->SpawnActor<AActor>(AActor::StaticClass(), FVector(200.f, 0.f, 0.f), FRotator::ZeroRotator, SpawnParams);
     if (CameraManager && First && Second)
     {
+        // GetViewTarget answers the pending target while blending, so read the two slots.
         Controller->SetViewTargetWithBlend(First, AuthoredBlend);
-        TestTrue(TEXT("With reduced motion a blended change of view cuts straight to it"), CameraManager->GetViewTarget() == First);
+        TestTrue(TEXT("With reduced motion a blended change of view cuts straight to it"),
+            CameraManager->ViewTarget.Target == First && CameraManager->PendingViewTarget.Target == nullptr);
         Settings->SetValue(Accessibility->ReducedMotionSettingId, 0.f);
         Controller->SetViewTargetWithBlend(Second, AuthoredBlend);
-        TestTrue(TEXT("...and without it, the view blends over"), CameraManager->GetViewTarget() != Second);
+        TestTrue(TEXT("...and without it, the view blends over"),
+            CameraManager->ViewTarget.Target == First && CameraManager->PendingViewTarget.Target == Second);
     }
     else
     {
         AddInfo(TEXT("No camera manager in this headless world; the view-blend cut was not checked."));
     }
+
+    DestroyTestWorld(World);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 5 -- Reduced motion on the broadcast cameras
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSReducedMotionCamerasTest,
+    "PlaySports.Accessibility.ReducedMotionCameras",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSReducedMotionCamerasTest::RunTest(const FString& Parameters)
+{
+    using namespace PSUIAccessibilityTests;
+
+    const float StepSeconds = 0.1f;
+    const int32 QuarterbackIndex = 5;
+    const int32 RunningBackIndex = 6;
+    const TArray<EPlayerRole> Roles = {
+        EPlayerRole::OffensiveLineman, EPlayerRole::OffensiveLineman, EPlayerRole::OffensiveLineman,
+        EPlayerRole::OffensiveLineman, EPlayerRole::OffensiveLineman, EPlayerRole::Quarterback,
+        EPlayerRole::RunningBack, EPlayerRole::WideReceiver, EPlayerRole::WideReceiver,
+        EPlayerRole::WideReceiver, EPlayerRole::TightEnd,
+        EPlayerRole::DefensiveLineman, EPlayerRole::DefensiveLineman, EPlayerRole::DefensiveLineman,
+        EPlayerRole::DefensiveLineman, EPlayerRole::Linebacker, EPlayerRole::Linebacker,
+        EPlayerRole::Linebacker, EPlayerRole::DefensiveBack, EPlayerRole::DefensiveBack,
+        EPlayerRole::DefensiveBack, EPlayerRole::DefensiveBack
+    };
+
+    UWorld* World = CreateTestWorld();
+    UPSUIAccessibilitySubsystem* Accessibility = World ? World->GetSubsystem<UPSUIAccessibilitySubsystem>() : nullptr;
+    UPSTelemetrySamplingSubsystem* Sampler = World ? World->GetSubsystem<UPSTelemetrySamplingSubsystem>() : nullptr;
+    UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!TestNotNull(TEXT("Accessibility subsystem"), Accessibility) || !TestNotNull(TEXT("Sampler"), Sampler) || !TestNotNull(TEXT("Bus"), Bus))
+    {
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return false;
+    }
+    UPSSettingsSubsystem* Settings = MakeSettings();
+    Accessibility->SetSettings(Settings);
+    Settings->SetValue(Accessibility->ReducedMotionSettingId, 1.f);
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    const TArray<FVector> Lineup = APSFieldGrid::ComputeLineup(Roles, 0.f);
+    TArray<APSPlayerPawn*> Pawns;
+    for (int32 Index = 0; Index < Roles.Num() && Index < Lineup.Num(); ++Index)
+    {
+        APSPlayerPawn* Pawn = World->SpawnActor<APSPlayerPawn>(APSPlayerPawn::StaticClass(), Lineup[Index], FRotator::ZeroRotator, SpawnParams);
+        if (Pawn)
+        {
+            FPlayerAttributes Attributes;
+            Attributes.PlayerId = FName(*FString::Printf(TEXT("P%02d"), Index));
+            Attributes.DisplayName = FString::Printf(TEXT("Player %d"), Index);
+            Attributes.Role = Roles[Index];
+            Pawn->InitializePlayer(Attributes);
+            Pawn->SetActorLocation(Lineup[Index]);
+            Pawns.Add(Pawn);
+        }
+    }
+    APSBroadcastCamera* Camera = World->SpawnActor<APSBroadcastCamera>(APSBroadcastCamera::StaticClass(), FVector(0.0, -2800.0, 600.0), FRotator(-10.0, 90.0, 0.0), SpawnParams);
+    UPSCameraDirectorComponent* Director = Camera ? Camera->GetDirectorComponent() : nullptr;
+    UPSCameraAll22Component* Film = Camera ? Camera->GetAll22Component() : nullptr;
+    if (!TestEqual(TEXT("22 players"), Pawns.Num(), 22) || !TestNotNull(TEXT("Director"), Director) || !TestNotNull(TEXT("Film component"), Film))
+    {
+        DestroyTestWorld(World);
+        return false;
+    }
+
+    // Sample every step (Epic 26) so the director sees the field.
+    FPSTelemetrySamplingTuning Steady = Sampler->GetTuning();
+    Steady.SampleRateHz = 10.f;
+    Steady.SampleBudgetMs = 1000.f;
+    Steady.RecoverAfterSamples = 100000;
+    Sampler->SetTuning(Steady);
+    Director->BindToBus();
+    Film->BindToBus();
+    const float MinShotSeconds = Director->GetTuning().MinShotSeconds;
+    APSPlayerPawn* Quarterback = Pawns[QuarterbackIndex];
+    Quarterback->GainPossession();
+    auto Step = [Sampler, Director, StepSeconds]()
+    {
+        Sampler->AdvanceTime(StepSeconds);
+        Director->AdvanceTime(StepSeconds);
+    };
+
+    // The director: once on the snap's follow, the camera stays on its shot as the ball moves.
+    Step();
+    Bus->PublishSnap(FPSTelemetrySnapEvent());
+    for (int32 Guard = 0; Guard < 100 && (Director->GetPendingShot() != EPSDirectorShot::None || Director->GetShotAge() < MinShotSeconds); ++Guard)
+    {
+        Step();
+    }
+    Quarterback->SetActorLocation(Quarterback->GetActorLocation() + FVector(800.0, 0.0, 0.0));
+    const FVector Before = Camera->GetActorLocation();
+    Step();
+    TestTrue(TEXT("The shot moved with the ball, so there was a move to ease"), FVector::Dist(Before, Director->GetTargetShot().Location) > 1.0);
+    TestTrue(TEXT("With reduced motion the director's camera is on its shot, not easing after it"),
+        Camera->GetActorLocation().Equals(Director->GetTargetShot().Location, 1.0));
+
+    // The all-22 film view: a wide frame closes in on a pile in one step.
+    const FPSAll22CameraTuning All22 = Film->GetTuning();
+    const FPSAll22RigDef* Sideline = All22.All22Rigs.FindByPredicate([](const FPSAll22RigDef& Rig) { return Rig.Placement == EPSAll22RigPlacement::Sideline; });
+    if (TestNotNull(TEXT("A sideline rig"), Sideline) && TestTrue(TEXT("Film view on the sideline rig"), Film->SetFilmView(Sideline->RigId)))
+    {
+        Pawns[RunningBackIndex]->SetActorLocation(Pawns[RunningBackIndex]->GetActorLocation() + FVector(4000.0, 0.0, 0.0));
+        Film->StepFraming(StepSeconds);
+        const FVector Tackle = Pawns[RunningBackIndex]->GetActorLocation();
+        TArray<FVector> Pile;
+        for (int32 Index = 0; Index < Pawns.Num(); ++Index)
+        {
+            Pile.Add(Tackle + FVector((Index % 4) * 60.0 - 90.0, (Index / 4) * 60.0 - 150.0, 0.0));
+            Pawns[Index]->SetActorLocation(Pile.Last());
+        }
+        const FPSCameraShot Settled = UPSCameraFraming::FrameAll22(*Sideline, All22, Pile, Film->GetAttackDirection(), All22.AspectRatio);
+        Film->StepFraming(StepSeconds);
+        TestTrue(TEXT("With reduced motion the all-22 frame closes in on the pile at once"), Film->GetCurrentShot().Location.Equals(Settled.Location, 10.0));
+        Film->SetFilmView(NAME_None);
+    }
+
+    // The plain sideline follow (director off): on its target's X in one step.
+    Director->SetDirectorEnabled(false);
+    Camera->bIsFollowing = true;
+    Camera->SetTargetActor(Quarterback);
+    Camera->Tick(StepSeconds);
+    const double TargetX = FMath::Clamp(Quarterback->GetActorLocation().X, static_cast<double>(Camera->MinX), static_cast<double>(Camera->MaxX));
+    TestTrue(TEXT("With reduced motion the sideline follow is on its target at once"), FMath::Abs(Camera->GetActorLocation().X - TargetX) < 1.0);
 
     DestroyTestWorld(World);
     return true;

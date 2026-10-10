@@ -33,7 +33,8 @@ enum class EPSTelemetryEventType : uint8
     BlownCoverage,
     Personnel,
     Speech,
-    Pocket
+    Pocket,
+    DefensivePreSnap
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -763,6 +764,30 @@ struct FPSTelemetryPocketEvent
     bool bSuccess = false;
 };
 
+/** The defense changed its look or its call before the snap (Epic 67). UPSDefenderPreSnapSubsystem
+ *  is the authority on these; this announces them. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryDefensivePreSnapEvent
+{
+    GENERATED_BODY()
+
+    /** "Audible", "DisguiseShell", "ShowBlitz", "Creep" or "Shadow". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Action;
+
+    /** The defender a shadow assigns; empty for a team call. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** The audible's PlayId, the shadowed receiver's name, or "On"/"Off" for a disguise. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Detail;
+
+    /** True when a person made the change; false for the CPU's. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHumanCall = false;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -814,6 +839,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageSignature, 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelSignature, const FPSTelemetryPersonnelEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetrySpeechSignature, const FPSTelemetrySpeechEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketSignature, const FPSTelemetryPocketEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryDefensivePreSnapSignature, const FPSTelemetryDefensivePreSnapEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -844,6 +870,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageMC, const FPSTeleme
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelMC, const FPSTelemetryPersonnelEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySpeechMC, const FPSTelemetrySpeechEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketMC, const FPSTelemetryPocketEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryDefensivePreSnapMC, const FPSTelemetryDefensivePreSnapEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -930,6 +957,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishPocket(const FPSTelemetryPocketEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishDefensivePreSnap(const FPSTelemetryDefensivePreSnapEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -1035,6 +1065,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPocketSignature OnPocket;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryDefensivePreSnapSignature OnDefensivePreSnap;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -1065,6 +1098,7 @@ public:
     FPSTelemetryPersonnelMC OnPersonnelMC;
     FPSTelemetrySpeechMC OnSpeechMC;
     FPSTelemetryPocketMC OnPocketMC;
+    FPSTelemetryDefensivePreSnapMC OnDefensivePreSnapMC;
 
 private:
     UPROPERTY(Transient)

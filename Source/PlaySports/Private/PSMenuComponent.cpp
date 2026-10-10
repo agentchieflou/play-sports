@@ -16,6 +16,7 @@
 #include "PSLocalization.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSUIColorAccessibility.h"
+#include "PSUIHintSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Blueprint/UserWidget.h"
@@ -707,6 +708,15 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
             // The situation and the player's tendencies, then the suggestion, the recent
             // plays (once there are any), then every formation.
             Presented.Body = PlayCall->BuildCallScreenBody(bOffense);
+            // A first-time situation's hint goes under it (Epic 105.4).
+            UPSUIHintSubsystem* Hints = GetWorld() ? GetWorld()->GetSubsystem<UPSUIHintSubsystem>() : nullptr;
+            const FText Hint = Hints ? Hints->GetCallHint(PlayCall->GetSituation(), bOffense) : FText::GetEmpty();
+            if (!Hint.IsEmpty())
+            {
+                FFormatNamedArguments HintArguments;
+                HintArguments.Add(TEXT("Hint"), Hint);
+                Presented.Body = UPSLocalization::JoinLines({ UPSLocalization::FromLocalized(Presented.Body), UPSLocalization::Format(TEXT("Hint.Line"), HintArguments) }).ToString();
+            }
             Presented.Options.Append(PlayCall->BuildSuggestionOptions(bOffense));
             const FPSMenuScreenDef* RecentScreen = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::PlayCallRecent);
             if (RecentScreen && PlayCall->GetRecentCalls(bOffense, 1).Num() > 0)

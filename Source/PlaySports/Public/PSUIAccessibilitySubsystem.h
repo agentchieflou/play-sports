@@ -145,6 +145,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Accessibility")
     float GetCameraFollowSpeed(float AuthoredSpeed);
 
+    /** GetCameraFollowSpeed for WorldContext's world; AuthoredSpeed where there is no such
+     *  subsystem. The broadcast camera's follow, the director's easing within a shot and the
+     *  all-22 reframing all read their speed through it. */
+    static float GetCameraFollowSpeedIn(const UObject* WorldContext, float AuthoredSpeed);
+
     /** Starts Shake on Player at Scale times GetCameraShakeScale. Returns false and plays
      *  nothing when that is 0, or without a player or shake. */
     UFUNCTION(BlueprintCallable, Category = "Accessibility")

@@ -451,6 +451,66 @@
             ]
         },
         {
+            "ActionId": "DefenseAudible",
+            "ValueType": "Boolean",
+            "Description": "The defense checks to the next play of its front before the snap (Epic 67, UPSDefenderPreSnapInputComponent; the call is UPSDefenderPreSnapSubsystem's).",
+            "Contexts": ["DefensePreSnap"],
+            "Bindings": [
+                { "Key": "R" },
+                { "Key": "Gamepad_DPad_Up" }
+            ]
+        },
+        {
+            "ActionId": "ShadowSelect",
+            "ValueType": "Boolean",
+            "Description": "Before the snap, the defense selects the next offensive receiver, left to right across the field, for Shadow (Epic 67, UPSDefenderPreSnapInputComponent).",
+            "Contexts": ["DefensePreSnap"],
+            "Bindings": [
+                { "Key": "Tab" },
+                { "Key": "Gamepad_RightShoulder" }
+            ]
+        },
+        {
+            "ActionId": "Shadow",
+            "ValueType": "Boolean",
+            "Description": "The AI defensive back lined up nearest the selected receiver shadows him: he lines up over him and plays man on him at the snap, whatever the call. Pressed again, he lets him go (Epic 67, UPSDefenderPreSnapInputComponent).",
+            "Contexts": ["DefensePreSnap"],
+            "Bindings": [
+                { "Key": "H" },
+                { "Key": "Gamepad_DPad_Right" }
+            ]
+        },
+        {
+            "ActionId": "ShowBlitz",
+            "ValueType": "Boolean",
+            "Description": "Linebackers walk up to show a blitz that isn't coming; press again to back off (Epic 67, UPSDefenderPreSnapInputComponent; how far and how many are Data/defensive_presnap.json).",
+            "Contexts": ["DefensePreSnap"],
+            "Bindings": [
+                { "Key": "M" },
+                { "Key": "Gamepad_DPad_Left" }
+            ]
+        },
+        {
+            "ActionId": "DisguiseShell",
+            "ValueType": "Boolean",
+            "Description": "The safeties show the other coverage shell, two-high for one-high or the reverse, and rotate to their real zones at the snap; press again to show the real one (Epic 67, UPSDefenderPreSnapInputComponent).",
+            "Contexts": ["DefensePreSnap"],
+            "Bindings": [
+                { "Key": "L" },
+                { "Key": "Gamepad_FaceButton_Top" }
+            ]
+        },
+        {
+            "ActionId": "Creep",
+            "ValueType": "Boolean",
+            "Description": "The blitzers line up in coverage and creep up late, blitzing at the snap; press again to line up honestly (Epic 67, UPSDefenderPreSnapInputComponent).",
+            "Contexts": ["DefensePreSnap"],
+            "Bindings": [
+                { "Key": "K" },
+                { "Key": "Gamepad_DPad_Down" }
+            ]
+        },
+        {
             "ActionId": "ReplayPlayPause",
             "ValueType": "Boolean",
             "Description": "Pause the replay, or play it on (from its end, from the start). A, as A confirms everywhere.",
