@@ -14,8 +14,9 @@ class UPSSpecialTeamsAI;
  * CPU play-selection AI (Epic 18): weights play categories from the down/distance/
  * clock/score situation and a per-opponent tendency profile, then picks among the
  * matching plays in the active playbook. Also owns 4th-down, 2-point, and clock
- * management decisions. If an external suggestion provider is registered (the
- * Epic 25 AgenticLink bridge, once it exists), its suggestion is used instead.
+ * management decisions. If an external suggestion provider is registered (Epic 82's
+ * UPSGameIntelligenceSubsystem, an outside model over the Epic 25 bridge) and suggests one of
+ * the candidates, its suggestion is used instead.
  *
  * The end-of-half read (Epic 76) comes from its UPSSituationAI: the situation's play
  * weights (two-minute sideline throws, four-minute runs), and the clock's own calls -- a

@@ -111,6 +111,7 @@ every CI build.
 | `gap_overlay.json` | `FPSGapOverlayStyle` (single object) | `UPSDataIngestion::LoadGapOverlayStyleFromJson`, via `UPSDefenderGapOverlaySubsystem` |
 | `difficulty.json` | `FPSDifficultyCatalog` (single object: `DifficultyTiers`, the assists' setting IDs, `SuggestedPlayAccent`) | `UPSDataIngestion::LoadDifficultyCatalogFromJson`, via `UPSDifficultySubsystem` |
 | `perf_harness.json` | `FPSPerfHarnessTuning` (single object) | `UPSDataIngestion::LoadPerfHarnessTuningFromJson`, via `UPSPerfHarness`; also read by `tools/perf_budget.py` |
+| `game_intelligence.json` | `FPSGameIntelligenceTuning` (single object) | `UPSDataIngestion::LoadGameIntelligenceTuningFromJson`, via `UPSGameIntelligenceSubsystem`; its tasks are checked against `tools/orchestrator/routing.json` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1512,3 +1513,23 @@ budgets themselves are per tier, in `platform_tiers.json`.
   the median of its last `TrendWindow` runs recorded on main.
 
 `UPSPerfHarness::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Game intelligence schema (`FPSGameIntelligenceTuning`)
+
+Single object (Epic 82; `UPSGameIntelligenceSubsystem`, the game's hooks for outside models through
+the Epic 25 bridge):
+- `ContextBudgetChars` (at least 1024, `PSGameStateSerializer::MinBudgetChars`): the most characters
+  a request's game state (or post-game analysis) may take; a model reads about four to a token.
+- `PlayCallTimeoutSeconds` (above 0): how long a CPU side's call waits for an outside model's play
+  before calling its own.
+- `MaxOpenRequests`, `MaxAnswerChars`, `MaxKeyPlays` (1 or more), `LeadersPerCategory` (0 or more):
+  open requests at once, the longest answer taken, the key plays in a post-game analysis and the
+  game's leaders per stat category in the game state.
+- `bPostGameRequests`: ask for the drive summary and game analysis at the final whistle.
+- `PlayCallTask`, `DriveSummaryTask`, `GameAnalysisTask`: the model router's task each request
+  names, each one of `tools/orchestrator/routing.json`'s `tasks` (Epic 119); the play call's needs
+  at least the `min_capability` of the summary's.
+- `PlayCallInstructions`, `DriveSummaryInstructions`, `GameAnalysisInstructions` (not empty): what
+  each request asks of the model.
+
+`UPSGameIntelligenceSubsystem::ValidateTuning` and `tools/validate_data.py` check it.

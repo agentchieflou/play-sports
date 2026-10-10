@@ -1,11 +1,14 @@
 // AgenticLinkEngineTools.cpp - Epic 25: engine reflection tools for MCP agents
 #include "AgenticLinkEngineTools.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "Misc/OutputDeviceNull.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+#include "Subsystems/WorldSubsystem.h"
 #include "UObject/Script.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
@@ -305,23 +308,47 @@ namespace AgenticLinkTools
         return FAgenticLinkToolResult::Success(Result);
     }
 
+    /** The object call_function runs on: the world's (or game instance's) "subsystem" when one is
+     *  named, else the "actor"; null with an error saying why not. */
+    UObject* ResolveCallTarget(UWorld* World, const TSharedPtr<FJsonObject>& Arguments, FString& OutError)
+    {
+        FString SubsystemName;
+        if (!Arguments->TryGetStringField(TEXT("subsystem"), SubsystemName) || SubsystemName.IsEmpty())
+        {
+            return ResolveActor(World, Arguments, OutError);
+        }
+        if (!World)
+        {
+            OutError = NoWorldError;
+            return nullptr;
+        }
+        UObject* Subsystem = FAgenticLinkEngineTools::FindSubsystem(World, SubsystemName);
+        if (!Subsystem)
+        {
+            OutError = FString::Printf(TEXT("%s has no subsystem '%s' (a world or game-instance subsystem's class name, e.g. AgenticLinkProbeSubsystem)."),
+                *World->GetName(), *SubsystemName);
+        }
+        return Subsystem;
+    }
+
     FAgenticLinkToolResult CallFunction(UWorld* World, const TSharedPtr<FJsonObject>& Arguments)
     {
         FString Error;
-        AActor* Actor = ResolveActor(World, Arguments, Error);
-        if (!Actor)
+        UObject* Target = ResolveCallTarget(World, Arguments, Error);
+        if (!Target)
         {
             return FAgenticLinkToolResult::Failure(Error);
         }
+        AActor* Actor = Cast<AActor>(Target);
         FString FunctionName;
         if (!Arguments->TryGetStringField(TEXT("function"), FunctionName) || FunctionName.IsEmpty())
         {
             return FAgenticLinkToolResult::Failure(TEXT("Missing 'function': a BlueprintCallable function's name."));
         }
-        UFunction* Function = Actor->FindFunction(FName(*FunctionName));
+        UFunction* Function = Target->FindFunction(FName(*FunctionName));
         if (!Function)
         {
-            return FAgenticLinkToolResult::Failure(FString::Printf(TEXT("%s has no function '%s'."), *Actor->GetClass()->GetName(), *FunctionName));
+            return FAgenticLinkToolResult::Failure(FString::Printf(TEXT("%s has no function '%s'."), *Target->GetClass()->GetName(), *FunctionName));
         }
         if (!Function->HasAnyFunctionFlags(FUNC_BlueprintCallable))
         {
@@ -369,13 +396,19 @@ namespace AgenticLinkTools
             }
         }
 
-        FEditScope Edit(FString::Printf(TEXT("Agent calls %s.%s"), *Actor->GetName(), *FunctionName), Actor);
+        // An actor's call is an undoable edit of the level; a subsystem's is runtime state, so
+        // it opens no transaction (an agent polling one would otherwise fill the undo history).
+        TUniquePtr<FEditScope> Edit;
+        if (Actor)
+        {
+            Edit = MakeUnique<FEditScope>(FString::Printf(TEXT("Agent calls %s.%s"), *Actor->GetName(), *FunctionName), Actor);
+        }
         {
             // AActor::ProcessEvent does nothing in a world whose actors aren't initialized
             // for play (the editor's level) unless script execution is allowed, as it is
             // for a CallInEditor button.
             FEditorScriptExecutionGuard ScriptGuard;
-            Actor->ProcessEvent(Function, ParameterMemory);
+            Target->ProcessEvent(Function, ParameterMemory);
         }
 
         TSharedPtr<FJsonObject> Outputs = MakeShared<FJsonObject>();
@@ -391,10 +424,17 @@ namespace AgenticLinkTools
         }
 
         TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
-        Result->SetStringField(TEXT("actor"), Actor->GetName());
+        if (Actor)
+        {
+            Result->SetStringField(TEXT("actor"), Actor->GetName());
+        }
+        else
+        {
+            Result->SetStringField(TEXT("subsystem"), Target->GetClass()->GetName());
+        }
         Result->SetStringField(TEXT("function"), Function->GetName());
         Result->SetObjectField(TEXT("outputs"), Outputs);
-        Result->SetBoolField(TEXT("undoable"), Edit.IsTransacted());
+        Result->SetBoolField(TEXT("undoable"), Edit.IsValid() && Edit->IsTransacted());
         return FAgenticLinkToolResult::Success(Result);
     }
 
@@ -490,9 +530,10 @@ void FAgenticLinkEngineTools::Register(FAgenticLinkMcpServer& Server, TFunction<
 
     FAgenticLinkTool CallFunctionTool;
     CallFunctionTool.Name = TEXT("call_function");
-    CallFunctionTool.Description = TEXT("Calls a BlueprintCallable function on an actor, as one undoable editor transaction, and returns its outputs as text.");
+    CallFunctionTool.Description = TEXT("Calls a BlueprintCallable function on an actor (as one undoable editor transaction) or on a world or game-instance subsystem, and returns its outputs as text.");
     CallFunctionTool.InputSchema = MakeSchema({
-        { TEXT("actor"), TEXT("string"), TEXT("Actor name, label or path (see list_actors)."), true },
+        { TEXT("actor"), TEXT("string"), TEXT("Actor name, label or path (see list_actors). Give this or 'subsystem'."), false },
+        { TEXT("subsystem"), TEXT("string"), TEXT("A world or game-instance subsystem's class name, e.g. AgenticLinkProbeSubsystem, instead of an actor."), false },
         { TEXT("function"), TEXT("string"), TEXT("Function name, e.g. K2_GetActorLocation."), true },
         { TEXT("arguments"), TEXT("object"), TEXT("Parameter name to value (Unreal's text format, a number or a boolean)."), false } });
     CallFunctionTool.Handler = Bind(WorldResolver, &CallFunction);
@@ -560,6 +601,36 @@ AActor* FAgenticLinkEngineTools::FindActor(UWorld* World, const FString& ActorNa
             return Actor;
         }
 #endif
+    }
+    return nullptr;
+}
+
+UObject* FAgenticLinkEngineTools::FindSubsystem(UWorld* World, const FString& SubsystemName)
+{
+    if (!World || SubsystemName.IsEmpty())
+    {
+        return nullptr;
+    }
+    UClass* Class = SubsystemName.StartsWith(TEXT("/"))
+        ? FindObject<UClass>(nullptr, *SubsystemName)
+        : FindFirstObject<UClass>(*SubsystemName, EFindFirstObjectOptions::NativeFirst);
+    if (!Class && SubsystemName.Len() > 1 && SubsystemName[0] == TEXT('U') && FChar::IsUpper(SubsystemName[1]))
+    {
+        // The C++ name with its U prefix: reflection names the class without it.
+        Class = FindFirstObject<UClass>(*SubsystemName.Mid(1), EFindFirstObjectOptions::NativeFirst);
+    }
+    if (!Class)
+    {
+        return nullptr;
+    }
+    if (Class->IsChildOf(UWorldSubsystem::StaticClass()))
+    {
+        return World->GetSubsystemBase(Class);
+    }
+    if (Class->IsChildOf(UGameInstanceSubsystem::StaticClass()))
+    {
+        UGameInstance* GameInstance = World->GetGameInstance();
+        return GameInstance ? GameInstance->GetSubsystemBase(Class) : nullptr;
     }
     return nullptr;
 }

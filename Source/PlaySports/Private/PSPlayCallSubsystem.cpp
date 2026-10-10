@@ -5,6 +5,7 @@
 #include "PSDataIngestion.h"
 #include "PSLocalization.h"
 #include "PSDifficultySubsystem.h"
+#include "PSGameIntelligenceSubsystem.h"
 #include "PSPlaybookIngestion.h"
 #include "PSPlayOrchestrator.h"
 #include "PSPlayerPawn.h"
@@ -119,6 +120,13 @@ void UPSPlayCallSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
     CoachingAI = NewObject<UPSCoachingAI>(this);
+
+    // Epic 18's hook made real (Epic 82): an outside model's answered call, through the bridge,
+    // is the coaching AI's suggestion. With no bridge it never answers.
+    if (UPSGameIntelligenceSubsystem* Intelligence = Collection.InitializeDependency<UPSGameIntelligenceSubsystem>())
+    {
+        CoachingAI->SetSuggestionProvider(TScriptInterface<IPSCoachingSuggestionProvider>(Intelligence));
+    }
 
     UPSTelemetryBus* Bus = Collection.InitializeDependency<UPSTelemetryBus>();
     if (Bus)
@@ -852,6 +860,19 @@ void UPSPlayCallSubsystem::OpenPlayCall(const FPSSituationContext& InSituation)
         }
     }
 
+    // A CPU side an outside model calls for asks it now (Epic 82); its call waits for the answer
+    // in PollReadyToSnap.
+    if (UPSGameIntelligenceSubsystem* Intelligence = GetWorld() ? GetWorld()->GetSubsystem<UPSGameIntelligenceSubsystem>() : nullptr)
+    {
+        for (const bool bOffense : { true, false })
+        {
+            if (!IsHumanSide(bOffense) && Intelligence->IsConsulting(bOffense))
+            {
+                Intelligence->OpenPlayConsultation(bOffense, Situation, GetPlays(bOffense));
+            }
+        }
+    }
+
     // A human offense in hurry-up runs its last play again, with no call screen.
     const bool bOffenseRerun = IsHumanSide(true) && RerunLastHumanCall();
     for (const bool bOffense : { true, false })
@@ -1037,6 +1058,11 @@ void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
             }
             Decision.Options.Add(Option);
         }
+        const UPSGameIntelligenceSubsystem* Intelligence = GetWorld()->GetSubsystem<UPSGameIntelligenceSubsystem>();
+        if (Intelligence && !Chosen.IsNone() && Intelligence->GetAnsweredPlay(bOffense) == Chosen)
+        {
+            Decision.Reason = TEXT("An outside model's call, through the agent bridge (Epic 82)");
+        }
         DecisionLog->Record(Decision);
     }
     SetCall(Play ? *Play : Candidates[0], EPSPlayCaller::CPU);
@@ -1087,11 +1113,19 @@ bool UPSPlayCallSubsystem::PollReadyToSnap(float DeltaSeconds)
         return false;
     }
 
+    UPSGameIntelligenceSubsystem* Intelligence = GetWorld() ? GetWorld()->GetSubsystem<UPSGameIntelligenceSubsystem>() : nullptr;
+    const bool bPlayClockLow = PlayClockSeconds >= 0.f && PlayClockSeconds <= GetTuning().QuickCallPlayClockSeconds;
     for (const bool bOffense : { true, false })
     {
         if (!GetCall(bOffense).IsSet() && !IsHumanSide(bOffense))
         {
-            CallForCpu(bOffense);
+            // An outside model asked for this call (Epic 82) has until its timeout to answer,
+            // never past the play clock's quick-call point.
+            const bool bWaiting = Intelligence && !bPlayClockLow && Intelligence->WaitForConsultation(bOffense, DeltaSeconds);
+            if (!bWaiting)
+            {
+                CallForCpu(bOffense);
+            }
         }
         else if (!GetCall(bOffense).IsSet() && PlayClockSeconds >= 0.f && PlayClockSeconds <= GetTuning().QuickCallPlayClockSeconds)
         {
@@ -1145,6 +1179,12 @@ void UPSPlayCallSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
             Record.bHomeTeam = IsHomeTeamCalling(bOffense);
             CallHistory.Add(Record);
         }
+    }
+
+    // Each side's outside-model request is settled against the play it runs (Epic 82).
+    if (UPSGameIntelligenceSubsystem* Intelligence = GetWorld() ? GetWorld()->GetSubsystem<UPSGameIntelligenceSubsystem>() : nullptr)
+    {
+        Intelligence->CloseConsultations(OffenseCall.PlayId, DefenseCall.PlayId);
     }
 
     Distribute(Event.LineOfScrimmage);

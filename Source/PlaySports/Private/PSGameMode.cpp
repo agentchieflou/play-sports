@@ -23,6 +23,7 @@
 #include "PSMatchSetup.h"
 #include "PSStaffManager.h"
 #include "PSStatsEngine.h"
+#include "PSGameIntelligenceSubsystem.h"
 #include "PSUITeamCatalog.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -194,6 +195,13 @@ void APSGameMode::StartPlay()
                 MatchStats = NewObject<UPSStatsEngine>(this);
                 MatchStats->BindToBus(Bus);
                 MatchStats->BeginGame(MatchSetup->GetSeasonWeek(), MatchSetup->GetHomeTeamId(), MatchSetup->GetAwayTeamId());
+
+                // The game state outside models read (Epic 82) takes the match's personnel and
+                // statistics from their owners here.
+                if (UPSGameIntelligenceSubsystem* Intelligence = GetWorld()->GetSubsystem<UPSGameIntelligenceSubsystem>())
+                {
+                    Intelligence->SetStateSources(PersonnelManager, MatchStats);
+                }
 
                 // Give the simulation its world ref so it can subscribe to bus events (C2)
                 PlaySimulation->InitializeWithWorld(GetWorld());

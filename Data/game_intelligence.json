@@ -1,0 +1,15 @@
+{
+    "ContextBudgetChars": 6000,
+    "PlayCallTimeoutSeconds": 6.0,
+    "MaxOpenRequests": 8,
+    "MaxAnswerChars": 4000,
+    "LeadersPerCategory": 1,
+    "MaxKeyPlays": 5,
+    "bPostGameRequests": true,
+    "PlayCallTask": "strategy",
+    "DriveSummaryTask": "summary",
+    "GameAnalysisTask": "analysis",
+    "PlayCallInstructions": "You call plays for the side named in 'side'. Read the game state (situation, personnel, the human's tendencies, the game's stats) and answer with exactly one id from 'choices', nothing else.",
+    "DriveSummaryInstructions": "Summarize each drive of this finished game in one sentence, in order, one line per drive.",
+    "GameAnalysisInstructions": "Explain how this game was won in a short paragraph, built on its key plays (the most important first)."
+}

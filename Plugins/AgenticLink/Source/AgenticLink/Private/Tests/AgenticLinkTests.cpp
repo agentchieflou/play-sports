@@ -4,7 +4,8 @@
 //   1. The MCP protocol: initialize and version negotiation, notifications, ping, tools/list,
 //      tools/call results and tool errors, and the JSON-RPC errors for malformed messages.
 //   2. The engine tools on a headless world: list_actors, get_property, set_property,
-//      call_function and spawn_actor, with their refusals.
+//      call_function (on an actor, and on a world subsystem) and spawn_actor, with their
+//      refusals.
 //   3. In the editor, an agent's set_property is one transaction that Undo reverts.
 //   4. The HTTP transport: POST answers, 202 for notifications, 405 for GET, 403 for a foreign
 //      Origin.
@@ -13,6 +14,7 @@
 #include "AgenticLinkEngineTools.h"
 #include "AgenticLinkHttpTransport.h"
 #include "AgenticLinkMcpServer.h"
+#include "AgenticLinkProbeSubsystem.h"
 #include "Dom/JsonObject.h"
 #include "Engine/Engine.h"
 #include "Engine/TargetPoint.h"
@@ -301,6 +303,35 @@ bool FAgenticLinkEngineToolsTest::RunTest(const FString& Parameters)
         ResultText(CallTool(Server, TEXT("call_function"), FString::Printf(TEXT(R"({"actor":"%s","function":"SetActorHiddenInGame"})"), *FirstName))).Contains(TEXT("bNewHidden")));
     TestTrue(TEXT("A function Blueprints can't call is refused"),
         ResultText(CallTool(Server, TEXT("call_function"), FString::Printf(TEXT(R"({"actor":"%s","function":"ReceiveBeginPlay"})"), *FirstName))).Contains(TEXT("not BlueprintCallable")));
+
+    // call_function on a world subsystem: a plain call (no transaction) on the world's own.
+    UAgenticLinkProbeSubsystem* Probe = World->GetSubsystem<UAgenticLinkProbeSubsystem>();
+    if (TestNotNull(TEXT("The world has the probe subsystem"), Probe))
+    {
+        const TSharedPtr<FJsonObject> Echoed = CallTool(Server, TEXT("call_function"), TEXT(R"({"subsystem":"AgenticLinkProbeSubsystem","function":"Echo","arguments":{"Text":"hello"}})"));
+        TestFalse(TEXT("A subsystem's function can be called"), IsToolError(Echoed));
+        FString Echo;
+        const TSharedPtr<FJsonObject> EchoOutputs = GetObject(GetObject(Echoed, TEXT("structuredContent")), TEXT("outputs"));
+        TestTrue(TEXT("...with its string argument, returning its answer"), EchoOutputs.IsValid() && EchoOutputs->TryGetStringField(TEXT("ReturnValue"), Echo)
+            && Echo == FString::Printf(TEXT("hello from %s"), *World->GetName()));
+        TestEqual(TEXT("...on the world's subsystem"), Probe->GetEchoCount(), 1);
+        TestEqual(TEXT("...which the result names"), StructuredString(Echoed, TEXT("subsystem")), FString(TEXT("AgenticLinkProbeSubsystem")));
+        bool bUndoable = true;
+        TestTrue(TEXT("...and is not an undoable edit"), GetObject(Echoed, TEXT("structuredContent")).IsValid()
+            && GetObject(Echoed, TEXT("structuredContent"))->TryGetBoolField(TEXT("undoable"), bUndoable) && !bUndoable);
+        TestFalse(TEXT("The C++ name with its U prefix works too"),
+            IsToolError(CallTool(Server, TEXT("call_function"), TEXT(R"({"subsystem":"UAgenticLinkProbeSubsystem","function":"Echo","arguments":{"Text":"again"}})"))));
+        TestEqual(TEXT("...on the same subsystem"), Probe->GetEchoCount(), 2);
+        TestTrue(TEXT("An unknown subsystem is refused"),
+            ResultText(CallTool(Server, TEXT("call_function"), TEXT(R"({"subsystem":"NoSuchSubsystem","function":"Echo"})"))).Contains(TEXT("no subsystem")));
+        TestTrue(TEXT("A class that isn't a subsystem is refused"),
+            ResultText(CallTool(Server, TEXT("call_function"), TEXT(R"({"subsystem":"TargetPoint","function":"Echo"})"))).Contains(TEXT("no subsystem")));
+        TestTrue(TEXT("A subsystem's unknown function is refused"),
+            ResultText(CallTool(Server, TEXT("call_function"), TEXT(R"({"subsystem":"AgenticLinkProbeSubsystem","function":"Nope"})"))).Contains(TEXT("no function 'Nope'")));
+        TestTrue(TEXT("FindSubsystem finds it by name"), FAgenticLinkEngineTools::FindSubsystem(World, TEXT("AgenticLinkProbeSubsystem")) == Probe);
+    }
+    TestTrue(TEXT("call_function needs an actor or a subsystem"),
+        ResultText(CallTool(Server, TEXT("call_function"), TEXT(R"({"function":"Echo"})"))).Contains(TEXT("Missing 'actor'")));
 
     // spawn_actor
     const TSharedPtr<FJsonObject> Spawned = CallTool(Server, TEXT("spawn_actor"), TEXT(R"({"class":"TargetPoint","location":[10,20,30]})"));
