@@ -57,7 +57,7 @@ against FPSPersonnelPanelStyle (Epic 29); "MinSamples" files against FPSOpponent
 counter pairing a play category the human calls with one the CPU answers on the other side (Epic
 78); "PausesPerHalf" files against FPSVersusRules (Epic 107): control roles on their sides, screen
 and overlay audiences, pause and resume etiquette; "bLogDecisions" files against FPSAIDebugTuning
-and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover target naming a
+(its overlay cards' sizes, colors and nudges too, Epic 85.2) and "Scenarios" files against FPSAIScenarioCatalog, each expectation and cover target naming a
 player of its scenario (Epic 85); "StadiumCapacity" files against FPSEconomyTuning (Epic 95):
 ordered prices and fill rates, 0-1 satisfaction, the default budget within MaxBudgetFraction;
 "UnownedColor" files against FPSGapOverlayStyle (Epic 81); "TradeRequestWeeks" files against
@@ -4050,7 +4050,12 @@ def validate_versus_rules(path, payload):
 
 
 AI_DEBUG_FIELDS = {"bLogDecisions": bool, "bWritePostMortems": bool, "PostMortemDirectory": str, "MaxPostMortemFiles": int,
-                   "MaxRecordsPerPlay": int, "OverlayHeightCm": (int, float), "OverlayFontScale": (int, float)}
+                   "MaxRecordsPerPlay": int, "OverlayHeightCm": (int, float), "OverlayFontScale": (int, float),
+                   "OverlayFontSize": int, "OverlayCharWidth": (int, float), "OverlayLineHeight": (int, float),
+                   "OverlayPadding": (int, float), "OverlayMaxLineChars": int, "OverlayOffenseColor": str,
+                   "OverlayDefenseColor": str, "OverlayTextColor": str, "OverlayOpacity": (int, float),
+                   "OverlayCrowdedOpacity": (int, float), "OverlayNudgeStep": (int, float), "OverlayMaxNudges": int,
+                   "OverlayTargetLineWidth": (int, float)}
 DEFENSIVE_ASSIGNMENTS = {"PassRush", "Contain", "ManCoverage", "ZoneCoverage", "RunFit", "Block"}
 SCENARIO_FIELDS = {"ScenarioId", "Description", "OffenseCategory", "Down", "Distance", "StepSeconds", "Steps", "Players", "Expectations"}
 SCENARIO_PLAYER_FIELDS = {"PlayerId", "Role", "Location", "Rating", "DNA", "bHasBall", "Route", "Assignment", "CoverTarget", "ZoneOffset"}
@@ -4069,6 +4074,21 @@ def validate_ai_debug(path, payload):
     directory = payload.get("PostMortemDirectory")
     if isinstance(directory, str) and (not directory.strip() or ".." in directory or directory.startswith(("/", "\\"))):
         err(path, "PostMortemDirectory: a folder under Saved/, without '..'")
+    # The overlay's cards (Epic 85.2); mirrors PSAIDebugOverlay::ValidateTuning.
+    for field in ("OverlayFontSize", "OverlayCharWidth", "OverlayLineHeight", "OverlayTargetLineWidth"):
+        if is_number(payload.get(field)) and payload[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    for field in ("OverlayPadding", "OverlayNudgeStep", "OverlayMaxNudges"):
+        if is_number(payload.get(field)) and payload[field] < 0:
+            err(path, f"{field}: must be 0 or more")
+    if isinstance(payload.get("OverlayMaxLineChars"), int) and payload["OverlayMaxLineChars"] < 8:
+        err(path, "OverlayMaxLineChars: must be 8 or more")
+    for field in ("OverlayOpacity", "OverlayCrowdedOpacity"):
+        if is_number(payload.get(field)) and not 0 <= payload[field] <= 1:
+            err(path, f"{field}: must be from 0 to 1")
+    for field in ("OverlayOffenseColor", "OverlayDefenseColor", "OverlayTextColor"):
+        if isinstance(payload.get(field), str) and not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload[field]}' must be #RRGGBB")
     extra = set(payload) - set(AI_DEBUG_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSAIDebugTuning exactly")

@@ -1,4 +1,5 @@
 #include "PSAIDecisionLog.h"
+#include "PSAIDebugOverlay.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSPlayerPawn.h"
@@ -67,10 +68,53 @@ TStatId UPSAIDecisionLog::GetStatId() const
 void UPSAIDecisionLog::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-    if (PSAIDecisionLogPrivate::CVarDebugOverlay.GetValueOnGameThread() != 0)
+    // A drawing layer (UPSAIDebugOverlayWidget) shows the overlay when one is up; else the world's
+    // debug text does.
+    if (ShouldDrawWorldText())
     {
         DrawOverlay();
     }
+}
+
+bool UPSAIDecisionLog::IsOverlayOn() const
+{
+    if (OverlayOverride >= 0)
+    {
+        return OverlayOverride > 0;
+    }
+    return PSAIDecisionLogPrivate::CVarDebugOverlay.GetValueOnGameThread() != 0;
+}
+
+void UPSAIDecisionLog::SetOverlayEnabled(bool bOn)
+{
+    OverlayOverride = bOn ? 1 : 0;
+}
+
+TArray<FPSAIDebugCard> UPSAIDecisionLog::LayoutOverlay(const FPSBadgeView& View, const FPSOverlayBadgeStyle& BadgeStyle, float PixelsPerUnit)
+{
+    UWorld* World = GetWorld();
+    if (!World || !IsOverlayOn())
+    {
+        return TArray<FPSAIDebugCard>();
+    }
+    TArray<FPSAIDebugCardSource> Sources;
+    for (APSPlayerPawn* Pawn : UPSAIFieldSnapshot::GetFieldPawns(World))
+    {
+        FPSAIDecisionRecord Entry;
+        if (!Pawn || !GetLatest(Pawn->GetAttributes().PlayerId, Entry))
+        {
+            continue;
+        }
+        FPSAIDebugCardSource& Source = Sources.AddDefaulted_GetRef();
+        Source.PlayerId = Entry.AgentId;
+        Source.Text = DescribeForOverlay(Entry);
+        Source.Location = Pawn->GetActorLocation();
+        Source.bOffense = Pawn->TeamSide == EPSTeamSide::Offense;
+        // As the world's debug line: a target only when the decision named a place.
+        Source.bHasTarget = !Entry.TargetLocation.IsZero();
+        Source.TargetLocation = Entry.TargetLocation;
+    }
+    return PSAIDebugOverlay::LayoutCards(Sources, View, BadgeStyle, GetTuning(), PixelsPerUnit);
 }
 
 FString UPSAIDecisionLog::GetDefaultTuningPath()
@@ -121,7 +165,7 @@ bool UPSAIDecisionLog::IsLogging()
     {
         return LoggingOverride > 0 || IsWritingPostMortems();
     }
-    return GetTuning().bLogDecisions || CVarDecisionLog.GetValueOnGameThread() != 0 || CVarDebugOverlay.GetValueOnGameThread() != 0 || IsWritingPostMortems();
+    return GetTuning().bLogDecisions || CVarDecisionLog.GetValueOnGameThread() != 0 || IsOverlayOn() || IsWritingPostMortems();
 }
 
 void UPSAIDecisionLog::SetLogging(bool bOn)

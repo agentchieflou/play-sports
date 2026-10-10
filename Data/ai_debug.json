@@ -5,5 +5,18 @@
     "MaxPostMortemFiles": 50,
     "MaxRecordsPerPlay": 5000,
     "OverlayHeightCm": 160.0,
-    "OverlayFontScale": 1.0
+    "OverlayFontScale": 1.0,
+    "OverlayFontSize": 11,
+    "OverlayCharWidth": 0.6,
+    "OverlayLineHeight": 1.3,
+    "OverlayPadding": 4.0,
+    "OverlayMaxLineChars": 48,
+    "OverlayOffenseColor": "#1F6FEB",
+    "OverlayDefenseColor": "#C2410C",
+    "OverlayTextColor": "#FFFFFF",
+    "OverlayOpacity": 0.8,
+    "OverlayCrowdedOpacity": 0.3,
+    "OverlayNudgeStep": 12.0,
+    "OverlayMaxNudges": 6,
+    "OverlayTargetLineWidth": 2.0
 }

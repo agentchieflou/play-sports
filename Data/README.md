@@ -228,6 +228,20 @@ Single object (Epic 85; the AI's decision log, overlay and post-mortems, `UPSAID
 - `MaxRecordsPerPlay` (above 0): a play keeps at most this many decisions.
 - `OverlayHeightCm`, `OverlayFontScale` (above 0): where the overlay's text sits above a player,
   and its size.
+- The overlay's cards (Epic 85.2, `UPSAIDebugOverlayWidget`, laid out by `PSAIDebugOverlay` with
+  Epic 28's badge rules; sizes are Slate units at a distance scale of 1, the badges'
+  `ReferenceDistance`):
+  - `OverlayFontSize` (above 0; times `OverlayFontScale`): the type size.
+  - `OverlayCharWidth`, `OverlayLineHeight` (above 0, shares of the type size): how a card is
+    sized from its text. `OverlayPadding` (0 or more) goes round the text.
+    `OverlayMaxLineChars` (8 or more): longer lines wrap at a space.
+  - `OverlayOffenseColor`, `OverlayDefenseColor`, `OverlayTextColor` (`#RRGGBB`): the cards by
+    side, and their text.
+  - `OverlayOpacity` and `OverlayCrowdedOpacity` (0 to 1): a card, and one with no room clear of
+    the others (it is drawn dimmed where it was, not hidden).
+  - `OverlayNudgeStep` and `OverlayMaxNudges` (0 or more): how a card moves up clear of the
+    others.
+  - `OverlayTargetLineWidth` (above 0): the line from a player to his target.
 
 ## AI scenario schema (`FPSAIScenarioCatalog`)
 
