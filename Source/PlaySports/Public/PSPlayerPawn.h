@@ -107,6 +107,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Health")
     UPSHealthComponent* GetHealthComponent() const { return HealthComponent; }
 
+    /** The ball carrier's move set (Epic 104.2). */
+    UFUNCTION(BlueprintPure, Category = "Moves")
+    class UPSCarrierMoveComponent* GetCarrierMoveComponent() const { return CarrierMoveComponent; }
+
     /** True while a human player controller controls this pawn (Epic 127). HUD and camera
      *  read this rather than asking the controller. */
     UFUNCTION(BlueprintPure, Category = "Player")
@@ -171,6 +175,10 @@ protected:
      *  InitializePlayer/InitializePlayerPointer. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UPSHealthComponent* HealthComponent;
+
+    /** Juke, spin, truck, stiff-arm, hurdle, slide (Epic 104.2). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    class UPSCarrierMoveComponent* CarrierMoveComponent;
 
 
     const FPlayerAttributes* AttributesPtr = nullptr;

@@ -15,6 +15,7 @@
 #include "PSDefenderAIComponent.h"
 #include "PSPassingComponent.h"
 #include "PSPlatformTiers.h"
+#include "PSCarrierMoveComponent.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -91,6 +92,11 @@ public:
     /** Loads the platform tiers (Data/platform_tiers.json, Epic 129). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPlatformTiersFromJson(const FString& JsonFilePath, FPSPlatformTierCatalog& OutCatalog);
+
+    /** Loads the ball carrier's move set (Data/carrier_moves.json, Epic 104.2). False on a
+     *  missing file, malformed JSON, or an unrecognized Move. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

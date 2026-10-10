@@ -22,3 +22,12 @@ bool PSBallResolutionHelpers::ResolveCatch(const FPlayerAttributes& Attributes, 
 {
     return Roll <= ComputeCatchChance(Attributes, Tuning);
 }
+
+float PSBallResolutionHelpers::ComputeTackleChance(const FPlayerAttributes& Carrier, const FPlayerAttributes& Defender, float CarrierSpeed, float DefenderSpeed,
+    float CarrierMoveMultiplier, const FTackleTuningRow& Tuning)
+{
+    const float DefenderPower = Defender.Strength * Tuning.DefenderStrengthWeight + DefenderSpeed * Tuning.DefenderSpeedWeight;
+    const float CarrierPower = Carrier.Strength * Tuning.CarrierStrengthWeight + Carrier.Agility * Tuning.CarrierAgilityWeight + CarrierSpeed * Tuning.CarrierSpeedWeight;
+    const float Chance = FMath::Clamp(Tuning.TackleBaseChance + (DefenderPower - CarrierPower) * Tuning.PowerScalar, Tuning.TackleChanceMin, Tuning.TackleChanceMax);
+    return FMath::Clamp(Chance * FMath::Max(0.f, CarrierMoveMultiplier), 0.f, Tuning.TackleChanceMax);
+}

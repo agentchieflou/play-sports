@@ -90,7 +90,7 @@ bool FPSInputGlyphTableTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Move on a gamepad is the left stick"), Glyph.GlyphId, FName(TEXT("Xbox_LS")));
 
     TestFalse(TEXT("Look has no glyph on the field (it lives in World only)"), Config->GetGlyphForAction(TEXT("Look"), TEXT("OnField"), EPSInputDevice::Gamepad, Glyph));
-    TestFalse(TEXT("An unknown action has no glyph"), Config->GetGlyphForAction(TEXT("Juke"), TEXT("OnField"), EPSInputDevice::Gamepad, Glyph));
+    TestFalse(TEXT("An unknown action has no glyph"), Config->GetGlyphForAction(TEXT("NotARealAction"), TEXT("OnField"), EPSInputDevice::Gamepad, Glyph));
 
     // Keys outside the table: keyboard falls back to a keycap with the key's name,
     // gamepads don't guess, and a key never draws with the other device's set.
@@ -153,12 +153,13 @@ bool FPSInputGlyphTableTest::RunTest(const FString& Parameters)
     {
         Broken->Table = Glyphs->Table;
         FPSActionGlyphDef Unknown;
-        Unknown.ActionId = TEXT("Juke");
-        Unknown.GlyphId = TEXT("Key_Juke");
-        Unknown.Label = TEXT("J");
+        // A name no catalog action will ever take (Juke was the example until Epic 104.2 made it real).
+        Unknown.ActionId = TEXT("NotARealAction");
+        Unknown.GlyphId = TEXT("Key_NotARealAction");
+        Unknown.Label = TEXT("?");
         FindSet(Broken->Table, TEXT("KeyboardMouse"))->Actions.Add(Unknown);
         TestTrue(TEXT("An action glyph for an action the catalog lacks is reported"),
-            HasProblem(Broken->Validate(&Config->Catalog), TEXT("'Juke', which is not in the input catalog")));
+            HasProblem(Broken->Validate(&Config->Catalog), TEXT("'NotARealAction', which is not in the input catalog")));
     }
     {
         Broken->Table = Glyphs->Table;
