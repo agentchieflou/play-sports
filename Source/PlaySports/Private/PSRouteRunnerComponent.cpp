@@ -2,6 +2,7 @@
 #include "PSDataIngestion.h"
 #include "PSHealthComponent.h"
 #include "PSOffenseController.h"
+#include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
 #include "Engine/DataTable.h"
 #include "Engine/World.h"
@@ -76,18 +77,36 @@ bool UPSRouteRunnerComponent::LoadTuningFromJson(const FString& JsonFilePath)
         UE_LOG(LogTemp, Warning, TEXT("UPSRouteRunnerComponent: Could not load route-running tuning from %s; keeping defaults."), *JsonFilePath);
         return false;
     }
+    BaseTuning = Loaded;
     Tuning = Loaded;
     return true;
 }
 
 void UPSRouteRunnerComponent::SetTuning(const FRouteRunningTuningRow& InTuning)
 {
+    BaseTuning = InTuning;
     Tuning = InTuning;
     bTuningLoaded = true;
 }
 
+void UPSRouteRunnerComponent::ApplyPlayerDNA(const FPlayerAttributes& Receiver)
+{
+    GetTuning();
+    Tuning = BaseTuning;
+    if (UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld()))
+    {
+        DNA->ApplyTo(Receiver, TEXT("RouteRunning"), Tuning);
+    }
+}
+
 void UPSRouteRunnerComponent::SetRoutePlan(const FPSRoute& Route, const TArray<FVector>& WorldWaypoints, float InMirror, const UDataTable* RouteLibrary, int32 Seed)
 {
+    // He runs this play's route in his own style (Epic 79).
+    const APSOffenseController* Controller = Cast<APSOffenseController>(GetOwner());
+    if (const APSPlayerPawn* Receiver = Controller ? Cast<APSPlayerPawn>(Controller->GetPawn()) : nullptr)
+    {
+        ApplyPlayerDNA(Receiver->GetAttributes());
+    }
     const FRouteRunningTuningRow& Settings = GetTuning();
     bHasPlan = WorldWaypoints.Num() == Route.Waypoints.Num() && WorldWaypoints.Num() > 0;
     PlannedWaypoints = WorldWaypoints;

@@ -5,6 +5,7 @@
 #include "PSDefenseController.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSPlatformTiers.h"
+#include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
@@ -65,8 +66,20 @@ bool UPSDefenderAIComponent::LoadTuningFromJson(const FString& JsonFilePath)
         UE_LOG(LogTemp, Warning, TEXT("UPSDefenderAIComponent: Could not load AI tuning from %s; keeping defaults."), *JsonFilePath);
         return false;
     }
+    BaseTuning = Loaded;
     Tuning = Loaded;
     return true;
+}
+
+void UPSDefenderAIComponent::ApplyPlayerDNA(const APSPlayerPawn* Self)
+{
+    GetTuning();
+    Tuning = BaseTuning;
+    UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld());
+    if (Self && DNA)
+    {
+        DNA->ApplyTo(Self->GetAttributes(), TEXT("DefenderAI"), Tuning);
+    }
 }
 
 void UPSDefenderAIComponent::BeginPlay()
@@ -296,6 +309,8 @@ void UPSDefenderAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEven
 
 void UPSDefenderAIComponent::StartAssignment(APSPlayerPawn* Self)
 {
+    // The play starts: he plays it in his own style (Epic 79).
+    ApplyPlayerDNA(Self);
     const APSDefenseController* Controller = GetDefenseController();
     const EPSDefensiveAssignmentType Assignment = Controller ? Controller->GetAssignment() : EPSDefensiveAssignmentType::RunFit;
     ZoneSpot = Self->GetActorLocation();

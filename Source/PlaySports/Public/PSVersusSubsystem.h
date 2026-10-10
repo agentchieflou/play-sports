@@ -23,7 +23,7 @@ class UPSPlayCallSubsystem;
  *
  *  - Session flow (107.1): seats are claimed (ClaimSeat, one per user), each picks a team
  *    (SelectTeam / StepTeam; both can't have the same one), both ready up, and StartSession
- *    begins. The front end's Head to Head screen travels with "?mode=Versus?home=<seat>";
+ *    begins. The front end's Head to Head screen travels with "?mode=Versus?homeseat=<seat>";
  *    BeginFromTravel then seats the first two local players (creating the second) and starts.
  *    The seat whose team has the ball plays offense: when the ball changes hands (the bus's
  *    GameState) the seats swap sides, and every new down (PhaseChange to PreSnap) puts each
@@ -116,7 +116,7 @@ public:
      *  game instance, with its own controller. Null without a game instance (headless). */
     APSPlayerController* CreateLocalSeatPlayer(int32 ControllerId);
 
-    /** Starts a session from a travel URL ("?mode=Versus?home=1"): seats the first two local
+    /** Starts a session from a travel URL ("?mode=Versus?homeseat=1"): seats the first two local
      *  players, creating the second, gives Home to the named seat (0 by default) and starts.
      *  False when the URL is not a versus game or two seats can't be filled. */
     bool BeginFromTravel(const FURL& URL);
@@ -124,7 +124,8 @@ public:
     /** Whether a travel URL asks for a head-to-head game. */
     static bool IsVersusURL(const FURL& URL);
 
-    /** The seat a travel URL makes the home team: its "home" option, 0 or 1 (0 without one). */
+    /** The seat a travel URL makes the home team: its "homeseat" option, 0 or 1 (0 without one).
+     *  home= stays UPSMatchSetup's: the home team itself. */
     static int32 GetHomeSeatFromURL(const FURL& URL);
 
     // --- Sides ----------------------------------------------------------------------------

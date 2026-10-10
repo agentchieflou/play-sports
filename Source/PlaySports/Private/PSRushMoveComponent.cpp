@@ -4,6 +4,7 @@
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
 #include "PSDefenseController.h"
+#include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
 #include "PSTelemetryBus.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -235,6 +236,8 @@ EPSRushMove UPSRushMoveComponent::ChooseMove()
     const FPlayerAttributes RusherAttributes = Self->GetAttributes();
     const FPlayerAttributes BlockerAttributes = Blocker->GetAttributes();
     const FMatchup* Matchup = Matchups.Find(BlockerAttributes.PlayerId);
+    // His style (Epic 79): a power rusher leans to power moves, a finesse rusher to finesse ones.
+    UPSPlayerDNASubsystem* DNA = RusherAttributes.DNA.IsNeutral() ? nullptr : UPSPlayerDNASubsystem::Get(GetWorld());
 
     // The best score wins; on a tie, the move listed first.
     EPSRushMove Best = EPSRushMove::None;
@@ -251,7 +254,8 @@ EPSRushMove UPSRushMoveComponent::ChooseMove()
             continue;
         }
         const FPSRushMoveRecord* Record = Matchup ? Matchup->Records.Find(Def.Move) : nullptr;
-        const float Score = PSRushMoves::ScoreMove(Chance, Record ? *Record : FPSRushMoveRecord(), Library.HistoryPriorWeight);
+        const float Score = PSRushMoves::ScoreMove(Chance, Record ? *Record : FPSRushMoveRecord(), Library.HistoryPriorWeight)
+            * (DNA ? DNA->GetRushMoveScale(RusherAttributes, Def.Move) : 1.f);
         if (Score > BestScore)
         {
             BestScore = Score;

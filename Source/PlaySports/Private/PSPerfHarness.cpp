@@ -9,6 +9,7 @@
 #include "PSOffenseController.h"
 #include "PSOverlayBallFlightSubsystem.h"
 #include "PSOverlayBroadcastSubsystem.h"
+#include "PSOverlayEmphasisSubsystem.h"
 #include "PSPerfBudget.h"
 #include "PSPlaySimulation.h"
 #include "PSPlayerPawn.h"
@@ -270,6 +271,10 @@ void UPSPerfHarness::StepFrame(UWorld* World, const TArray<APSPlayerPawn*>& Play
     if (UPSOverlayBroadcastSubsystem* Broadcast = World->GetSubsystem<UPSOverlayBroadcastSubsystem>())
     {
         Broadcast->AdvanceTime(DeltaSeconds);
+    }
+    if (UPSOverlayEmphasisSubsystem* Emphasis = World->GetSubsystem<UPSOverlayEmphasisSubsystem>())
+    {
+        Emphasis->AdvanceTime(DeltaSeconds);
     }
     PSPerf::EndFrame();
 }
