@@ -1308,17 +1308,6 @@ SITUATIONAL_FIELDS = set(SITUATIONAL_SECONDS) | set(SITUATIONAL_COUNTS) | {
     "MiddleRouteIds", "SidelinePlayDelta", "MiddlePlayDelta", "CategoryWeights"}
 
 
-def load_route_ids():
-    """The route library's IDs, or None when it is missing or broken (its own checks report that)."""
-    try:
-        routes = json.loads((DATA_DIR / "sample_routes.json").read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-        return None
-    if not isinstance(routes, dict) or not isinstance(routes.get("Routes"), list):
-        return None
-    return {r.get("RouteId") for r in routes["Routes"] if isinstance(r, dict)}
-
-
 def validate_situational_tuning(path, payload, route_ids):
     """FPSSituationalTuning (Data/situational_tuning.json, Epic 76)."""
     extra = set(payload) - SITUATIONAL_FIELDS
