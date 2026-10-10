@@ -44,7 +44,7 @@ with the control's value type, every action of a covered context is reachable by
 touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
-coaches of that role. Teams, the league config, the playbook, player rating ranges and every
+coaches of that role; "PlaybackRates" files against FPSReplayTuning (Epic 41). Teams, the league config, the playbook, player rating ranges and every
 reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -634,10 +634,13 @@ def validate_platform_tiers(path, payload):
             value = tier.get(field)
             if not is_number(value) or value <= 0:
                 err(path, f"{where}.{field}: '{value}' must be a number above 0")
+        pose_rate = tier.get("ReplayPoseRateHz")
+        if not is_number(pose_rate) or pose_rate < 0:
+            err(path, f"{where}.ReplayPoseRateHz: '{pose_rate}' must be a number, 0 (every frame) or more")
         if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
             err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
-                             *TIER_TELEMETRY_NUMBERS}
+                             "ReplayPoseRateHz", *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -903,6 +906,36 @@ def validate_telemetry_sampling(path, payload):
              - {"SampleRateHz", "SampleBudgetMs"})
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelemetrySamplingTuning exactly")
+
+
+REPLAY_FIELDS = ("PreRollSeconds", "PostRollSeconds", "PlaybackRates", "SaveFrameRateHz")
+
+
+def validate_replay_tuning(path, payload):
+    """FPSReplayTuning (Data/replay.json, Epic 41); mirrors UPSReplaySubsystem::ValidateTuning."""
+    for field in ("PreRollSeconds", "PostRollSeconds"):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    value = payload.get("SaveFrameRateHz")
+    if not is_number(value) or value <= 0:
+        err(path, f"SaveFrameRateHz: '{value}' must be a number above 0")
+    rates = payload.get("PlaybackRates")
+    if not isinstance(rates, list) or not rates:
+        err(path, "'PlaybackRates' must be a non-empty array of speeds")
+    else:
+        for idx, rate in enumerate(rates):
+            if not is_number(rate) or not 0 < rate <= 1:
+                err(path, f"PlaybackRates[{idx}]: '{rate}' must be above 0 and at most 1")
+            elif rates.index(rate) != idx:
+                err(path, f"PlaybackRates[{idx}]: {rate} is listed twice")
+        if rates[0] != 1:
+            err(path, f"PlaybackRates[0]: '{rates[0]}' must be 1, the speed a replay starts at")
+    if "ReplayPoseRateHz" in payload:
+        err(path, "ReplayPoseRateHz: set per tier, in platform_tiers.json")
+    extra = set(payload) - set(REPLAY_FIELDS) - {"ReplayPoseRateHz"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSReplayTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -2550,6 +2583,8 @@ def main():
             validate_personnel_catalog(path, payload)
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
+        if isinstance(payload, dict) and "PlaybackRates" in payload:
+            validate_replay_tuning(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

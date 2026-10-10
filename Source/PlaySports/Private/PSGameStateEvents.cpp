@@ -38,6 +38,29 @@ FPSTelemetryGameStateEvent PSGameStateEvents::MakeEvent(const FPlayState& State,
     return Event;
 }
 
+FPlayState PSGameStateEvents::ToPlayState(const FPSTelemetryGameStateEvent& Event)
+{
+    FPlayState State;
+    const UEnum* PhaseEnum = StaticEnum<EPlayPhase>();
+    const int64 PhaseValue = PhaseEnum ? PhaseEnum->GetValueByNameString(Event.Phase) : INDEX_NONE;
+    State.Phase = PhaseValue == INDEX_NONE ? EPlayPhase::PreSnap : static_cast<EPlayPhase>(PhaseValue);
+    State.Quarter = Event.Quarter;
+    State.GameClockSeconds = Event.GameClockSeconds;
+    State.bIsClockRunning = Event.bGameClockRunning;
+    State.PlayClockSeconds = Event.PlayClockSeconds;
+    State.Down = Event.Down;
+    State.Distance = Event.Distance;
+    State.YardLine = Event.YardLine;
+    State.YardLineToGain = Event.YardLineToGain;
+    State.bHomeHasPossession = Event.bHomeHasPossession;
+    State.bKickoff = Event.bKickoff;
+    State.HomeScore = Event.HomeScore;
+    State.AwayScore = Event.AwayScore;
+    State.HomeTimeoutsRemaining = Event.HomeTimeoutsRemaining;
+    State.AwayTimeoutsRemaining = Event.AwayTimeoutsRemaining;
+    return State;
+}
+
 FString PSGameStateEvents::QuarterLabel(int32 Quarter)
 {
     switch (Quarter)

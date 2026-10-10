@@ -4,11 +4,13 @@ Deepens core Epic 4's basic broadcast camera into a full presentation layer: an 
 camera brain, physical rig simulations, replay, auto-highlights, and analysis tooling.
 Sizing/mode legend: see `ROADMAP.md`.
 
-**Reality note (2026-07-19 review):** `APSBroadcastCamera` exists on `main` (follow/bounds/
-framing/free-cam from Epic 4) but its `TargetActor` is never assigned — **Phase 1.5 C3 wires it
-via possession events**; Epic 38 starts from that wired camera, not from scratch. Epic 41's
-ring buffer is C1's event history (don't build a second one). Architecture rules apply: new
-camera behaviors are components/classes, each epic ships tests.
+**Reality note (2026-07-19 review, updated 2026-10-10):** `APSBroadcastCamera` (follow/bounds/
+framing/free-cam from Epic 4) is wired: Phase 1.5 C3 made `SetTargetActor` the way in, and the
+game mode points `TargetActor` at the receiver on each catch on the bus. Since Epic 38 the camera
+director picks its own subject from Epic 26's snapshots, so the plain follow of `TargetActor` is
+the fallback while the director is off. Epic 41's ring buffer is C1's event history (don't build a
+second one). Architecture rules apply: new camera behaviors are components/classes, each epic
+ships tests.
 
 ### Epic 38: Camera Director AI
 
@@ -47,12 +49,18 @@ camera behaviors are components/classes, each epic ships tests.
 **Goal:** Any recent play can be re-rendered from any camera with scrubbing and slow motion.
 **Depends on:** C1, 26, 38, Core 17 (determinism hooks)
 
-- [ ] Replay recording joins C1's event ring buffer with Epic 26's snapshot history (no third buffer)
-- [ ] Deterministic re-simulation or state-playback of the buffered play
-- [ ] Scrub/pause/slow-mo/frame-step transport controls
+- [x] Replay recording joins C1's event ring buffer with Epic 26's snapshot history (no third buffer) *(as built: `UPSReplaySubsystem::CaptureClip` / `CaptureLastPlay` cut a clip when one is wanted. It takes the sampler's frames from `PreRollSeconds` before the snap to `PostRollSeconds` after the whistle, and the bus's events in that span, timed and ticked on those frames. The clip is Epic 115's `FPSReplayRecording`, which gains `Frames`. The replay keeps no buffer of its own: a clip is a one-off copy, so the history rolls on while it plays. It opens on the last `GameState` announced before the snap (`PSGameStateEvents::ToPlayState`). Tuning: `Data/replay.json`)*
+- [x] Deterministic re-simulation or state-playback of the buffered play *(as built: state playback, since the physical game isn't re-simulable (`Specs/Determinism_Audit.md`). At the playhead, the frame blended from the clip's frames either side poses every pawn (by `PlayerId`) and the ball, with their collision off.
+  - The sampler shows that frame as the present (`SetReplayFrame`), so the director, the skycam and the overlays follow the replay and record none of it.
+  - The game is paused under the replay, and re-paused if something else unpauses it. The broadcast camera ticks through the pause.
+  - `StopReplay` puts every pawn and the ball back, with their velocity and collision.
+  - The tier's `ReplayPoseRateHz` (`Data/platform_tiers.json`) caps how often the field is re-posed.
+  - Tests: `PlaySports.Replay.System.*`.
+  - Not seen yet: the replay on screen, and whether the players' animation runs while the game is paused. That is an editor check.)*
+- [ ] Scrub/pause/slow-mo/frame-step transport controls *(the transport is built and tested (`PlaySports.Replay.System.TransportControls`): pause, slow motion through `PlaybackRates`, steps between captured frames, scrubbing, the playhead's limits. Still to do: binding it to buttons, with the camera choice and the auto-replay)*
 - [ ] Free camera + all rig cameras available inside replay
 - [ ] Auto-replay trigger after scores/turnovers with director-chosen angle
-- [ ] Persistence: save a play's replay data to disk for later viewing
+- [x] Persistence: save a play's replay data to disk for later viewing *(as built: `SaveClip` writes a clip as Epic 115's JSON to `Saved/Replays`. Its scheduled frames are thinned to `SaveFrameRateHz`, and its keyframes, first frame and last frame are kept. A snapshot's live pawn is `Transient` and isn't written; a loaded clip finds its pawns by `PlayerId`. `LoadClip` goes through the format's version gate. `ListSavedClips` lists what is saved)*
 
 ### Epic 42: Auto-Highlight Generation
 

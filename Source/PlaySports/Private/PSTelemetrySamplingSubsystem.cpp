@@ -287,7 +287,7 @@ void UPSTelemetrySamplingSubsystem::AdvanceTime(float DeltaSeconds)
         WorldTimeAtLastAdvance = World->GetTimeSeconds();
     }
 
-    if (!bSamplingEnabled)
+    if (!bSamplingEnabled || bShowingReplay)
     {
         return;
     }
@@ -542,7 +542,7 @@ void UPSTelemetrySamplingSubsystem::HandleEventRecorded(const FPSTelemetryEvent&
     }
 
     PruneToBus(*Bus);
-    if (!bSamplingEnabled)
+    if (!bSamplingEnabled || bShowingReplay)
     {
         return;
     }
@@ -610,6 +610,12 @@ const FPSSnapshotFrame* UPSTelemetrySamplingSubsystem::FindKeyframe(int32 EventS
 
 bool UPSTelemetrySamplingSubsystem::GetLatestFrame(FPSSnapshotFrame& OutFrame) const
 {
+    if (bShowingReplay)
+    {
+        OutFrame = ReplayFrame;
+        return true;
+    }
+
     const FPSSnapshotFrame* Latest = nullptr;
     if (Ring.Num() > 0)
     {
@@ -842,4 +848,18 @@ void UPSTelemetrySamplingSubsystem::BlendFrames(const FPSSnapshotFrame& From, co
             Snapshot.TeamSide = Next->TeamSide;
         }
     }
+}
+
+void UPSTelemetrySamplingSubsystem::SetReplayFrame(const FPSSnapshotFrame& Frame)
+{
+    ReplayFrame = Frame;
+    bShowingReplay = true;
+}
+
+void UPSTelemetrySamplingSubsystem::ClearReplayFrame()
+{
+    ReplayFrame = FPSSnapshotFrame();
+    bShowingReplay = false;
+    // The schedule restarts from here rather than counting the replay's time as overdue.
+    SinceLastSample = 0.0;
 }

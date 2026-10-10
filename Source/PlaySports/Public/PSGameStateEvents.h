@@ -23,6 +23,11 @@ namespace PSGameStateEvents
     /** The GameState event for State, with the last finished drive. */
     PLAYSPORTS_API FPSTelemetryGameStateEvent MakeEvent(const FPlayState& State, const FDriveSummary& LastDrive, int32 CompletedDrives, int32 MaxTimeouts);
 
+    /** The play state an event announced, for whoever reads the game back from the bus (a
+     *  replay clip's opening situation, Epic 41): MakeEvent undone, with the clock flag from
+     *  bGameClockRunning and no GameTimeSeconds. An unknown Phase reads as PreSnap. */
+    PLAYSPORTS_API FPlayState ToPlayState(const FPSTelemetryGameStateEvent& Event);
+
     /** "1st", "2nd", "3rd", "4th"; "OT" after the 4th. */
     PLAYSPORTS_API FString QuarterLabel(int32 Quarter);
 

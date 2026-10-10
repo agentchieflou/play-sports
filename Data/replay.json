@@ -1,0 +1,6 @@
+{
+    "PreRollSeconds": 1.0,
+    "PostRollSeconds": 1.5,
+    "PlaybackRates": [1.0, 0.5, 0.25],
+    "SaveFrameRateHz": 15
+}
