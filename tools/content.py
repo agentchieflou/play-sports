@@ -8,7 +8,8 @@ league config, the playbook and the route library. Venues have no content type y
                     which runs tools/content_contracts.py. Exit 1 on any error. This is
                     what CI's "Validate data contracts" step runs.
   report [--json]   Statistical sanity of the league: rating distributions per role, name
-                    duplication, roster shape, body plausibility and playbook coverage.
+                    duplication, roster shape (every personnel package fielded from each
+                    team's own roster), body plausibility and playbook coverage.
                     It warns and does not fail unless --strict is given. CI prints it.
   import            validate, then the PSContentReimport commandlet through Unreal (needs
                     UE_ROOT). The commandlet loads every file through UPSDataIngestion and
@@ -79,13 +80,16 @@ def load_league(repo):
             problems.append(f"team '{team.get('TeamId')}': roster '{team.get('RosterDataTablePath')}' did not load")
             players = []
         teams.append(dict(team, Players=[p for p in players if isinstance(p, dict)]))
-    plays, routes = [], []
+    plays, routes, packages = [], [], []
     for payload in parsed.values():
         if isinstance(payload, dict) and isinstance(payload.get("Plays"), list):
             plays.extend(p for p in payload["Plays"] if isinstance(p, dict))
         if isinstance(payload, dict) and isinstance(payload.get("Routes"), list):
             routes.extend(r for r in payload["Routes"] if isinstance(r, dict))
-    return {"league": league, "teams": teams, "plays": plays, "routes": routes, "problems": problems}
+        if isinstance(payload, dict) and "DefaultOffensePackage" in payload and isinstance(payload.get("Packages"), list):
+            packages.extend(p for p in payload["Packages"] if isinstance(p, dict))
+    return {"league": league, "teams": teams, "plays": plays, "routes": routes, "packages": packages,
+            "problems": problems}
 
 
 def describe(values):
@@ -164,6 +168,17 @@ def build_report(repo):
         missing = sorted(all_roles - set(roles))
         if missing:
             warnings.append(f"team '{team.get('TeamId')}' has no {', '.join(missing)} - plays' slots for them go unfilled")
+        # A live game fields a personnel package from the team's own roster (UPSPersonnelManager).
+        short = []
+        for package in league["packages"]:
+            counts = package.get("RoleCounts") if isinstance(package.get("RoleCounts"), dict) else {}
+            gaps = [f"{need} {role}, has {roles[role]}" for role, need in sorted(counts.items())
+                    if content_contracts.is_number(need) and roles[role] < need]
+            if gaps:
+                short.append(f"{package.get('PackageId')} ({'; '.join(gaps)})")
+        if short:
+            warnings.append(f"team '{team.get('TeamId')}' can't field personnel package(s) {', '.join(short)} - "
+                            "the field plays short")
         if mean is not None and league_mean is not None and abs(mean - league_mean) > TEAM_OUTLIER_POINTS:
             warnings.append(f"team '{team.get('TeamId')}' overall {mean} is far from the league's {league_mean:.1f}")
 
