@@ -81,7 +81,7 @@ goes.
   the same drawing.
 
 ### 2. Editor / PIE check (not done yet)
-1. In PIE, start a replay (or switch to the film view with F / R3), press Y or D-pad Up:
+1. In PIE, start a replay and press Y, D-pad Up or flick the right stick up:
    - the replay holds and the toolbar appears; freehand, arrow, circle and a player tap draw
      where the pointer goes, the tapped player lights up;
    - with a pad, the cursor moves with the left stick and A draws; X cycles the tools;
