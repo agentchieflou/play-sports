@@ -16,6 +16,7 @@
 #include "PSPassingComponent.h"
 #include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSTouchControls.h"
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
 #include "PSTelemetrySamplingTypes.h"
@@ -129,6 +130,11 @@ public:
     /** Loads the quarterback's pocket and scramble tuning (Data/pocket_tuning.json, Epic 71). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPocketTuningFromJson(const FString& JsonFilePath, FPocketTuningRow& OutTuning);
+
+    /** Loads the touch layout (Data/touch_controls.json, Epic 130). False on a missing file,
+     *  malformed JSON, or an unrecognized control Kind or swipe Direction. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTouchLayoutFromJson(const FString& JsonFilePath, FPSTouchLayout& OutLayout);
 
     /** Loads the route-running model's tuning (Data/route_running.json, Epic 68). */
     UFUNCTION(BlueprintCallable, Category = "Data")

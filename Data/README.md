@@ -80,6 +80,7 @@ every CI build.
 | `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
 | `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
+| `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -251,14 +252,17 @@ controls; false: everyone feels it). `UPSForceFeedbackComponent::ValidateTuning`
 
 ## Button glyph schema (`FPSInputGlyphCatalog`)
 
-`GlyphSets[]`, each: `GlyphSetId` (unique, e.g. `Xbox`), `Device` (`KeyboardMouse` or
-`Gamepad`), `bDefaultForDevice` (exactly one default set per device), `bFallbackToKeyName`
+`GlyphSets[]`, each: `GlyphSetId` (unique, e.g. `Xbox`), `Device` (`KeyboardMouse`, `Gamepad`
+or `Touch`), `bDefaultForDevice` (exactly one default set per device), `bFallbackToKeyName`
 (unlisted keys get a keycap with the key's name -- for keyboards), `Keys[]` (`Key` an engine
 `EKeys` name of that device, `GlyphId` the icon an imported texture is registered under, `Label`
 the text shown until then) and `Actions[]` (`ActionId`, `GlyphId`, `Label`: one glyph for a
 whole action, such as `WASD` for Move). Which key an action uses comes from `input_actions.json`,
 so a rebinding never needs a glyph edit; every key the input catalog binds must be drawable by
 its device's default set, which `UPSInputGlyphs::Validate` and `tools/validate_data.py` check.
+The `Touch` set (Epic 130) lists no keys, because touch controls name actions rather than keys:
+it has one `Actions[]` glyph per action a touch control drives, and `touch_controls.json`'s
+validation checks that each one is there.
 
 ## Play-call tuning schema (`FPlayCallTuningRow`)
 
@@ -891,3 +895,33 @@ more; distances are cm, chances 0-1, ratings 0-100:
   `ScrambleDeepRunOn`: in the scramble drill a receiver breaks to `ScrambleDrillDepth` upfield of
   the quarterback, `ScrambleDrillWidth` toward his side, give or take the jitter; one already
   `ScrambleDeepDepth` downfield of him runs `ScrambleDeepRunOn` further, toward that side.
+
+## Touch layout schema (`FPSTouchLayout`)
+
+The on-screen controls of Epic 130 (`Specs/Touch_Controls_Spec.md`). Positions are in the
+HUD-safe area, 0 to 1 across its width and height from the top left. Sizes and distances are
+fractions of the safe area's height, so a round button stays round on any screen.
+
+- `SafeZone` (`Left`, `Top`, `Right`, `Bottom`): margins, as fractions of the viewport, that no
+  control enters: the Dynamic Island, the corners and the home indicator.
+- `LayoutAspect`: the safe area's width over its height that the layout is checked against
+  (buttons must fit and must not overlap at it).
+- `bFloatingStick`: the stick centres where the finger lands in `StickZone`.
+- `StickZone`, `GestureZone` (`Min`, `Max`): where a touch that misses every button takes the
+  stick, or may swipe.
+- `SwipeMinDistance` (safe-area heights) and `SwipeMaxSeconds`: what counts as a swipe.
+- `TouchControls[]`: `ControlId`, `Kind` (`Stick`, `Button` or `Swipe`), and `Position` plus
+  `Radius` (a button's hit radius, or the stick's full-push distance) or a swipe's `Direction`
+  (`Left`, `Right`, `Up`, `Down`, one control each). One stick at most.
+- `TouchContexts[]`: per input-catalog context, `Bindings[]` of `ControlId` and `ActionId`. The
+  action must live in that context, as a 2D-axis action for a stick or a Boolean one for a
+  button or swipe, and must have a gamepad binding: touch values go through it. Every action of a
+  listed context needs a touch control there, and a glyph in the default `Touch` glyph set.
+- `ContextsWithoutTouch[]`: catalog contexts deliberately left without touch (`World`, `Menu`).
+  Every catalog context must be in exactly one of `TouchContexts` and this list.
+
+Contexts stack as their mapping contexts do: the highest-priority active context that binds a
+control decides what it does. `PSTouchControls::ValidateLayout` and `tools/validate_data.py`
+check all of this. **Adding an action means adding its touch control and its Touch glyph in
+the same change; adding a context means adding its touch button set (or listing it in
+`ContextsWithoutTouch`).**

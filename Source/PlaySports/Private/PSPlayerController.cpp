@@ -9,6 +9,7 @@
 #include "PSCarrierInputComponent.h"
 #include "PSPreSnapInputComponent.h"
 #include "PSInputBufferComponent.h"
+#include "PSTouchInputComponent.h"
 #include "PSDefenseInputComponent.h"
 #include "PSKickMeterComponent.h"
 #include "PSSettingsComponent.h"
@@ -74,6 +75,7 @@ APSPlayerController::APSPlayerController()
     CarrierInputComponent = CreateDefaultSubobject<UPSCarrierInputComponent>(TEXT("CarrierInputComp"));
     PreSnapInputComponent = CreateDefaultSubobject<UPSPreSnapInputComponent>(TEXT("PreSnapInputComp"));
     InputBufferComponent = CreateDefaultSubobject<UPSInputBufferComponent>(TEXT("InputBufferComp"));
+    TouchInputComponent = CreateDefaultSubobject<UPSTouchInputComponent>(TEXT("TouchInputComp"));
     DefenseInputComponent = CreateDefaultSubobject<UPSDefenseInputComponent>(TEXT("DefenseInputComp"));
     KickMeterComponent = CreateDefaultSubobject<UPSKickMeterComponent>(TEXT("KickMeterComp"));
     SettingsComponent = CreateDefaultSubobject<UPSSettingsComponent>(TEXT("SettingsComp"));
@@ -98,6 +100,20 @@ UPSInputConfig* APSPlayerController::GetInputConfig()
 bool APSPlayerController::IsInputContextActive(FName ContextId) const
 {
     return ActiveInputContexts.Contains(ContextId);
+}
+
+bool APSPlayerController::InjectCatalogInput(FName ActionId, const FInputActionValue& RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
+{
+    UPSInputConfig* Config = GetInputConfig();
+    const UInputAction* Action = Config ? Config->FindAction(ActionId) : nullptr;
+    UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+    if (!Action || !Subsystem)
+    {
+        return false;
+    }
+
+    Subsystem->InjectInputForAction(Action, RawValue, Modifiers, Triggers);
+    return true;
 }
 
 void APSPlayerController::BeginPlay()
