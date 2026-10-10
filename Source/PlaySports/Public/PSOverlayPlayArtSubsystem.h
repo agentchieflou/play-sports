@@ -7,6 +7,7 @@
 #include "UObject/ObjectKey.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayArtTypes.h"
+#include "PSPlayDiagram.h"
 #include "PSPlayResolution.h"
 #include "PSTelemetryBus.h"
 #include "PSVersusTypes.h"
@@ -48,6 +49,8 @@ class UPSSettingsSubsystem;
  *  - Drawing: until the editor-made renderer exists (Specs/Route_Ribbons_Spec.md,
  *    Specs/Defensive_Icons_Spec.md), development builds draw debug shapes (PSPlayArt::DrawDebug)
  *    for the first local player.
+ *  - Previews (Epic 102.1): BuildPlayDiagram resolves and compiles any play the same way for the
+ *    players where they stand, and lays it flat (PSPlayDiagram) for the play-call screen.
  *
  * The style is Data/play_art.json. It ticks with its world; headless tests call AdvanceTime.
  */
@@ -146,6 +149,16 @@ public:
     /** Whether a toggle setting is on; bWithoutIt when there are no settings or no such setting. */
     bool IsSettingOn(FName SettingId, bool bWithoutIt = true) const;
 
+    /**
+     * The play-call screen's preview of InPlayId (Epic 102.1): the play resolved for the players
+     * where they stand and compiled exactly as the field's art is (the same resolution, man
+     * matchups and style), against the announced line (before one, the situation's), laid flat
+     * by PSPlayDiagram::BuildDiagram. It is drawn whatever the art settings and tier say: a play
+     * the player is choosing is his own. False with no such play or nobody on the field.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Overlay")
+    bool BuildPlayDiagram(FName InPlayId, FPSPlayDiagram& OutDiagram);
+
     /** Resolves both calls again and rebuilds the art now; nothing after the snap until the next
      *  down. AdvanceTime does this after an event and at the refresh rate. */
     void Refresh();
@@ -169,6 +182,10 @@ private:
 
     void RebuildRouteArt();
     void RebuildDefenseArt();
+
+    /** Play resolved for the players on the field against Line, as the snap will resolve it (a
+     *  defense's man matchups too, Epic 69), and compiled into art with the style. */
+    TArray<FPSPlayArtPrimitive> ResolveAndCompile(const FPSPlayDefinition& Play, const FVector& Line, TArray<FPSResolvedAssignment>& OutResolved);
 
     /** Each player's badge letter from his slot's annotation, kept beside the art. */
     static void KeepBadgeLetters(const TArray<FPSResolvedAssignment>& Resolved, TMap<FObjectKey, FString>& OutLetters);

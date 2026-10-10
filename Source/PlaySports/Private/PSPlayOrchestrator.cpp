@@ -113,8 +113,12 @@ void UPSPlayOrchestrator::TriggerScrambleDrill(const TArray<APSPlayerPawn*>& OnF
         }
 
         // Scramble drill: abandon the route for a spot the QB can throw to, jittered
-        // deterministically per receiver.
-        const FVector2D Jitter(DeterminismStream.FRandRange(-1.f, 1.f), DeterminismStream.FRandRange(-1.f, 1.f));
+        // deterministically per receiver. X, then Y, as two statements: two draws as one call's
+        // arguments are drawn in whichever order the compiler picks (Epic 108's audit), so one
+        // compiler's build could swap them against another's.
+        const float JitterX = DeterminismStream.FRandRange(-1.f, 1.f);
+        const float JitterY = DeterminismStream.FRandRange(-1.f, 1.f);
+        const FVector2D Jitter(JitterX, JitterY);
         TArray<FVector> ScrambleTarget;
         ScrambleTarget.Add(PSPocket::ScrambleDrillSpot(Pawn->GetActorLocation(), QBLocation, Side, Jitter, Tuning));
         OffenseController->SetAssignedRoute(ScrambleTarget);

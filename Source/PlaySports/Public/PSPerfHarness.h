@@ -21,8 +21,9 @@ class UWorld;
  * pursuit of the receiver, the tackle and the whistle, and the next down's pre-snap. Every frame
  * steps what the game ticks, in the game's order: the field snapshot's new frame, the play
  * simulation, every AI player at the tier's decision interval with its pass rush and the gap
- * fits, the telemetry sampler, and the ball-flight and broadcast overlays. Bus events are
- * published as the game publishes them.
+ * fits, the telemetry sampler, the ball-flight and broadcast overlays, and the crowd's
+ * excitement and the audio (Epic 23, bound to the bus as in a match). Bus events are published as
+ * the game publishes them.
  *
  * Nothing here needs a renderer, a game mode or ticking, so the same play runs headless in CI
  * (PlaySports.Perf.StandardPlayProfile writes Saved/Profiling/StandardPlay_<tier>.json, which

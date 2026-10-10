@@ -261,14 +261,17 @@ bool FPSPerfStandardPlayTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("The scenario"), Report.Scenario, FString(UPSPerfHarness::StandardPlayScenario));
     TestEqual(TEXT("Held to the running tier"), Report.TierId, Tier.TierId);
     TestEqual(TEXT("Every captured frame closed"), Report.Frames, UPSPerfHarness::GetCapturedFrameCount(Tuning));
-    for (const EPSPerfSystem Built : { EPSPerfSystem::Simulation, EPSPerfSystem::AI, EPSPerfSystem::Telemetry, EPSPerfSystem::Overlays })
+    for (const EPSPerfSystem Built : { EPSPerfSystem::Simulation, EPSPerfSystem::AI, EPSPerfSystem::Telemetry, EPSPerfSystem::Overlays,
+        EPSPerfSystem::Crowd, EPSPerfSystem::Audio })
     {
         const FPSPerfSystemResult* Result = Report.FindSystem(Built);
         TestTrue(*FString::Printf(TEXT("%s is measured"), *UEnum::GetValueAsString(Built)), Result && Result->bMeasured);
         TestTrue(*FString::Printf(TEXT("%s has its tier's budget"), *UEnum::GetValueAsString(Built)),
             Result && FMath::IsNearlyEqual(Result->BudgetMs, FMath::Max(PSPlatformTiers::FindSystemBudget(Tier, Built), 0.f)));
     }
-    for (const EPSPerfSystem Unbuilt : { EPSPerfSystem::Animation, EPSPerfSystem::Crowd, EPSPerfSystem::Audio })
+    // The crowd's excitement and the audio (Epic 23) are built; the rendered crowd and animation
+    // are not.
+    for (const EPSPerfSystem Unbuilt : { EPSPerfSystem::Animation })
     {
         const FPSPerfSystemResult* Result = Report.FindSystem(Unbuilt);
         TestTrue(*FString::Printf(TEXT("%s isn't built, so isn't measured"), *UEnum::GetValueAsString(Unbuilt)), Result && !Result->bMeasured);

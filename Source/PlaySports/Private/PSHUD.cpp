@@ -3,6 +3,7 @@
 #include "PSOverlayPersonnelWidget.h"
 #include "PSOverlayScoreBugWidget.h"
 #include "PSPlatformTiers.h"
+#include "PSTelestratorWidget.h"
 
 APSHUD::APSHUD()
 {
@@ -14,6 +15,8 @@ APSHUD::APSHUD()
     PersonnelWidget = nullptr;
     BadgeWidgetClass = UPSOverlayBadgeWidget::StaticClass();
     BadgeWidget = nullptr;
+    TelestratorWidgetClass = UPSTelestratorWidget::StaticClass();
+    TelestratorWidget = nullptr;
 }
 
 void APSHUD::BeginPlay()
@@ -55,6 +58,16 @@ void APSHUD::BeginPlay()
         if (ChyronWidget)
         {
             ChyronWidget->AddToViewport();
+        }
+    }
+
+    // Over the broadcast package, under any menu opened later: the telestrator draws on the frame.
+    if (TelestratorWidgetClass)
+    {
+        TelestratorWidget = CreateWidget<UUserWidget>(GetOwningPlayerController(), TelestratorWidgetClass);
+        if (TelestratorWidget)
+        {
+            TelestratorWidget->AddToViewport();
         }
     }
 }

@@ -1,9 +1,14 @@
 #include "PSMenuScreenWidget.h"
 #include "PSMenuComponent.h"
 #include "PSLocalization.h"
+#include "PSOverlayPlayArtSubsystem.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSPlayDiagramWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -20,6 +25,7 @@ namespace PSMenuStyle
     static const int32 DetailFontSize = 14;
     static const FMargin OptionPadding(0.f, 6.f);
     static const FMargin TitlePadding(0.f, 0.f, 0.f, 24.f);
+    static const FMargin PreviewPadding(0.f, 0.f, 12.f, 0.f);
 }
 
 TSharedRef<SWidget> UPSMenuButton::RebuildWidget()
@@ -111,11 +117,8 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
         FSlateFontInfo Font = Label->GetFont();
         Font.Size = PSMenuStyle::OptionFontSize;
         Label->SetFont(Font);
-        if (Option.Detail.IsEmpty())
-        {
-            Button->SetContent(Label);
-        }
-        else
+        UWidget* Text = Label;
+        if (!Option.Detail.IsEmpty())
         {
             // A second, smaller line under the label (a play's assignments, Epic 102).
             UVerticalBox* Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -126,8 +129,24 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
             DetailFont.Size = PSMenuStyle::DetailFontSize;
             Detail->SetFont(DetailFont);
             Lines->AddChildToVerticalBox(Detail);
-            Button->SetContent(Lines);
+            Text = Lines;
         }
+        if (UWidget* Preview = MakePlayPreview(Option))
+        {
+            // The play's diagram beside its name (Epic 102.1).
+            UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+            if (UHorizontalBoxSlot* PreviewSlot = Row->AddChildToHorizontalBox(Preview))
+            {
+                PreviewSlot->SetPadding(PSMenuStyle::PreviewPadding);
+                PreviewSlot->SetVerticalAlignment(VAlign_Center);
+            }
+            if (UHorizontalBoxSlot* TextSlot = Row->AddChildToHorizontalBox(Text))
+            {
+                TextSlot->SetVerticalAlignment(VAlign_Center);
+            }
+            Text = Row;
+        }
+        Button->SetContent(Text);
 
         if (UVerticalBoxSlot* ButtonSlot = Column->AddChildToVerticalBox(Button))
         {
@@ -136,6 +155,36 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
         }
         OptionButtons.Add(Button);
     }
+}
+
+bool UPSMenuScreenWidget::ShowsPlayPreview(const FPSMenuOptionDef& Option)
+{
+    return Option.Command == EPSMenuCommand::CallPlay && !Option.Payload.IsNone();
+}
+
+UWidget* UPSMenuScreenWidget::MakePlayPreview(const FPSMenuOptionDef& Option)
+{
+    if (!ShowsPlayPreview(Option))
+    {
+        return nullptr;
+    }
+    UWorld* World = GetWorld();
+    UPSOverlayPlayArtSubsystem* PlayArt = World ? World->GetSubsystem<UPSOverlayPlayArtSubsystem>() : nullptr;
+    FPSPlayDiagram Diagram;
+    if (!PlayArt || !PlayArt->BuildPlayDiagram(Option.Payload, Diagram))
+    {
+        return nullptr;
+    }
+    const FPSPlayDiagramStyle& Look = PlayArt->GetStyle().Diagram;
+    UPSPlayDiagramWidget* Preview = WidgetTree->ConstructWidget<UPSPlayDiagramWidget>(UPSPlayDiagramWidget::StaticClass());
+    Preview->SetDiagram(Diagram, Look);
+    Preview->SetVisibility(ESlateVisibility::HitTestInvisible);
+    // Sized in Slate units, which scale with the display: the same share of a phone's screen.
+    USizeBox* Box = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+    Box->SetWidthOverride(Look.PreviewWidth);
+    Box->SetHeightOverride(Look.PreviewHeight);
+    Box->SetContent(Preview);
+    return Box;
 }
 
 void UPSMenuScreenWidget::FocusFirstOption(APlayerController* Player)

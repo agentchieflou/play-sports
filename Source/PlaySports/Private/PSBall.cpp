@@ -4,6 +4,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSGameMode.h"
+#include "PSNetRandomStreams.h"
 #include "PSPlaySimulation.h"
 #include "PSTelemetryBus.h"
 #include "PSHealthComponent.h"
@@ -232,7 +233,7 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
             FPlayerAttributes Attr = PlayerPawn->GetAttributes();
             float RecoveryChance = PSBallResolutionHelpers::ComputeFumbleRecoveryChance(Attr, CatchTuningSettings);
 
-            float Roll = FMath::FRand();
+            float Roll = UPSNetRandomStreams::RollFor(this, TEXT("FumbleRecovery"), Attr.PlayerId);
             if (Roll <= RecoveryChance)
             {
                 AttachToCarrier(PlayerPawn, TEXT("HandSocket"));
@@ -269,7 +270,7 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
             FPlayerAttributes Attr = PlayerPawn->GetAttributes();
             float CatchChance = PSBallResolutionHelpers::ComputeCatchChance(Attr, CatchTuningSettings);
 
-            float Roll = FMath::FRand();
+            float Roll = UPSNetRandomStreams::RollFor(this, TEXT("Catch"), Attr.PlayerId);
             if (PSBallResolutionHelpers::ResolveCatch(Attr, Roll, CatchTuningSettings))
             {
                 AttachToCarrier(PlayerPawn, TEXT("HandSocket"));
@@ -304,7 +305,7 @@ void APSBall::OnBallOverlap(UPrimitiveComponent* OverlappedComponent, AActor* Ot
             FPlayerAttributes Attr = PlayerPawn->GetAttributes();
             float InterceptChance = PSBallResolutionHelpers::ComputeInterceptionChance(Attr, CatchTuningSettings);
 
-            float Roll = FMath::FRand();
+            float Roll = UPSNetRandomStreams::RollFor(this, TEXT("Interception"), Attr.PlayerId);
             if (Roll <= InterceptChance)
             {
                 AttachToCarrier(PlayerPawn, TEXT("HandSocket"));

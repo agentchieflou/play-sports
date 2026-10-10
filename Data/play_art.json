@@ -19,5 +19,30 @@
     "BlitzArrowColor": "#F85149",
     "RushArrowColor": "#C9D1D9",
     "NoDefenseArtCategories": ["KickReturn", "KickBlock", "HandsTeam", "ReturnLaterals"],
-    "bDrawDebug": true
+    "bDrawDebug": true,
+    "Diagram": {
+        "MinFieldWidth": 3600.0,
+        "MinFieldDepth": 2400.0,
+        "FieldMargin": 250.0,
+        "WidthScale": 1.0,
+        "MinStrokeWidth": 1.5,
+        "PlayerRadius": 75.0,
+        "MarkWidth": 14.0,
+        "OffenseColor": "#FFFFFF",
+        "DefenseColor": "#FF8A3D",
+        "OpponentOpacity": 0.35,
+        "GuideOpacity": 0.5,
+        "ArrowheadLength": 110.0,
+        "ArrowheadAngleDegrees": 28.0,
+        "RunBlockStemLength": 90.0,
+        "PassBlockStemLength": 45.0,
+        "BlockBarWidth": 130.0,
+        "BlockColor": "#C9D1D9",
+        "LineOfScrimmageColor": "#56CCF2",
+        "CircleSegments": 16,
+        "BackgroundColor": "#0E2A18",
+        "BackgroundOpacity": 0.85,
+        "PreviewWidth": 150.0,
+        "PreviewHeight": 100.0
+    }
 }

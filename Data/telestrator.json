@@ -3,5 +3,16 @@
     "MinPointSpacing": 0.005,
     "MaxStrokePoints": 256,
     "PlayerPickRadius": 0.04,
-    "MaxMarks": 64
+    "MaxMarks": 64,
+    "MarkColor": "#FFD60A",
+    "AutoMarkColor": "#56CCF2",
+    "MarkWidth": 0.007,
+    "MinStrokeWidth": 2.0,
+    "ArrowheadLength": 0.035,
+    "ArrowheadAngleDegrees": 28.0,
+    "PlayerRingRadius": 0.045,
+    "CircleSegments": 48,
+    "CursorSpeed": 0.6,
+    "CursorDeadZone": 0.2,
+    "CursorRadius": 0.015
 }

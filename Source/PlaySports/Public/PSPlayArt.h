@@ -20,11 +20,15 @@ namespace PSPlayArt
      *  or UnrankedColor for 0. A color that doesn't parse is white. */
     PLAYSPORTS_API FLinearColor ColorForRead(const FPSPlayArtStyle& Style, int32 ReadOrder);
 
-    /** Problems with a style, one line each (empty when sound). */
+    /** Problems with a style, one line each (empty when sound), its Diagram block's too. */
     PLAYSPORTS_API TArray<FString> ValidateStyle(const FPSPlayArtStyle& Style);
 
     /** Points on the turf: each at GroundZ plus the style's GroundOffset. */
     PLAYSPORTS_API TArray<FVector> OnTurf(const TArray<FVector>& Points, float GroundZ, const FPSPlayArtStyle& Style);
+
+    /** The five-pointed star of a zone's landmark round Center, flat on its plane: ten points,
+     *  the tips Radius out (the first upfield, +X) and the notches between them 0.4 of that. */
+    PLAYSPORTS_API TArray<FVector> StarOutline(const FVector& Center, float Radius);
 
     /** Indices of Points (not its ends) where the path turns by BreakMinAngleDegrees or more. */
     PLAYSPORTS_API TArray<int32> FindCuts(const TArray<FVector>& Points, float BreakMinAngleDegrees);

@@ -149,4 +149,52 @@ struct FPSTelestratorTuning
     /** The most marks on one frame; a stroke past it is refused. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
     int32 MaxMarks = 64;
+
+    // --- The drawing layer (UPSTelestratorWidget). Sizes are shares of the screen's shorter
+    // side, so the drawing reads the same on a phone as on a monitor. ---
+
+    /** Marks drawn by hand, "#RRGGBB" ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    FString MarkColor = TEXT("#FFD60A");
+
+    /** ... and the auto-annotation's. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    FString AutoMarkColor = TEXT("#56CCF2");
+
+    /** A mark's line width ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    float MarkWidth = 0.007f;
+
+    /** ... never thinner than this many Slate units. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    float MinStrokeWidth = 2.f;
+
+    /** An arrow's head: barbs this long ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    float ArrowheadLength = 0.035f;
+
+    /** ... this many degrees off the line (above 0, below 90). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    float ArrowheadAngleDegrees = 28.f;
+
+    /** A highlighted player is ringed this far out. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    float PlayerRingRadius = 0.045f;
+
+    /** Circles and rings are drawn with this many segments (8 or more). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    int32 CircleSegments = 48;
+
+    /** With a gamepad or the keys, strokes are drawn at a cursor that moves this many shorter
+     *  sides a second at full tilt ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    float CursorSpeed = 0.6f;
+
+    /** ... once the stick is tilted past this (0 to below 1) ... */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    float CursorDeadZone = 0.2f;
+
+    /** ... and is drawn as a ring this size. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telestrator")
+    float CursorRadius = 0.015f;
 };

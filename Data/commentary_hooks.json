@@ -1,0 +1,11 @@
+{
+    "BigHitDamage": 25,
+    "DeepPassCm": 2500,
+    "TwoMinuteWarningSeconds": 120,
+    "MaxMomentsKept": 64,
+    "bOfferToModels": true,
+    "ModelMoments": ["PlayResult", "Score", "Interception", "Fumble", "TwoMinuteWarning", "QuarterEnd", "GameEnd", "RecordBroken"],
+    "ModelTask": "narration",
+    "ModelInstructions": "You are a football play-by-play announcer. Describe this moment in one short spoken sentence, using only the facts given.",
+    "ModelContextChars": 1024
+}

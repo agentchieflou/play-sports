@@ -3,6 +3,7 @@
 #include "PSInputConfig.h"
 #include "PSMenuComponent.h"
 #include "PSPlayerController.h"
+#include "PSTelestratorSubsystem.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
@@ -230,7 +231,10 @@ bool UPSTouchInputComponent::IsStoodDown() const
 {
     const APSPlayerController* Controller = GetPlayerController();
     const UPSMenuComponent* Menus = Controller ? Controller->GetMenuComponent() : nullptr;
-    return Menus && Menus->IsMenuOpen();
+    // The telestrator's drawing layer takes every finger while analysis is on (Epic 44).
+    const UWorld* World = GetWorld();
+    const UPSTelestratorSubsystem* Telestrator = World ? World->GetSubsystem<UPSTelestratorSubsystem>() : nullptr;
+    return (Menus && Menus->IsMenuOpen()) || (Telestrator && Telestrator->IsAnalysisActive());
 }
 
 void UPSTouchInputComponent::GetSafeArea(FVector2D& OutOrigin, FVector2D& OutSize)

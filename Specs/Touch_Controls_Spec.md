@@ -63,7 +63,10 @@ finger ──> Slate touch event ──> UPSTouchInputComponent ──> catalog 
    their own. On a phone, a run starts on Touch, and a Bluetooth pad that disconnects falls back
    to Touch.
 7. **Menus.** While a menu screen is open, the layer stands down: no controls, no actions. Menus
-   take taps through their own widgets (Slate buttons).
+   take taps through their own widgets (Slate buttons). The same goes while the telestrator's
+   analysis mode is on (Epic 44): a finger draws on `UPSTelestratorWidget`, whose toolbar has
+   the tools, undo, clear, save and done. Touch gets into analysis with the `Telestrator`
+   action: the on-screen D-pad Up in a replay.
 8. **No engine joysticks.** `Config/DefaultInput.ini` turns off the engine's default virtual
    joysticks (`DefaultTouchInterface=None`). They would draw a second layer of gamepad-key sticks
    over these controls.
