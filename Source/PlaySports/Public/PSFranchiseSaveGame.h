@@ -6,6 +6,7 @@
 #include "PSStaffData.h"
 #include "PSContractData.h"
 #include "PSStatsData.h"
+#include "PSEconomyData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -50,4 +51,9 @@ public:
      *  UPSStatsEngine). Season 0 in a save from before statistics. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSStatBook StatBook;
+
+    /** Every team's ticket price, fans, budget and revenue (Epic 95; UPSOwnerEconomy). No teams
+     *  in a save from before owner mode. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSLeagueEconomy Economy;
 };

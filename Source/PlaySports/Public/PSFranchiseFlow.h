@@ -5,11 +5,13 @@
 #include "UObject/Object.h"
 #include "PSStaffData.h"
 #include "PSContractData.h"
+#include "PSEconomyData.h"
 #include "PSFranchiseFlow.generated.h"
 
 class UPSContractManager;
 class UPSFranchiseSeason;
 class UPSFreeAgency;
+class UPSOwnerEconomy;
 class UPSMatchSetup;
 class UPSRoster;
 class UPSStaffManager;
@@ -30,7 +32,7 @@ class UPSStatsEngine;
  *    ends.
  *  - EndSeason: the off-season, once per season. The coaching carousel
  *    (UPSStaffManager::RunCarousel) runs on the final standings, the statistics engine (Epic 92)
- *    archives the season; then, with a contract manager
+ *    archives the season, the owner economy (Epic 95) closes the books; then, with a contract manager
  *    (UPSContractManager, Epic 87), the league year rolls over, CPU teams over the new cap cut
  *    back under it, and free agency (UPSFreeAgency) opens with every player whose deal ran out or
  *    who was cut. The player's team bids there; GetFreeAgency()->AdvanceDay() runs its days.
@@ -61,6 +63,18 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSStatsEngine* GetStats() const { return Stats; }
+
+    /** The league's business (Epic 95): every simulated game's gate and fans, and the books at
+     *  the season's end (with the contract manager's payroll when there is one). */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetEconomy(UPSOwnerEconomy* InEconomy) { Economy = InEconomy; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSOwnerEconomy* GetEconomy() const { return Economy; }
+
+    /** Every team's books for the season that just ended (empty before then). */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    const TArray<FPSEconomySeasonReport>& GetEconomyReports() const { return EconomyReports; }
 
     /** A new franchise's contracts: every team with a roster signs its players at their demands
      *  (UPSContractManager::SignRosterAtDemand). Returns the contracts signed. */
@@ -149,6 +163,12 @@ private:
 
     UPROPERTY(Transient)
     UPSStatsEngine* Stats = nullptr;
+
+    UPROPERTY(Transient)
+    UPSOwnerEconomy* Economy = nullptr;
+
+    UPROPERTY(Transient)
+    TArray<FPSEconomySeasonReport> EconomyReports;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;

@@ -84,6 +84,7 @@ every CI build.
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
+| `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
 | `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
 | `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
@@ -698,6 +699,26 @@ numbers): `255000` is a $255 million cap. The contracts themselves live in the f
 
 `tools/validate_data.py` checks it: every role has one market, the bounds are ordered and the
 offer ratios run walk-away <= accept <= instant.
+
+## Owner economics schema (`FPSEconomyTuning`)
+
+Single object (Epic 95), read by `UPSOwnerEconomy`. Team money is in thousands of dollars, as the
+salary cap's; ticket prices and concessions are in dollars. Each team's price, fans, budget and
+revenue live in the franchise save (`UPSFranchiseSaveGame::Economy`), not here.
+- The gate: `StadiumCapacity`; `BaseTicketPrice` and the owner's range `MinTicketPrice`..`MaxTicketPrice`;
+  the crowd fills `BaseFillRate` of the stadium, plus `WinFillWeight` x (win% - 0.5), plus
+  `SatisfactionFillWeight` x (satisfaction - 0.5), less `PriceElasticity` x (price / base - 1), at
+  least `MinFillRate`; `ConcessionsPerFan`.
+- `MediaRevenuePerTeam`: each team's media share a season.
+- Fans (0-1): `StartingSatisfaction`, `WinSatisfactionGain`, `LossSatisfactionLoss`,
+  `PriceSatisfactionLoss` (a home game at a price above the base), `WinningSeasonSatisfactionGain`,
+  `LosingSeasonSatisfactionLoss`; relocation pressure after `RelocationLosingSeasons` losing
+  seasons in a row with fans below `RelocationSatisfactionThreshold`.
+- Budget: `MaxBudgetFraction` of revenue at most, all departments; `DefaultBudget`
+  (`ScoutingFraction`, `TrainingFraction`, `StaffFraction`).
+
+`tools/validate_data.py` checks it: ordered prices and fill rates, fractions at most 1, the default
+budget within `MaxBudgetFraction`.
 
 ## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
 

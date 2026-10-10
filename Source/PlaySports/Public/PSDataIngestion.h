@@ -43,6 +43,7 @@
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
 #include "PSContractData.h"
+#include "PSEconomyData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSDataIngestion.generated.h"
@@ -259,6 +260,12 @@ public:
      *  UPSContractManager::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadContractTuningFromJson(const FString& JsonFilePath, FPSContractTuning& OutTuning);
+
+    /** Loads the league's business: ticketing, media money, fans and budgets
+     *  (Data/owner_economics.json, Epic 95). False on a missing file or malformed JSON;
+     *  UPSOwnerEconomy::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadEconomyTuningFromJson(const FString& JsonFilePath, FPSEconomyTuning& OutTuning);
 
     /** Loads the player style axes and their AI bindings (Data/player_dna.json, Epic 79). False
      *  on a missing file or malformed JSON; PSPlayerDNA::ValidateCatalog checks the rest. */

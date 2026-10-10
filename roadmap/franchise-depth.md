@@ -119,6 +119,6 @@ its own persistence or event capture.
 **Goal:** A light economic layer above GM play — revenue, pricing, staff budgets, relocation pressure.
 **Depends on:** 87, Core 20
 
-- [ ] Revenue model (attendance from team success/pricing, media share)
-- [ ] Budget allocation: scouting (86), training (90), staff (89) funded from revenue
-- [ ] Fan-satisfaction pressure with long-losing consequences (kept simple; this is a garnish epic)
+- [x] Revenue model (attendance from team success/pricing, media share) *(`UPSOwnerEconomy` over `Data/owner_economics.json` (`FPSEconomyTuning`): each home game draws a crowd from the home team's record coming in, its fans' satisfaction and its ticket price (`SetTicketPrice`, `PredictAttendance` for a pricing preview), paying the gate and concessions; an equal media share at the season's end. `EndSeason` closes each team's books: revenue less payroll (the cap its contracts used, Epic 87) and budget is profit. `UPSFranchiseFlow` records every simulated game and the season's books; the economy persists in `UPSFranchiseSaveGame::Economy`)*
+- [x] Budget allocation: scouting (86), training (90), staff (89) funded from revenue *(`SetBudget`: shares of revenue per `EPSBudgetDepartment`, within `MaxBudgetFraction`; `GetDepartmentFunding` (the share of last season's revenue) and `GetFundingIndex` (against the league's average) are what those systems read. Epics 86 and 90 don't exist yet, and Epic 89's carousel doesn't read its funding yet)*
+- [x] Fan-satisfaction pressure with long-losing consequences (kept simple; this is a garnish epic) *(wins and losses, prices above the base and winning or losing seasons move a team's 0-1 satisfaction, which fills (or empties) its stadium; `RelocationLosingSeasons` losing seasons in a row with fans under `RelocationSatisfactionThreshold` put it under relocation pressure, flagged in its season report. No owner screen yet (Track I))*

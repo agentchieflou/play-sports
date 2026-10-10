@@ -1,0 +1,27 @@
+{
+    "StadiumCapacity": 68000,
+    "BaseTicketPrice": 110.0,
+    "MinTicketPrice": 40.0,
+    "MaxTicketPrice": 300.0,
+    "BaseFillRate": 0.85,
+    "WinFillWeight": 0.4,
+    "SatisfactionFillWeight": 0.3,
+    "PriceElasticity": 0.5,
+    "MinFillRate": 0.25,
+    "ConcessionsPerFan": 35.0,
+    "MediaRevenuePerTeam": 300000,
+    "StartingSatisfaction": 0.6,
+    "WinSatisfactionGain": 0.02,
+    "LossSatisfactionLoss": 0.03,
+    "PriceSatisfactionLoss": 0.02,
+    "WinningSeasonSatisfactionGain": 0.05,
+    "LosingSeasonSatisfactionLoss": 0.08,
+    "RelocationSatisfactionThreshold": 0.25,
+    "RelocationLosingSeasons": 3,
+    "MaxBudgetFraction": 0.15,
+    "DefaultBudget": {
+        "ScoutingFraction": 0.02,
+        "TrainingFraction": 0.03,
+        "StaffFraction": 0.03
+    }
+}
