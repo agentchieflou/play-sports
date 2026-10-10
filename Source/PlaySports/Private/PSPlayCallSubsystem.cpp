@@ -3,6 +3,7 @@
 #include "PSOpponentModel.h"
 #include "PSCoachingAI.h"
 #include "PSDataIngestion.h"
+#include "PSDifficultySubsystem.h"
 #include "PSPlaybookIngestion.h"
 #include "PSPlayOrchestrator.h"
 #include "PSPlayerPawn.h"
@@ -284,6 +285,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildFormationOptions(bool bOffen
         Option.Payload = FName(*Formation);
         Options.Add(Option);
     }
+    HighlightSuggestion(bOffense, Options);
     return Options;
 }
 
@@ -296,6 +298,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildPlayOptions(const FString& F
             ? FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *PSPlayCallPrivate::SplitCategory(Play.PlayCategory))
             : FString::Printf(TEXT("%s    %s %s"), *Play.DisplayName, *Play.Front, *Play.CoverageShell)));
     }
+    HighlightSuggestion(bOffense, Options);
     return Options;
 }
 
@@ -309,6 +312,32 @@ FPSMenuOptionDef UPSPlayCallSubsystem::MakePlayOption(const FPSPlayDefinition& P
     Option.Command = EPSMenuCommand::CallPlay;
     Option.Payload = Play.PlayId;
     return Option;
+}
+
+void UPSPlayCallSubsystem::HighlightSuggestion(bool bOffense, TArray<FPSMenuOptionDef>& Options)
+{
+    UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld());
+    if (Options.Num() == 0 || !Difficulty || !Difficulty->IsSuggestedPlayHighlightOn())
+    {
+        return;
+    }
+    const TArray<FPSPlaySuggestion> Ranked = RankPlays(bOffense);
+    FPSPlayDefinition Suggested;
+    if (Ranked.Num() == 0 || !FindPlay(Ranked[0].PlayId, Suggested))
+    {
+        return;
+    }
+    const FLinearColor Accent = Difficulty->GetSuggestedPlayAccent();
+    const FName Formation(*Suggested.Formation);
+    for (FPSMenuOptionDef& Option : Options)
+    {
+        const bool bCallsIt = Option.Command == EPSMenuCommand::CallPlay && Option.Payload == Suggested.PlayId;
+        const bool bItsFormation = Option.Command != EPSMenuCommand::CallPlay && Option.Payload == Formation;
+        if (bCallsIt || bItsFormation)
+        {
+            Option.AccentColor = Accent;
+        }
+    }
 }
 
 TArray<FPSPlaySuggestion> UPSPlayCallSubsystem::RankPlays(bool bOffense)
@@ -353,6 +382,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildRecentOptions(bool bOffense)
         }
         Options.Add(MakePlayOption(Play, FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *Play.Formation)));
     }
+    HighlightSuggestion(bOffense, Options);
     return Options;
 }
 
@@ -367,6 +397,7 @@ TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildFavoriteOptions(bool bOffens
             Options.Add(MakePlayOption(Play, FString::Printf(TEXT("%s    %s"), *Play.DisplayName, *Play.Formation)));
         }
     }
+    HighlightSuggestion(bOffense, Options);
     return Options;
 }
 

@@ -4,6 +4,7 @@
 #include "PSBall.h"
 #include "PSBallActionComponent.h"
 #include "PSDataIngestion.h"
+#include "PSDifficultySubsystem.h"
 #include "PSFieldReads.h"
 #include "PSOffenseController.h"
 #include "PSPlatformTiers.h"
@@ -73,7 +74,7 @@ bool UPSSkillPlayerAIComponent::LoadTuningFromJson(const FString& JsonFilePath)
     return true;
 }
 
-void UPSSkillPlayerAIComponent::ApplyPlayerDNA(const APSPlayerPawn* Self)
+void UPSSkillPlayerAIComponent::ApplyPlayTuning(const APSPlayerPawn* Self)
 {
     GetTuning();
     Tuning = BaseTuning;
@@ -81,14 +82,17 @@ void UPSSkillPlayerAIComponent::ApplyPlayerDNA(const APSPlayerPawn* Self)
     {
         return;
     }
-    const FPlayerAttributes Attributes = Self->GetAttributes();
     if (UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld()))
     {
-        DNA->ApplyTo(Attributes, TEXT("SkillAI"), Tuning);
+        DNA->ApplyTo(Self->GetAttributes(), TEXT("SkillAI"), Tuning);
+    }
+    if (UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld()))
+    {
+        Difficulty->ApplyTo(Self, TEXT("SkillAI"), Tuning);
     }
     if (UPSPocketComponent* Pocket = GetPocket())
     {
-        Pocket->ApplyPlayerDNA(Attributes);
+        Pocket->ApplyPlayTuning(Self);
     }
 }
 
@@ -428,8 +432,8 @@ void UPSSkillPlayerAIComponent::RecordDecision(const APSPlayerPawn* Self, UPSAID
 void UPSSkillPlayerAIComponent::StartOpeningAction(const APSPlayerPawn* Self)
 {
     bSnapPending = false;
-    // The play starts: he plays it in his own style (Epic 79).
-    ApplyPlayerDNA(Self);
+    // The play starts: he plays it in his own style (Epic 79), at the CPU's difficulty (Epic 84).
+    ApplyPlayTuning(Self);
     const APSOffenseController* Controller = GetOffenseController();
     const bool bHasRoute = Controller && Controller->GetRouteWaypointCount() > 0;
     Action = bHasRoute ? EPSSkillPlayerAction::RunRoute

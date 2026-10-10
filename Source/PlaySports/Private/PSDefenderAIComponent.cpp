@@ -2,6 +2,7 @@
 #include "PSAIDecisionLog.h"
 #include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
+#include "PSDifficultySubsystem.h"
 #include "PSDefenseController.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSPlatformTiers.h"
@@ -71,14 +72,21 @@ bool UPSDefenderAIComponent::LoadTuningFromJson(const FString& JsonFilePath)
     return true;
 }
 
-void UPSDefenderAIComponent::ApplyPlayerDNA(const APSPlayerPawn* Self)
+void UPSDefenderAIComponent::ApplyPlayTuning(const APSPlayerPawn* Self)
 {
     GetTuning();
     Tuning = BaseTuning;
-    UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld());
-    if (Self && DNA)
+    if (!Self)
+    {
+        return;
+    }
+    if (UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld()))
     {
         DNA->ApplyTo(Self->GetAttributes(), TEXT("DefenderAI"), Tuning);
+    }
+    if (UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld()))
+    {
+        Difficulty->ApplyTo(Self, TEXT("DefenderAI"), Tuning);
     }
 }
 
@@ -309,8 +317,8 @@ void UPSDefenderAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEven
 
 void UPSDefenderAIComponent::StartAssignment(APSPlayerPawn* Self)
 {
-    // The play starts: he plays it in his own style (Epic 79).
-    ApplyPlayerDNA(Self);
+    // The play starts: he plays it in his own style (Epic 79), at the CPU's difficulty (Epic 84).
+    ApplyPlayTuning(Self);
     const APSDefenseController* Controller = GetDefenseController();
     const EPSDefensiveAssignmentType Assignment = Controller ? Controller->GetAssignment() : EPSDefensiveAssignmentType::RunFit;
     ZoneSpot = Self->GetActorLocation();

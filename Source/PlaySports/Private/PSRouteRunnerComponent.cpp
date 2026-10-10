@@ -1,5 +1,6 @@
 #include "PSRouteRunnerComponent.h"
 #include "PSDataIngestion.h"
+#include "PSDifficultySubsystem.h"
 #include "PSHealthComponent.h"
 #include "PSOffenseController.h"
 #include "PSPlayerDNA.h"
@@ -89,23 +90,31 @@ void UPSRouteRunnerComponent::SetTuning(const FRouteRunningTuningRow& InTuning)
     bTuningLoaded = true;
 }
 
-void UPSRouteRunnerComponent::ApplyPlayerDNA(const FPlayerAttributes& Receiver)
+void UPSRouteRunnerComponent::ApplyPlayTuning(const APSPlayerPawn* Receiver)
 {
     GetTuning();
     Tuning = BaseTuning;
+    if (!Receiver)
+    {
+        return;
+    }
     if (UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld()))
     {
-        DNA->ApplyTo(Receiver, TEXT("RouteRunning"), Tuning);
+        DNA->ApplyTo(Receiver->GetAttributes(), TEXT("RouteRunning"), Tuning);
+    }
+    if (UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld()))
+    {
+        Difficulty->ApplyTo(Receiver, TEXT("RouteRunning"), Tuning);
     }
 }
 
 void UPSRouteRunnerComponent::SetRoutePlan(const FPSRoute& Route, const TArray<FVector>& WorldWaypoints, float InMirror, const UDataTable* RouteLibrary, int32 Seed)
 {
-    // He runs this play's route in his own style (Epic 79).
+    // He runs this play's route in his own style (Epic 79), at the CPU's difficulty (Epic 84).
     const APSOffenseController* Controller = Cast<APSOffenseController>(GetOwner());
     if (const APSPlayerPawn* Receiver = Controller ? Cast<APSPlayerPawn>(Controller->GetPawn()) : nullptr)
     {
-        ApplyPlayerDNA(Receiver->GetAttributes());
+        ApplyPlayTuning(Receiver);
     }
     const FRouteRunningTuningRow& Settings = GetTuning();
     bHasPlan = WorldWaypoints.Num() == Route.Waypoints.Num() && WorldWaypoints.Num() > 0;
