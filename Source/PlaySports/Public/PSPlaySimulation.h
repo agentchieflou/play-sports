@@ -112,7 +112,10 @@ enum class EPlayResultType : uint8
     FieldGoalGood,
     FieldGoalMissed,
     KickoffResult,
-    PuntResult
+    PuntResult,
+    /** The defense caught the pass (the Catch event's flag): a turnover. The defense takes the
+     *  ball where the return ended, unless a defensive flag the offense accepts wipes it out. */
+    Interception
 };
 
 USTRUCT(BlueprintType)
@@ -159,7 +162,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void SetPlayPhase(EPlayPhase NewPhase);
 
-    /** The carrier is down in bounds. Ignored once the play is over (Scoring). */
+    /** The carrier is down in bounds. Ignored once the play is over (Scoring). After an
+     *  interception it only ends the return: the turnover stands. */
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void RecordTackle(int32 YardsGained);
 
@@ -191,6 +195,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     FDriveSummary GetDriveSummary() const { return CurrentDriveSummary; }
 
+    /** The carrier reached the end zone the offense attacks. An interceptor carried there is
+     *  down in the end zone he defends: a touchback, not a score. */
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void RecordTouchdown();
 
@@ -315,6 +321,10 @@ private:
     FPSTelemetryPlayResultEvent PlayLog;
     bool bPlayLogOpen = false;
     int32 PlaysAnnounced = 0;
+
+    /** Where an interception's return ended, in the offense's yard lines (0 its goal line, 100
+     *  the defense's): the catch's spot, then the interceptor's tackle's. */
+    int32 InterceptionSpot = 0;
 
     /** Starts the play log at the snap, from the situation. */
     void OpenPlayLog();

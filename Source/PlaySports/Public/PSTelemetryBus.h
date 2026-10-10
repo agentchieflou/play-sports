@@ -1026,7 +1026,7 @@ struct FPSTelemetryPlayResultEvent
     int32 YardLine = 20;
 
     /** The EPlayResultType by name: Incomplete, Tackle, Touchdown, Safety, FieldGoalGood,
-     *  FieldGoalMissed, KickoffResult or PuntResult. */
+     *  FieldGoalMissed, KickoffResult, PuntResult or Interception. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     FString Result;
 
