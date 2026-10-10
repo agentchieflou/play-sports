@@ -79,7 +79,27 @@
         {
             "ScreenId": "Settings",
             "Title": "Settings",
-            "Body": "Display, audio, controls and accessibility settings arrive with Epic 103.",
+            "Content": "Settings",
+            "Options": [
+                {
+                    "OptionId": "Keys",
+                    "Label": "Keys and buttons",
+                    "TargetScreen": "InputRemap"
+                }
+            ]
+        },
+        {
+            "ScreenId": "InputRemap",
+            "Title": "Keys and buttons",
+            "Body": "Choose an action, then press its new key or button. Keyboard keys and gamepad buttons are kept apart.",
+            "Content": "InputRemap",
+            "Options": []
+        },
+        {
+            "ScreenId": "SettingsCategory",
+            "Title": "Settings",
+            "Body": "Choose a setting to change it.",
+            "Content": "SettingsCategory",
             "Options": []
         },
         {

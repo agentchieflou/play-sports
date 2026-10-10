@@ -7,6 +7,11 @@
 
 /**
  * Custom HUD class for PlaySports which spawns and manages scoreboard widgets.
+ *
+ * By default it shows the broadcast package (Epic 33): UPSOverlayScoreBugWidget, which
+ * replaces Epic 5's debug scoreboard, and UPSOverlayChyronWidget, both drawing
+ * UPSOverlayBroadcastSubsystem. A designer can assign Widget Blueprints instead. The chyron
+ * widget is left out on a tier whose OverlayDetail is Minimal.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSHUD : public AHUD
@@ -23,6 +28,13 @@ public:
     // Instance of the scoreboard widget
     UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
     UUserWidget* ScoreboardWidget;
+
+    /** The lower-third chyron widget class (Epic 33). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
+    TSubclassOf<UUserWidget> ChyronWidgetClass;
+
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "HUD")
+    UUserWidget* ChyronWidget;
 
 protected:
     virtual void BeginPlay() override;

@@ -177,11 +177,11 @@ bool FPSPlayContextTest::RunTest(const FString& Parameters)
     Whistle.NewPhase = TEXT("Scoring");
     Bus->PublishPhaseChange(Whistle);
     Context->Refresh();
-    TestEqual(TEXT("After the whistle: PreSnap again"), Controller->GetDepthContext(), FName(TEXT("PreSnap")));
+    TestEqual(TEXT("After the whistle, on defense: DefensePreSnap"), Controller->GetDepthContext(), FName(TEXT("DefensePreSnap")));
 
     Controller->ReleaseControl();
     TestEqual(TEXT("Releasing the pawn clears the depth context"), Controller->GetDepthContext(), FName(NAME_None));
-    TestFalse(TEXT("...off the stack"), Controller->IsInputContextActive(TEXT("PreSnap")));
+    TestFalse(TEXT("...off the stack"), Controller->IsInputContextActive(TEXT("DefensePreSnap")));
 
     DestroyTestWorld(World);
     return true;

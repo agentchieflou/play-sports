@@ -1,11 +1,12 @@
 #include "PSDefenderGapSubsystem.h"
+#include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSDefenseController.h"
+#include "PSPlatformTiers.h"
 #include "PSPlayCallSubsystem.h"
 #include "PSPlaybookData.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "Misc/Paths.h"
 
 namespace PSDefenderGapsPrivate
@@ -69,18 +70,20 @@ EPSRunGap PSDefenderGaps::MakeGap(int32 Level, bool bLeft)
     return static_cast<EPSRunGap>(Value);
 }
 
-bool PSDefenderGaps::ComputeGapSpots(const TArray<APSPlayerPawn*>& Pawns, float BallY, const FPSRunFitCatalog& Catalog, TArray<FVector>& OutSpots)
+bool PSDefenderGaps::ComputeGapSpots(const TArray<APSPlayerPawn*>& Pawns, float BallY, const FPSRunFitCatalog& Catalog, TArray<FVector>& OutSpots,
+    const TArray<EPlayerRole>* Roles)
 {
     OutSpots.Init(FVector::ZeroVector, PSDefenderGapsPrivate::GapSlots);
     TArray<const APSPlayerPawn*> Line;
     TArray<const APSPlayerPawn*> TightEnds;
-    for (const APSPlayerPawn* Pawn : Pawns)
+    for (int32 PawnIndex = 0; PawnIndex < Pawns.Num(); ++PawnIndex)
     {
+        const APSPlayerPawn* Pawn = Pawns[PawnIndex];
         if (!Pawn || Pawn->TeamSide != EPSTeamSide::Offense)
         {
             continue;
         }
-        const EPlayerRole Role = Pawn->GetAttributes().Role;
+        const EPlayerRole Role = Roles && Roles->IsValidIndex(PawnIndex) ? (*Roles)[PawnIndex] : Pawn->GetAttributes().Role;
         if (Role == EPlayerRole::OffensiveLineman)
         {
             Line.Add(Pawn);
@@ -278,7 +281,13 @@ TStatId UPSDefenderGapSubsystem::GetStatId() const
 void UPSDefenderGapSubsystem::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-    UpdateFits(DeltaTime);
+    // At the AI's decision rate for the platform tier (Epic 129).
+    UpdateClock += DeltaTime;
+    if (UpdateClock >= PSPlatformTiers::GetActiveTier().AIDecisionInterval)
+    {
+        UpdateFits(UpdateClock);
+        UpdateClock = 0.f;
+    }
 }
 
 FString UPSDefenderGapSubsystem::GetDefaultCatalogPath()
@@ -438,9 +447,9 @@ void UPSDefenderGapSubsystem::UpdateFits(float DeltaSeconds)
     }
     EnsureAssigned();
 
-    const TArray<APSPlayerPawn*> Pawns = GetFieldPawns();
+    const TArray<APSPlayerPawn*>& Pawns = GetFieldPawns();
     TArray<FVector> Spots;
-    const bool bLine = PSDefenderGaps::ComputeGapSpots(Pawns, LineOfScrimmage.Y, GetCatalog(), Spots);
+    const bool bLine = ReadGapSpots(Spots);
     const APSPlayerPawn* Carrier = FindRunCarrier(Pawns);
     if (bLine && Carrier)
     {
@@ -639,7 +648,8 @@ int32 UPSDefenderGapSubsystem::GetOpenGapCount() const
 
 bool UPSDefenderGapSubsystem::ReadGapSpots(TArray<FVector>& OutSpots)
 {
-    return PSDefenderGaps::ComputeGapSpots(GetFieldPawns(), LineOfScrimmage.Y, GetCatalog(), OutSpots);
+    UPSAIFieldSnapshot* Field = GetWorld() ? GetWorld()->GetSubsystem<UPSAIFieldSnapshot>() : nullptr;
+    return Field && PSDefenderGaps::ComputeGapSpots(Field->GetPawns(), LineOfScrimmage.Y, GetCatalog(), OutSpots, &Field->GetRoles());
 }
 
 APSPlayerPawn* UPSDefenderGapSubsystem::FindRunCarrier(const TArray<APSPlayerPawn*>& Pawns) const
@@ -654,12 +664,7 @@ APSPlayerPawn* UPSDefenderGapSubsystem::FindRunCarrier(const TArray<APSPlayerPaw
     return nullptr;
 }
 
-TArray<APSPlayerPawn*> UPSDefenderGapSubsystem::GetFieldPawns() const
+const TArray<APSPlayerPawn*>& UPSDefenderGapSubsystem::GetFieldPawns() const
 {
-    TArray<APSPlayerPawn*> Pawns;
-    for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
-    {
-        Pawns.Add(*It);
-    }
-    return Pawns;
+    return UPSAIFieldSnapshot::GetFieldPawns(GetWorld());
 }

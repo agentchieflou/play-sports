@@ -13,7 +13,8 @@
             "DeviceProfile": "Windows",
             "AIDecisionInterval": 0,
             "TelemetrySampleRateHz": 30,
-            "TelemetrySampleBudgetMs": 0.25
+            "TelemetrySampleBudgetMs": 0.25,
+            "OverlayDetail": "Full"
         },
         {
             "TierId": "MobileBaseline",
@@ -21,7 +22,8 @@
             "DeviceProfile": "IOS",
             "AIDecisionInterval": 0.033,
             "TelemetrySampleRateHz": 15,
-            "TelemetrySampleBudgetMs": 0.15
+            "TelemetrySampleBudgetMs": 0.15,
+            "OverlayDetail": "Simplified"
         },
         {
             "TierId": "MobileLow",
@@ -29,7 +31,8 @@
             "DeviceProfile": "PSMobileLow",
             "AIDecisionInterval": 0.066,
             "TelemetrySampleRateHz": 10,
-            "TelemetrySampleBudgetMs": 0.1
+            "TelemetrySampleBudgetMs": 0.1,
+            "OverlayDetail": "Minimal"
         }
     ]
 }

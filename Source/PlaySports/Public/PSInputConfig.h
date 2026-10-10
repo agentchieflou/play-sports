@@ -49,9 +49,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Input")
     bool LoadFromJson(const FString& JsonFilePath);
 
-    /** (Re)creates the UInputAction / UInputMappingContext objects from Catalog. Every
-     *  gamepad stick binding gets a radial dead zone and a response curve from Tuning. Keys
-     *  that are not valid engine keys are skipped here and reported by Validate(). */
+    /** (Re)creates the UInputMappingContext objects from Catalog, and a UInputAction for each
+     *  action that has none yet (existing actions are kept, so bindings made on them survive a
+     *  rebuild). Every gamepad stick binding gets a radial dead zone and a response curve from
+     *  Tuning. Keys that are not valid engine keys are skipped here and reported by Validate().
+     *  A controller that already applied contexts re-applies them after a rebuild
+     *  (APSPlayerController::RefreshInputMappings). */
     UFUNCTION(BlueprintCallable, Category = "Input")
     void BuildRuntimeObjects();
 
@@ -61,6 +64,24 @@ public:
      *  is declared for; also out-of-range Tuning values. Empty when everything is valid. */
     UFUNCTION(BlueprintCallable, Category = "Input")
     TArray<FString> Validate() const;
+
+    /** Validate's checks on any catalog and tuning (a remap is checked before it applies). */
+    static TArray<FString> ValidateCatalog(const FPSInputCatalog& InCatalog, const FInputTuningRow& InTuning);
+
+    /** True for an action a player may give his own keys (Epic 103.4): a Boolean action in no
+     *  context marked bRemappable false. */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    bool IsRemappable(FName ActionId) const;
+
+    /** Rebuilds Catalog as the authored catalog with InRemaps over it, each replacing every key
+     *  its action has for its kind of device, and rebuilds the runtime objects. Applies nothing
+     *  and returns false with OutProblems when a remap names an action that can't be remapped,
+     *  a key of the wrong kind or one no button picture exists for, or the result would break
+     *  the catalog (a key bound twice in one context). Glyphs follow on their own. */
+    bool ApplyRemaps(const TArray<FPSInputRemap>& InRemaps, TArray<FString>& OutProblems);
+
+    /** The remaps applied now. */
+    const TArray<FPSInputRemap>& GetRemaps() const { return Remaps; }
 
     UFUNCTION(BlueprintPure, Category = "Input")
     UInputAction* FindAction(FName ActionId) const;
@@ -98,7 +119,23 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     FInputTuningRow Tuning;
 
+    /** Scales the stick dead zone from the authored tuning (the player's setting, Epic 103: 1 is
+     *  as tuned) and rebuilds the runtime objects. */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    void SetStickDeadZoneScale(float Scale);
+
 private:
+    /** Tuning as loaded from Data/input_tuning.json, before the player's settings. */
+    UPROPERTY(Transient)
+    FInputTuningRow AuthoredTuning;
+
+    /** The catalog as loaded, before the player's remaps. */
+    UPROPERTY(Transient)
+    FPSInputCatalog AuthoredCatalog;
+
+    UPROPERTY(Transient)
+    TArray<FPSInputRemap> Remaps;
+
     UPROPERTY(Transient)
     UPSInputGlyphs* Glyphs;
 

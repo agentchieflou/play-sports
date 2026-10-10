@@ -47,9 +47,10 @@ keeps that mapping.
 | Play context | `UPSPlayContextComponent` (on the controller, Epic 104) | Which gameplay-depth context (section 3) is on, from the snap and the end of the play on the bus and the controlled pawn's possession. |
 | Passing | `Data/passing_input.json` → `UPSPassingComponent` (on the controller, Epic 104) | The human passer: receiver slots, touch and bullet, stick placement, pump fake. |
 | Carrier moves | `Data/carrier_moves.json` → `UPSCarrierMoveComponent` (on every `APSPlayerPawn`), pressed through `UPSCarrierInputComponent` (on the controller, Epic 104.2) | Juke, spin, truck, stiff-arm, hurdle, slide: attribute gates, stamina, the velocity change, the commitment window, and the tackle-odds window `ResolveTackle` reads. |
+| Input buffer | `Data/input_buffer.json` → `UPSInputBufferComponent` (on the controller, Epic 104.4) | Presses whose target is busy wait for it; a press made just before its context comes on counts there. Passing, the carrier's moves, the defender's buttons and the kick meter hear their buttons through it. |
+| Defensive technique | `Data/defensive_techniques.json` → `UPSDefenderTechniqueComponent` (on every `APSPlayerPawn`), pressed through `UPSDefenseInputComponent` (on the controller, Epic 104.5) | The jump at the snap (a get-off burst, or offside) and the strip attempt `ResolveTackle` reads. |
+| Kick meter | `Data/kick_meter.json` → `UPSKickMeterComponent` (on the controller, Epic 104.5) | The human kicker's hold-release-press meter; the kick goes on the bus for `UPSPlaySimulation`. |
 | Pre-snap calls | `Data/presnap_tuning.json` → `UPSPreSnapSubsystem` (world subsystem), pressed through `UPSPreSnapInputComponent` (on the controller, Epic 66) | The offense's audibles, hot routes, motion and protection. The subsystem is the authority on them for the human and the CPU alike; the component maps the PreSnap context's buttons onto it. |
-| Defensive pre-snap | `Data/defensive_presnap.json` → `UPSDefenderPreSnapSubsystem` (world subsystem), pressed through `UPSDefenderPreSnapInputComponent` (on the controller, Epic 67) | The defense's audibles, disguises (shell, show blitz, creep) and shadow matchups. The same PreSnap buttons, with defensive meanings, while the human controls a defender; the offense's component ignores them then, and this one does on offense. |
-| Input buffer | `Data/input_buffer.json` → `UPSInputBufferComponent` (on the controller, Epic 104.4) | Presses whose target is busy wait for it; a press made just before its context comes on counts there. Passing and the carrier's moves hear their buttons through it. |
 
 ## 3. The context stack
 
@@ -61,14 +62,16 @@ bind the same key.
 | `World` | 0 | nothing yet (lobby and sideline walking, Epic 143) | The browser world's baseline (section 4). |
 | `OnField` | 1 | `APSPlayerController::OnPossess` of an `APSPlayerPawn`; popped on unpossess | The possessed pawn during play. |
 | `Menu` | 2 | not pushed on Enhanced Input | Names the keys menus treat as Confirm (Enter, A) and Back (Escape, B). While a screen is open the player is in UI input mode and Slate moves focus (D-pad, stick, arrows, Tab); `UPSMenuComponent` reads its Back keys from this context. |
-| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | The offense's pre-snap calls (Epic 66): audible, select, hot route, motion, slide, block/release. On defense the same buttons make the defense's (Epic 67): audible, select, shadow, show blitz, disguise, creep. Pre-snap clock controls (Epic 76): `Tempo` (N / Y) cycles the offense's tempo, `Timeout` (O / View) calls a timeout, both through `UPSPlayCallComponent`. Hiking stays Confirm on `OnField`. |
+| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle, on offense | The offense's pre-snap calls (Epic 66): audible, select, hot route, motion, slide, block/release. Pre-snap clock controls (Epic 76): `Tempo` (N / Y) cycles the offense's tempo, `Timeout` (O / View) calls a timeout, both through `UPSPlayCallComponent`. The direct pick across the field (Epic 30): `PickPlayerLeft`/`PickPlayerRight`. Hiking stays Confirm on `OnField`. |
+| `DefensePreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle, on defense | The defender's jump at the snap (Epic 104.5), `Timeout` (Epic 76) and the direct pick across the field (Epic 30, `PickPlayerLeft`/`PickPlayerRight`, so either side of the ball can pick). The offense's calls mean nothing to him, so the same buttons are free for the defense; X and LB still switch player from `OnField`. |
 | `Passing` | 3 | `UPSPlayContextComponent`: the controlled QB holds the ball behind the line | The pass buttons and the pump fake. They take A, X and LB from `OnField` while on. |
 | `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | The move set (Epic 104.2). It takes the face buttons and both bumpers from `OnField` while on. |
-| `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | Epic 104.5's defensive inputs. |
+| `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | The strip attempt (Epic 104.5). X and LB still switch player from `OnField`. |
+| `Kicking` | 3 | `UPSPlayContextComponent`: a kickoff, punt or field goal, while the controlled player is on the kicking side (the offense) | The kick meter (Epic 104.5). It takes A from `OnField` while on. |
 
-The four gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
+The six gameplay-depth contexts (Epic 104) are mutually exclusive: the controller holds at most
 one of them (`APSPlayerController::SetDepthContext`), on top of `OnField`. An offensive player
-without the ball during the play has none.
+without the ball during the play has none, and neither does the receiving side during a kick.
 
 `APSPlayerController::ActiveInputContexts` is the stack. The controller mirrors it into the local
 player's `UEnhancedInputLocalPlayerSubsystem` when one exists. Headless test worlds have no local
@@ -89,7 +92,7 @@ as the Xbox glyph set labels them.
 | Cancel | Boolean | World, OnField, Menu | Esc | B | `OnCatalogActionStarted`; menu Back |
 | Pause | Boolean | OnField | P | Menu (Start) | the controller → `UPSMenuComponent::TogglePause` |
 | Favorite | Boolean | Menu | F | X | the menu widget stars the focused play (Epic 102); like Back, read through Slate |
-| SwitchPlayer | Boolean | OnField | T | X, LB | the controller → `SwitchToBestPawn` |
+| SwitchPlayer | Boolean | OnField | T | X, LB | the controller → `UPSControlHandoffComponent::SwitchPlayer`: the side's ball carrier, else the teammate nearest the ball; pressed again within `CycleWindowSeconds` it cycles on through the same order (Epic 30) |
 | Interact | Boolean | World | E, Enter | A | `OnCatalogActionStarted` |
 | Secondary | Boolean | World | T | X | `OnCatalogActionStarted` |
 | ViewToggle | Boolean | World | V | Y | `OnCatalogActionStarted` |
@@ -103,12 +106,17 @@ as the Xbox glyph set labels them.
 | StiffArm | Boolean | BallCarrier | V | RB | the same: an arm bar (Strength 30+) |
 | Hurdle | Boolean | BallCarrier | Space | Y | the same: leap a low tackle (Agility 65+) |
 | Slide | Boolean | BallCarrier | Left Ctrl | LB | the same: give yourself up (down at the next contact, no hit, no fumble) |
-| Audible | Boolean | PreSnap | R | D-pad Up | `UPSPreSnapInputComponent` → `UPSPreSnapSubsystem::AudibleToNext`: the next play in the formation. On defense `UPSDefenderPreSnapInputComponent` → `UPSDefenderPreSnapSubsystem::AudibleToNext`: the next play of the front |
-| PreSnapSelect | Boolean | PreSnap | Tab | RB | the same: picks the receiver the next three act on, left to right (on defense: the receiver to shadow) |
-| HotRoute | Boolean | PreSnap | H | D-pad Right | the same: the selected receiver's next allowed route (on defense: the nearest AI back shadows the selected receiver, or lets him go) |
-| Motion | Boolean | PreSnap | M | D-pad Left | the same: the selected receiver goes in motion; a defender who travels shows man (on defense: show a blitz that isn't coming, toggles) |
-| SlideProtection | Boolean | PreSnap | L | LT | the same: the line's slide, none → left → right (on defense: disguise the shell, toggles) |
-| BlockRelease | Boolean | PreSnap | K | D-pad Down | the same: the selected back or tight end is kept in or released (on defense: creep the blitz, toggles) |
+| JumpSnap | Boolean | DefensePreSnap | Space | LT | `UPSDefenseInputComponent`: a defender's first press before the snap is when he moves; within `JumpWindowSeconds` of the snap he bursts off the line, earlier he is offside |
+| Strip | Boolean | Defense | R | RB | the same: a strip attempt; for a moment his tackles land less often but force more fumbles |
+| Kick | Boolean | Kicking | Space | A | `UPSKickMeterComponent`: hold to fill the power, release to lock it, press to stop the accuracy needle |
+| Audible | Boolean | PreSnap | R | D-pad Up | `UPSPreSnapInputComponent` → `UPSPreSnapSubsystem::AudibleToNext`: the next play in the formation |
+| PreSnapSelect | Boolean | PreSnap | Tab | RB | the same: picks the receiver the next three act on, left to right |
+| HotRoute | Boolean | PreSnap | H | D-pad Right | the same: the selected receiver's next allowed route |
+| Motion | Boolean | PreSnap | M | D-pad Left | the same: the selected receiver goes in motion; a defender who travels shows man |
+| SlideProtection | Boolean | PreSnap | L | LT | the same: the line's slide, none → left → right |
+| BlockRelease | Boolean | PreSnap | K | D-pad Down | the same: the selected back or tight end is kept in or released |
+| PickPlayerLeft | Boolean | PreSnap | Q | RS flick left | `UPSControlHandoffComponent`: control to the nearest teammate to the left across the field (Epic 30) |
+| PickPlayerRight | Boolean | PreSnap | E | RS flick right | the same, to the right |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
 every off-field context. On the field Y is taken: the tempo before the snap, slot 2 while
@@ -236,21 +244,69 @@ outcomes are published, and Hit (every landed tackle), Catch, Interception and F
     (`IsInputKeyDown`/`GetInputKeyTimeDown`), so any engine key counts, gamepad, keyboard or
     touch; `KeyStateQuery` lets tests, or touch controls that inject actions rather than keys
     (Epic 130), supply it.
+- **Defensive inputs** (as built, Epic 104.5). `UPSDefenseInputComponent` on the controller
+  hears `JumpSnap` and `Strip` through the buffer, and the snap on the bus.
+  - **Jump-snap.** The first press before the snap is when the defender moves; later presses
+    can't take it back. At the snap it is judged against `JumpWindowSeconds`. Inside the window,
+    `UPSDefenderTechniqueComponent::GetOff` adds `GetOffSpeed` toward the line of scrimmage.
+    Earlier, he is offside. Either way a `JumpSnap` event goes on the bus, and
+    `UPSPlaySimulation` flags an offside jump as Offsides (the play runs; the offense can accept
+    it, as with the simulation's own offsides).
+  - **Strip.** `TryStrip` opens a `StripWindowSeconds` attempt for a defender without the ball.
+    Tackles he makes in it succeed `StripTackleScale` as often but add `StripFumbleChance` x
+    Strength/100 to the fumble chance (`UPSBallActionComponent::ResolveTackle`, through
+    `PSBallResolutionHelpers::ComputeTackleChance` and the extracted `ComputeFumbleChance`). A
+    press during the cooldown waits in the buffer.
+- **The kick meter** (as built, Epic 104.5). `UPSKickMeterComponent` on the controller.
+  - A kick phase on the bus (`Kickoff`, `Punt`, `FieldGoal`; `APSGameMode` now names them in
+    `PhaseChange`) lines the human up if he controls a player on the kicking side. There are no
+    special-teams units yet, so that means the offense. `UPSPlayContextComponent` pushes
+    `Kicking` for him; the receiving side has no depth context.
+  - Lining up publishes a `Kick` event with `HoldSeconds` (`LineUpSeconds`). `UPSPlaySimulation`
+    then waits up to that long into the phase, instead of kicking for the CPU after two seconds.
+  - Hold `Kick`: the power bar fills over `PowerFillSeconds` and drains back if held past full.
+    Release: power locks and the needle sweeps from -1 to 1 over `AccuracySweepSeconds`. Press:
+    the needle stops; left alone, it ends at 1.
+  - The kick is a `Kick` event with power, needle and `Roll = PowerWeight x (1 - power) +
+    AccuracyWeight x |needle|` (0 perfect, 1 worst). The simulation uses the roll where its CPU
+    kicker rolls a random number: a field goal is good when the roll is under the distance's
+    success chance, a punt nets 45 yards at roll 0 down to 35 at roll 1, and a kickoff is a
+    touchback under 0.6.
 - **Feel.** Walk, jog and run blend from the stick magnitude `HandleMove` already receives,
   after the tuned dead zone and curve. Sprint stays an override (section 7).
 
 ### Epic 103: settings and remapping
 
-- **Remap** by editing the bindings in `UPSInputConfig::Catalog` and calling
-  `BuildRuntimeObjects()`. Then re-apply the active contexts: the rebuild makes new
-  `UInputMappingContext` objects, so the subsystem's copies go stale.
-  - Store the player's overrides with the save system. Never rewrite `Data/input_actions.json`.
-  - Run `UPSInputConfig::Validate()` before accepting a remap, so a player can't unbind an
-    action from a device or bind one key twice.
-  - Glyphs follow on their own.
-- **Vibration** is `UPSForceFeedbackComponent::bEnabled`. Use the engine's per-controller
-  `ForceFeedbackScale` for a strength slider rather than editing the authored patterns.
-- **Stick dead zone and curve sliders** set `FInputTuningRow` and rebuild.
+- **Remap** (as built, Epic 103.4).
+  - A remap (`FPSInputRemap`: action, gamepad or keyboard, key) replaces every key the action
+    has for that kind of device.
+  - `UPSInputConfig::ApplyRemaps` rebuilds `Catalog` as the authored catalog with the player's
+    remaps over it, keeping the same action objects. It refuses the whole set, changing
+    nothing, when a remap names a fixed action, a key of the wrong kind or one the glyph table
+    can't draw, or when `ValidateCatalog` finds a key bound twice in a context.
+  - Fixed actions: anything in a context marked `"bRemappable": false`, today `Menu` (Confirm,
+    Cancel, Favorite, which menus read through Slate), and every non-Boolean action.
+  - `UPSSettingsComponent::RequestRemap` tries the remap on the player's own config, then saves
+    it in the profile (`UPSProfileSaveGame::InputRemaps`, through `UPSSettingsSubsystem`).
+    `APSPlayerController::RefreshInputMappings` re-applies the contexts.
+  - On load, a saved remap the catalog no longer accepts is dropped and logged; the others stay.
+  - `Data/input_actions.json` is never rewritten.
+  - Glyphs follow on their own: `GetGlyphForAction` reads the remapped catalog.
+  - The menu surface is the `InputRemap` screen (Settings → Keys and buttons). It lists each
+    remappable action with its key on the active device. Choosing one waits for a key, which
+    `UPSMenuScreenWidget::NativeOnPreviewKeyDown` hands to `UPSMenuComponent::HandleRemapKey`
+    before any button can act on it. Back cancels, and Reset puts every key back.
+- **Vibration** (as built, Epic 103.1) is the `Vibration` setting, applied by
+  `UPSSettingsComponent` to `UPSForceFeedbackComponent::bEnabled`. `VibrationStrength` sets the
+  controller's `ForceFeedbackScale`; the authored patterns stay as they are.
+- **Stick dead zone** (as built). The `StickDeadZone` setting is a scale on the tuned value
+  (Small 0.5, Standard 1, Large 1.5), so `Data/input_tuning.json` stays the authority on the
+  number itself. `UPSInputConfig::SetStickDeadZoneScale` rebuilds the mapping contexts.
+  `BuildRuntimeObjects` now keeps the `UInputAction` objects it already made, so the
+  controller's bindings survive a rebuild, and `APSPlayerController::RefreshInputMappings`
+  re-applies the context stack to the Enhanced Input subsystem.
+- **Input buffering** (the Gameplay category) switches `UPSInputBufferComponent` to pass
+  everything straight through when off.
 
 ### Epic 107: two players on one machine
 
@@ -301,6 +357,9 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.DeviceChangeRoundTripsOnBus` | Device changes are published on the bus (Epic 127). |
 | `PlaySports.Input.HumanAIPossessionHandoff` | Human↔AI handoff in both directions (Epic 127). |
 | `PlaySports.Input.SwitchPlayerFollowsBallAndCarrier` | SwitchPlayer goes to the carrier or the nearest teammate (Epic 127). |
+| `PlaySports.Control.SwitchCyclesNearestToBall` | Repeated switch presses cycle nearest-to-the-ball, skip the downed and stay on the side's carrier (Epic 30). |
+| `PlaySports.Control.PreSnapDirectPick` | PickPlayerLeft/Right and a named pick move control before the snap, never during the play (Epic 30). |
+| `PlaySports.Control.HandoffWithoutPops` | A handoff keeps the pawn's velocity both ways; the AI takes a receiver back mid-route without running back (Epic 30). |
 | `PlaySports.Input.ForceFeedbackTuningValidates` | The rumble patterns load and validate (Epic 128). |
 | `PlaySports.Input.TelemetryEventsDriveForceFeedback` | Bus events become rumble dispatches (Epic 128). |
 | `PlaySports.Input.GlyphTableCoversCatalog` | The glyph table loads, validates and draws every bound key (Epic 128). |
@@ -308,6 +367,10 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.BufferWaitsOutCommitment` | A move pressed during another's commitment, or near the end of its cooldown, fires as soon as it can; the newest press wins; an early press is dropped; letting the player go empties the buffer (Epic 104.4). |
 | `PlaySports.Input.BufferHoldsPassForTheBall` | A pass button pressed before the ball arrives throws once it does; a stale press throws nothing; a hold is timed from the press; leaving Passing drops a waiting press (Epic 104.4). |
 | `PlaySports.Input.BufferCarriesPressIntoNewContext` | A pass key pressed the frame before Passing comes on throws on release; the hike key and a stale press are not replayed (Epic 104.4). |
+| `PlaySports.Input.DefenseAndKickTuningValidates` | The technique and kick meter tuning load and validate, their buttons are in the catalog with glyphs, and the roll and fumble formulas hold (Epic 104.5). |
+| `PlaySports.Input.JumpSnapTimedAtTheSnap` | A jump just before the snap bursts the defender off the line; an early one is offside and flagged; nothing after the snap or on offense (Epic 104.5). |
+| `PlaySports.Input.StripTradesTackleForFumble` | A strip attempt lowers tackle odds and raises fumble odds, wears off, and waits out its cooldown in the buffer (Epic 104.5). |
+| `PlaySports.Input.KickMeterDrivesTheKick` | A kick phase lines the human kicker up and the play waits; the meter's roll decides the field goal, punt and kickoff; without a human the CPU kicks on time (Epic 104.5). |
 | `PlaySports.PreSnap.HumanButtons` | The PreSnap context's buttons select, keep in, slide, hot-route, motion and audible, and do nothing on defense (Epic 66). |
 | `PlaySports.Camera.All22ToggleThroughCatalog` | FilmView is on the field with a key and an R3 glyph. Its keys are free in every context stacked over the field. It steps the film view on the viewing controller only (Epic 40). |
 

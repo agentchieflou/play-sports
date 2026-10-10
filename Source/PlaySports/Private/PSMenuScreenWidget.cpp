@@ -175,6 +175,17 @@ void UPSMenuScreenWidget::GoBack()
     }
 }
 
+FReply UPSMenuScreenWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+    // A remap waiting for its key takes the very next one, before a button can press on it.
+    UPSMenuComponent* Menu = OwnerMenu.Get();
+    if (Menu && Menu->HandleRemapKey(InKeyEvent.GetKey()))
+    {
+        return FReply::Handled();
+    }
+    return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
+}
+
 FReply UPSMenuScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
     UPSMenuComponent* Menu = OwnerMenu.Get();

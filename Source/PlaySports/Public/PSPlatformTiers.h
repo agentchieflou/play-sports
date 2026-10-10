@@ -4,6 +4,18 @@
 #include "CoreMinimal.h"
 #include "PSPlatformTiers.generated.h"
 
+/** How much broadcast overlay a tier draws (Specs/Platform_Audit.md section 4). */
+UENUM(BlueprintType)
+enum class EPSOverlayDetail : uint8
+{
+    /** Everything, animated. */
+    Full,
+    /** Everything, without animated transitions or pulses. */
+    Simplified,
+    /** The score bug and the indicators play needs (the control reticle), static. */
+    Minimal
+};
+
 /**
  * One performance tier (Data/platform_tiers.json; Architecture rule 4). A tier pairs the
  * code-side budgets below with a device profile in Config/DefaultDeviceProfiles.ini, which
@@ -37,6 +49,10 @@ struct FPSPlatformTier
     /** What one telemetry snapshot may cost, in ms; over it the sampler halves its rate. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     float TelemetrySampleBudgetMs = 0.25f;
+
+    /** How much broadcast overlay this tier draws (Track A). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    EPSOverlayDetail OverlayDetail = EPSOverlayDetail::Full;
 };
 
 /** Which tier a platform runs by default (platform names as UGameplayStatics::GetPlatformName

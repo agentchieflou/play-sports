@@ -12,6 +12,7 @@
         { "ActionId": "PassTarget3", "BufferSeconds": 0.15 },
         { "ActionId": "PassTarget4", "BufferSeconds": 0.15 },
         { "ActionId": "PassTarget5", "BufferSeconds": 0.15 },
-        { "ActionId": "PumpFake",    "BufferSeconds": 0.15 }
+        { "ActionId": "PumpFake",    "BufferSeconds": 0.15 },
+        { "ActionId": "Strip",       "BufferSeconds": 0.2 }
     ]
 }

@@ -61,7 +61,7 @@ are the open half) rather than starting fresh. Generators route through `UPSData
 **Goal:** One command validates and imports everything Track L produces — the quality gate between generators and the game.
 **Depends on:** Core 21, 113
 
-- [ ] Unified CLI: validate/import all content types (players, teams, playbooks, venues) with actionable errors
-- [ ] Cross-content referential integrity (every roster's team exists, every play's routes resolve)
-- [ ] Statistical sanity reports on generated content (rating distributions, name duplication)
-- [ ] CI integration (112): generated-content PRs are auto-validated
+- [x] Unified CLI: validate/import all content types (players, teams, playbooks, venues) with actionable errors *(as built: `python tools/content.py validate|report|import`. Validate is `validate_data.py` plus the new `tools/content_contracts.py`, which holds the teams, league config, playbook, route library and rating-range contracts. Import runs `PSContentReimportCommandlet`, now following league → teams → rosters. Venues have no content type until Epic 124; their contract goes in `content_contracts.py`)*
+- [x] Cross-content referential integrity (every roster's team exists, every play's routes resolve) *(as built: in `content_contracts.check_references`, which checks the league's teams file and playoff size, each team's roster, rosters with no team, PlayerIds unique across the league, and plays' routes. The commandlet re-checks the last three on what it loaded)*
+- [x] Statistical sanity reports on generated content (rating distributions, name duplication) *(as built: `content.py report [--json] [--strict]` covers per-role rating distributions with inflated and flat warnings, duplicate names, roles missing from a team, team overall outliers, body plausibility and playbook category gaps)*
+- [x] CI integration (112): generated-content PRs are auto-validated *(as built: CI's "Validate data contracts" step now includes every content contract and reference, and a "Content report" step prints the report. The automation test `PlaySports.Content.ImportShippedContent` imports all of `Data/` through the game's loaders on every build)*

@@ -1,0 +1,16 @@
+{
+    "OffenseColor": "#2F80ED",
+    "DefenseColor": "#EB5757",
+    "bUseTeamColor": true,
+    "MeshPath": "/Engine/BasicShapes/Cylinder.Cylinder",
+    "MaterialPath": "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
+    "ColorParameter": "Color",
+    "MeshDiameter": 100.0,
+    "Thickness": 2.0,
+    "GroundClearance": 1.0,
+    "ReticleStates": [
+        { "State": "PreSnap", "Radius": 70.0, "Brightness": 1.0, "PulseHz": 0.0, "PulseAmount": 0.0 },
+        { "State": "InPlay", "Radius": 60.0, "Brightness": 0.8, "PulseHz": 0.0, "PulseAmount": 0.0 },
+        { "State": "BallCarrier", "Radius": 80.0, "Brightness": 1.4, "PulseHz": 2.0, "PulseAmount": 0.12 }
+    ]
+}

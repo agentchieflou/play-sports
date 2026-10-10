@@ -31,3 +31,9 @@ float PSBallResolutionHelpers::ComputeTackleChance(const FPlayerAttributes& Carr
     const float Chance = FMath::Clamp(Tuning.TackleBaseChance + (DefenderPower - CarrierPower) * Tuning.PowerScalar, Tuning.TackleChanceMin, Tuning.TackleChanceMax);
     return FMath::Clamp(Chance * FMath::Max(0.f, CarrierMoveMultiplier), 0.f, Tuning.TackleChanceMax);
 }
+
+float PSBallResolutionHelpers::ComputeFumbleChance(float DefenderSpeed, float StripBonus, const FTackleTuningRow& Tuning)
+{
+    const float Chance = FMath::Clamp(Tuning.FumbleBaseChance + DefenderSpeed * Tuning.FumbleSpeedScalar, Tuning.FumbleChanceMin, Tuning.FumbleChanceMax);
+    return FMath::Clamp(Chance + FMath::Max(0.f, StripBonus), 0.f, 1.f);
+}
