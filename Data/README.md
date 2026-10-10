@@ -35,6 +35,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
@@ -192,6 +193,9 @@ more; distances are cm, times seconds:
 - `ThrowLeadSpeed` (above 0): ball speed for leading a receiver.
 - `BlockSetDistance`, `BlockEngageRadius`: a blocker sets up this far in front of the QB and
   takes on rushers within the radius of him.
+- `ReadWindowSeconds`, `MaxAnticipationSeconds` (Epic 68): a receiver on a planned route is read
+  from his break (as much as `MaxAnticipationSeconds` before it at Awareness 100) until
+  `ReadWindowSeconds` after it.
 
 ## Defensive AI tuning schema (`FDefenderAITuningRow`)
 
@@ -328,3 +332,37 @@ Single object (Epic 66; the offense's audibles, hot routes, motion and protectio
   catalog's `PreSnap` context.
 
 `tools/validate_data.py` checks it, including the routes and the actions.
+
+## Route-running tuning schema (`FRouteRunningTuningRow`)
+
+Single object (Epic 68; how receivers run routes as contested skills, `UPSRouteRunnerComponent`
+and `PSRouteRunning`). Every field is a number, 0 or more; distances are cm, chances 0-1:
+- `PressRadius`: a defender this close in front of a receiver at the snap presses him.
+- `ReleaseBaseWinChance`, `ReleaseRatingWeight`, `ReleaseMinWinChance`, `ReleaseMaxWinChance`
+  (min not above max): the receiver's chance to win his release is the base plus the weight per
+  point his release rating ((Agility + Strength) / 2) beats the presser's, clamped.
+- `DelayShare` (at most 1), `DelaySeconds`, `RerouteOffset`, `RerouteDelaySeconds`: of the
+  releases he loses this share are a delay (held `DelaySeconds`); the rest a reroute (his route
+  moved `RerouteOffset` toward his sideline, held `RerouteDelaySeconds`).
+- `BreakMinAngleDegrees` (at most 180): a waypoint turning the route this much is a break.
+- `MaxBreakRounding`: at Agility 0 a receiver turns for the next leg this far before the corner;
+  at 100 he cuts on the spot.
+- `BreakSeparationBase`, `BreakSeparationPerAgility`: the separation a break makes, plus this per
+  point of Agility on the defender (never below zero). The QB counts on it throwing early.
+- `FakeSellSeconds`: a double move's receiver sells the fake this long.
+- `BiteRadius`, `BiteBaseChance`, `BiteAgilityWeight`, `BiteAwarenessWeight`, `BiteMinChance`,
+  `BiteMaxChance` (min not above max), `BiteFreezeSeconds`: the nearest defender within the
+  radius bites with the base chance plus the receiver's Agility / 100 times its weight minus his
+  own Awareness / 100 times its weight, clamped; one who bites freezes `BiteFreezeSeconds`.
+- `ManReadRadius`: an option route's receiver reads man when a defender is this close at the
+  read point.
+
+## Route schema extras (`FPSRoute`, Epic 68)
+
+On top of `RouteId` and `Waypoints` (`Offset`, `TimingSeconds`) in `sample_routes.json`:
+- `Waypoints[].bFake`: a double move's fake break (not the last waypoint).
+- `OptionReadWaypoint` (-1 for none): an option route reads the coverage at this waypoint and
+  runs `VsManBranch` or `VsZoneBranch` from there. A branch is a route whose offsets start at the
+  read point and whose timings count from the read; it is authored breaking outside, and turns
+  inside against a man defender with outside leverage. Branches must exist and not be options
+  themselves.

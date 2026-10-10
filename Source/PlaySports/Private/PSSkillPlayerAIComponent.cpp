@@ -7,6 +7,7 @@
 #include "PSPlatformTiers.h"
 #include "PSPlayerPawn.h"
 #include "PSPreSnapSubsystem.h"
+#include "PSRouteRunnerComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/Paths.h"
@@ -140,6 +141,10 @@ void UPSSkillPlayerAIComponent::HandleSnap(const FPSTelemetrySnapEvent& Event)
     bSnapPending = true;
     TimeSinceSnap = 0.f;
     LineOfScrimmage = Event.LineOfScrimmage;
+    if (UPSRouteRunnerComponent* Runner = GetRouteRunner())
+    {
+        Runner->ResetRun();
+    }
 }
 
 void UPSSkillPlayerAIComponent::HandleThrow(const FPSTelemetryThrowEvent& Event)
@@ -281,6 +286,8 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
     }
     else if (bPressured || TimeSinceSnap >= Settings.MaxReadSeconds)
     {
+        // Out of time: whoever is most open, whatever his route's timing.
+        Receiver = ChooseReceiver(bOpen, Separation, true);
         if (Receiver && Separation >= Settings.PressuredThrowSeparation)
         {
             ThrowTo(Self, Receiver);
@@ -292,7 +299,7 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
     }
 }
 
-APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& OutSeparation)
+APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& OutSeparation, bool bWholeField)
 {
     bOutOpen = false;
     OutSeparation = 0.f;
@@ -303,7 +310,16 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& 
     }
 
     const TArray<APSPlayerPawn*> Pawns = GetFieldPawns();
-    APSPlayerPawn* Best = nullptr;
+    const FSkillPlayerAITuningRow& Settings = GetTuning();
+    const float Awareness = FMath::Clamp(Self->GetAttributes().Awareness, 0.f, 100.f);
+
+    // The progression follows the routes' timing (Epic 68): a receiver running a planned
+    // route is read from just before his break -- as early as the QB's Awareness lets him
+    // anticipate -- until ReadWindowSeconds after it. Receivers without one are always read,
+    // and once every read has passed, so is everyone.
+    TArray<APSPlayerPawn*> Eligible;
+    TArray<UPSRouteRunnerComponent*> Runners;
+    float LastWindowCloses = -1.f;
     for (APSPlayerPawn* Candidate : Pawns)
     {
         if (!Candidate || Candidate == Self || Candidate->TeamSide != Self->TeamSide)
@@ -315,7 +331,35 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& 
         {
             continue;
         }
-        const float Separation = PSFieldReads::Separation(Pawns, Candidate);
+        const APSOffenseController* ReceiverAI = Cast<APSOffenseController>(Candidate->GetController());
+        UPSRouteRunnerComponent* Runner = ReceiverAI ? ReceiverAI->GetRouteRunner() : nullptr;
+        Runner = (Runner && Runner->HasPlan()) ? Runner : nullptr;
+        if (Runner)
+        {
+            LastWindowCloses = FMath::Max(LastWindowCloses, Runner->GetReadTime() + Settings.ReadWindowSeconds);
+        }
+        Eligible.Add(Candidate);
+        Runners.Add(Runner);
+    }
+    const bool bLate = bWholeField || TimeSinceSnap > LastWindowCloses;
+    const float Anticipation = Settings.MaxAnticipationSeconds * Awareness / 100.f;
+
+    APSPlayerPawn* Best = nullptr;
+    for (int32 Index = 0; Index < Eligible.Num(); ++Index)
+    {
+        APSPlayerPawn* Candidate = Eligible[Index];
+        UPSRouteRunnerComponent* Runner = Runners[Index];
+        if (Runner && !bLate && (TimeSinceSnap < Runner->GetReadTime() - Anticipation || TimeSinceSnap > Runner->GetReadTime() + Settings.ReadWindowSeconds))
+        {
+            continue;
+        }
+        float Separation = PSFieldReads::Separation(Pawns, Candidate);
+        if (Runner && Runner->HasBreak() && !Runner->HasBroken())
+        {
+            // Throwing before the break, he counts on the separation it will make.
+            const APSPlayerPawn* Defender = PSFieldReads::NearestOpponent(Pawns, Candidate->TeamSide, Candidate->GetActorLocation());
+            Separation += PSRouteRunning::BreakSeparationGain(Candidate->GetAttributes().Agility, Defender ? Defender->GetAttributes().Agility : 0.f, Runner->GetTuning());
+        }
         if (!Best || Separation > OutSeparation)
         {
             Best = Candidate;
@@ -324,8 +368,6 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& 
     }
 
     // A less aware QB needs a receiver more open before he sees it (Awareness 0-100).
-    const FSkillPlayerAITuningRow& Settings = GetTuning();
-    const float Awareness = FMath::Clamp(Self->GetAttributes().Awareness, 0.f, 100.f);
     const float Required = Settings.OpenSeparation + Settings.AwarenessMisreadSeparation * (1.f - Awareness / 100.f);
     bOutOpen = Best && OutSeparation >= Required;
     return Best;
@@ -351,41 +393,35 @@ void UPSSkillPlayerAIComponent::ThrowTo(APSPlayerPawn* Self, APSPlayerPawn* Rece
 FVector UPSSkillPlayerAIComponent::SteerAlongRoute(APSPlayerPawn* Self)
 {
     APSOffenseController* Controller = GetOffenseController();
-    if (!Controller || Controller->GetRouteWaypointCount() == 0)
+    UPSRouteRunnerComponent* Runner = GetRouteRunner();
+    if (!Controller || !Runner || Controller->GetRouteWaypointCount() == 0)
     {
         return FVector::ZeroVector;
     }
 
-    const float Arrival = GetTuning().WaypointArrivalRadius;
-    FVector Target = Controller->GetCurrentTargetLocation();
-    if (FVector::Dist2D(Self->GetActorLocation(), Target) <= Arrival)
+    // The route runner runs the pattern: the release, the breaks, a fake, an option read.
+    bool bFinished = false;
+    const FVector Direction = Runner->Steer(Self, Controller, GetFieldPawns(), TimeSinceSnap, GetTuning().WaypointArrivalRadius, bFinished);
+    if (bFinished)
     {
-        if (Controller->GetRouteWaypointIndex() + 1 < Controller->GetRouteWaypointCount())
+        // Route run: the QB sets up to read, a run play's back waits for the ball, a
+        // receiver settles where he is (still a target).
+        const EPlayerRole Role = Self->GetAttributes().Role;
+        if (Role == EPlayerRole::Quarterback)
         {
-            Controller->AdvanceToNextWaypoint();
-            Target = Controller->GetCurrentTargetLocation();
+            Action = EPSSkillPlayerAction::ReadDefense;
+        }
+        else if (Role == EPlayerRole::RunningBack && bRunPlay)
+        {
+            Action = EPSSkillPlayerAction::WaitHandoff;
         }
         else
         {
-            // Route run: the QB sets up to read, a run play's back waits for the ball, a
-            // receiver settles where he is (still a target).
-            const EPlayerRole Role = Self->GetAttributes().Role;
-            if (Role == EPlayerRole::Quarterback)
-            {
-                Action = EPSSkillPlayerAction::ReadDefense;
-            }
-            else if (Role == EPlayerRole::RunningBack && bRunPlay)
-            {
-                Action = EPSSkillPlayerAction::WaitHandoff;
-            }
-            else
-            {
-                Action = EPSSkillPlayerAction::Idle;
-            }
-            return FVector::ZeroVector;
+            Action = EPSSkillPlayerAction::Idle;
         }
+        return FVector::ZeroVector;
     }
-    return PSSkillPlayerAIPrivate::GroundDirection(Self->GetActorLocation(), Target);
+    return Direction;
 }
 
 FVector UPSSkillPlayerAIComponent::SteerAsCarrier(APSPlayerPawn* Self) const
@@ -482,6 +518,12 @@ FVector UPSSkillPlayerAIComponent::SteerAsBlocker(APSPlayerPawn* Self) const
 APSOffenseController* UPSSkillPlayerAIComponent::GetOffenseController() const
 {
     return Cast<APSOffenseController>(GetOwner());
+}
+
+UPSRouteRunnerComponent* UPSSkillPlayerAIComponent::GetRouteRunner() const
+{
+    const APSOffenseController* Controller = GetOffenseController();
+    return Controller ? Controller->GetRouteRunner() : nullptr;
 }
 
 APSPlayerPawn* UPSSkillPlayerAIComponent::GetSelf() const

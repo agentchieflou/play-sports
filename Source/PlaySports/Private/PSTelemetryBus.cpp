@@ -280,3 +280,19 @@ void UPSTelemetryBus::PublishPreSnap(const FPSTelemetryPreSnapEvent& Event)
     }
     OnPreSnapMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishRouteRunning(const FPSTelemetryRouteEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryRouteEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("RouteRunning: %s %s vs %s: %s"),
+        *UEnum::GetValueAsString(Event.Kind), *Event.ReceiverName, *Event.DefenderName, *Event.Outcome.ToString());
+    RecordHistory(EPSTelemetryEventType::RouteRunning, Description, JsonPayload);
+
+    if (OnRouteRunning.IsBound())
+    {
+        OnRouteRunning.Broadcast(Event);
+    }
+    OnRouteRunningMC.Broadcast(Event);
+}

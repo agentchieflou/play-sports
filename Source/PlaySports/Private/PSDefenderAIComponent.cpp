@@ -91,6 +91,7 @@ void UPSDefenderAIComponent::BindToBus()
     Bus->OnThrowMC.AddUObject(this, &UPSDefenderAIComponent::HandleThrow);
     Bus->OnCatchMC.AddUObject(this, &UPSDefenderAIComponent::HandleCatch);
     Bus->OnPumpFakeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePumpFake);
+    Bus->OnRouteRunningMC.AddUObject(this, &UPSDefenderAIComponent::HandleRouteRunning);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePhaseChange);
     BoundBus = Bus;
 }
@@ -103,6 +104,7 @@ void UPSDefenderAIComponent::UnbindFromBus()
         Bus->OnThrowMC.RemoveAll(this);
         Bus->OnCatchMC.RemoveAll(this);
         Bus->OnPumpFakeMC.RemoveAll(this);
+        Bus->OnRouteRunningMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
     }
     BoundBus.Reset();
@@ -204,6 +206,18 @@ void UPSDefenderAIComponent::HandlePumpFake(const FPSTelemetryPumpFakeEvent& Eve
     }
     const float Awareness = FMath::Clamp(Self->GetAttributes().Awareness, 0.f, 100.f);
     FrozenUntil = TimeSinceSnap + GetTuning().PumpFakeFreezeSeconds * (1.f - Awareness / 100.f);
+}
+
+void UPSDefenderAIComponent::HandleRouteRunning(const FPSTelemetryRouteEvent& Event)
+{
+    // A double move this defender bit on (Epic 68; the receiver's route runner decides the
+    // bite): he freezes, as on a pump fake.
+    const APSPlayerPawn* Self = GetSelf();
+    if (bPlayLive && Self && Event.Kind == EPSRouteEventKind::DoubleMove && Event.Seconds > 0.f
+        && Event.DefenderName == Self->GetAttributes().DisplayName)
+    {
+        FrozenUntil = FMath::Max(FrozenUntil, TimeSinceSnap + Event.Seconds);
+    }
 }
 
 void UPSDefenderAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event)

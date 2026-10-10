@@ -12,5 +12,7 @@
     "CarrierAvoidWeight": 1.0,
     "ThrowLeadSpeed": 2000.0,
     "BlockSetDistance": 150.0,
-    "BlockEngageRadius": 500.0
+    "BlockEngageRadius": 500.0,
+    "ReadWindowSeconds": 0.8,
+    "MaxAnticipationSeconds": 0.3
 }

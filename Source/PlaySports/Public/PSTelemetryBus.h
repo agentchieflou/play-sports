@@ -22,7 +22,8 @@ enum class EPSTelemetryEventType : uint8
     PlayCall,
     PumpFake,
     PassRushMove,
-    PreSnap
+    PreSnap,
+    RouteRunning
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -41,6 +42,18 @@ enum class EPSPreSnapAction : uint8
     HotRoute,
     Motion,
     Protection
+};
+
+/** A route-running contest a receiver had (Epic 68). */
+UENUM(BlueprintType)
+enum class EPSRouteEventKind : uint8
+{
+    /** Getting off the line against press. */
+    Release,
+    /** A double move's fake, and whether the defender bit. */
+    DoubleMove,
+    /** An option route's read of the coverage. */
+    OptionRead
 };
 
 /** Which kind of hardware the human player last used (Epic 127). */
@@ -384,6 +397,34 @@ struct FPSTelemetryPreSnapEvent
     bool bManIndicator = false;
 };
 
+/** A receiver's route-running contest was resolved (Epic 68): his release against press, a
+ *  double move's fake, or an option route's read. UPSRouteRunnerComponent decides it (the one
+ *  authority); a defender who bit freezes for Seconds. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryRouteEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSRouteEventKind Kind = EPSRouteEventKind::Release;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString ReceiverName;
+
+    /** The presser, the defender the fake worked on, or (man) the defender read; may be empty. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString DefenderName;
+
+    /** Release: "Win", "Delay" or "Reroute"; double move: "Bit" or "Stayed"; option read: "Man"
+     *  or "Zone". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Outcome;
+
+    /** How long it holds: a jammed receiver's hold, a bitten defender's freeze. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Seconds = 0.f;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -418,6 +459,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallSignature, const
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeSignature, const FPSTelemetryPumpFakeEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushSignature, const FPSTelemetryPassRushEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapSignature, const FPSTelemetryPreSnapEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteSignature, const FPSTelemetryRouteEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -435,6 +477,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallMC, const FPSTelemetryPl
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeMC, const FPSTelemetryPumpFakeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushMC, const FPSTelemetryPassRushEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapMC, const FPSTelemetryPreSnapEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteMC, const FPSTelemetryRouteEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -493,6 +536,9 @@ public:
     void PublishPreSnap(const FPSTelemetryPreSnapEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishRouteRunning(const FPSTelemetryRouteEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -546,6 +592,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPreSnapSignature OnPreSnap;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryRouteSignature OnRouteRunning;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -562,6 +611,7 @@ public:
     FPSTelemetryPumpFakeMC OnPumpFakeMC;
     FPSTelemetryPassRushMC OnPassRushMoveMC;
     FPSTelemetryPreSnapMC OnPreSnapMC;
+    FPSTelemetryRouteMC OnRouteRunningMC;
 
 private:
     UPROPERTY(Transient)
