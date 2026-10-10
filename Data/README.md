@@ -33,6 +33,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `skill_ai_tuning.json` | `FSkillPlayerAITuningRow` (single object) | `UPSDataIngestion::LoadSkillPlayerAITuningFromJson`, via `UPSSkillPlayerAIComponent` |
 | `defense_ai_tuning.json` | `FDefenderAITuningRow` (single object) | `UPSDataIngestion::LoadDefenderAITuningFromJson`, via `UPSDefenderAIComponent` |
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
+| `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
@@ -220,6 +221,22 @@ Single object (Epic 104; how the human QB's buttons throw, `Specs/Input_Architec
 - `PlacementDepth`, `PlacementWidth` (cm): the Move stick at release moves the throw this far
   deeper/shorter and to either side of the receiver's lead point.
 - `LeadSpeed` (above 0): ball speed used to lead a moving receiver, as the AI passer does.
+
+## Platform tier schema (`FPSPlatformTierCatalog`)
+
+Single object (Epic 129; `Specs/Platform_Audit.md`):
+- `Tiers[]`, each with:
+  - `TierId` (unique) and a `Description`;
+  - `DeviceProfile`: the profile carrying the tier's rendering settings, either an engine
+    profile (`Windows`, `IOS`, ...) or one declared in `Config/DefaultDeviceProfiles.ini`;
+  - `AIDecisionInterval`: seconds between each AI player's decisions, 0 for every frame. The AI
+    steers every frame in between.
+- `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
+  `Mac`, `IOS`, `Android`) to `Tier`.
+- `DefaultTier`: the tier for a platform with no mapping.
+
+A run can be forced onto a tier with `-PSTier=<TierId>`. A system with a per-tier cost adds its
+budget as a field here; it never hardcodes a mobile case.
 
 ## Carrier move schema (`FPSCarrierMoveCatalog`)
 

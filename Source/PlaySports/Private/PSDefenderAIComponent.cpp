@@ -1,6 +1,7 @@
 #include "PSDefenderAIComponent.h"
 #include "PSDataIngestion.h"
 #include "PSDefenseController.h"
+#include "PSPlatformTiers.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -110,7 +111,26 @@ void UPSDefenderAIComponent::UnbindFromBus()
 void UPSDefenderAIComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-    TickAI(DeltaTime);
+    UpdateAI(DeltaTime, PSPlatformTiers::GetActiveTier().AIDecisionInterval);
+}
+
+void UPSDefenderAIComponent::UpdateAI(float DeltaSeconds, float DecisionInterval)
+{
+    // Decide at the platform tier's rate (Epic 129), but steer every frame: movement input is
+    // used up each frame, so between decisions the last direction is held.
+    DecisionClock += DeltaSeconds;
+    if (DecisionClock >= DecisionInterval)
+    {
+        TickAI(DecisionClock);
+        DecisionClock = 0.f;
+    }
+    else if (APSPlayerPawn* Self = GetSelf())
+    {
+        if (!DesiredDirection.IsNearlyZero())
+        {
+            Self->AddMovementInput(DesiredDirection, 1.f);
+        }
+    }
 }
 
 APSPlayerPawn* UPSDefenderAIComponent::GetCoveredReceiver() const

@@ -14,6 +14,7 @@
 #include "PSSkillPlayerAIComponent.h"
 #include "PSDefenderAIComponent.h"
 #include "PSPassingComponent.h"
+#include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
 #include "PSDataIngestion.generated.h"
 
@@ -87,6 +88,10 @@ public:
     /** Loads the human passing tuning (Data/passing_input.json, Epic 104). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPassingInputTuningFromJson(const FString& JsonFilePath, FPassingInputTuningRow& OutTuning);
+
+    /** Loads the platform tiers (Data/platform_tiers.json, Epic 129). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlatformTiersFromJson(const FString& JsonFilePath, FPSPlatformTierCatalog& OutCatalog);
 
     /** Loads the ball carrier's move set (Data/carrier_moves.json, Epic 104.2). False on a
      *  missing file, malformed JSON, or an unrecognized Move. */

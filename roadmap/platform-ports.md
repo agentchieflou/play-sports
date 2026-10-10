@@ -17,10 +17,10 @@ packaging story is real. All touch input consumes Track M's action layer (`UPSIn
 **Goal:** A written audit and a working scalability-tier config so every later system knows its mobile budget.
 **Depends on:** —
 
-- [ ] `Specs/Platform_Audit.md`: Win64 baseline vs iOS/Metal constraints — mobile renderer choice (forward shading), memory/thermal budgets, 22-pawn physics cost on mobile CPU, feature cut-lines per tier (crowd, overlays, resolution)
-- [ ] Device profiles: `Config/DefaultDeviceProfiles.ini` tiers (DesktopHigh / MobileBaseline / MobileLow) mapped to UE scalability groups
-- [ ] Scalability hooks retrofit: audit systems with per-tier cost (crowd density, overlay complexity, camera effects) and route them through a tier flag instead of hardcoding — data-driven per rule 4
-- [ ] Headless smoke test: tier config resolves and tier-reading systems return per-tier values
+- [x] `Specs/Platform_Audit.md`: Win64 baseline vs iOS/Metal constraints — mobile renderer choice (forward shading), memory/thermal budgets, 22-pawn physics cost on mobile CPU, feature cut-lines per tier (crowd, overlays, resolution) *(reference device: iPhone 17 Pro; measurements wait on a Mac build, section 5)*
+- [x] Device profiles: `Config/DefaultDeviceProfiles.ini` tiers (DesktopHigh / MobileBaseline / MobileLow) mapped to UE scalability groups *(MobileBaseline on the engine's `IOS` profile so every iPhone inherits it; `PSMobileLow` for phones that need less; DesktopHigh keeps the engine's Windows defaults)*
+- [x] Scalability hooks retrofit: audit systems with per-tier cost (crowd density, overlay complexity, camera effects) and route them through a tier flag instead of hardcoding — data-driven per rule 4 *(today's only per-frame cost centre is the AI: it decides at `AIDecisionInterval` from `Data/platform_tiers.json` via `PSPlatformTiers::GetActiveTier()`, steering every frame in between. Crowd, overlays, weather and camera effects don't exist yet; their per-tier cut-lines are in the audit, section 4)*
+- [x] Headless smoke test: tier config resolves and tier-reading systems return per-tier values *(`PlaySports.Platform.*`)*
 
 ### Epic 130: Touch Input Abstraction
 

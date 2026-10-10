@@ -37,7 +37,7 @@ These groups can run at the same time (see the scope note under the table):
 |---|---|---|---|
 | G2 | Orchestrator (Track P) | 138 (135–137 done) | Claude Code |
 | G3 | Playbook extraction (Track O) | 132 → 133 → 134 | Any agent (Python-only) |
-| G4 | Platform audit | 129 | Any agent (docs/config-only) |
+| G4 | Platform ports (Track N, iPhone first) | 131 decision record and iOS settings → 130 touch (129 done) | Claude Code; packaging waits on a Mac |
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 17.4–17.5 (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
@@ -219,7 +219,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "126": {"track": "M", "mode": "code", "status": "done", "depends_on": ["3"]},
     "127": {"track": "M", "mode": "code", "status": "done", "depends_on": ["126", "C3-ff-A"]},
     "128": {"track": "M", "mode": "code", "status": "done", "depends_on": ["127"]},
-    "129": {"track": "N", "mode": "code", "status": "open", "depends_on": []},
+    "129": {"track": "N", "mode": "code", "status": "done", "depends_on": []},
     "130": {"track": "N", "mode": "code", "status": "open", "depends_on": ["126", "128", "129"]},
     "131": {"track": "N", "mode": "mixed", "status": "open", "depends_on": ["129"]},
     "132": {"track": "O", "mode": "code", "status": "open", "depends_on": []},
@@ -240,7 +240,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     {"id": "G1", "label": "Phase 0/1.5 cleanup", "epics": ["12", "C3-ff-A", "C3-ff-B", "1", "2", "5"], "serialize_within": true},
     {"id": "G2", "label": "Orchestrator (Track P)", "epics": ["135", "136", "137", "138"], "serialize_within": true},
     {"id": "G3", "label": "Playbook extraction (Track O)", "epics": ["132", "133", "134"], "serialize_within": true},
-    {"id": "G4", "label": "Platform audit", "epics": ["129"], "serialize_within": true},
+    {"id": "G4", "label": "Platform ports (iPhone first)", "epics": ["129", "131", "130"], "serialize_within": true},
     {"id": "G5", "label": "Agentic engine bridge", "epics": ["25"], "serialize_within": true},
     {"id": "G6", "label": "Controller connectivity (Track M)", "epics": ["126", "127", "128"], "serialize_within": true},
     {"id": "G7", "label": "Phase 2 AI & playbook", "epics": ["14", "15", "16", "17", "18"], "serialize_within": true},

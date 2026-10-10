@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/DataTable.h"
+#include "PSPlayerAttributes.h"
 #include "PSTelemetryBus.h"
 #include "PSDefenderAIComponent.generated.h"
 
@@ -126,6 +127,11 @@ public:
     /** One decision step: reads the play, picks the action, steers the pawn. */
     void TickAI(float DeltaSeconds);
 
+    /** One frame: a decision (TickAI) once DecisionInterval has passed since the last one,
+     *  otherwise the last direction steered again. The tick passes the platform tier's
+     *  interval (Epic 129); headless tests pass their own. */
+    void UpdateAI(float DeltaSeconds, float DecisionInterval);
+
     UFUNCTION(BlueprintPure, Category = "AI")
     EPSDefenderAction GetAction() const { return Action; }
 
@@ -189,6 +195,8 @@ private:
     FVector ZoneSpot = FVector::ZeroVector;
     FVector LandingSpot = FVector::ZeroVector;
     float TimeSinceSnap = 0.f;
+    /** Time since the last decision; decisions come at the platform tier's interval. */
+    float DecisionClock = 0.f;
     /** When this defender may act on the ball being out, the pass read and the throw
      *  (TimeSinceSnap plus his reaction); negative: not seen yet. */
     float PursueAt = -1.f;
