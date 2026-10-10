@@ -53,8 +53,8 @@ take it on trust.
 
 Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 
-- **Tier 1, Track E:** 67 defensive pre-snap (66 is in), 71 QB pocket play, 75 special-teams
-  depth.
+- **Tier 1, Track E:** 67 defensive pre-snap (66 is in), 71 QB pocket play (75 special-teams
+  depth done).
 - **Tier 2:** 89 coaching staffs (19.5 personnel packages done).
 - **Tier 3 / infra:** 24.1 gym map (editor; 24.2–24.5, 117 and 125 done).
 - **Overlay and camera code:** 30, 33, 38, 39 and 40 are done.
@@ -174,7 +174,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "72":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["66", "68", "14", "15"]},
     "73":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["11", "69", "61"]},
     "74":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["7", "8", "61"]},
-    "75":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["13"]},
+    "75":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["13"]},
     "76":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["12", "18"]},
     "77":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["6", "49"]},
     "78":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["18", "26"]},
