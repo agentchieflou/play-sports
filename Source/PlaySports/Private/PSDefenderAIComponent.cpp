@@ -1,6 +1,7 @@
 #include "PSDefenderAIComponent.h"
 #include "PSDataIngestion.h"
 #include "PSDefenseController.h"
+#include "PSDefenderGapSubsystem.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayerPawn.h"
 #include "Engine/World.h"
@@ -91,6 +92,7 @@ void UPSDefenderAIComponent::BindToBus()
     Bus->OnThrowMC.AddUObject(this, &UPSDefenderAIComponent::HandleThrow);
     Bus->OnCatchMC.AddUObject(this, &UPSDefenderAIComponent::HandleCatch);
     Bus->OnPumpFakeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePumpFake);
+    Bus->OnRouteRunningMC.AddUObject(this, &UPSDefenderAIComponent::HandleRouteRunning);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePhaseChange);
     BoundBus = Bus;
 }
@@ -103,6 +105,7 @@ void UPSDefenderAIComponent::UnbindFromBus()
         Bus->OnThrowMC.RemoveAll(this);
         Bus->OnCatchMC.RemoveAll(this);
         Bus->OnPumpFakeMC.RemoveAll(this);
+        Bus->OnRouteRunningMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
     }
     BoundBus.Reset();
@@ -204,6 +207,18 @@ void UPSDefenderAIComponent::HandlePumpFake(const FPSTelemetryPumpFakeEvent& Eve
     }
     const float Awareness = FMath::Clamp(Self->GetAttributes().Awareness, 0.f, 100.f);
     FrozenUntil = TimeSinceSnap + GetTuning().PumpFakeFreezeSeconds * (1.f - Awareness / 100.f);
+}
+
+void UPSDefenderAIComponent::HandleRouteRunning(const FPSTelemetryRouteEvent& Event)
+{
+    // A double move this defender bit on (Epic 68; the receiver's route runner decides the
+    // bite): he freezes, as on a pump fake.
+    const APSPlayerPawn* Self = GetSelf();
+    if (bPlayLive && Self && Event.Kind == EPSRouteEventKind::DoubleMove && Event.Seconds > 0.f
+        && Event.DefenderName == Self->GetAttributes().DisplayName)
+    {
+        FrozenUntil = FMath::Max(FrozenUntil, TimeSinceSnap + Event.Seconds);
+    }
 }
 
 void UPSDefenderAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event)
@@ -329,7 +344,11 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
             }
             if (TimeSinceSnap >= PursueAt)
             {
-                Action = EPSDefenderAction::Pursue;
+                // On a run still behind the line, a defender with a gap fits it until the
+                // carrier comes to it; then, or with no gap, he pursues (Epic 81).
+                FVector FitTarget;
+                Action = Action != EPSDefenderAction::Pursue && GetFitTarget(Self, Carrier, FitTarget)
+                    ? EPSDefenderAction::Fit : EPSDefenderAction::Pursue;
             }
         }
         else if (bBallInAir && BallHawkAt >= 0.f && TimeSinceSnap >= BallHawkAt)
@@ -353,10 +372,26 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
         }
     }
 
-    // A blocked defender fights the blocker (APSPlayerPawn::Tick steers that); one who bit
-    // on a pump fake stands still until it wears off.
-    if (Self->bIsEngaged || IsFrozen())
+    // One who bit on a pump fake stands still until it wears off.
+    if (IsFrozen())
     {
+        return;
+    }
+
+    // A blocked defender fights the blocker (APSPlayerPawn::Tick steers that). A blocked
+    // fitter also works across the blocker's face to stay in his gap.
+    if (Self->bIsEngaged)
+    {
+        FVector FitTarget;
+        if (Action == EPSDefenderAction::Fit && GetFitTarget(Self, Carrier, FitTarget))
+        {
+            const float Across = FitTarget.Y - Self->GetActorLocation().Y;
+            if (!FMath::IsNearlyZero(Across))
+            {
+                DesiredDirection = FVector(0.f, FMath::Sign(Across), 0.f);
+                Self->AddMovementInput(DesiredDirection, FMath::Min(1.f, FMath::Abs(Across) / FMath::Max(1.f, Settings.ArrivalRadius)));
+            }
+        }
         return;
     }
 
@@ -377,6 +412,9 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
         break;
     case EPSDefenderAction::Pursue:
         Direction = SteerToPursue(Self, Carrier);
+        break;
+    case EPSDefenderAction::Fit:
+        Direction = SteerToFit(Self, Carrier);
         break;
     case EPSDefenderAction::BallHawk:
         Direction = SteerToward(Self, LandingSpot);
@@ -472,6 +510,24 @@ FVector UPSDefenderAIComponent::SteerToPursue(const APSPlayerPawn* Self, const A
         ? Controller->ComputePursuitInterceptPoint(Carrier->GetActorLocation(), Carrier->GetVelocity(), Self->GetActorLocation())
         : Carrier->GetActorLocation();
     return PSDefenderAIPrivate::GroundDirection(Self->GetActorLocation(), Intercept);
+}
+
+FVector UPSDefenderAIComponent::SteerToFit(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier) const
+{
+    FVector Target;
+    return GetFitTarget(Self, Carrier, Target) ? SteerToward(Self, Target) : SteerToPursue(Self, Carrier);
+}
+
+bool UPSDefenderAIComponent::GetFitTarget(const APSPlayerPawn* Self, const APSPlayerPawn* Carrier, FVector& OutTarget) const
+{
+    // A run: the ball handed or pitched to someone other than the passer.
+    if (!Carrier || Carrier->TeamSide != EPSTeamSide::Offense || Carrier->GetAttributes().Role == EPlayerRole::Quarterback)
+    {
+        return false;
+    }
+    UWorld* World = GetWorld();
+    UPSDefenderGapSubsystem* Gaps = World ? World->GetSubsystem<UPSDefenderGapSubsystem>() : nullptr;
+    return Gaps && Gaps->GetFitTarget(Self, Carrier, OutTarget);
 }
 
 APSDefenseController* UPSDefenderAIComponent::GetDefenseController() const
