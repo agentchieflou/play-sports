@@ -41,7 +41,7 @@ These groups can run at the same time (see the scope note under the table):
 | G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
 | G4 | Platform ports (Track N, iPhone first) | Code done: 129 and 130 (touch drives every gameplay context; the touch HUD widget is an editor handoff). 131 is done but its ADR, which waits on the owner's answer about a Mac and an Apple account | Claude Code; packaging waits on a Mac |
 | G5 | Bridge track | 25: 25.3 MCP server and 25.5 router done; 25.1–25.2 Autonomix and 25.6 smoke test need an editor, 25.4 registration waits on the owner (then 118/119) | Any strong agent |
-| G7 | Phase 2 AI | 17.4 (scramble drill and blown coverage done; live blocked-kick chaos is open), 17.5's device measurement (14, 15, 16, 18 done) | Any strong agent |
+| G7 | Phase 2 AI | 17.5's device measurement (14, 15, 16, 18 and 17.4 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
 | G9 | Front end and input feel (Track I) | 105.1–105.3 (101, 104 and 106 done; 103.1, 103.3, 103.4, 103.5 and 105.4 done; 103.2 waits on Epic 37 and the overlay palettes; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
@@ -116,7 +116,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "14":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"]},
     "15":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["9", "14"]},
     "16":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["14"]},
-    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation (scramble drill and blown coverage, both sides, done; live blocked-kick chaos open)", "17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
+    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
     "18":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "17"]},
     "19":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["1"]},
     "20":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["12", "19"]},
@@ -141,9 +141,9 @@ one CI run) rather than re-merging main into each PR after every landing.
     "39":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["38"]},
     "40":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["4"]},
     "41":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["C1", "26", "38", "17"]},
-    "42":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["41"]},
+    "42":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["41"]},
     "43":  {"track": "B", "mode": "editor", "status": "open", "depends_on": ["38", "22"]},
-    "44":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["40", "41"]},
+    "44":  {"track": "B", "mode": "code", "status": "partial", "depends_on": ["40", "41"], "open_stories": ["44.1 draw layer: the logic is in (#143); the widget that paints the marks and turns strokes into calls, and an input action for analysis mode, are left"]},
     "45":  {"track": "B", "mode": "code", "status": "open", "depends_on": ["41"]},
     "46":  {"track": "C", "mode": "editor", "status": "open", "depends_on": ["2"]},
     "47":  {"track": "C", "mode": "mixed", "status": "open", "depends_on": ["46", "6", "7"]},
@@ -168,10 +168,10 @@ one CI run) rather than re-merging main into each PR after every landing.
     "66":  {"track": "E", "mode": "code", "status": "partial", "depends_on": ["14", "16"], "open_stories": ["66.5 crowd-noise interference on road audibles (waits on Epic 49)"]},
     "67":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["15", "16", "66"]},
     "68":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "14", "16"]},
-    "69":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["C3", "C4", "15", "68"]},
+    "69":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "15", "68"]},
     "70":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "9"]},
     "71":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["14", "9"]},
-    "72":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["66", "68", "14", "15"]},
+    "72":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["66", "68", "14", "15"]},
     "73":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["11", "69", "61"]},
     "74":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["7", "8", "61"]},
     "75":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["13"]},
@@ -183,7 +183,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "81":  {"track": "F", "mode": "code", "status": "partial", "depends_on": ["15", "9"], "open_stories": ["81.4 live gap-integrity visualization: the code half is in (#137); the editor-made marker and a PIE check are left (Specs/Gap_Integrity_Overlay_Spec.md)"]},
     "82":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["25", "26", "18"]},
     "83":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["20", "24"]},
-    "84":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["78", "79"]},
+    "84":  {"track": "F", "mode": "code", "status": "done", "depends_on": ["78", "79"]},
     "85":  {"track": "F", "mode": "code", "status": "partial", "depends_on": ["14", "15", "26"], "open_stories": ["85.2 on-field debug overlay (reuses Track A badge rendering)"]},
     "86":  {"track": "G", "mode": "code", "status": "open", "depends_on": ["19", "20", "121", "122"]},
     "87":  {"track": "G", "mode": "code", "status": "done", "depends_on": ["19", "20"]},
@@ -213,12 +213,12 @@ one CI run) rather than re-merging main into each PR after every landing.
     "111": {"track": "J", "mode": "code", "status": "open", "depends_on": ["20", "109", "116"]},
     "112": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "113": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
-    "114": {"track": "K", "mode": "code", "status": "open", "depends_on": ["17"]},
+    "114": {"track": "K", "mode": "code", "status": "done", "depends_on": ["17"]},
     "115": {"track": "K", "mode": "code", "status": "done", "depends_on": ["17", "26"]},
     "116": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "117": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "118": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25"]},
-    "119": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25", "135"]},
+    "119": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["25", "135"], "open_stories": ["119.4 MCP registration: the stdio server is built (#138, entries in AGENTS.md); registering it waits on the owner, as 25.4 does"]},
     "120": {"track": "K", "mode": "code", "status": "done", "depends_on": ["112", "113"]},
     "121": {"track": "L", "mode": "code", "status": "open", "depends_on": ["16", "89"]},
     "122": {"track": "L", "mode": "code", "status": "open", "depends_on": ["19", "79"]},

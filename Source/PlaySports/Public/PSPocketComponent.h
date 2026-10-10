@@ -231,10 +231,10 @@ public:
     /** Replaces the tuning (headless tests). */
     void SetTuning(const FPocketTuningRow& InTuning);
 
-    /** Puts the passer's style into this play's tuning (Epic 79): the tuning as loaded, scaled by
-     *  Data/player_dna.json's Pocket bindings for Passer's DNA. UPSSkillPlayerAIComponent calls it
-     *  as each play starts. */
-    void ApplyPlayerDNA(const FPlayerAttributes& Passer);
+    /** This play's tuning for Passer: the tuning as loaded, scaled by Data/player_dna.json's Pocket
+     *  bindings for his style (Epic 79), then by the difficulty tier when he plays for the CPU
+     *  (Epic 84). UPSSkillPlayerAIComponent calls it as each play starts. */
+    void ApplyPlayTuning(const APSPlayerPawn* Passer);
 
     /** A new play: not scrambling, no strips tried, rolls seeded. */
     void ResetPlay(int32 Seed);
@@ -268,6 +268,11 @@ public:
     /** Past the line he is a runner: he slides ahead of a closing defender once he has gained
      *  SlideMinGain. True when he slid. */
     bool MaybeSlide(APSPlayerPawn* Passer, const TArray<APSPlayerPawn*>& Pawns, const FVector& LineOfScrimmage);
+
+    /** The defender a carrier past the line should slide ahead of, or null: the nearest
+     *  opponent, ahead of him and within SlideTriggerRadius, once he has gained SlideMinGain.
+     *  MaybeSlide and the human's auto-slide assist (UPSDifficultySubsystem) both read it. */
+    static const APSPlayerPawn* FindSlideThreat(const FPocketTuningRow& Settings, const APSPlayerPawn* Carrier, const TArray<APSPlayerPawn*>& Pawns, const FVector& LineOfScrimmage);
 
 private:
     void Publish(EPSPocketEventKind Kind, const APSPlayerPawn* Passer, const APSPlayerPawn* Defender, bool bSuccess);

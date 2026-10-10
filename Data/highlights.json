@@ -1,0 +1,29 @@
+{
+    "YardWeight": 0.1,
+    "PointsWeight": 1.0,
+    "TurnoverWeight": 6.0,
+    "BrokenTackleWeight": 1.5,
+    "WinProbabilityWeight": 20.0,
+    "MinImportance": 3.0,
+    "ReelSize": 8,
+    "KindShots": [
+        { "Kind": "Score", "Shot": "EndZone" },
+        { "Kind": "Turnover", "Shot": "Skycam" },
+        { "Kind": "BigPlay", "Shot": "TightFollow" }
+    ],
+    "BeatLeadSeconds": 0.5,
+    "BeatSeconds": 1.5,
+    "BeatPlaybackRate": 0.25,
+    "ClipGapSeconds": 1.0,
+    "SettleAfterWhistleSeconds": 6.0,
+    "bPlayReelAtGameEnd": true,
+    "GameEndReelDelaySeconds": 3.0,
+    "SeasonHighlightsKept": 20,
+    "WinProbability": {
+        "MarginScale": 0.12,
+        "PossessionPoints": 3.0,
+        "TimeFloor": 0.02,
+        "GameSeconds": 3600,
+        "QuarterSeconds": 900
+    }
+}

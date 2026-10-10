@@ -3,6 +3,7 @@
 Epic 135: `models`, `health`. Epic 136: `run`. Epic 137: `duel`.
 Epic 138: `graph`, `status`, `resume`, `check-parallel`.
 Core 25 (.env model router): `delegate`.
+Epic 119 (model router service): `routes`, `route`, `mcp`.
 """
 
 from __future__ import annotations
@@ -100,6 +101,45 @@ def cmd_delegate(config: OrchestratorConfig, args: argparse.Namespace) -> int:
     print(result.text)
     print(f"[answered by {result.model}]", file=sys.stderr)
     return 0
+
+
+def cmd_routes(config: OrchestratorConfig) -> int:
+    """Each task's chain and each model's state; no network."""
+    from .service import RouterService
+
+    service = RouterService(config)
+    problems = service.table.validate(set(config.named_specs()))
+    for route in service.describe_routes():
+        print(f"{route['task']} ({route['prefer']}, capability {route['min_capability']}+): {route['description']}")
+        for index, link in enumerate(route["chain"]):
+            state = "available" if link["available"] else "unavailable"
+            if not link["configured"]:
+                state = "not configured"
+            print(f"  {index + 1}. {link['name']}: {link['label']} [{state}]")
+    for problem in problems:
+        print(f"routing.json: {problem}")
+    return 1 if problems else 0
+
+
+def cmd_route(config: OrchestratorConfig, args: argparse.Namespace) -> int:
+    from .service import RouterService
+
+    prompt = args.prompt if args.prompt is not None else sys.stdin.read()
+    result = RouterService(config).complete(args.task, prompt=prompt, system=args.system,
+                                            max_tokens=args.max_tokens)
+    if not result.ok:
+        print(f"route: {result.error}", file=sys.stderr)
+        return 1
+    print(result.text)
+    print(f"[{args.task}: answered by {result.model}]", file=sys.stderr)
+    return 0
+
+
+def cmd_mcp(config: OrchestratorConfig) -> int:
+    from .mcp_server import McpServer
+    from .service import RouterService
+
+    return McpServer(RouterService(config)).serve()
 
 
 def cmd_check_parallel() -> int:
@@ -210,6 +250,14 @@ def main(argv: list[str] | None = None) -> int:
                                  choices=["bridge", "worker", "supervisor"])
     delegate_parser.add_argument("--system", default="", help="an optional system prompt")
     delegate_parser.add_argument("--max-tokens", type=int, default=2048)
+    subparsers.add_parser("routes", help="the routing table: each task's model chain (no network)")
+    route_parser = subparsers.add_parser(
+        "route", help="run one task through the model router service and print the answer")
+    route_parser.add_argument("task", help="narration, summary, analysis, strategy or delegate")
+    route_parser.add_argument("prompt", nargs="?", help="the request (default: read stdin)")
+    route_parser.add_argument("--system", default="", help="an optional system prompt")
+    route_parser.add_argument("--max-tokens", type=int, help="default: the task's")
+    subparsers.add_parser("mcp", help="serve the model router service over MCP on stdio")
     args = parser.parse_args(argv)
 
     if args.command == "check-parallel":
@@ -222,6 +270,12 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_graph(config, args)
     if args.command == "delegate":
         return cmd_delegate(config, args)
+    if args.command == "routes":
+        return cmd_routes(config)
+    if args.command == "route":
+        return cmd_route(config, args)
+    if args.command == "mcp":
+        return cmd_mcp(config)
     if args.command == "models":
         return cmd_models(config)
     if args.command == "run":

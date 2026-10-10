@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "PSSaveGame.h"
 #include "PSLeagueData.h"
+#include "PSSeasonHighlights.h"
 #include "PSStaffData.h"
 #include "PSContractData.h"
 #include "PSStatsData.h"
@@ -63,6 +64,11 @@ public:
      *  a save from before the locker room. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSLockerRoomState LockerRoom;
+
+    /** The season's highlights so far, its most important (Epic 42; UPSHighlightSubsystem::
+     *  ArchiveForSeason). Track G shows them. Empty in a save from before highlights. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    TArray<FPSSeasonHighlight> SeasonHighlights;
 
     /** Every player's freshness and injury, and each team's practice and gameplan (Epic 90;
      *  UPSWeeklyPreparation). Empty in a save from before weekly preparation. */

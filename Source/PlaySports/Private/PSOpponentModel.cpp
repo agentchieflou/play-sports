@@ -1,5 +1,6 @@
 #include "PSOpponentModel.h"
 #include "PSDataIngestion.h"
+#include "PSDifficultySubsystem.h"
 #include "PSProfileSaveGame.h"
 #include "PSSaveSubsystem.h"
 #include "Engine/GameInstance.h"
@@ -272,7 +273,14 @@ void UPSOpponentModel::SetAdaptationDial(float Dial)
 
 float UPSOpponentModel::GetAdaptationDial()
 {
-    return AdaptationDial >= 0.f ? AdaptationDial : FMath::Clamp(GetTuning().DefaultAdaptationDial, 0.f, 1.f);
+    if (AdaptationDial >= 0.f)
+    {
+        return AdaptationDial;
+    }
+    // The player's difficulty tier sets it (Epic 84); with no tier, the tuning's default.
+    UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld());
+    const float TierDial = Difficulty ? Difficulty->GetAdaptationDial() : -1.f;
+    return FMath::Clamp(TierDial >= 0.f ? TierDial : GetTuning().DefaultAdaptationDial, 0.f, 1.f);
 }
 
 float UPSOpponentModel::GetAdaptationStrength(int32 Quarter)

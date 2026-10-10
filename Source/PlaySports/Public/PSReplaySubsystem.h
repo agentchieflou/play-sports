@@ -238,6 +238,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Replay")
     FName GetReplayCamera() const { return ActiveCamera; }
 
+    /** Shows the replay through the director, cut at once to Shot (an angle chosen for it: an
+     *  automatic replay's, a highlight's). With Reduced motion on it keeps the still rig the
+     *  replay opened on instead. False when it didn't cut. */
+    UFUNCTION(BlueprintCallable, Category = "Replay")
+    bool CutToDirectorShot(EPSDirectorShot Shot);
+
     // --- Automatic replays ---------------------------------------------------------------
 
     /** True while the replay playing is one the game started by itself (until the viewer takes

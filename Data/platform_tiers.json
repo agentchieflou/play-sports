@@ -15,7 +15,18 @@
             "TelemetrySampleRateHz": 30,
             "TelemetrySampleBudgetMs": 0.25,
             "ReplayPoseRateHz": 0,
-            "OverlayDetail": "Full"
+            "OverlayDetail": "Full",
+            "TargetFrameRate": 60,
+            "SystemBudgets": [
+                { "System": "Simulation", "BudgetMs": 1.0 },
+                { "System": "AI", "BudgetMs": 2.0 },
+                { "System": "Telemetry", "BudgetMs": 0.5 },
+                { "System": "Overlays", "BudgetMs": 1.0 },
+                { "System": "UI", "BudgetMs": 1.0 },
+                { "System": "Animation", "BudgetMs": 3.0 },
+                { "System": "Crowd", "BudgetMs": 2.0 },
+                { "System": "Audio", "BudgetMs": 1.0 }
+            ]
         },
         {
             "TierId": "MobileBaseline",
@@ -25,7 +36,18 @@
             "TelemetrySampleRateHz": 15,
             "TelemetrySampleBudgetMs": 0.15,
             "ReplayPoseRateHz": 30,
-            "OverlayDetail": "Simplified"
+            "OverlayDetail": "Simplified",
+            "TargetFrameRate": 60,
+            "SystemBudgets": [
+                { "System": "Simulation", "BudgetMs": 0.75 },
+                { "System": "AI", "BudgetMs": 2.0 },
+                { "System": "Telemetry", "BudgetMs": 0.3 },
+                { "System": "Overlays", "BudgetMs": 0.75 },
+                { "System": "UI", "BudgetMs": 0.75 },
+                { "System": "Animation", "BudgetMs": 2.5 },
+                { "System": "Crowd", "BudgetMs": 1.0 },
+                { "System": "Audio", "BudgetMs": 0.75 }
+            ]
         },
         {
             "TierId": "MobileLow",
@@ -35,7 +57,18 @@
             "TelemetrySampleRateHz": 10,
             "TelemetrySampleBudgetMs": 0.1,
             "ReplayPoseRateHz": 15,
-            "OverlayDetail": "Minimal"
+            "OverlayDetail": "Minimal",
+            "TargetFrameRate": 30,
+            "SystemBudgets": [
+                { "System": "Simulation", "BudgetMs": 1.0 },
+                { "System": "AI", "BudgetMs": 3.0 },
+                { "System": "Telemetry", "BudgetMs": 0.3 },
+                { "System": "Overlays", "BudgetMs": 0.5 },
+                { "System": "UI", "BudgetMs": 1.0 },
+                { "System": "Animation", "BudgetMs": 4.0 },
+                { "System": "Crowd", "BudgetMs": 0.5 },
+                { "System": "Audio", "BudgetMs": 1.0 }
+            ]
         }
     ]
 }
