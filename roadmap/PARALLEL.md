@@ -178,7 +178,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "76":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["12", "18"]},
     "77":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["6", "49"]},
     "78":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["18", "26"]},
-    "79":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["14", "15", "19"]},
+    "79":  {"track": "F", "mode": "code", "status": "done", "depends_on": ["14", "15", "19"]},
     "80":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["15", "68", "72"]},
     "81":  {"track": "F", "mode": "code", "status": "partial", "depends_on": ["15", "9"], "open_stories": ["81.4 live gap-integrity visualization (needs Track A iconography and an editor session)"]},
     "82":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["25", "26", "18"]},
