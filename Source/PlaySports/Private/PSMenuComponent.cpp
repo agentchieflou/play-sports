@@ -297,7 +297,9 @@ bool UPSMenuComponent::HandleBack()
     }
 
     const FName Top = Stack->Top();
-    if (Top == GetCatalog().PauseScreen && Stack->Depth() == 1)
+    // The pause screen's Back resumes: alone on the stack, or over the screens an interruption
+    // paused.
+    if (Top == GetCatalog().PauseScreen && (Stack->Depth() == 1 || Stack->Depth() == InterruptedDepth + 1))
     {
         if (!DeferResumeToVersus())
         {
@@ -369,8 +371,22 @@ void UPSMenuComponent::Resume()
 {
     if (Stack)
     {
-        Stack->Clear();
+        // After an interruption the screens it covered come back (a play-call screen).
+        const bool bKeepCovered = InterruptedDepth > 0 && Stack->Depth() > InterruptedDepth
+            && Stack->GetScreens()[InterruptedDepth] == GetCatalog().PauseScreen;
+        if (bKeepCovered)
+        {
+            while (Stack->Depth() > InterruptedDepth)
+            {
+                Stack->Pop();
+            }
+        }
+        else
+        {
+            Stack->Clear();
+        }
     }
+    InterruptedDepth = INDEX_NONE;
 
     APlayerController* Player = GetOwningPlayer();
     if (bPausedByMenu && Player)
@@ -378,6 +394,30 @@ void UPSMenuComponent::Resume()
         Player->SetPause(false);
     }
     bPausedByMenu = false;
+}
+
+bool UPSMenuComponent::PauseForInterruption()
+{
+    if (UPSVersusSubsystem* Versus = GetActiveVersus())
+    {
+        return Versus->PauseForInterruption();
+    }
+
+    const FPSMenuCatalog& Menus = GetCatalog();
+    const int32 Depth = Stack ? Stack->Depth() : 0;
+    if (Stack && (Stack->GetScreens().Contains(Menus.RootScreen) || Stack->GetScreens().Contains(Menus.PauseScreen)))
+    {
+        return false;
+    }
+
+    if (!OpenScreen(Menus.PauseScreen))
+    {
+        return false;
+    }
+    InterruptedDepth = Depth;
+    APlayerController* Player = GetOwningPlayer();
+    bPausedByMenu = Player && Player->SetPause(true);
+    return true;
 }
 
 bool UPSMenuComponent::IsFavoriteKey(const FKey& Key)

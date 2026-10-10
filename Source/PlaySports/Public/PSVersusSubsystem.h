@@ -189,6 +189,11 @@ public:
      *  Refusals are announced on the bus (PauseRefused). */
     bool RequestPause(int32 Seat);
 
+    /** Something outside the game interrupted it (Epic 152: the platform suspending or
+     *  constraining it): pauses a session in play, mid-play too, without counting it against
+     *  anyone's pauses. False when no session is playing. */
+    bool PauseForInterruption();
+
     /** A seat is ready to play on. When every seat that must be is ready (and every
      *  controller is connected), the countdown starts. */
     bool ConfirmResume(int32 Seat);
