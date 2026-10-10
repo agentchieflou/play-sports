@@ -4,14 +4,40 @@ All game content (players, teams, playbooks, league config) is authored as JSON 
 loaded through `UPSDataIngestion` / `UPSPlaybookIngestion` (`Source/PlaySports/Public/PSDataIngestion.h`,
 `PSPlaybookIngestion.h`) — never through a new ad-hoc parser (Architecture rule 4).
 
-Re-import and validate everything in one action with the content commandlet (Epic 21):
+`tools/content.py` is the one command for content (Epic 125):
+
+```
+python tools/content.py validate   # every contract below and every reference between files
+python tools/content.py report     # rating distributions, name duplication, roster shape
+python tools/content.py import     # validate, then the commandlet below (needs UE_ROOT)
+python tools/content.py            # validate, then report
+```
+
+`validate` is `tools/validate_data.py`. CI runs it on every PR, so generated content is gated
+like hand-written content. The per-file contracts for teams, the league config, the playbook,
+the route library and player rating ranges live in `tools/content_contracts.py`, which also
+checks the references between files:
+
+- the league config's `TeamsDataTablePath` names a teams file with at least `NumPlayoffTeams`
+  teams;
+- every team's `RosterDataTablePath` names a roster, and every file in `rosters/` belongs to a
+  team;
+- `PlayerId`s are unique across the league;
+- every play's `RouteId` is in the route library.
+
+`report` prints its warnings in the CI log; they do not fail the build. `--strict` makes them fail.
+
+The import is the content commandlet (Epic 21):
 
 ```
 UnrealEditor-Cmd.exe play-sports.uproject -run=PSContentReimport
 ```
 
-This validates every file below and logs actionable `Row N: <field> <problem>` errors before
-loading anything, so a bad row never silently produces a half-populated DataTable.
+It loads the league config, follows it to the teams and each team's roster, and loads the route
+library and the playbook, all through the game's own loaders. It logs actionable
+`<file> - <problem>` errors, including a `PlayerId` on two teams and a play's route missing from
+the library. The automation test `PlaySports.Content.ImportShippedContent` runs the same import on
+every CI build.
 
 ## Files
 
@@ -43,7 +69,8 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 ## Player schema (`FPlayerAttributes`)
 
 Field names must match exactly (case-sensitive): `PlayerId`, `DisplayName`, `Role`, `WeightKg`,
-`HeightCm`, `Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`, `Stamina`.
+`HeightCm`, `Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`, `Stamina`. Ratings run
+0-100; `WeightKg` and `HeightCm` are above 0.
 
 `Role` must be one of the `EPlayerRole` enum names: `Quarterback`, `RunningBack`,
 `WideReceiver`, `TightEnd`, `OffensiveLineman`, `DefensiveLineman`, `Linebacker`,
@@ -62,30 +89,45 @@ if (!Ingestion->ValidatePlayersJson(JsonPath, Errors))
 
 ## Team schema (`FPSTeamInfo`)
 
-`TeamId` (unique), `DisplayName`, `Division`, `RosterDataTablePath` (relative path to that
-team's player roster JSON, loaded separately via `LoadPlayerAttributesFromJson`).
+`TeamId`, `DisplayName`, `Division` and `RosterDataTablePath` are required. `TeamId`,
+`DisplayName` and `Abbreviation` are each unique in the league. `RosterDataTablePath` is the
+project-relative path to that team's player roster JSON, loaded separately via
+`LoadPlayerAttributesFromJson`.
 Identity for team select (Epic 101): `Abbreviation` (2-4 letters or digits), `PrimaryColor` and
 `SecondaryColor` (`#RRGGBB`), `LogoPath` (soft object path; empty until logos are imported).
 Team ratings are not stored: `UPSUITeamCatalog` derives them from the roster.
 
 ## League config schema (`FPSLeagueConfig`)
 
-Single JSON object (not an array): `LeagueName`, `NumWeeks`, `ByeWeekNumbers` (int array),
-`NumPlayoffTeams`, `TeamsDataTablePath`.
+Single JSON object (not an array), every field required: `LeagueName`, `NumWeeks` (1 or more),
+`ByeWeekNumbers` (distinct weeks within the season), `NumPlayoffTeams` (2 or more, at most the
+league's teams), `TeamsDataTablePath` (the teams file, project-relative).
 
 ## Playbook schema (`FPSPlayDefinition` / `FPSRoute`)
 
-See `Source/PlaySports/Public/PSPlaybookData.h` for the full assignment/route shape. Every
-`Route`-kind assignment's `RouteId` must exist in `sample_routes.json`.
+See `Source/PlaySports/Public/PSPlaybookData.h` for the full assignment/route shape. The rules
+are:
+
+- Each play has a unique `PlayId`, a `Formation`, `bIsOffensivePlay` and a `PlayCategory` for its
+  side:
+  - offense: `Run`, `ShortPass`, `DeepPass`, `PlayAction`, `Screen`;
+  - defense: `Base`, `Blitz`, `Prevent`.
+- `Front` and `CoverageShell` are for defensive plays only.
+- Assignments use their side's roles and kinds:
+  - offense: `Route`, `PassBlock`, `RunBlock`;
+  - defense: `ManCoverage`, `ZoneCoverage`, `PassRush`, `RunFit`, `Blitz`.
+- Only a `Route` assignment names a `RouteId`, and it must exist in the route library. A `Route`
+  assignment without one is "go to your spot", such as the QB's drop.
+- Routes have a unique `RouteId` and at least one waypoint, with `TimingSeconds` never negative
+  and never decreasing.
 
 ## Adding a new team
 
 1. Add a `rosters/team_<name>.json` roster file following the player schema above (aim for at
    least one player per `EPlayerRole`).
 2. Add an entry to `sample_teams.json` pointing `RosterDataTablePath` at it.
-3. Run the content commandlet (or `ValidatePlayersJson`/`ValidateTeamsJson` directly) before
-   committing -- CI's "Validate data contracts" step does not currently know about this
-   commandlet, so validate locally.
+3. Run `python tools/content.py` before committing. CI runs the same validation and imports
+   the roster through the game's loaders (`PlaySports.Content.ImportShippedContent`).
 
 ## Input catalog schema (`FPSInputCatalog`)
 
