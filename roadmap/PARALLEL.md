@@ -33,10 +33,19 @@ buffering), and most of 66 (pre-snap), 81 (run fits), 131 (iOS settings, runbook
 stub) and 132 (extraction design and schema). Group G1 is finished apart from Epic 2's two
 editor stories (2.1 field geometry, 2.2 markings), which wait for a human editor session.
 
+**Re-pointed 2026-10-10 (evening):** the roadmap now aims at one game playable on iOS, Xbox and
+PC (`roadmap/MILESTONES_PLATFORMS.md`). Group G10 (Track S, 145–153) comes first. Its unblocked
+Epics today are 145 (packaged Win64 build), 146 (headless content pipeline, after the owner's
+decision in 146.1), 150 (opens with the owner's ID@Xbox gate) and 152 (platform services, pure
+code). Depth work in the other groups is frozen until the shared S0 rungs land, except for stories
+a ladder rung names. G10 is not serialized as a whole: 145 → 146 → 147 is one chain that shares
+`ci.yml` and `Content/`, and 152 and 150 can run beside it.
+
 These groups can run at the same time (see the scope note under the table):
 
 | Group | Label | Epics (order) | Owner suggestion |
 |---|---|---|---|
+| G10 | Three-platform release (Track S) | **First priority.** 145 → 146 → 147 (one chain: shared `ci.yml` and `Content/`); 152 in parallel; 150 after the owner's ID@Xbox answer; then 148, 149 (after the Mac answer), 151 and 153 | Claude Code; 146.1, 149.1 and 150.1 are owner gates |
 | G2 | Orchestrator (Track P) | Done (135–138); `python -m tools.orchestrator check-parallel` now validates this file | — |
 | G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
 | G4 | Platform ports (Track N, iPhone first) | Code done: 129 and 130 (touch drives every gameplay context; the touch HUD widget is an editor handoff). 131 is done but its ADR, which waits on the owner's answer about a Mac and an Apple account | Claude Code; packaging waits on a Mac |
@@ -51,7 +60,7 @@ paper. The milestone plan (`roadmap/MILESTONE_FIRST_GAME.md` M4/M5) ran G6 and G
 anyway. Giving 14 and 17 narrow `scope` fields would let the supervisor confirm that rather than
 take it on trust.
 
-Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
+Also unblocked, not yet in a group (frozen behind G10 unless a ladder rung names them; see the platform tiers in `ROADMAP.md`):
 
 - **Tier 1, Track E:** done (66 is in; 67 defensive pre-snap, 71 QB pocket play and 75 special-teams
   depth done).
@@ -91,7 +100,8 @@ one CI run) rather than re-merging main into each PR after every landing.
     "O": ["tools/playbook_scraper/**", "Data/playbooks/**"],
     "P": ["tools/orchestrator/**", "tools/score_lib.py", "eval/duels/**", "eval/runs/**", "roadmap/PARALLEL.md"],
     "Q": ["Source/PlaySports/**/PSArchetype*", "Source/PlaySports/**/PSHealth*", "Source/PlaySports/**/PSCombat*", "Source/PlaySports/**/PSLeveling*", "Source/PlaySports/**/PSPlayerLeveling*"],
-    "R": ["RawAssets/**", "tools/assets/**", "Content/Characters/Standin/**", "Content/Stadium/Kit/**", "Content/Office/**", "Source/PlaySports/**/PSCharacterLook*", "Source/PlaySports/**/PSTimeOfDay*", "Source/PlaySports/**/PSInputConfig*", "Data/input_actions*", "Data/looks*", "Data/weather_tuning*", "Specs/World_Kit_Import_Spec.md"]
+    "R": ["RawAssets/**", "tools/assets/**", "Content/Characters/Standin/**", "Content/Stadium/Kit/**", "Content/Office/**", "Source/PlaySports/**/PSCharacterLook*", "Source/PlaySports/**/PSTimeOfDay*", "Source/PlaySports/**/PSInputConfig*", "Data/input_actions*", "Data/looks*", "Data/weather_tuning*", "Specs/World_Kit_Import_Spec.md"],
+    "S": [".github/workflows/**", "tools/content_pipeline/**", "Content/**", "Config/**Xbox*", "Config/**IOS*", "Source/PlaySports/**/PSPlatformServices*", "Source/PlaySports/**/PSSettings*", "Specs/ADR_Content_Pipeline.md", "Specs/ADR_Xbox_Access.md", "Specs/Release_Checklist.md"]
   },
   "epics": {
     "1":   {"track": "core", "mode": "mixed", "status": "done", "depends_on": []},
@@ -243,7 +253,16 @@ one CI run) rather than re-merging main into each PR after every landing.
     "141": {"track": "Q", "mode": "code", "status": "done", "depends_on": ["139", "19"]},
     "142": {"track": "R", "mode": "mixed", "status": "partial", "depends_on": ["2"]},
     "143": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "22", "C1"]},
-    "144": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "2"]}
+    "144": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "2"]},
+    "145": {"track": "S", "mode": "code", "status": "open", "depends_on": ["112", "101"]},
+    "146": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["112"]},
+    "147": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["145", "146", "142"]},
+    "148": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["145", "147"]},
+    "149": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["131", "145", "147"]},
+    "150": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["112", "129"]},
+    "151": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["150", "147", "152"]},
+    "152": {"track": "S", "mode": "code", "status": "open", "depends_on": ["115", "117"]},
+    "153": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["145"]}
   },
   "groups": [
     {"id": "G1", "label": "Phase 0/1.5 cleanup", "epics": ["12", "C3-ff-A", "C3-ff-B", "1", "2", "5"], "serialize_within": true},
@@ -254,10 +273,13 @@ one CI run) rather than re-merging main into each PR after every landing.
     {"id": "G6", "label": "Controller connectivity (Track M)", "epics": ["126", "127", "128"], "serialize_within": true},
     {"id": "G7", "label": "Phase 2 AI & playbook", "epics": ["14", "15", "16", "17", "18"], "serialize_within": true},
     {"id": "G8", "label": "World kit (Track R)", "epics": ["142", "143", "144"], "serialize_within": true},
-    {"id": "G9", "label": "Front end and input feel (Track I)", "epics": ["101", "102", "104", "103", "106", "105"], "serialize_within": true}
+    {"id": "G9", "label": "Front end and input feel (Track I)", "epics": ["101", "102", "104", "103", "106", "105"], "serialize_within": true},
+    {"id": "G10", "label": "Three-platform release (Track S)", "epics": ["145", "146", "152", "147", "150", "148", "153", "149", "151"], "serialize_within": false}
   ],
   "conflicts": [
     {"epics": ["127", "C3-ff-A"], "reason": "both touch APSPlayerPawn; C3 fast-follow A must merge first"},
+    {"epics": ["142", "146"], "reason": "146.5 imports the world kit that 142 specifies; 142.1-142.2 (import spec, --unreal packer output) merge first"},
+    {"epics": ["145", "146"], "reason": "both add CI jobs to .github/workflows/ci.yml on the one Windows runner; land 145.1 first, then 146.2 appends its step"},
     {"epics": ["C3-ff-B", "14"], "reason": "Phase 2 AI must consume the single roster source of truth; C3-ff-B first"},
     {"epics": ["126", "C3-ff-A"], "reason": "126's input migration edits APSPlayerPawn's SetupPlayerInputComponent; do not run concurrently with the ball-action extraction"},
     {"epics": ["142", "126"], "reason": "both write Data/input_actions.json and UPSInputConfig (Specs/Input_Architecture.md §4); 142's catalog story lands first, 126 consumes it"}

@@ -1,5 +1,10 @@
 # Milestone: First Full Game
 
+> **Superseded 2026-10-10** by `roadmap/MILESTONES_PLATFORMS.md` (one game, playable on iOS, Xbox
+> and PC). This milestone stopped at an editor Play session. Its last two open items continue
+> there: 17's device measurement (rungs P2, I2, X2) and the human playtest (147.5, now on a
+> packaged build). Kept for its history.
+
 **Definition of done:** Boot the Unreal Editor, press Play, and complete one full game —
 kickoff → four quarters → final score — with a human on an Xbox controller versus the CPU,
 using real project systems end to end. Bugs that only live testing can reveal are expected;

@@ -1,8 +1,8 @@
 # ROADMAP.md
 
-Development roadmap for `play-sports`: **144 Epics** — a 25-Epic core (this file, Phases 0–4)
+Development roadmap for `play-sports`: **153 Epics** — a 25-Epic core (this file, Phases 0–4)
 sequenced **vertical-slice first** (Phase 0 produces one crude but complete, watchable play as
-early as possible; later phases deepen it), plus **119 expansion Epics (26–144)** in themed
+early as possible; later phases deepen it), plus **128 expansion Epics (26–153)** in themed
 track files under `roadmap/` (see the track index below).
 
 Conventions used throughout:
@@ -33,7 +33,7 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 11(L) 12(M) 13(L) 14(XL) 15(XL) 16(L) 17(XL) 18(M) 19(L) 20(L) 21(M) 22(XL-editor) 23(L-mixed)
 24(L) 25(XL).
 
-## Expansion track index (Epics 26–144)
+## Expansion track index (Epics 26–153)
 
 | Track | File | Epics | Theme |
 |---|---|---|---|
@@ -55,39 +55,42 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 | P | `roadmap/agent-orchestration.md` | 135–138 | Agent orchestration graph: model clients, worker harness, benchmark duels, supervisor graph |
 | Q | `roadmap/character-combat.md` | 139–141 | Character archetypes & combat rules: hitpoints, death/respawn, no-punting, 4th-down overload, leveling/XP |
 | R | `roadmap/world-kit.md` | 142–144 | World kit import (from this-next-please's browser world, 2026-10-08): assets into Content, inclusive character looks, rain/day-night port |
+| S | `roadmap/platform-release.md` | 145–153 | Three-platform release (2026-10-10): packaged builds, content as code, minimum playable content, PC/iOS/Xbox bring-up, platform services, parity QA |
 
-## MVP priority sequencing (code-mode tracks)
+## North star: one game, three platforms (re-pointed 2026-10-10)
 
-Core Epics 1–21 shipped an AI-vs-AI simulation loop (play sim, coaching AI, orchestration,
-roster/season/franchise). The human input path is now in: Track M (Enhanced
-Input/`PSPlayerController`/gamepad/rumble/glyphs, 126–128) and the front-end shell (101) are done;
-Track I's play-call UI (102) is the remaining Tier 0 gap between "impressive AI sim" and "a person
-can sit down and play a game" — bigger than any amount of additional AI depth. The tiers below are a
-recommended execution order for the entirely-or-mostly-`code`-mode tracks (E, F, G, I, J, K, L, M,
-O, P, Q, R) toward an actual playable MVP; they do not change any `depends_on` edge in
-`roadmap/PARALLEL.md`, which remains the source of truth for what's actually unblocked. Editor-
-heavy tracks (A, B, C, D, H) are intentionally deprioritized here since this repo's agent sessions
-have no Unreal Editor access (see `AGENTS.md`).
+The goal is one football game, playable start to finish on **iOS, Xbox and PC**. It is the same
+game on each: one code base, one data set, one rule set. Each platform's dream state, the ladder to
+it and the owner decisions it needs are in `roadmap/MILESTONES_PLATFORMS.md`. Track S
+(`roadmap/platform-release.md`, 145–153) holds the Epics no other track covered.
 
-- **Tier 0 — human-playable core:** Track M in full (126 → 127 → 128), Track I Epics 101 → 102,
-  and Track Q (139 → 140 → 141) — the character archetype/hitpoint/combat-rules layer the user
-  wants as foundational groundwork before more content layers land on top of it.
-- **Tier 1 — deepen the on-field game:** Track E in full (66–77) — the largest pure-code track,
-  and the most direct improver of play-to-play feel once a human can call plays.
-- **Tier 2 — make the AI opponent and season worth playing against:** Track F (78–85) and Track G
-  (86–95) — franchise depth only matters once there's a human loop to embed it in.
-- **Tier 3 — content at scale + remaining infra:** Track L (121–125, also unblocks realistic test
-  content for Tiers 0–2), remaining Track K infra (114/115/117/118/119), Track J multiplayer
-  (107–111, local H2H first since it reuses Tier 0's input work directly).
-- **Any tier, in parallel — Track R (142–144):** the world kit's code stories (DataTables, the look
-  component, the time-of-day subsystem, the input catalog) depend only on Core 2/22 and C1 and touch
-  no MVP file scope; its editor stories wait for an editor session like every other editor story.
-- **Tier 4 — polish/reach:** Track O, Track P, Track N, plus the code-only slices of A/B/C/H once
-  the on-field game is solid.
+Why the re-point: core Epics 1–21 and most code tracks are done. The AI plays four full quarters,
+and the pad, keyboard and touch input paths are built. But `Content/` is empty, so nothing runs
+outside the editor and nobody has played a full game on any device. The tiers below replace the
+earlier MVP tiers. They are a recommended execution order and do not change any `depends_on` edge
+in `roadmap/PARALLEL.md`, which stays the source of truth for what is unblocked.
 
-Cross-cutting planning docs: `roadmap/MILESTONE_FIRST_GAME.md` (the launch-critical path to
-one full playable game) and `roadmap/PARALLEL.md` (which epic groups independent agents can
-work concurrently — consumed by the Track P supervisor).
+- **Tier 0, out of the editor (all platforms wait on it):** 145 (packaged Win64 build in CI),
+  146 (content as code: the headless editor pipeline), 147 (minimum playable content set). These
+  close the editor stories that have stalled all project long: 2.1–2.2, 22's minimum, 23.3–23.4's
+  sounds, 24.1 and 142's imports. Start the owner paperwork for iOS (a Mac and an Apple account)
+  and Xbox (ID@Xbox) at the same time, because both have long lead times.
+- **Tier 1, PC playable and complete:** 147's newcomer playtest, then 148 (settings, input
+  parity, 60 fps, Shipping, distribution).
+- **Tier 2, iOS:** 149, once the owner has a Mac path (131.1), with 152 (platform services)
+  landing first.
+- **Tier 3, Xbox:** 150 (access, then the console target compiling in CI), then 151 (device
+  bring-up and certification readiness).
+- **Alongside every tier:** 153 (build matrix, release checklist, cross-platform determinism and
+  performance budgets) grows with each platform.
+- **Dream depth, after all three are playable:** Tracks C, D, H, B and A (presentation), then J's
+  online play, O's playbook and the remaining E, F and G depth. Until Tier 0 lands these are
+  frozen, except for stories a ladder rung names.
+
+Cross-cutting planning docs: `roadmap/MILESTONES_PLATFORMS.md` (the launch-critical path to the
+three platform goals; it supersedes `roadmap/MILESTONE_FIRST_GAME.md`, kept for its history) and
+`roadmap/PARALLEL.md` (which epic groups independent agents can work concurrently, consumed by the
+Track P supervisor).
 
 ---
 
