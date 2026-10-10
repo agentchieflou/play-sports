@@ -10,6 +10,7 @@
 #include "AIController.h"
 #include "PSOffenseController.h"
 #include "PSGameMode.h"
+#include "PSNetRandomStreams.h"
 #include "PSPlaySimulation.h"
 #include "Engine/World.h"
 #include "PSBall.h"
@@ -150,7 +151,9 @@ void APSPlayerPawn::Tick(float DeltaSeconds)
                 float ShedChance = 0.05f + (DLAttr.Strength + DLAttr.Agility - OLAttr.Strength) * 0.002f;
                 ShedChance = FMath::Clamp(ShedChance, 0.01f, 0.20f);
 
-                if (FMath::FRand() <= ShedChance * DeltaSeconds * 10.f)
+                // The blocker's roll on the play's seeded streams (Epic 108). One roll a frame at a
+                // chance scaled by the frame's length: a fixed step is needed to replay it (audit B2).
+                if (UPSNetRandomStreams::RollFor(this, TEXT("BlockShed"), OLAttr.PlayerId) <= ShedChance * DeltaSeconds * 10.f)
                 {
                     UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Block SHED! Defender %s broke free from OL %s after %.2fs."), 
                         *DLAttr.DisplayName, *OLAttr.DisplayName, EngagementTime);
