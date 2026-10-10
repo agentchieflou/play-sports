@@ -10,7 +10,9 @@ Source/PlaySports/Public/PSInputConfigTypes.h; Specs/Input_Architecture.md); fil
 carrying "StickDeadZoneLower" against FInputTuningRow's ranges; files carrying
 "Screens" + "RootScreen" against the menu catalog rules (FPSMenuCatalog); team
 identity fields (colors, abbreviation) on "Teams" files; "Tips" files against
-FPSLoadingTipCatalog.
+FPSLoadingTipCatalog; "Cues" + "MasterIntensity" files against FPSForceFeedbackTuning;
+"GlyphSets" files against FPSInputGlyphCatalog, including that every key the input
+catalog binds has a glyph.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -291,6 +293,134 @@ def validate_input_tuning(path, payload):
         err(path, "DeviceSwitchAnalogThreshold must be in (0, 1]")
 
 
+FORCE_FEEDBACK_CUES = ("Hit", "Tackle", "Sack", "Catch", "Interception", "Fumble", "Score")
+FORCE_FEEDBACK_MOTORS = ("bLeftLarge", "bLeftSmall", "bRightLarge", "bRightSmall")
+FORCE_FEEDBACK_ROW_FIELDS = {"Cue", "Intensity", "Duration", "bOnlyWhenInvolved", *FORCE_FEEDBACK_MOTORS}
+MAX_CUE_DURATION_SECONDS = 3.0  # UPSForceFeedbackComponent::MaxCueDurationSeconds
+
+
+def is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def validate_force_feedback(path, payload):
+    """FPSForceFeedbackTuning (Data/force_feedback.json); mirrors UPSForceFeedbackComponent::ValidateTuning."""
+    master = payload.get("MasterIntensity")
+    if not is_number(master) or not 0 <= master <= 1:
+        err(path, f"MasterIntensity: '{master}' must be a number in 0-1")
+    cues = payload.get("Cues")
+    if not isinstance(cues, list):
+        err(path, "'Cues' must be an array")
+        return
+    seen = set()
+    for idx, row in enumerate(cues):
+        if not isinstance(row, dict):
+            err(path, f"Cues[{idx}]: not an object")
+            continue
+        cue = row.get("Cue")
+        where = f"Cues[{idx}] '{cue}'"
+        extra = set(row) - FORCE_FEEDBACK_ROW_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FForceFeedbackTuningRow exactly")
+        if cue not in FORCE_FEEDBACK_CUES:
+            err(path, f"{where}: unknown Cue ({list(FORCE_FEEDBACK_CUES)})")
+        elif cue in seen:
+            err(path, f"{where}: more than one pattern for this cue")
+        seen.add(cue)
+        intensity, duration = row.get("Intensity"), row.get("Duration")
+        if not is_number(intensity) or not 0 <= intensity <= 1:
+            err(path, f"{where}.Intensity: '{intensity}' must be a number in 0-1")
+        if not is_number(duration) or not 0 < duration <= MAX_CUE_DURATION_SECONDS:
+            err(path, f"{where}.Duration: '{duration}' must be above 0 and at most {MAX_CUE_DURATION_SECONDS} seconds")
+        for field in (*FORCE_FEEDBACK_MOTORS, "bOnlyWhenInvolved"):
+            if field in row and not isinstance(row[field], bool):
+                err(path, f"{where}.{field}: expected a bool")
+        if is_number(intensity) and intensity > 0 and not any(row.get(m, m in ("bLeftLarge", "bRightLarge")) for m in FORCE_FEEDBACK_MOTORS):
+            err(path, f"{where}: rumbles no motor")
+    for cue in FORCE_FEEDBACK_CUES:
+        if cue not in seen:
+            err(path, f"Cue '{cue}' has no pattern")
+
+
+INPUT_DEVICES = ("KeyboardMouse", "Gamepad")
+
+
+def key_device(key):
+    return "Gamepad" if is_gamepad_key(key) else "KeyboardMouse"
+
+
+def validate_input_glyphs(path, payload, catalog):
+    """FPSInputGlyphCatalog (Data/input_glyphs.json); mirrors UPSInputGlyphs::Validate.
+    catalog is the parsed input catalog (Data/input_actions.json) or None."""
+    sets = payload.get("GlyphSets")
+    if not isinstance(sets, list):
+        err(path, "'GlyphSets' must be an array")
+        return
+    action_ids = {a.get("ActionId") for a in (catalog or {}).get("Actions", []) if isinstance(a, dict)}
+    set_ids, defaults = set(), {device: [] for device in INPUT_DEVICES}
+    for idx, glyph_set in enumerate(sets):
+        if not isinstance(glyph_set, dict):
+            err(path, f"GlyphSets[{idx}]: not an object")
+            continue
+        sid = glyph_set.get("GlyphSetId")
+        where = f"GlyphSets[{idx}] '{sid}'"
+        if not sid or sid in set_ids:
+            err(path, f"{where}: empty or duplicate GlyphSetId")
+        set_ids.add(sid)
+        device = glyph_set.get("Device")
+        if device not in INPUT_DEVICES:
+            err(path, f"{where}.Device: '{device}' is not an EPSInputDevice ({list(INPUT_DEVICES)})")
+        elif glyph_set.get("bDefaultForDevice", False):
+            defaults[device].append(glyph_set)
+        keys_seen = set()
+        for entry in glyph_set.get("Keys", []):
+            key = entry.get("Key") if isinstance(entry, dict) else None
+            if not key or key in keys_seen:
+                err(path, f"{where}: empty or duplicate key '{key}'")
+            keys_seen.add(key)
+            if key and device in INPUT_DEVICES and key_device(key) != device:
+                err(path, f"{where}: key '{key}' is a {key_device(key)} key, not {device}")
+            if isinstance(entry, dict) and (not entry.get("GlyphId") or not str(entry.get("Label", "")).strip()):
+                err(path, f"{where}, key '{key}': needs a GlyphId and a Label")
+        actions_seen = set()
+        for entry in glyph_set.get("Actions", []):
+            aid = entry.get("ActionId") if isinstance(entry, dict) else None
+            if not aid or aid in actions_seen:
+                err(path, f"{where}: empty or duplicate action glyph '{aid}'")
+            actions_seen.add(aid)
+            if isinstance(entry, dict) and (not entry.get("GlyphId") or not str(entry.get("Label", "")).strip()):
+                err(path, f"{where}, action '{aid}': needs a GlyphId and a Label")
+            if catalog is not None and aid and aid not in action_ids:
+                err(path, f"{where}: action glyph for '{aid}', which is not in the input catalog")
+    for device, found in defaults.items():
+        if len(found) != 1:
+            err(path, f"Device '{device}' needs exactly one default glyph set (has {len(found)})")
+    if catalog is None:
+        return
+    reported = set()
+    for action in catalog.get("Actions", []):
+        for binding in action.get("Bindings", []) if isinstance(action, dict) else []:
+            key = binding.get("Key") if isinstance(binding, dict) else None
+            if not key or key in reported:
+                continue
+            found = defaults.get(key_device(key)) or []
+            if len(found) != 1 or found[0].get("bFallbackToKeyName", False):
+                continue
+            if not any(isinstance(e, dict) and e.get("Key") == key for e in found[0].get("Keys", [])):
+                err(path, f"Glyph set '{found[0].get('GlyphSetId')}' has no glyph for '{key}', which the input catalog binds to '{action.get('ActionId')}'")
+                reported.add(key)
+
+
+def load_input_catalog():
+    """The input catalog the glyph table must cover, or None when it is missing or broken
+    (its own checks report that)."""
+    try:
+        catalog = json.loads((DATA_DIR / "input_actions.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return catalog if isinstance(catalog, dict) else None
+
+
 def main():
     if not DATA_DIR.is_dir():
         print("validate_data: no Data/ directory - nothing to check")
@@ -317,6 +447,10 @@ def main():
             validate_team_identity(path, payload["Teams"])
         if isinstance(payload, dict) and "Tips" in payload:
             validate_loading_tips(path, payload)
+        if isinstance(payload, dict) and "Cues" in payload and "MasterIntensity" in payload:
+            validate_force_feedback(path, payload)
+        if isinstance(payload, dict) and "GlyphSets" in payload:
+            validate_input_glyphs(path, payload, load_input_catalog())
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

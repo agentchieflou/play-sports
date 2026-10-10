@@ -1,0 +1,12 @@
+{
+    "MasterIntensity": 1.0,
+    "Cues": [
+        { "Cue": "Hit",          "Intensity": 0.45, "Duration": 0.15, "bLeftLarge": true,  "bLeftSmall": false, "bRightLarge": false, "bRightSmall": true,  "bOnlyWhenInvolved": true },
+        { "Cue": "Tackle",       "Intensity": 0.75, "Duration": 0.30, "bLeftLarge": true,  "bLeftSmall": false, "bRightLarge": true,  "bRightSmall": false, "bOnlyWhenInvolved": true },
+        { "Cue": "Sack",         "Intensity": 1.0,  "Duration": 0.45, "bLeftLarge": true,  "bLeftSmall": true,  "bRightLarge": true,  "bRightSmall": true,  "bOnlyWhenInvolved": true },
+        { "Cue": "Catch",        "Intensity": 0.25, "Duration": 0.10, "bLeftLarge": false, "bLeftSmall": true,  "bRightLarge": false, "bRightSmall": true,  "bOnlyWhenInvolved": true },
+        { "Cue": "Interception", "Intensity": 0.6,  "Duration": 0.35, "bLeftLarge": true,  "bLeftSmall": false, "bRightLarge": true,  "bRightSmall": false, "bOnlyWhenInvolved": false },
+        { "Cue": "Fumble",       "Intensity": 0.55, "Duration": 0.25, "bLeftLarge": false, "bLeftSmall": true,  "bRightLarge": true,  "bRightSmall": false, "bOnlyWhenInvolved": true },
+        { "Cue": "Score",        "Intensity": 0.5,  "Duration": 0.60, "bLeftLarge": true,  "bLeftSmall": true,  "bRightLarge": true,  "bRightSmall": true,  "bOnlyWhenInvolved": false }
+    ]
+}

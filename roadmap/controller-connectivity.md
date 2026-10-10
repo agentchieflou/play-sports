@@ -5,14 +5,16 @@ controller, Xbox gamepad support, and human↔AI possession handoff. This track 
 *connectivity*; Track I's Epic 104 owns *feel* (the move vocabulary, buffering, and passing
 model) and consumes what lands here. Sizing/mode legend: see `ROADMAP.md`.
 
-**Reality note (updated 2026-10-09, Epics 126 and 127 landed):** `APSPlayerController`
+**Reality note (updated 2026-10-10, Track M complete):** `APSPlayerController`
 (registered in `APSGameMode`) binds the `UPSInputConfig` catalog (`Data/input_actions.json`,
 contexts `World` and `OnField`) on Enhanced Input and applies `OnField` when it possesses an
 `APSPlayerPawn`; the pawn has no input bindings. On the tick after BeginPlay it takes the QB
 from its AI (which resumes the pawn on release), SwitchPlayer moves control to the ball
 carrier or the nearest teammate, stick dead zones and curves come from `FInputTuningRow`
 (`Data/input_tuning.json`), and `UPSInputDeviceComponent` publishes gamepad/keyboard changes
-on the bus. Epic 104's first story was re-scoped to extend this substrate rather than create it. Device
+on the bus. Epic 128 added rumble (`UPSForceFeedbackComponent`, patterns in
+`Data/force_feedback.json`), button glyphs (`UPSInputGlyphs`, `Data/input_glyphs.json`) and the
+written contract later epics build on, `Specs/Input_Architecture.md`. Epic 104's first story was re-scoped to extend this substrate rather than create it. Device
 and possession state flow over the C1 `UPSTelemetryBus` — HUD/camera never cast to the
 controller. Note the file-scope conflict recorded in `roadmap/PARALLEL.md`: Epic C3's
 ball-action-component fast-follow touches `APSPlayerPawn` and must land before Epic 127.
@@ -47,7 +49,7 @@ ball-action-component fast-follow touches `APSPlayerPawn` and must land before E
 **Goal:** Controller output (rumble), device-correct button glyphs, and the documented contract Epic 104 builds feel on.
 **Depends on:** 127
 
-- [ ] Force-feedback layer: a `UPSTelemetryBus` subscriber mapping gameplay events (tackle, catch, score, sack) to `PlayDynamicForceFeedback` patterns, with intensities in a tuning DataTable
-- [ ] Glyph mapping table (JSON via the `UPSDataIngestion` pattern): action → per-device glyph ID (Xbox set first); consumed by Epic 5/101 HUD, Epic 103's remap surface, and Track N's touch layer
-- [ ] `Specs/Input_Architecture.md`: context stack, action catalog, and extension points — the written contract Epic 104's move vocabulary/buffering and Epic 107's two-controller split build on
-- [ ] Automation tests: telemetry event → force-feedback dispatch mapping; glyph table ingestion + validation
+- [x] Force-feedback layer: a `UPSTelemetryBus` subscriber mapping gameplay events (tackle, catch, score, sack) to `PlayDynamicForceFeedback` patterns, with intensities in a tuning DataTable
+- [x] Glyph mapping table (JSON via the `UPSDataIngestion` pattern): action → per-device glyph ID (Xbox set first); consumed by Epic 5/101 HUD, Epic 103's remap surface, and Track N's touch layer
+- [x] `Specs/Input_Architecture.md`: context stack, action catalog, and extension points — the written contract Epic 104's move vocabulary/buffering and Epic 107's two-controller split build on
+- [x] Automation tests: telemetry event → force-feedback dispatch mapping; glyph table ingestion + validation

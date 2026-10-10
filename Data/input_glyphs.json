@@ -1,0 +1,60 @@
+{
+    "GlyphSets": [
+        {
+            "GlyphSetId": "Xbox",
+            "Device": "Gamepad",
+            "bDefaultForDevice": true,
+            "bFallbackToKeyName": false,
+            "Keys": [
+                { "Key": "Gamepad_FaceButton_Bottom", "GlyphId": "Xbox_A", "Label": "A" },
+                { "Key": "Gamepad_FaceButton_Right", "GlyphId": "Xbox_B", "Label": "B" },
+                { "Key": "Gamepad_FaceButton_Left", "GlyphId": "Xbox_X", "Label": "X" },
+                { "Key": "Gamepad_FaceButton_Top", "GlyphId": "Xbox_Y", "Label": "Y" },
+                { "Key": "Gamepad_LeftShoulder", "GlyphId": "Xbox_LB", "Label": "LB" },
+                { "Key": "Gamepad_RightShoulder", "GlyphId": "Xbox_RB", "Label": "RB" },
+                { "Key": "Gamepad_LeftTrigger", "GlyphId": "Xbox_LT", "Label": "LT" },
+                { "Key": "Gamepad_RightTrigger", "GlyphId": "Xbox_RT", "Label": "RT" },
+                { "Key": "Gamepad_LeftTriggerAxis", "GlyphId": "Xbox_LT", "Label": "LT" },
+                { "Key": "Gamepad_RightTriggerAxis", "GlyphId": "Xbox_RT", "Label": "RT" },
+                { "Key": "Gamepad_LeftThumbstick", "GlyphId": "Xbox_LS_Press", "Label": "L3" },
+                { "Key": "Gamepad_RightThumbstick", "GlyphId": "Xbox_RS_Press", "Label": "R3" },
+                { "Key": "Gamepad_Left2D", "GlyphId": "Xbox_LS", "Label": "LS" },
+                { "Key": "Gamepad_Right2D", "GlyphId": "Xbox_RS", "Label": "RS" },
+                { "Key": "Gamepad_LeftX", "GlyphId": "Xbox_LS", "Label": "LS" },
+                { "Key": "Gamepad_LeftY", "GlyphId": "Xbox_LS", "Label": "LS" },
+                { "Key": "Gamepad_RightX", "GlyphId": "Xbox_RS", "Label": "RS" },
+                { "Key": "Gamepad_RightY", "GlyphId": "Xbox_RS", "Label": "RS" },
+                { "Key": "Gamepad_DPad_Up", "GlyphId": "Xbox_DPad_Up", "Label": "D-pad Up" },
+                { "Key": "Gamepad_DPad_Down", "GlyphId": "Xbox_DPad_Down", "Label": "D-pad Down" },
+                { "Key": "Gamepad_DPad_Left", "GlyphId": "Xbox_DPad_Left", "Label": "D-pad Left" },
+                { "Key": "Gamepad_DPad_Right", "GlyphId": "Xbox_DPad_Right", "Label": "D-pad Right" },
+                { "Key": "Gamepad_Special_Left", "GlyphId": "Xbox_View", "Label": "View" },
+                { "Key": "Gamepad_Special_Right", "GlyphId": "Xbox_Menu", "Label": "Menu" }
+            ],
+            "Actions": []
+        },
+        {
+            "GlyphSetId": "KeyboardMouse",
+            "Device": "KeyboardMouse",
+            "bDefaultForDevice": true,
+            "bFallbackToKeyName": true,
+            "Keys": [
+                { "Key": "Enter", "GlyphId": "Key_Enter", "Label": "Enter" },
+                { "Key": "Escape", "GlyphId": "Key_Escape", "Label": "Esc" },
+                { "Key": "LeftShift", "GlyphId": "Key_Shift", "Label": "Shift" },
+                { "Key": "SpaceBar", "GlyphId": "Key_Space", "Label": "Space" },
+                { "Key": "Tab", "GlyphId": "Key_Tab", "Label": "Tab" },
+                { "Key": "Up", "GlyphId": "Key_Up", "Label": "Up" },
+                { "Key": "Down", "GlyphId": "Key_Down", "Label": "Down" },
+                { "Key": "Left", "GlyphId": "Key_Left", "Label": "Left" },
+                { "Key": "Right", "GlyphId": "Key_Right", "Label": "Right" },
+                { "Key": "Mouse2D", "GlyphId": "Mouse_Move", "Label": "Mouse" },
+                { "Key": "LeftMouseButton", "GlyphId": "Mouse_Left", "Label": "LMB" },
+                { "Key": "RightMouseButton", "GlyphId": "Mouse_Right", "Label": "RMB" }
+            ],
+            "Actions": [
+                { "ActionId": "Move", "GlyphId": "Key_WASD", "Label": "WASD" }
+            ]
+        }
+    ]
+}

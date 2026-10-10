@@ -8,6 +8,8 @@
 #include "PSInputConfigTypes.h"
 #include "PSMenuTypes.h"
 #include "PSLoadingTips.h"
+#include "PSForceFeedbackTypes.h"
+#include "PSInputGlyphs.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -49,6 +51,16 @@ public:
     /** Loads the loading-screen tips (Data/loading_tips.json, Epic 101). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadLoadingTipsFromJson(const FString& JsonFilePath, FPSLoadingTipCatalog& OutCatalog);
+
+    /** Loads the controller rumble patterns (Data/force_feedback.json, Epic 128). False on a
+     *  missing file, malformed JSON, or an unrecognized Cue string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadForceFeedbackTuningFromJson(const FString& JsonFilePath, FPSForceFeedbackTuning& OutTuning);
+
+    /** Loads the button glyph table (Data/input_glyphs.json, Epic 128). False on a missing
+     *  file, malformed JSON, or an unrecognized Device string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadInputGlyphsFromJson(const FString& JsonFilePath, FPSInputGlyphCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

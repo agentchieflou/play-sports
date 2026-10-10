@@ -1,4 +1,4 @@
-// PSPlayerController.h - Epic 126/127: the project player controller; owns all human input
+// PSPlayerController.h - Epic 126/127/128: the project player controller; owns all human input
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,6 +11,7 @@ class AAIController;
 class UEnhancedInputComponent;
 class UPSInputConfig;
 class UPSInputDeviceComponent;
+class UPSForceFeedbackComponent;
 class UPSMenuComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
@@ -33,6 +34,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * otherwise to the eligible teammate nearest the ball. Every handoff is published on
  * UPSTelemetryBus; HUD and camera read it there or from APSPlayerPawn::IsUserControlled().
  *
+ * Rumble (Epic 128) is UPSForceFeedbackComponent's: it hears gameplay on the bus and plays
+ * the authored pattern on this controller's gamepad.
+ *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
  * OnCatalogActionStarted by ID for its consumer to subscribe to -- no consumer casts to this
@@ -53,6 +57,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSInputDeviceComponent* GetInputDeviceComponent() const { return InputDeviceComponent; }
+
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSForceFeedbackComponent* GetForceFeedbackComponent() const { return ForceFeedbackComponent; }
 
     /** The front-end shell and pause menu (Epic 101). */
     UFUNCTION(BlueprintPure, Category = "Menu")
@@ -152,6 +159,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSInputDeviceComponent* InputDeviceComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSForceFeedbackComponent* ForceFeedbackComponent;
 
     UPROPERTY(VisibleAnywhere, Category = "Menu")
     UPSMenuComponent* MenuComponent;

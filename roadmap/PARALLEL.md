@@ -24,11 +24,12 @@ check-parallel` (Epic 138) validates this file against a fresh roadmap crawl.
    fast-follows (ball-action component extraction; roster single source of truth), both
    done; they stay because other entries depend on them.
 
-## Dispatchable today (2026-10-09)
+## Dispatchable today (2026-10-10)
 
-Statuses re-synced from the roadmap checkboxes on 2026-10-09. Group G1 (Phase 0/1.5 cleanup)
+Statuses re-synced from the roadmap checkboxes on 2026-10-10. Group G1 (Phase 0/1.5 cleanup)
 is finished apart from Epic 2's two editor stories (2.1 field geometry, 2.2 markings), which
-wait for a human editor session, so Track M and Phase 2 are now open.
+wait for a human editor session. Group G6 (Track M, 126–128) and Epic 101 are done, so the rest
+of Track I is open as G9.
 
 These groups can run at the same time (see the scope note under the table):
 
@@ -38,19 +39,18 @@ These groups can run at the same time (see the scope note under the table):
 | G3 | Playbook extraction (Track O) | 132 → 133 → 134 | Any agent (Python-only) |
 | G4 | Platform audit | 129 | Any agent (docs/config-only) |
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
-| G6 | Controller connectivity (Track M) | 126 (in review, PR #61) → 127 → 128 | Claude Code |
 | G7 | Phase 2 AI | 14.2–14.5 → 17.4–17.5 (15, 16, 18 done) | Any strong agent |
-| G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 is in PR #61) | Any agent; editor stories wait for an editor session |
+| G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
+| G9 | Front end and input feel (Track I) | 102 → 104 → 103 → 106 → 105 (101 done) | Claude Code |
 
 Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
-(`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G6's and G8's track scopes on
-paper. The milestone plan (`roadmap/MILESTONE_FIRST_GAME.md` M4/M5) runs G6 and G7 side by side
+(`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G8's and G9's track scopes on
+paper. The milestone plan (`roadmap/MILESTONE_FIRST_GAME.md` M4/M5) ran G6 and G7 side by side
 anyway. Giving 14 and 17 narrow `scope` fields would let the supervisor confirm that rather than
 take it on trust.
 
 Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 
-- **Tier 0:** 101 Front-End Shell (Core 5 is done).
 - **Tier 1, Track E:** 70 pass-rush moves, 75 special-teams depth, 76 situational football.
 - **Tier 2:** 81 run-fit and gap integrity, 89 coaching staffs, 19.5 personnel packages.
 - **Tier 3 / infra:** 117 crash reporting, 125 content validation CLI, 24 test expansion.
@@ -62,7 +62,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 ```json parallel-matrix
 {
   "version": 1,
-  "generated": "2026-10-09",
+  "generated": "2026-10-10",
   "track_scopes": {
     "core": ["Source/PlaySports/**", "Data/**", "Config/**"],
     "A": ["Source/PlaySports/**/PSOverlay*", "Source/PlaySports/**/PSTelemetrySampling*", "Content/UI/Overlays/**"],
@@ -77,7 +77,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "J": ["Source/PlaySports/**/PSNet*", "Source/PlaySports/**/PSSession*"],
     "K": [".github/workflows/**", "tools/**", "eval/**", "Source/PlaySports/**/PSSave*", "Source/PlaySports/**/PSPerf*", "Source/PlaySports/**/PSDeterminism*", "Plugins/**"],
     "L": ["tools/generators/**", "Data/generated/**", "Source/PlaySports/**/PSGenerator*"],
-    "M": ["Source/PlaySports/**/PSPlayerController*", "Source/PlaySports/**/PSInputConfig*", "Source/PlaySports/**/PSInputDevice*", "Source/PlaySports/**/PSForceFeedback*", "Source/PlaySports/PlaySports.Build.cs", "Config/DefaultInput.ini", "play-sports.uproject", "Specs/Input_Architecture.md", "Data/input_glyphs*", "Data/input_tuning*"],
+    "M": ["Source/PlaySports/**/PSPlayerController*", "Source/PlaySports/**/PSInputConfig*", "Source/PlaySports/**/PSInputDevice*", "Source/PlaySports/**/PSForceFeedback*", "Source/PlaySports/**/PSInputGlyph*", "Source/PlaySports/PlaySports.Build.cs", "Config/DefaultInput.ini", "play-sports.uproject", "Specs/Input_Architecture.md", "Data/input_glyphs*", "Data/input_tuning*", "Data/force_feedback*"],
     "N": ["Specs/Platform_Audit.md", "Specs/Touch_Controls_Spec.md", "Specs/ADR_iOS_Build.md", "Config/DefaultDeviceProfiles.ini", "Source/PlaySports/**/PSTouch*", "Source/PlaySports/**/PSScalability*"],
     "O": ["tools/playbook_scraper/**", "Data/playbooks/**"],
     "P": ["tools/orchestrator/**", "tools/score_lib.py", "eval/duels/**", "eval/runs/**", "roadmap/PARALLEL.md"],
@@ -218,7 +218,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "125": {"track": "L", "mode": "code", "status": "open", "depends_on": ["21", "113"]},
     "126": {"track": "M", "mode": "code", "status": "done", "depends_on": ["3"]},
     "127": {"track": "M", "mode": "code", "status": "done", "depends_on": ["126", "C3-ff-A"]},
-    "128": {"track": "M", "mode": "code", "status": "open", "depends_on": ["127"]},
+    "128": {"track": "M", "mode": "code", "status": "done", "depends_on": ["127"]},
     "129": {"track": "N", "mode": "code", "status": "open", "depends_on": []},
     "130": {"track": "N", "mode": "code", "status": "open", "depends_on": ["126", "128", "129"]},
     "131": {"track": "N", "mode": "mixed", "status": "open", "depends_on": ["129"]},
@@ -244,7 +244,8 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     {"id": "G5", "label": "Agentic engine bridge", "epics": ["25"], "serialize_within": true},
     {"id": "G6", "label": "Controller connectivity (Track M)", "epics": ["126", "127", "128"], "serialize_within": true},
     {"id": "G7", "label": "Phase 2 AI & playbook", "epics": ["14", "15", "16", "17", "18"], "serialize_within": true},
-    {"id": "G8", "label": "World kit (Track R)", "epics": ["142", "143", "144"], "serialize_within": true}
+    {"id": "G8", "label": "World kit (Track R)", "epics": ["142", "143", "144"], "serialize_within": true},
+    {"id": "G9", "label": "Front end and input feel (Track I)", "epics": ["101", "102", "104", "103", "106", "105"], "serialize_within": true}
   ],
   "conflicts": [
     {"epics": ["127", "C3-ff-A"], "reason": "both touch APSPlayerPawn; C3 fast-follow A must merge first"},
