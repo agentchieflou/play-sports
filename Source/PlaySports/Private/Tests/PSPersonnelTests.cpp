@@ -169,6 +169,33 @@ namespace PSPersonnelTests
         return true;
     }
 
+    /** Headless worlds don't auto-possess spawned pawns: give each its side's AI. */
+    static void GiveAIControllers(UWorld* World, const TArray<APSPlayerPawn*>& Pawns)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        for (APSPlayerPawn* Pawn : Pawns)
+        {
+            if (!Pawn || Pawn->GetController())
+            {
+                continue;
+            }
+            AController* AI = nullptr;
+            if (Pawn->TeamSide == EPSTeamSide::Defense)
+            {
+                AI = World->SpawnActor<APSDefenseController>(APSDefenseController::StaticClass(), Pawn->GetActorLocation(), FRotator::ZeroRotator, SpawnParams);
+            }
+            else
+            {
+                AI = World->SpawnActor<APSOffenseController>(APSOffenseController::StaticClass(), Pawn->GetActorLocation(), FRotator::ZeroRotator, SpawnParams);
+            }
+            if (AI)
+            {
+                AI->Possess(Pawn);
+            }
+        }
+    }
+
     static int32 CountPawnsInWorld(UWorld* World)
     {
         int32 Count = 0;
@@ -393,6 +420,7 @@ bool FPSPersonnelPlayCallTest::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
         return false;
     }
+    GiveAIControllers(World, Pawns);
     Manager->BindPawns(Pawns);
     Manager->BindToBus(Bus);
     Manager->BeginNewPlay(ScrimmageX, 1);
@@ -447,19 +475,22 @@ bool FPSPersonnelPlayCallTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Two backs made way for two linemen"), Changes.Num() == 3 && Changes[2].PlayersIn.Num() == 2 && Has(Changes[2].PlayersIn, TEXT("DL_006")) && Has(Changes[2].PlayersOut, TEXT("DB_005")));
     TestEqual(TEXT("Still 11 on defense"), SidePawns(Pawns, EPSTeamSide::Defense).Num(), 11);
 
-    // Back to nickel for the snap: the substitutes run the called play's jobs.
+    // Back to nickel for the snap: the substitutes run the called play's jobs. The pawn that
+    // was the third linebacker (its AI started on a linebacker's run fit) is a back again.
     TestTrue(TEXT("The defense goes back to nickel"), PlayCall->CallPlay(TEXT("Defense_NickelManFree"), EPSPlayCaller::CPU));
-    APSPlayerPawn* NickelBackPawn = FindPawn(Pawns, TEXT("DB_005"));
+    TestTrue(TEXT("The third linebacker's pawn holds a defensive back"), ThirdLinebackerPawn && ThirdLinebackerPawn->GetAttributes().Role == EPlayerRole::DefensiveBack);
     FPSTelemetrySnapEvent Snap;
     Snap.Down = 1;
     Snap.Distance = 10;
     Snap.YardLine = 20;
     Snap.LineOfScrimmage = FVector(ScrimmageX, 0.f, 0.f);
     Bus->PublishSnap(Snap);
+    // Play-action post: receivers run a Post (first cut 900 cm upfield), tight ends an Out (600).
     const APSOffenseController* SecondTightEnd = SlotPawn ? Cast<APSOffenseController>(SlotPawn->GetController()) : nullptr;
-    TestTrue(TEXT("The second tight end runs the play's tight-end route"), SecondTightEnd && SecondTightEnd->GetRouteWaypointCount() > 0);
-    const APSDefenseController* NickelBack = NickelBackPawn ? Cast<APSDefenseController>(NickelBackPawn->GetController()) : nullptr;
-    TestTrue(TEXT("The nickel back plays the call's man coverage"), NickelBack && NickelBack->GetAssignment() == EPSDefensiveAssignmentType::ManCoverage);
+    TestTrue(TEXT("The second tight end runs the tight ends' Out, not the receiver's Post"),
+        SecondTightEnd && SecondTightEnd->GetRouteWaypointCount() == 2 && FMath::IsNearlyEqual(SecondTightEnd->GetCurrentTargetLocation().X, ScrimmageX + 600.f, 1.f));
+    const APSDefenseController* NickelBack = ThirdLinebackerPawn ? Cast<APSDefenseController>(ThirdLinebackerPawn->GetController()) : nullptr;
+    TestTrue(TEXT("The back on the linebacker's pawn plays the call's man coverage"), NickelBack && NickelBack->GetAssignment() == EPSDefensiveAssignmentType::ManCoverage);
 
     // A formation no package lists puts the side's default back on.
     FPSTelemetryPlayCallEvent Wishbone;
@@ -510,6 +541,7 @@ bool FPSPersonnelBetweenPlaysTest::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
         return false;
     }
+    GiveAIControllers(World, Pawns);
     Manager->BindPawns(Pawns);
     Manager->BindToBus(Bus);
     Manager->BeginNewPlay(ScrimmageX, 1);
