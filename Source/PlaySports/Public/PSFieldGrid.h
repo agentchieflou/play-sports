@@ -95,7 +95,8 @@ public:
      */
     static TArray<FVector> ComputeLineup(const TArray<EPlayerRole>& Roles, float ScrimmageX);
 
-    /** Default lineup geometry (cm) until formations come from play data (Epic 19.5). */
+    /** Default lineup geometry (cm) until formations come from play data. Epic 19.5's
+     *  personnel packages decide who lines up; where each role stands is still this. */
     static constexpr float LineSetback = 50.f;
     static constexpr float QBDepth = 100.f;
     static constexpr float RunningBackDepth = 500.f;

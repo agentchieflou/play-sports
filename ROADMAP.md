@@ -380,7 +380,7 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Depends on:** Epic 1
 
 - [x] Team/roster model: 53-player rosters, depth chart per position
-- [ ] Substitution and personnel packages tied into formations (11 personnel, nickel, etc.)
+- [x] Substitution and personnel packages tied into formations (11 personnel, nickel, etc.) — *`UPSPersonnelManager` + `Data/personnel_packages.json` (11/12/21/10 personnel; base 4-3/3-4, nickel, dime, goal line), each package listing the formations that bring it on. The game mode spawns the default packages from `UPSRoster`'s depth chart and the pawns point at the roster's rows; a play call swaps only the players who change and re-lines the side; between plays a sitting-out carrier (Epic 139) or a tired player (19.3's hook) gives way to the next man up. `sample_players.json` gained 9 backups. Bus: `Personnel` event. Tests: `PSPersonnelTests.cpp`. Formation-specific alignment (trips vs twins) is still the role-based `ComputeLineup`.*
 - [x] Stamina/fatigue consuming the hooks left in Epic 6, driving rotation
 - [x] Progression/regression: attribute changes from play, age, and training
 - [x] Injury model (probability, severity, recovery timeline)

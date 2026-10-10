@@ -18,7 +18,9 @@ FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotA
 against FPassingInputTuningRow, including that each named action is a Boolean in the input
 catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
-DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini.
+DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
+"Packages" + "DefaultOffensePackage" files against FPSPersonnelCatalog (11 players per package,
+roles on the package's side, one package per formation and side).
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -599,6 +601,89 @@ CARRIER_MOVE_NUMBERS = ("MinAttribute", "WindowSeconds", "CooldownSeconds", "Sta
                         "SpeedRetained", "LateralSpeed", "ForwardSpeed")
 
 
+OFFENSIVE_ROLES = PLAYER_ROLES - {"DefensiveLineman", "Linebacker", "DefensiveBack"}
+PLAYERS_PER_SIDE = 11
+PERSONNEL_FIELDS = {"PackageId", "DisplayName", "bOffense", "RoleCounts", "Formations"}
+
+
+def validate_personnel_catalog(path, payload):
+    """FPSPersonnelCatalog (Data/personnel_packages.json, Epic 19.5); mirrors
+    UPSPersonnelManager::ValidateCatalog."""
+    packages = payload.get("Packages")
+    if not isinstance(packages, list) or not packages:
+        err(path, "'Packages' must be a non-empty array")
+        return
+    threshold = payload.get("FatigueSubstitutionThreshold", 0.3)
+    if not is_number(threshold) or not 0 <= threshold <= 1:
+        err(path, f"FatigueSubstitutionThreshold: '{threshold}' must be a number from 0 to 1")
+    extra = set(payload) - {"DefaultOffensePackage", "DefaultDefensePackage", "FatigueSubstitutionThreshold", "Packages"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPersonnelCatalog exactly")
+
+    sides = {}
+    owners = {True: {}, False: {}}
+    for idx, package in enumerate(packages):
+        if not isinstance(package, dict):
+            err(path, f"Packages[{idx}]: not an object")
+            continue
+        pid = package.get("PackageId")
+        where = f"Packages[{idx}] '{pid}'"
+        if not isinstance(pid, str) or not pid:
+            err(path, f"{where}: empty PackageId")
+        elif pid in sides:
+            err(path, f"{where}: duplicate PackageId")
+        offense = package.get("bOffense", True)
+        if not isinstance(offense, bool):
+            err(path, f"{where}.bOffense: must be true or false")
+            offense = True
+        sides[pid] = offense
+        extra = set(package) - PERSONNEL_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSPersonnelPackage exactly")
+        if not str(package.get("DisplayName", "")).strip():
+            err(path, f"{where}: no DisplayName")
+
+        counts = package.get("RoleCounts")
+        if not isinstance(counts, dict):
+            err(path, f"{where}.RoleCounts: must be an object of role -> count")
+            counts = {}
+        total = 0
+        for role, count in counts.items():
+            if role not in PLAYER_ROLES:
+                err(path, f"{where}.RoleCounts: '{role}' is not a valid EPlayerRole")
+                continue
+            if (role in OFFENSIVE_ROLES) != offense:
+                err(path, f"{where}.RoleCounts: {role} doesn't play on {'offense' if offense else 'defense'}")
+            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                err(path, f"{where}.RoleCounts.{role}: '{count}' must be a whole number, 0 or more")
+                continue
+            total += count
+        if total != PLAYERS_PER_SIDE:
+            err(path, f"{where}: fields {total} players, not {PLAYERS_PER_SIDE}")
+        if offense and (counts.get("Quarterback", 0) < 1 or counts.get("OffensiveLineman", 0) < 1):
+            err(path, f"{where}: an offense needs a Quarterback and an OffensiveLineman to snap to him")
+
+        formations = package.get("Formations", [])
+        if not isinstance(formations, list):
+            err(path, f"{where}.Formations: must be an array of formation names")
+            continue
+        for formation in formations:
+            if not isinstance(formation, str) or not formation.strip():
+                err(path, f"{where}.Formations: empty formation name")
+                continue
+            # FString keys compare case-insensitively in the engine.
+            key = formation.lower()
+            if key in owners[offense]:
+                err(path, f"Formation '{formation}' brings on both {owners[offense][key]} and {pid}")
+            else:
+                owners[offense][key] = pid
+
+    for field, offense in (("DefaultOffensePackage", True), ("DefaultDefensePackage", False)):
+        default = payload.get(field)
+        if sides.get(default) is not offense:
+            err(path, f"{field}: '{default}' is not {'an offensive' if offense else 'a defensive'} package")
+
+
 def validate_carrier_moves(path, payload, catalog):
     """FPSCarrierMoveCatalog (Data/carrier_moves.json, Epic 104.2); mirrors
     UPSCarrierMoveComponent::ValidateCatalog plus the catalog cross-check."""
@@ -700,6 +785,8 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "Packages" in payload and "DefaultOffensePackage" in payload:
+            validate_personnel_catalog(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

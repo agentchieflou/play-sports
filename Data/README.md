@@ -18,6 +18,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | File | Schema struct | Loader |
 | --- | --- | --- |
 | `sample_players.json` | `FPlayerAttributes` (array field `Players`) | `UPSDataIngestion::LoadPlayerAttributesFromJson` |
+| `personnel_packages.json` | `FPSPersonnelCatalog` (single object: `DefaultOffensePackage`, `DefaultDefensePackage`, `FatigueSubstitutionThreshold`, `Packages`) | `UPSDataIngestion::LoadPersonnelCatalogFromJson`, via `UPSPersonnelManager` |
 | `rosters/team_*.json` | `FPlayerAttributes` (array field `Players`) | same, one file per non-Falcons team |
 | `sample_teams.json` | `FPSTeamInfo` (array field `Teams`) | `UPSDataIngestion::LoadTeamsFromJson` |
 | `sample_league_config.json` | `FPSLeagueConfig` (single object) | `UPSDataIngestion::LoadLeagueConfigFromJson` |
@@ -56,6 +57,29 @@ if (!Ingestion->ValidatePlayersJson(JsonPath, Errors))
     // Errors[i] is "Row N: <what's wrong>" -- points straight at the bad row.
 }
 ```
+
+`sample_players.json` is the in-game roster (`APSGameMode::RosterJsonPath`): 22 starters followed
+by 9 backups (`QB_002`, `RB_002`, `WR_004`, `TE_002`, `DL_005`, `DL_006`, `LB_004`, `DB_005`,
+`DB_006`). The depth chart is roster order, so a backup goes after the starters at his role.
+
+## Personnel package schema (`FPSPersonnelCatalog`)
+
+Who takes the field (Epic 19.5). `UPSPersonnelManager` picks each side's players from the roster's
+depth chart by package:
+- `Packages[]`, each: `PackageId` (unique), `DisplayName`, `bOffense`, `RoleCounts` (an object of
+  `EPlayerRole` name to count; the roles all on the package's side, 11 players in all, and an
+  offense needs at least one `Quarterback` and one `OffensiveLineman`), and `Formations` (the
+  play formations, `FPSPlayDefinition::Formation`, that bring the package on; a formation belongs
+  to at most one package per side).
+- `DefaultOffensePackage`, `DefaultDefensePackage`: each side's package at kickoff and for a
+  formation no package lists.
+- `FatigueSubstitutionThreshold` (0-1): a player whose stamina falls below this fraction of his
+  maximum rests the next play when someone is behind him on the depth chart.
+
+When a side calls a play, its formation's package comes on: per role, the first players on the
+depth chart who can play (a ball carrier sitting out and a resting player are skipped). Only the
+players who change come off. A roster that can't fill a package gets the side's default instead.
+`UPSPersonnelManager::ValidateCatalog` and `tools/validate_data.py` check it.
 
 ## Team schema (`FPSTeamInfo`)
 

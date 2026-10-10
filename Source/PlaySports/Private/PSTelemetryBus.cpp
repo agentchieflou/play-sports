@@ -247,3 +247,19 @@ void UPSTelemetryBus::PublishPumpFake(const FPSTelemetryPumpFakeEvent& Event)
     }
     OnPumpFakeMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishPersonnel(const FPSTelemetryPersonnelEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPersonnelEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Personnel: %s %s (%d in, %d out)"),
+        Event.bOffense ? TEXT("Offense") : TEXT("Defense"), *Event.PackageName, Event.PlayersIn.Num(), Event.PlayersOut.Num());
+    RecordHistory(EPSTelemetryEventType::Personnel, Description, JsonPayload);
+
+    if (OnPersonnel.IsBound())
+    {
+        OnPersonnel.Broadcast(Event);
+    }
+    OnPersonnelMC.Broadcast(Event);
+}

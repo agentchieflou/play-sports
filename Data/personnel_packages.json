@@ -1,0 +1,70 @@
+{
+    "DefaultOffensePackage": "P11",
+    "DefaultDefensePackage": "Base43",
+    "FatigueSubstitutionThreshold": 0.3,
+    "Packages": [
+        {
+            "PackageId": "P11",
+            "DisplayName": "11 Personnel",
+            "bOffense": true,
+            "RoleCounts": { "Quarterback": 1, "RunningBack": 1, "TightEnd": 1, "WideReceiver": 3, "OffensiveLineman": 5 },
+            "Formations": [ "Trips Right", "Trips Left", "Twins", "Shotgun" ]
+        },
+        {
+            "PackageId": "P12",
+            "DisplayName": "12 Personnel",
+            "bOffense": true,
+            "RoleCounts": { "Quarterback": 1, "RunningBack": 1, "TightEnd": 2, "WideReceiver": 2, "OffensiveLineman": 5 },
+            "Formations": [ "Ace" ]
+        },
+        {
+            "PackageId": "P21",
+            "DisplayName": "21 Personnel",
+            "bOffense": true,
+            "RoleCounts": { "Quarterback": 1, "RunningBack": 2, "TightEnd": 1, "WideReceiver": 2, "OffensiveLineman": 5 },
+            "Formations": [ "I-Form", "Strong-I" ]
+        },
+        {
+            "PackageId": "P10",
+            "DisplayName": "10 Personnel",
+            "bOffense": true,
+            "RoleCounts": { "Quarterback": 1, "RunningBack": 1, "WideReceiver": 4, "OffensiveLineman": 5 },
+            "Formations": [ "Spread" ]
+        },
+        {
+            "PackageId": "Base43",
+            "DisplayName": "Base 4-3",
+            "bOffense": false,
+            "RoleCounts": { "DefensiveLineman": 4, "Linebacker": 3, "DefensiveBack": 4 },
+            "Formations": [ "Base 4-3" ]
+        },
+        {
+            "PackageId": "Base34",
+            "DisplayName": "Base 3-4",
+            "bOffense": false,
+            "RoleCounts": { "DefensiveLineman": 3, "Linebacker": 4, "DefensiveBack": 4 },
+            "Formations": [ "Base 3-4" ]
+        },
+        {
+            "PackageId": "Nickel",
+            "DisplayName": "Nickel",
+            "bOffense": false,
+            "RoleCounts": { "DefensiveLineman": 4, "Linebacker": 2, "DefensiveBack": 5 },
+            "Formations": [ "Nickel", "Blitz Package" ]
+        },
+        {
+            "PackageId": "Dime",
+            "DisplayName": "Dime",
+            "bOffense": false,
+            "RoleCounts": { "DefensiveLineman": 4, "Linebacker": 1, "DefensiveBack": 6 },
+            "Formations": [ "Dime" ]
+        },
+        {
+            "PackageId": "GoalLine",
+            "DisplayName": "Goal Line",
+            "bOffense": false,
+            "RoleCounts": { "DefensiveLineman": 6, "Linebacker": 2, "DefensiveBack": 3 },
+            "Formations": [ "Goal Line" ]
+        }
+    ]
+}
