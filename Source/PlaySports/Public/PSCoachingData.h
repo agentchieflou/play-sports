@@ -56,6 +56,14 @@ struct FPSSituationContext
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 TimeoutsRemaining = 3;
+
+    /** The defense's timeouts (the possessing team's opponent). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 OpponentTimeoutsRemaining = 3;
+
+    /** True while the game clock runs before the snap (after a tackle in bounds). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bClockRunning = false;
 };
 
 /** One play as the coaching AI rates it for a situation (Epic 102's suggestions): its

@@ -22,6 +22,7 @@
 #include "PSOverlayReticle.h"
 #include "PSControlHandoffComponent.h"
 #include "PSPreSnapTypes.h"
+#include "PSSituationData.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -131,6 +132,11 @@ public:
     /** Loads the player-switch tuning (Data/control_handoff.json, Epic 30). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadControlHandoffTuningFromJson(const FString& JsonFilePath, FControlHandoffTuningRow& OutTuning);
+
+    /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
+     *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSituationalTuningFromJson(const FString& JsonFilePath, FPSSituationalTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
