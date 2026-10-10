@@ -15,6 +15,8 @@ class APSPlayerPawn;
 class UPSRoster;
 class UPSPersonnelManager;
 class UPSPlayerLeveling;
+class UPSMatchSetup;
+class UPSStaffManager;
 
 /**
  * GameMode subclass for PlaySports which orchestrates play simulation and roster loading.
@@ -92,6 +94,16 @@ public:
      *  or a tired player. */
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
     UPSPersonnelManager* PersonnelManager;
+
+    /** Who plays this game: the home and away teams and the player's team, read in StartPlay
+     *  from the travel options (team select's pick, or the franchise schedule's matchup). */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Match")
+    UPSMatchSetup* MatchSetup;
+
+    /** The league's coaching staffs (Epic 89, Data/coaching_staffs.json). Both teams' staffs
+     *  take over at kickoff through MatchSetup. */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Match")
+    UPSStaffManager* StaffManager;
 
     /** Increments once per play in ResetPawnPositions; the play index a downed ball
      *  carrier's sit-out is measured against (Epic 139). */
