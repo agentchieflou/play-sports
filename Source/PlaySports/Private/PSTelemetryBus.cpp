@@ -369,6 +369,21 @@ void UPSTelemetryBus::PublishTimeout(const FPSTelemetryTimeoutEvent& Event)
     OnTimeoutMC.Broadcast(Event);
 }
 
+void UPSTelemetryBus::PublishSpeech(const FPSTelemetrySpeechEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetrySpeechEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Description = FString::Printf(TEXT("Speech: %s (%s): %s"), *Event.Speaker, *Event.Channel.ToString(), *Event.Text);
+    RecordHistory(EPSTelemetryEventType::Speech, Description, JsonPayload);
+
+    if (OnSpeech.IsBound())
+    {
+        OnSpeech.Broadcast(Event);
+    }
+    OnSpeechMC.Broadcast(Event);
+}
+
 void UPSTelemetryBus::PublishGapIntegrity(const FPSTelemetryGapIntegrityEvent& Event)
 {
     FString JsonPayload;

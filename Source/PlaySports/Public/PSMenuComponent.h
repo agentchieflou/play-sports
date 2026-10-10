@@ -72,6 +72,11 @@ public:
     /** Shows and changes InSettings instead of the game instance's (headless tests). */
     void SetSettings(UPSSettingsSubsystem* InSettings) { SettingsOverride = InSettings; }
 
+    /** The UI narration hook for an option taking focus (Epic 103.3): says its label and
+     *  detail through UPSUIAccessibilitySubsystem::Narrate. The screen widget calls it. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    void NarrateOption(FName OptionId);
+
     /** Waits for the next key to give ActionId (Epic 103.4); the remap screen says so. */
     UFUNCTION(BlueprintCallable, Category = "Menu")
     void BeginRemap(FName ActionId);

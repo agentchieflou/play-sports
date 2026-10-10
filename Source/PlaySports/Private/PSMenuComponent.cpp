@@ -12,6 +12,8 @@
 #include "PSSettingsComponent.h"
 #include "PSInputDeviceComponent.h"
 #include "PSInputGlyphs.h"
+#include "PSUIAccessibilitySubsystem.h"
+#include "PSUIColorAccessibility.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Blueprint/UserWidget.h"
@@ -601,6 +603,8 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
     FPSMenuScreenDef Presented = *Authored;
     if (Presented.Content == EPSMenuScreenContent::TeamSelect)
     {
+        // Team colors as the player's color vision needs them (Epic 103.2).
+        const EPSColorblindMode ColorMode = UPSUIAccessibilitySubsystem::GetColorblindMode(GetSettings());
         for (const FPSTeamSummary& Team : GetTeamSummaries())
         {
             FPSMenuOptionDef Option;
@@ -609,7 +613,7 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
                 *Team.DisplayName, *Team.Abbreviation, Team.Overall, Team.Offense, Team.Defense, *Team.Division);
             Option.Command = EPSMenuCommand::StartPlayNow;
             Option.Payload = Team.TeamId;
-            Option.AccentColor = Team.PrimaryColor;
+            Option.AccentColor = UPSUIColorLibrary::ResolveColor(Team.PrimaryColor, ColorMode);
             Presented.Options.Add(Option);
         }
     }
@@ -763,6 +767,28 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
 void UPSMenuComponent::HandleStackChanged(FName PreviousTop, FName NewTop, EPSMenuTransition Transition)
 {
     ShowTopScreen();
+
+    // The UI narration hook (Epic 103.3): a screen reader says where the player is now.
+    UPSUIAccessibilitySubsystem* Accessibility = GetWorld() ? GetWorld()->GetSubsystem<UPSUIAccessibilitySubsystem>() : nullptr;
+    if (Accessibility && IsMenuOpen())
+    {
+        const FPSMenuScreenDef Screen = GetPresentedScreen(GetTopScreenId());
+        Accessibility->Narrate(Screen.Body.IsEmpty() ? Screen.Title : FString::Printf(TEXT("%s. %s"), *Screen.Title, *Screen.Body));
+    }
+}
+
+void UPSMenuComponent::NarrateOption(FName OptionId)
+{
+    UPSUIAccessibilitySubsystem* Accessibility = GetWorld() ? GetWorld()->GetSubsystem<UPSUIAccessibilitySubsystem>() : nullptr;
+    if (!Accessibility || !IsMenuOpen())
+    {
+        return;
+    }
+    const FPSMenuScreenDef Screen = GetPresentedScreen(GetTopScreenId());
+    if (const FPSMenuOptionDef* Option = Screen.Options.FindByPredicate([OptionId](const FPSMenuOptionDef& Candidate) { return Candidate.OptionId == OptionId; }))
+    {
+        Accessibility->Narrate(Option->Detail.IsEmpty() ? Option->Label : FString::Printf(TEXT("%s. %s"), *Option->Label, *Option->Detail));
+    }
 }
 
 void UPSMenuComponent::ShowTopScreen()

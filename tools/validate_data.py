@@ -33,8 +33,9 @@ action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files aga
 FPSBroadcastOverlayTheme; "Settings" files against FPSSettingsCatalog (Epic 103.1);
 "CatenaryParameterCm" files against FPSSkycamTuning; "UncoveredSeparation" files against
 FBlownCoverageTuningRow; "Packages" + "DefaultOffensePackage" files against FPSPersonnelCatalog (11
-players per package, roles on the package's side, one package per formation and side). Teams, the
-league config, the playbook, player rating ranges and every reference between files are
+players per package, roles on the package's side, one package per formation and side);
+"CaptionWordsPerSecond" files against FPSUIAccessibilityTuning (Epic 103.2). Teams, the league
+config, the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -1431,6 +1432,29 @@ def validate_situational_tuning(path, payload, route_ids):
             err(path, f"{where}: no Reason (the play-call screen shows it)")
 
 
+UI_ACCESSIBILITY_NUMBERS = ("CaptionMinSeconds", "CaptionMaxSeconds", "CaptionWordsPerSecond", "MinMatchupColorDistance")
+
+
+def validate_ui_accessibility(path, payload):
+    """FPSUIAccessibilityTuning (Data/ui_accessibility.json, Epic 103); mirrors
+    UPSUIAccessibilitySubsystem::ValidateTuning."""
+    for field in UI_ACCESSIBILITY_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    low, high = payload.get("CaptionMinSeconds"), payload.get("CaptionMaxSeconds")
+    if is_number(low) and is_number(high) and not 0 < low <= high:
+        err(path, "CaptionMinSeconds must be positive and CaptionMaxSeconds no less")
+    if is_number(payload.get("CaptionWordsPerSecond")) and payload["CaptionWordsPerSecond"] <= 0:
+        err(path, "CaptionWordsPerSecond must be positive")
+    lines = payload.get("CaptionMaxLines")
+    if isinstance(lines, bool) or not isinstance(lines, int) or lines < 1:
+        err(path, f"CaptionMaxLines: '{lines}' must be a whole number, 1 or more")
+    extra = set(payload) - set(UI_ACCESSIBILITY_NUMBERS) - {"CaptionMaxLines"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSUIAccessibilityTuning exactly")
+
+
 RUN_GAPS = {"DLeft", "CLeft", "BLeft", "ALeft", "ARight", "BRight", "CRight", "DRight"}
 RUN_FIT_NUMBERS = ("GapWidth", "InlineTightEndWidth", "FitDepth", "SecondLevelDepth", "LeverageOffset", "FlowWeight",
                    "AttackRadius", "FillRadius")
@@ -1956,6 +1980,8 @@ def main():
             validate_kick_meter(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "RushMoves" in payload:
             validate_rush_moves(path, payload)
+        if isinstance(payload, dict) and "CaptionWordsPerSecond" in payload:
+            validate_ui_accessibility(path, payload)
         if isinstance(payload, dict) and "Fronts" in payload:
             validate_run_fits(path, payload)
         if isinstance(payload, dict) and "All22Rigs" in payload:

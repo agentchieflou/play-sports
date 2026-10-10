@@ -1,0 +1,7 @@
+{
+    "CaptionMinSeconds": 2.0,
+    "CaptionMaxSeconds": 8.0,
+    "CaptionWordsPerSecond": 2.5,
+    "CaptionMaxLines": 2,
+    "MinMatchupColorDistance": 20
+}

@@ -91,7 +91,9 @@ void UPSMenuScreenWidget::BuildDefaultLayout()
         ? AddText(FString(), PSMenuStyle::BodyFontSize, PSMenuStyle::TitlePadding)
         : nullptr;
 
+    // A redrawn screen says its focused option again (a stepped setting's new value).
     OptionButtons.Reset();
+    NarratedOption = NAME_None;
     for (const FPSMenuOptionDef& Option : Screen.Options)
     {
         UPSMenuButton* Button = WidgetTree->ConstructWidget<UPSMenuButton>(UPSMenuButton::StaticClass());
@@ -218,6 +220,20 @@ void UPSMenuScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
     {
         FadeElapsed += InDeltaTime;
         SetRenderOpacity(FMath::Clamp(FadeElapsed / FadeSeconds, 0.f, 1.f));
+    }
+
+    // The UI narration hook (Epic 103.3): an option is said as it takes focus.
+    if (UPSMenuComponent* Menu = OwnerMenu.Get())
+    {
+        for (const UPSMenuButton* Button : OptionButtons)
+        {
+            if (Button && Button->HasAnyUserFocus() && Button->OptionId != NarratedOption)
+            {
+                NarratedOption = Button->OptionId;
+                Menu->NarrateOption(NarratedOption);
+                break;
+            }
+        }
     }
 
     // The play clock keeps running while the player picks (Epic 102.5).
