@@ -243,9 +243,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "PassRush")
     void ResetMatchupHistory();
 
-    /** Seeds the rolls TickRush makes, so a rush can be replayed. */
+    /** Seeds the rolls TickRush makes from a stream of the rusher's own, so a rush can be
+     *  replayed. Unseeded, they come from the play's seeded streams (UPSNetRandomStreams). */
     UFUNCTION(BlueprintCallable, Category = "PassRush")
-    void SeedRolls(int32 Seed) { RollStream.Initialize(Seed); }
+    void SeedRolls(int32 Seed) { RollStream.Initialize(Seed); bRollsSeeded = true; }
 
 protected:
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -273,6 +274,7 @@ private:
 
     TWeakObjectPtr<APSPlayerPawn> CurrentBlocker;
     FRandomStream RollStream;
+    bool bRollsSeeded = false;
     EPSRushMove ActiveMove = EPSRushMove::None;
     EPSBlockResponse LastResponse = EPSBlockResponse::None;
     float ActiveWinChance = 0.f;

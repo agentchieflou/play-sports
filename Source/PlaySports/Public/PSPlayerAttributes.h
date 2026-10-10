@@ -115,6 +115,11 @@ struct FPlayerAttributes : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 Age = 0;
 
+    /** The number on his jersey, 1-99; optional in a roster file. 0 means he has none yet. A
+     *  number is his team's alone. Viewers and overlays label him with it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 JerseyNumber = 0;
+
     /** His style (Epic 79): optional in a roster file ("DNA": { "Mobility": 0.6 }); missing
      *  axes are 0. tools/player_dna.py generates it from the ratings. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)

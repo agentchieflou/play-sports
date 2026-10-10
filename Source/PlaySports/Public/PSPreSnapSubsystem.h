@@ -152,6 +152,11 @@ public:
     /** The CPU quarterback's read (see the class comment). Runs once per call window. */
     void RunCpuRead();
 
+    /** Whether the CPU quarterback's read may check out of the call (an audible); his hot
+     *  routes, protection, slide and motion are his either way. On by default; a demo that must
+     *  show its call turns it off. */
+    void SetCpuAudiblesAllowed(bool bAllowed) { bCpuAudiblesAllowed = bAllowed; }
+
     /** Drops every change: the next down, or a new call. */
     void ResetAdjustments();
 
@@ -194,5 +199,6 @@ private:
     /** The travelling defender keeps over the man in motion until the snap. */
     bool bTravelActive = false;
     bool bCpuReadDone = false;
+    bool bCpuAudiblesAllowed = true;
     bool bTuningLoaded = false;
 };

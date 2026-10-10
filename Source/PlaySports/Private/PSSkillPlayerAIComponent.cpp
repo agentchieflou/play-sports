@@ -620,8 +620,17 @@ void UPSSkillPlayerAIComponent::TickQuarterback(APSPlayerPawn* Self)
     }
     const FPSPocketRead PocketRead = Pocket ? Pocket->ReadPocket(Self, Pawns, LineOfScrimmage) : FPSPocketRead();
 
+    // Pressure is a free rusher near him: one his line has engaged is the pocket's to weigh, not
+    // a reason to get rid of the ball (at the snap the linemen across from him are that close).
     float PressureDistance = TNumericLimits<float>::Max();
-    PSFieldReads::NearestOpponent(Pawns, Self->TeamSide, Self->GetActorLocation(), &PressureDistance);
+    if (Pocket)
+    {
+        PressureDistance = PocketRead.NearestFreeDistance;
+    }
+    else
+    {
+        PSFieldReads::NearestOpponent(Pawns, Self->TeamSide, Self->GetActorLocation(), &PressureDistance);
+    }
     const bool bPressured = PressureDistance <= Settings.PressureRadius || PocketRead.bCollapsed;
     if (TimeSinceSnap < Settings.MinReadSeconds && !bPressured)
     {
@@ -756,6 +765,12 @@ APSPlayerPawn* UPSSkillPlayerAIComponent::ChooseReceiver(bool& bOutOpen, float& 
             continue;
         }
         const APSOffenseController* ReceiverAI = Cast<APSOffenseController>(Candidate->GetController());
+        // A back or tight end kept in to block is no target.
+        const UPSSkillPlayerAIComponent* CandidateAI = ReceiverAI ? ReceiverAI->GetSkillAI() : nullptr;
+        if (CandidateAI && CandidateAI->GetAction() == EPSSkillPlayerAction::Block)
+        {
+            continue;
+        }
         UPSRouteRunnerComponent* Runner = ReceiverAI ? ReceiverAI->GetRouteRunner() : nullptr;
         Runner = (Runner && Runner->HasPlan()) ? Runner : nullptr;
         if (Runner)

@@ -83,6 +83,7 @@
 #include "PSFieldDimensions.h"
 #include "PSFieldSurfaceTypes.h"
 #include "PSFormations.h"
+#include "PSPlayDemoTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -521,6 +522,11 @@ public:
      *  ValidateLibrary checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCommentaryLibraryFromJson(const FString& JsonFilePath, FPSCommentaryLibrary& OutLibrary);
+
+    /** Loads the live-play demo set and how it is recorded (Data/play_demos.json). False on a
+     *  missing file or malformed JSON; UPSPlayDemoRunner::ValidateCatalog checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlayDemoCatalogFromJson(const FString& JsonFilePath, FPSPlayDemoCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

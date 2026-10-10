@@ -163,6 +163,11 @@ changes what `RandomSeed` means: it seeds the simulation's own stream, not the e
 one. A version 1 seed can't be reproduced by a version 2 build (finding E4), so the v1 → v2
 step sets it to 0. The recording keeps its events for playback.
 
+Optional fields added under rule 1, with no bump: `Frames` (Epic 41, state playback), and `Teams`
+and `Participants` (the live-play demos): the teams on the field and every player the frames name,
+with his name, team, side, role and jersey number, so a viewer can label him. A recording without
+them loads with them empty.
+
 ## Record/playback round trip (story 4)
 
 `UPSReplayRecorder` is the recorder D1 asks for: it copies every event off a `UPSTelemetryBus`
@@ -268,7 +273,9 @@ decisions (`UPSDefenderPreSnapSubsystem`). Each starts at seed 0 when its object
 is deterministic, and the checks below depend on it, but it has two costs. Every match calls the
 same CPU plays in the same situations. And a play can only be re-simulated by replaying the
 match from its start, not from its snap. This isn't fixed here because the files belong to other
-tracks. When their owners next touch them, they should seed each stream from
+tracks. (The pass-rush moves are now fixed: the live-play demos showed every rusher's first
+roll was the same 0.198, which beat every move above that chance on every play. Unless a test
+seeds them, `UPSRushMoveComponent`'s rolls now come from the rusher's `RushMove` stream.) When their owners next touch them, they should seed each stream from
 `UPSNetRandomStreams`: `MakeMatchSeed` for match-long streams, and the snap's streams for
 per-play ones.
 

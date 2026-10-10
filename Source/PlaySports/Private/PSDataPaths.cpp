@@ -72,6 +72,7 @@ namespace PSDataPathsPrivate
         TEXT("Data/platform_tiers.json"),
         TEXT("Data/play_art.json"),
         TEXT("Data/play_call.json"),
+        TEXT("Data/play_demos.json"),
         TEXT("Data/play_recognition.json"),
         TEXT("Data/playbook_generator.json"),
         TEXT("Data/player_dna.json"),

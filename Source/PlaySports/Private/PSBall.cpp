@@ -43,6 +43,12 @@ APSBall::APSBall()
     CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComp"));
     CollisionComponent->InitSphereRadius(15.f); // regulation size approx 30cm long, 15cm radius
     CollisionComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
+    // The ball passes through players and tells them it touched them: the overlap resolves the
+    // catch, the interception or the recovery (ResolveTouch). Blocking them, as the profile
+    // does, would bounce a pass off its receiver and report it grounded. It still lands on the
+    // ground and anything else in the world.
+    CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+    CollisionComponent->SetGenerateOverlapEvents(true);
     RootComponent = CollisionComponent;
 
     MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComp"));
@@ -281,6 +287,12 @@ bool APSBall::ResolveTouch(APSPlayerPawn* PlayerPawn)
     if (PlayerPawn->TeamSide == EPSTeamSide::Offense)
     {
         FPlayerAttributes Attr = PlayerPawn->GetAttributes();
+        // Only the receivers, tight ends and backs are eligible: a pass goes on past the
+        // linemen and the passer it flies through.
+        if (Attr.Role != EPlayerRole::WideReceiver && Attr.Role != EPlayerRole::TightEnd && Attr.Role != EPlayerRole::RunningBack)
+        {
+            return false;
+        }
         float CatchChance = PSBallResolutionHelpers::ComputeCatchChance(Attr, CatchTuningSettings);
 
         float Roll = UPSNetRandomStreams::RollFor(this, TEXT("Catch"), Attr.PlayerId);

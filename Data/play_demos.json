@@ -1,0 +1,20 @@
+{
+    "FrameRateHz": 30,
+    "MaxPreSnapSeconds": 15,
+    "MaxPlaySeconds": 30,
+    "PostWhistleSeconds": 1.0,
+    "MaxResultWaitSeconds": 10,
+    "MinPlayerMoveCm": 50,
+    "MinLinemanMoveCm": 10,
+    "SpeedAllowanceCmPerSec": 150,
+    "GroundToleranceCm": 1,
+    "PlayDemos": [
+        { "DemoId": "InsideRun", "Intent": "Inside run", "HomeTeamId": "Wolves", "AwayTeamId": "Hawks", "OffensePlayId": "Offense_InsideZone", "DefensePlayId": "Defense_43Cover2", "Seed": 1101, "SeedTries": 3, "WantedOutcome": "Run", "bAllowAudibles": false },
+        { "DemoId": "OutsideRun", "Intent": "Outside run", "HomeTeamId": "Wolves", "AwayTeamId": "Hawks", "OffensePlayId": "Offense_PowerOSweep", "DefensePlayId": "Defense_NickelManFree", "Seed": 1202, "SeedTries": 3, "WantedOutcome": "Run", "bAllowAudibles": false },
+        { "DemoId": "QuickPass", "Intent": "Quick pass, caught and tackled", "HomeTeamId": "Hawks", "AwayTeamId": "Wolves", "OffensePlayId": "Offense_SlantFlat", "DefensePlayId": "Defense_34Cover3", "Seed": 1303, "SeedTries": 4, "WantedOutcome": "Completion", "bAllowAudibles": false },
+        { "DemoId": "DeepPass", "Intent": "Deep pass", "HomeTeamId": "Hawks", "AwayTeamId": "Wolves", "OffensePlayId": "Offense_FourVerts", "DefensePlayId": "Defense_NickelManFree", "Seed": 1404, "SeedTries": 3, "WantedOutcome": "Completion", "bAllowAudibles": false },
+        { "DemoId": "Incompletion", "Intent": "A pass that comes down incomplete", "HomeTeamId": "Hawks", "AwayTeamId": "Wolves", "OffensePlayId": "Offense_DeepPost", "DefensePlayId": "Defense_NickelManFree", "Seed": 1505, "SeedTries": 4, "WantedOutcome": "Incompletion", "bAllowAudibles": false },
+        { "DemoId": "BlitzSack", "Intent": "A sack: play-action into the double-A blitz", "HomeTeamId": "Bears", "AwayTeamId": "Falcons", "OffensePlayId": "Offense_PlayActionPost", "DefensePlayId": "Defense_DoubleABlitz", "Seed": 1606, "SeedTries": 3, "WantedOutcome": "Sack", "bAllowAudibles": false },
+        { "DemoId": "DeepShotPick", "Intent": "An interception: the deep post into quarters coverage", "HomeTeamId": "Hawks", "AwayTeamId": "Falcons", "OffensePlayId": "Offense_DeepPost", "DefensePlayId": "Defense_Cover4Quarters", "Seed": 1707, "SeedTries": 3, "WantedOutcome": "Interception", "bAllowAudibles": false }
+    ]
+}

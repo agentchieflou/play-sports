@@ -60,6 +60,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clock")
     float SpikePlaySeconds = 1.f;
 
+    /** A live play (not quick-sim) ends on the field: a tackle, the ball grounded or out of
+     *  bounds, a score. Should none of those come, the whistle blows this long after the snap. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clock")
+    float MaxLivePlaySeconds = 15.f;
+
     /** No punting is allowed in this ruleset (Epic 140): 4th down is always go-for-it
      *  or a field-goal attempt. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rules|Combat")
