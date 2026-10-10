@@ -97,6 +97,7 @@ as the Xbox glyph set labels them.
 | Secondary | Boolean | World | T | X | `OnCatalogActionStarted` |
 | ViewToggle | Boolean | World | V | Y | `OnCatalogActionStarted` |
 | Picker | Boolean | World | C | Menu (Start) | `OnCatalogActionStarted` (Epic 143) |
+| FilmView | Boolean | OnField | F | R3 | `UPSCameraAll22Component` on the broadcast camera, via `OnCatalogActionStarted` of the controller viewing through it: broadcast → all-22 sideline → all-22 end zone → broadcast (Epic 40) |
 | PassTarget1-5 | Boolean | Passing | 1-5 | X, Y, B, RB, A | `UPSPassingComponent`: throws on release to receiver slots 1-5, left to right across the field. A tap throws touch, a hold throws a bullet, and the Move stick places the ball. |
 | PumpFake | Boolean | Passing | Q | LB | `UPSPassingComponent`: publishes `PumpFake`; low-Awareness coverage freezes |
 | Juke | Boolean | BallCarrier | Z | X | `UPSCarrierInputComponent` → `UPSCarrierMoveComponent::TryMove`; a cut toward the Move stick's side |
@@ -116,9 +117,14 @@ as the Xbox glyph set labels them.
 | BlockRelease | Boolean | PreSnap | K | D-pad Down | the same: the selected back or tight end is kept in or released |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
-every context. Start opens the character sheet off the field and pauses on it (Epic 101). The
-look picker is an off-field screen, so the two never meet in one context. On the keyboard the
-pause key is P, because Escape is already Cancel on the field and PIE uses Escape to stop.
+every off-field context. On the field Y is taken: the tempo before the snap, slot 2 while
+passing, and the hurdle with the ball. A camera toggle on Y would also cut the camera when Y is
+pressed around the snap, and it would stop the input buffer from carrying that press into the
+throw. So the film view (Epic 40) is on R3 and F, which no pass, move or pre-snap button uses.
+Start opens the character sheet off the field and
+pauses on it (Epic 101). The look picker is an off-field screen, so the two never meet in one
+context. On the keyboard the pause key is P, because Escape is already Cancel on the field and
+PIE uses Escape to stop.
 
 Not in the catalog yet, from the browser world's mapping: the debug "frame figures" key (F3 or
 \`, which has no gamepad binding) and dialogue navigation (Tab/Enter, D-pad/A), which needs a
@@ -361,6 +367,7 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.StripTradesTackleForFumble` | A strip attempt lowers tackle odds and raises fumble odds, wears off, and waits out its cooldown in the buffer (Epic 104.5). |
 | `PlaySports.Input.KickMeterDrivesTheKick` | A kick phase lines the human kicker up and the play waits; the meter's roll decides the field goal, punt and kickoff; without a human the CPU kicks on time (Epic 104.5). |
 | `PlaySports.PreSnap.HumanButtons` | The PreSnap context's buttons select, keep in, slide, hot-route, motion and audible, and do nothing on defense (Epic 66). |
+| `PlaySports.Camera.All22ToggleThroughCatalog` | FilmView is on the field with a key and an R3 glyph. Its keys are free in every context stacked over the field. It steps the film view on the viewing controller only (Epic 40). |
 
 What CI cannot show is how the input feels in a player's hands: real rumble strength on a pad,
 glyph icons (none are imported yet; the labels stand in), and the menu flow on a gamepad. Those

@@ -51,7 +51,7 @@ class TierTableTests(unittest.TestCase):
     def test_default_tier_table_shape(self):
         config = self.make_config(GEMINI_API_KEY="g", OPENROUTER_API_KEY="o")
         table = config.tier_table()
-        self.assertEqual(sorted(table), ["supervisor", "worker"])
+        self.assertEqual(sorted(table), ["bridge", "supervisor", "worker"])
 
         (supervisor,) = table["supervisor"]
         self.assertEqual(supervisor.provider, "gemini")

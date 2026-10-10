@@ -3,6 +3,7 @@
 Tiers come from config.OrchestratorConfig.tier_table():
   supervisor: gemini flash (high)
   worker:     openrouter gpt-oss-120b -> gemini flash (low)
+  bridge:     ollama (OLLAMA_HOST) -> gemini flash (low) -> openrouter free model
 
 Epic 119's MCP Model Router Service is specified to wrap this class.
 """
@@ -12,6 +13,7 @@ from __future__ import annotations
 from ..config import ModelSpec, OrchestratorConfig
 from .base import ChatResponse, Message, ModelClient, ProviderError, ToolSpec
 from .gemini import GeminiClient
+from .ollama import OllamaClient
 from .openrouter import OpenRouterClient
 
 
@@ -21,6 +23,8 @@ def build_client(spec: ModelSpec) -> ModelClient:
                             reasoning=spec.reasoning)
     if spec.provider == "openrouter":
         return OpenRouterClient(model=spec.model, api_key=spec.api_key)
+    if spec.provider == "ollama":
+        return OllamaClient(model=spec.model, host=spec.base_url)
     raise ValueError(f"unknown provider: {spec.provider!r}")
 
 
@@ -30,6 +34,7 @@ class ModelRouter:
         self.config = config or OrchestratorConfig.load()
         self._factory = client_factory
         self._clients: dict[str, list[ModelClient]] = {}
+        self.last_label = ""  # the client that answered the last chat
 
     def clients(self, tier: str) -> list[ModelClient]:
         """Ordered client chain for a tier (built lazily, cached)."""
@@ -44,15 +49,20 @@ class ModelRouter:
              tools: list[ToolSpec] | None = None,
              temperature: float = 0.2, max_tokens: int = 8192) -> ChatResponse:
         """Try each client in the tier's chain; on ProviderError fall through
-        to the next. Clients with no API key configured are skipped."""
+        to the next. Clients with no API key (or, for Ollama, no host) are
+        skipped."""
         errors: list[str] = []
         for client in self.clients(tier):
             if not client.api_key:
-                errors.append(f"{client.label}: no API key configured")
+                missing = ("no host configured (OLLAMA_HOST)" if getattr(client, "provider", "") == "ollama"
+                           else "no API key configured")
+                errors.append(f"{client.label}: {missing}")
                 continue
             try:
-                return client.chat(messages, tools=tools,
-                                   temperature=temperature, max_tokens=max_tokens)
+                response = client.chat(messages, tools=tools,
+                                       temperature=temperature, max_tokens=max_tokens)
+                self.last_label = client.label
+                return response
             except ProviderError as error:
                 errors.append(f"{client.label}: {error}")
         raise ProviderError(
@@ -67,3 +77,17 @@ class ModelRouter:
             report[tier] = [(client.label, client.healthy())
                             for client in self.clients(tier)]
         return report
+
+
+class TierClient:
+    """One client for a tier with the router's fallback behind it, so the
+    harness and the supervisor see a single ModelClient."""
+
+    def __init__(self, router: ModelRouter, tier: str):
+        self._router = router
+        self._tier = tier
+        self.label = f"tier:{tier}"
+
+    def chat(self, messages, tools=None, temperature=0.2, max_tokens=8192):
+        return self._router.chat(self._tier, messages, tools=tools,
+                                 temperature=temperature, max_tokens=max_tokens)
