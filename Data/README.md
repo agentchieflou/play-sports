@@ -110,6 +110,7 @@ every CI build.
 | `ai_scenarios.json` | `FPSAIScenarioCatalog` (single object: `Scenarios`) | `UPSDataIngestion::LoadAIScenariosFromJson`, via `UPSAIScenarioRunner` |
 | `gap_overlay.json` | `FPSGapOverlayStyle` (single object) | `UPSDataIngestion::LoadGapOverlayStyleFromJson`, via `UPSDefenderGapOverlaySubsystem` |
 | `league_generator.json` | `FPSLeagueGeneratorTuning` (single object: league shape, `RoleProfiles`, `NameCultures`, `NameBlocklist`, `DraftClass`) | `UPSDataIngestion::LoadLeagueGeneratorTuningFromJson`, via `UPSLeagueGenerator` |
+| `playbook_generator.json` | `FPSPlaybookGeneratorTuning` (single object: `OffenseFormations`, `Concepts`, `DefensiveFronts`, `Coverages`, `Pressures`, `SchemeFlavors`, sizes) | `UPSDataIngestion::LoadPlaybookGeneratorTuningFromJson`, via `UPSPlaybookGenerator` |
 | `player_progression.json` | `FPSProgressionTuning` (single object: the age curve) | `UPSDataIngestion::LoadProgressionTuningFromJson`, via `UPSLeagueGenerator` (and `UPSPlayerProgression`'s callers) |
 | `difficulty.json` | `FPSDifficultyCatalog` (single object: `DifficultyTiers`, the assists' setting IDs, `SuggestedPlayAccent`) | `UPSDataIngestion::LoadDifficultyCatalogFromJson`, via `UPSDifficultySubsystem` |
 | `perf_harness.json` | `FPSPerfHarnessTuning` (single object) | `UPSDataIngestion::LoadPerfHarnessTuningFromJson`, via `UPSPerfHarness`; also read by `tools/perf_budget.py` |
@@ -377,6 +378,50 @@ The automation test `PlaySports.Content.LeagueGenerator.WritesValidContent` writ
 game's loaders. CI then runs `python tools/content.py check --root Saved/GeneratedLeague --strict`
 on it, so a generated league passes every contract here and the content report finds nothing to
 warn about.
+
+## Playbook generator schema (`FPSPlaybookGeneratorTuning`, Epic 121)
+
+`playbook_generator.json` is the concept grammar `UPSPlaybookGenerator` makes playbooks from,
+instead of hand-authoring each play. Every field is required:
+
+- `OffenseFormations`: the formations concepts line up in, each in a personnel package (Epic
+  19.5), which says how many of each role it puts on the field. `PlayActionDrop` is the
+  quarterback's spot on a play-action pass, in cm (below 0).
+- `Concepts[]`: `ConceptId` (letters and digits), `Label`, `Family` (flood, mesh, dagger, zone,
+  ...), `Category` (`Run`, `ShortPass`, `DeepPass` or `Screen`), `Formations` (a subset of
+  `OffenseFormations`; empty for all), `QBDrop` (the quarterback's spot), `BackSpot` (a run's
+  carrier's spot), `LineKind` (`PassBlock` or `RunBlock`: the line, and a tight end or back no slot
+  claims) and `BacksideRoute` (what a wide receiver no slot claims runs; empty: he blocks).
+  - `Slots[]`, in the quarterback's read order: `Roles` (receivers, in preference) and `Routes` (route
+    library IDs). Each slot goes to the first receiver of its roles the formation still has. A
+    concept makes a play for every combination of its slots' routes (at most 64) in every formation
+    its slots fit.
+  - `Deceptions`: the Epic 72 variants it is made with: `None`, `PlayAction` on a pass (a
+    `PlayAction` play from `PlayActionDrop`), `ZoneRead` or `RPO` on a run.
+- `DefensiveFronts[]`: `Formation` (a defensive personnel package's), `Front` (in `run_fits.json`)
+  and `LineKind` (`PassRush`, or `RunFit` on the goal line).
+- `Coverages[]`: `Shell` (with rules in `coverage_matchups.json`), `Label`, `Category` (`Base` or
+  `Prevent`), `MaxBlitzers` (the most it can send and still cover) and `Slots[]`: `Role`, `Kind`
+  (`ZoneCoverage` or `ManCoverage`) and `Zone` (a zone landmark from the ball, cm, played on the
+  defender's own side). Each role's jobs are in priority order, deep help first, so a blitzer takes
+  the last one.
+- `Pressures[]`: `PressureId`, `Label` and `Blitzers` (`EPlayerRole` name to count). One must send
+  nobody. The call sheet is every front x coverage x pressure the coverage can afford; a call that
+  sends anyone is a `Blitz`.
+- `SchemeFlavors[]`: per coaching identity (a `SchemeId` in `coaching_staffs.json`), how much it likes
+  each concept (`ConceptWeights`, offense) or each shell and pressure (`ShellWeights` and
+  `PressureWeights`, defense); 1 when unlisted.
+- `OffensePlaybookSize`, `DefensePlaybookSize` and `CategoryEmphasis`: a scheme's generated book has
+  this many plays, shared out by its `CategoryWeights` raised to `CategoryEmphasis` (every category
+  it weighs gets one), then drawn by its flavor.
+
+Generated plays are ordinary `FPSPlayDefinition`s with PlayIds `<SchemeId>_<ConceptId>_<Formation>_<n>`
+(or `<SchemeId>_Def_<Formation>_<Shell>_<PressureId>`), so the play loader, the AI and the playbook
+contract treat them like the hand-written book. The automation test
+`PlaySports.Content.PlaybookGenerator.WritesValidContent` writes every scheme's book to
+`Saved/GeneratedPlaybooks/Data/playbooks/`. CI checks those books with
+`python tools/content.py check --root Saved/GeneratedPlaybooks --strict`. `validate_data.py` checks
+this file (`PSPlaybookGenerator::ValidateTuning` is the same check in C++).
 
 ## Age curve schema (`FPSProgressionTuning`)
 

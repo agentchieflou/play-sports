@@ -15,9 +15,10 @@ league config, the playbook and the route library. Venues have no content type y
                     UPSPlaybookIngestion, the path the game uses.
   check             validate, then report (the default).
 
-validate, report and check take --root DIR to work on DIR/Data instead of the repo's: a league
-laid out like the repo, such as the one the league generator's automation test writes to
-Saved/GeneratedLeague (CI runs "check --root Saved/GeneratedLeague --strict" on it, Epic 122).
+validate, report and check take --root DIR to work on DIR/Data instead of the repo's: content
+laid out like the repo, such as what the generators' automation tests write. CI runs
+"check --root ... --strict" on Saved/GeneratedLeague (Epic 122) and Saved/GeneratedPlaybooks
+(Epic 121).
 
 Run from the repo root:  python tools/content.py [command]
 """

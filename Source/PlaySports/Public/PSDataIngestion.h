@@ -58,6 +58,7 @@
 #include "PSAIDecisionTypes.h"
 #include "PSDefenderGapOverlayTypes.h"
 #include "PSLeagueGeneratorData.h"
+#include "PSPlaybookGeneratorData.h"
 #include "PSPlayerProgression.h"
 #include "PSCoverageMatchupTypes.h"
 #include "PSLooseBallSubsystem.h"
@@ -369,6 +370,12 @@ public:
      *  or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadProgressionTuningFromJson(const FString& JsonFilePath, FPSProgressionTuning& OutTuning);
+
+    /** Loads the playbook generator's concept grammar, call-sheet parts and scheme flavors
+     *  (Data/playbook_generator.json, Epic 121). False on a missing file, malformed JSON or an
+     *  unknown enum; PSPlaybookGenerator::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlaybookGeneratorTuningFromJson(const FString& JsonFilePath, FPSPlaybookGeneratorTuning& OutTuning);
 
     /** Loads what makes a highlight and how the reel plays (Data/highlights.json, Epic 42).
      *  False on a missing file or malformed JSON; UPSHighlightSubsystem::ValidateTuning checks
