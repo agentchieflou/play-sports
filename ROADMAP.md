@@ -334,6 +334,7 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 - [x] LB: run/pass read, zone drop or man assignment, pursuit angles
 - [x] DB: man coverage mirroring and zone coverage with ball-hawking on throws (`Awareness`-driven)
 - [x] Pursuit system: all defenders converge on the ball-carrier with attribute-scaled angles
+- *Live in the game since the defense-AI follow-up to Epic 14: until then these assignments only reached a blackboard no Behavior Tree read, and every defender ran straight at the ball. `UPSDefenderAIComponent` (on `APSDefenseController`) now plays them: rush and contain, man coverage from a cushion, zones that shade to the receiver in them, run-fit run/pass reads, breaking on the throw, and pursuit on the controller's intercept angle, all timed by `Awareness`. Tuning: `Data/defense_ai_tuning.json`.*
 
 ### Epic 16: Playbook & Play Data System
 

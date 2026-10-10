@@ -39,7 +39,7 @@ These groups can run at the same time (see the scope note under the table):
 | G3 | Playbook extraction (Track O) | 132 → 133 → 134 | Any agent (Python-only) |
 | G4 | Platform audit | 129 | Any agent (docs/config-only) |
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
-| G7 | Phase 2 AI | 17.4–17.5 (14, 15, 16, 18 done; 15's coverage doesn't run live yet, see Epic 14's PR) | Any strong agent |
+| G7 | Phase 2 AI | 17.4–17.5 (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
 | G9 | Front end and input feel (Track I) | 104 → 103 → 106 → 105 (101 done; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 

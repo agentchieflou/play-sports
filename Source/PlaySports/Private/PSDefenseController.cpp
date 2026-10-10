@@ -1,4 +1,5 @@
 #include "PSDefenseController.h"
+#include "PSDefenderAIComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSGameMode.h"
 #include "BehaviorTree/BehaviorTree.h"
@@ -23,6 +24,8 @@ APSDefenseController::APSDefenseController()
     // UseBlackboard() and leaves every key at KeyID 65535 (invalid).
     BlackboardComp = CreateDefaultSubobject<UBlackboardComponent>(TEXT("BlackboardComponent"));
     Blackboard = BlackboardComp;
+
+    DefenderAI = CreateDefaultSubobject<UPSDefenderAIComponent>(TEXT("DefenderAI"));
 }
 
 void APSDefenseController::OnPossess(APawn* InPawn)
