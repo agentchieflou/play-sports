@@ -40,10 +40,10 @@ These groups can run at the same time (see the scope note under the table):
 | G2 | Orchestrator (Track P) | Done (135–138); `python -m tools.orchestrator check-parallel` now validates this file | — |
 | G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
 | G4 | Platform ports (Track N, iPhone first) | 130 touch (129 done; 131 done but its ADR, which waits on the owner's answer about a Mac and an Apple account) | Claude Code; packaging waits on a Mac |
-| G5 | Bridge track | 25 (then 118/119) | Any strong agent |
-| G7 | Phase 2 AI | 17.4–17.5 (14, 15, 16, 18 done) | Any strong agent |
+| G5 | Bridge track | 25: 25.3 MCP server and 25.5 router done; 25.1–25.2 Autonomix and 25.6 smoke test need an editor, 25.4 registration waits on the owner (then 118/119) | Any strong agent |
+| G7 | Phase 2 AI | 17.4 (blown-coverage reactions done; the scramble drill and blocked-kick chaos are open), 17.5's device measurement (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
-| G9 | Front end and input feel (Track I) | 103.2, 103.3, 103.5 → 106 → 105 (101 and 104 done; 103.1 settings and 103.4 remapping done; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
+| G9 | Front end and input feel (Track I) | 103.5 → 106's play-call screens → 105 (101 and 104 done; 103.1, 103.3 and 103.4 done; 103.2 waits on Epic 37 and the overlay palettes; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
 Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
 (`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G8's and G9's track scopes on
@@ -55,7 +55,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 
 - **Tier 1, Track E:** 67 defensive pre-snap (66 is in), 71 QB pocket play, 75 special-teams
   depth.
-- **Tier 2:** 89 coaching staffs, 19.5 personnel packages.
+- **Tier 2:** 89 coaching staffs (19.5 personnel packages done).
 - **Tier 3 / infra:** 24.1 gym map (editor; 24.2–24.5, 117 and 125 done).
 - **Overlay and camera code:** 30, 33, 38, 39 and 40 are done.
   With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
@@ -116,15 +116,15 @@ one CI run) rather than re-merging main into each PR after every landing.
     "14":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"]},
     "15":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["9", "14"]},
     "16":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["14"]},
-    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation", "17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
+    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation (blown-coverage reactions done; scramble drill and blocked-kick chaos open)", "17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
     "18":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "17"]},
-    "19":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["1"], "open_stories": ["19.5 substitution and personnel packages"]},
+    "19":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["1"]},
     "20":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["12", "19"]},
     "21":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "19"]},
     "22":  {"track": "core", "mode": "editor", "status": "open", "depends_on": ["6", "7", "8"]},
     "23":  {"track": "core", "mode": "mixed", "status": "open", "depends_on": ["8", "11"]},
     "24":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "open_stories": ["24.1 gym map and one APSFunctionalGym test per core system (editor)"]},
-    "25":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"], "open_stories": ["25.1 Autonomix T3D injection", "25.2 Autonomix Python escape hatch", "25.3 AgenticLink MCP server (PR #91 in progress)", "25.4 register the server in .mcp.json and .vscode/mcp.json", "25.6 agent smoke test over MCP"]},
+    "25":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"], "open_stories": ["25.1 Autonomix T3D injection", "25.2 Autonomix Python escape hatch", "25.4 register the server in .mcp.json and .vscode/mcp.json (documented in AGENTS.md; registration waits on the owner)", "25.6 agent smoke test over MCP"]},
     "26":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["C1", "3", "6"]},
     "27":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "16"]},
     "28":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
@@ -202,10 +202,10 @@ one CI run) rather than re-merging main into each PR after every landing.
     "100": {"track": "H", "mode": "mixed", "status": "open", "depends_on": ["96", "97", "98"]},
     "101": {"track": "I", "mode": "code", "status": "done", "depends_on": ["5"]},
     "102": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["16", "101"]},
-    "103": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101"], "open_stories": ["103.2 colorblind-safe modes", "103.3 subtitles and captions", "103.5 motion and flash reduction"]},
+    "103": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101"], "open_stories": ["103.2 colorblind-safe modes (library done; waits on Epic 37 team colors and the overlay palettes)", "103.5 motion and flash reduction"]},
     "104": {"track": "I", "mode": "code", "status": "done", "depends_on": ["3", "6", "126", "127"]},
     "105": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101", "104", "24"]},
-    "106": {"track": "I", "mode": "code", "status": "open", "depends_on": ["101"]},
+    "106": {"track": "I", "mode": "code", "status": "partial", "depends_on": ["101"], "open_stories": ["106.1 string-table pass: the play-call screens (wait on Epic 75's change to UPSPlayCallSubsystem)", "106.3 pseudo-localization pass: the play-call screens"]},
     "107": {"track": "J", "mode": "code", "status": "open", "depends_on": ["104", "102"]},
     "108": {"track": "J", "mode": "code", "status": "open", "depends_on": ["17", "115"]},
     "109": {"track": "J", "mode": "code", "status": "open", "depends_on": ["108", "107"]},
