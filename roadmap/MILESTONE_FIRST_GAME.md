@@ -59,5 +59,5 @@ Already sufficient and done: Epics 3, 4, 6–11, 13, C1, C2, C4.
 
 ## M7 — Full-game validation
 
-- [ ] Headless scripted full game: kickoff → 4 quarters → final score asserted (lands as Epic 24's "headless play-resolution tests" story — cite it, don't invent a twin)
+- [x] Headless scripted full game: kickoff → 4 quarters → final score asserted (lands as Epic 24's "headless play-resolution tests" story — cite it, don't invent a twin) *(as built: `PlaySports.Gym.ScriptedFullGame`, on `UPSPlaySimulation`'s quick sim)*
 - [ ] Human playtest on the pad: one full game start to finish, issues filed (human escalation item)

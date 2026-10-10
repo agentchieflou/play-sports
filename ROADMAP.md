@@ -442,10 +442,10 @@ state, and untested core gameplay must be consolidated before 22-agent AI work c
 **Depends on:** starts alongside Phase 1 and grows with every Epic (listed here, not sequenced last)
 
 - [ ] Gym map + one `APSFunctionalGym`-derived test per core system (movement, ball, tackle, block)
-- [ ] Headless play-resolution tests: scripted scenarios with asserted outcomes (e.g. "faster DB intercepts this route")
-- [ ] Automation spec (unit-level) coverage for pure logic: `PSScheduleEngine`, ingestion validation, drive state transitions
-- [ ] CI recipe: `RunUAT`/`-ExecCmds="Automation RunTests"` command line documented in `AGENTS.md` for environments that do have UE installed
-- [ ] Determinism harness reusing Epic 17's seeded replay for regression comparison
+- [x] Headless play-resolution tests: scripted scenarios with asserted outcomes (e.g. "faster DB intercepts this route") *(as built: `PSScriptedGameTests.cpp` scripts seeded games on `UPSPlaySimulation`'s quick sim. `PlaySports.Gym.ScriptedFullGame` runs kickoff → 4 quarters → final score asserted (milestone M7), and `Gym.Scenario.FasterCornerbackGivesUpFewerYards` asserts a faster corner holds the same throws to fewer yards. The physical play can't be driven headlessly: a catch, interception or fumble recovery (`APSBall::OnBallOverlap`) and a tackle (`UPSBallActionComponent::ResolveTackle`) both return without `APSGameMode`, and pawn movement needs engine ticking)*
+- [x] Automation spec (unit-level) coverage for pure logic: `PSScheduleEngine`, ingestion validation, drive state transitions *(as built: `PSPureLogicSpec.cpp`. `PlaySports.Spec.DriveState` covers downs, first downs, incompletions, the fourth-down decision, turnover on downs, touchdowns and safeties; `Spec.ScheduleEngine` and `Spec.IngestionValidation` cover the other two)*
+- [x] CI recipe: `RunUAT`/`-ExecCmds="Automation RunTests"` command line documented in `AGENTS.md` for environments that do have UE installed *(as built: "Running CI's checks on a machine with UE 5.8" in `AGENTS.md`)*
+- [x] Determinism harness reusing Epic 17's seeded replay for regression comparison *(as built: `PlaySports.Gym.SameSeedSameGame` records seeded games as `FPSReplayRecording`s (Epic 115). The new `UPSDeterminism::FindFirstDivergence` finds the first event where two recordings differ. The sim rolls on the global stream (Determinism audit A1), so the harness seeds that stream)*
 
 ### Epic 25: Agentic Engine Bridge (Autonomix + AgenticLink)
 
