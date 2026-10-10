@@ -1,4 +1,5 @@
 #include "PSPlayCallSubsystem.h"
+#include "PSOpponentModel.h"
 #include "PSCoachingAI.h"
 #include "PSDataIngestion.h"
 #include "PSLocalization.h"
@@ -961,7 +962,13 @@ void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
     }
 
     const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
-    const FPSTendencyProfile& Tendency = bOffense ? Plan.OffenseTendency : Plan.DefenseTendency;
+    FPSTendencyProfile Tendency = bOffense ? Plan.OffenseTendency : Plan.DefenseTendency;
+    // Against a human, the CPU counters what it has seen him call (Epic 78).
+    UPSOpponentModel* Opponent = GetWorld() ? GetWorld()->GetSubsystem<UPSOpponentModel>() : nullptr;
+    if (Opponent && IsHumanSide(!bOffense))
+    {
+        Tendency = Opponent->CounterTendency(bOffense, Situation, Tendency);
+    }
     const FName Chosen = bOffense
         ? CoachingAI->SelectOffensivePlay(Situation, Tendency, Candidates)
         : CoachingAI->SelectDefensivePlay(Situation, Tendency, Candidates);

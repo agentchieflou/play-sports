@@ -49,6 +49,7 @@
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSDefenderPreSnapTypes.h"
+#include "PSOpponentModelTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -287,6 +288,12 @@ public:
      *  missing file or malformed JSON; UPSReplaySubsystem::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadReplayTuningFromJson(const FString& JsonFilePath, FPSReplayTuning& OutTuning);
+
+    /** Loads the opponent model's tuning and counters (Data/opponent_model.json, Epic 78).
+     *  False on a missing file or malformed JSON; PSOpponentModel::ValidateTuning checks the
+     *  rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadOpponentModelTuningFromJson(const FString& JsonFilePath, FPSOpponentModelTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

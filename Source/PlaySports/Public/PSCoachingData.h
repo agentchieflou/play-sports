@@ -30,6 +30,11 @@ struct FPSTendencyProfile : public FTableRowBase
      *  Coast". The play-call reasons then read "West Coast scheme (x1.4)". */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FString Label;
+
+    /** The CPU's counters to what it has seen the human call (UPSOpponentModel, Epic 78), by
+     *  category, on top of CategoryWeights. Empty unless the CPU is adapting. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TMap<FString, float> CounterWeights;
 };
 
 /** Down/distance/clock/score snapshot the coaching AI reads to weight play

@@ -1,0 +1,33 @@
+{
+    "DistanceBuckets": [3, 7],
+    "MinSamples": 4,
+    "PriorGameWeight": 0.5,
+    "FirstHalfStrength": 0.4,
+    "SecondHalfStrength": 1.0,
+    "HalftimeQuarter": 3,
+    "DefaultAdaptationDial": 1.0,
+    "MinMultiplier": 0.4,
+    "MaxMultiplier": 2.5,
+    "Counters": [
+        { "bOffense": true, "Observed": "Run", "Counter": "Base", "Weight": 2.0 },
+        { "bOffense": true, "Observed": "Run", "Counter": "Blitz", "Weight": 0.5 },
+        { "bOffense": true, "Observed": "Run", "Counter": "Prevent", "Weight": -1.5 },
+        { "bOffense": true, "Observed": "ShortPass", "Counter": "Blitz", "Weight": 1.5 },
+        { "bOffense": true, "Observed": "ShortPass", "Counter": "Prevent", "Weight": -0.5 },
+        { "bOffense": true, "Observed": "DeepPass", "Counter": "Prevent", "Weight": 2.0 },
+        { "bOffense": true, "Observed": "DeepPass", "Counter": "Base", "Weight": -0.5 },
+        { "bOffense": true, "Observed": "PlayAction", "Counter": "Prevent", "Weight": 1.0 },
+        { "bOffense": true, "Observed": "PlayAction", "Counter": "Base", "Weight": -1.0 },
+        { "bOffense": true, "Observed": "Screen", "Counter": "Base", "Weight": 1.0 },
+        { "bOffense": true, "Observed": "Screen", "Counter": "Blitz", "Weight": -1.5 },
+        { "bOffense": false, "Observed": "Base", "Counter": "PlayAction", "Weight": 1.5 },
+        { "bOffense": false, "Observed": "Base", "Counter": "DeepPass", "Weight": 0.5 },
+        { "bOffense": false, "Observed": "Base", "Counter": "Run", "Weight": -0.5 },
+        { "bOffense": false, "Observed": "Blitz", "Counter": "Screen", "Weight": 2.0 },
+        { "bOffense": false, "Observed": "Blitz", "Counter": "ShortPass", "Weight": 1.0 },
+        { "bOffense": false, "Observed": "Blitz", "Counter": "DeepPass", "Weight": -1.0 },
+        { "bOffense": false, "Observed": "Prevent", "Counter": "Run", "Weight": 1.5 },
+        { "bOffense": false, "Observed": "Prevent", "Counter": "ShortPass", "Weight": 1.0 },
+        { "bOffense": false, "Observed": "Prevent", "Counter": "DeepPass", "Weight": -1.5 }
+    ]
+}

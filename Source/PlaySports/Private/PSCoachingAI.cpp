@@ -149,6 +149,16 @@ float UPSCoachingAI::GetPlayWeight(const FPSPlayDefinition& Play, const FPSSitua
         }
     }
 
+    // Countering the human's play-calling, from what the CPU has seen him call (Epic 78).
+    if (const float* CounterWeight = Tendency.CounterWeights.Find(Category))
+    {
+        Weight *= FMath::Max(*CounterWeight, 0.01f);
+        if (OutReasons && !FMath::IsNearlyEqual(*CounterWeight, 1.f))
+        {
+            OutReasons->Add(FString::Printf(TEXT("Countering your tendencies (x%.1f)"), *CounterWeight));
+        }
+    }
+
     return FMath::Max(Weight, 0.01f);
 }
 

@@ -97,6 +97,7 @@ every CI build.
 | `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
 | `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
 | `defensive_presnap.json` | `FPSDefensivePreSnapTuning` (single object) | `UPSDataIngestion::LoadDefensivePreSnapTuningFromJson`, via `UPSDefenderPreSnapSubsystem` |
+| `opponent_model.json` | `FPSOpponentModelTuning` (single object: distance buckets, read and strength tuning, `Counters`) | `UPSDataIngestion::LoadOpponentModelTuningFromJson`, via `UPSOpponentModel` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -155,6 +156,29 @@ Single object (Epic 79; per-athlete style, so two players rated alike play diffe
 
 `PSPlayerDNA::ValidateCatalog` and `tools/validate_data.py` check it; `validate_data.py` also checks
 every player's `DNA` against it.
+
+## Opponent model schema (`FPSOpponentModelTuning`)
+
+Single object (Epic 78; how the CPU learns the human's play-calling and counters it):
+- `DistanceBuckets`: rising yards to go, the top of each bucket but the last (`[3, 7]`: short,
+  medium, long). The human's calls are counted by his side, the down, the bucket, the offense's
+  personnel and the category, once each play is snapped.
+- `MinSamples` (1 or more): a read needs this many calls. It comes from the narrowest situation
+  with enough: down, distance and personnel; down and distance; down; or everything.
+- `PriorGameWeight` (0-1): what a call from an earlier game counts for (the profile save keeps
+  them).
+- `FirstHalfStrength`, `SecondHalfStrength` (0-1) and `HalftimeQuarter` (2 or more): how hard the
+  CPU leans on its read before and after its halftime adjustments, times the adaptation dial
+  (`DefaultAdaptationDial`, 0-1, until the difficulty sets one).
+- `MinMultiplier` (above 0, at most 1) and `MaxMultiplier` (1 or more): no counter moves a
+  category's weight outside them.
+- `Counters[]`: `bOffense` (the human's side), `Observed` (a category he calls: `Run`,
+  `ShortPass`, `DeepPass`, `PlayAction`, `Screen` on offense; `Base`, `Blitz`, `Prevent` on
+  defense), `Counter` (a category of the CPU's side) and `Weight`. The CPU multiplies Counter's
+  weight by `1 + strength * (Observed's share - an even share) * Weight`, summed over its
+  counters. Only categories some counter observes are tracked.
+
+`PSOpponentModel::ValidateTuning` and `tools/validate_data.py` check it.
 
 ## Personnel package schema (`FPSPersonnelCatalog`)
 
