@@ -212,6 +212,10 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Possession")
     bool bTakeDefaultControlOnBeginPlay;
 
+    /** With the Reduced motion setting on (Epic 103.5), a blended change of view is a cut:
+     *  the blend time goes through UPSUIAccessibilitySubsystem::GetTransitionSeconds. */
+    virtual void SetViewTarget(AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams()) override;
+
 protected:
     virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;

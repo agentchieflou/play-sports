@@ -4,6 +4,7 @@
 #include "PSSettingsSubsystem.h"
 #include "PSUICaptionWidget.h"
 #include "Blueprint/UserWidget.h"
+#include "Camera/CameraShakeBase.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/Paths.h"
@@ -14,6 +15,9 @@ UPSUIAccessibilitySubsystem::UPSUIAccessibilitySubsystem()
     CaptionSizeSettingId = TEXT("CaptionSize");
     NarrationSettingId = TEXT("Narration");
     ColorblindSettingId = TEXT("ColorblindMode");
+    ReducedMotionSettingId = TEXT("ReducedMotion");
+    CameraShakeSettingId = TEXT("CameraShake");
+    FlashSettingId = TEXT("FlashIntensity");
 }
 
 void UPSUIAccessibilitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -138,6 +142,54 @@ bool UPSUIAccessibilitySubsystem::IsNarrationOn()
 {
     UPSSettingsSubsystem* Settings = GetSettings();
     return Settings && Settings->GetBool(NarrationSettingId);
+}
+
+bool UPSUIAccessibilitySubsystem::IsReducedMotion()
+{
+    UPSSettingsSubsystem* Settings = GetSettings();
+    return Settings && Settings->GetBool(ReducedMotionSettingId);
+}
+
+float UPSUIAccessibilitySubsystem::GetCameraShakeScale()
+{
+    if (IsReducedMotion())
+    {
+        return 0.f;
+    }
+    // The settings are percentages (Data/ui_settings.json); full strength without settings.
+    UPSSettingsSubsystem* Settings = GetSettings();
+    return Settings && Settings->GetCatalog().FindSetting(CameraShakeSettingId)
+        ? FMath::Clamp(Settings->GetNumber(CameraShakeSettingId) / 100.f, 0.f, 1.f)
+        : 1.f;
+}
+
+float UPSUIAccessibilitySubsystem::GetFlashScale()
+{
+    UPSSettingsSubsystem* Settings = GetSettings();
+    return Settings && Settings->GetCatalog().FindSetting(FlashSettingId)
+        ? FMath::Clamp(Settings->GetNumber(FlashSettingId) / 100.f, 0.f, 1.f)
+        : 1.f;
+}
+
+float UPSUIAccessibilitySubsystem::GetTransitionSeconds(float AuthoredSeconds)
+{
+    return IsReducedMotion() ? 0.f : AuthoredSeconds;
+}
+
+float UPSUIAccessibilitySubsystem::GetCameraFollowSpeed(float AuthoredSpeed)
+{
+    return IsReducedMotion() ? 0.f : AuthoredSpeed;
+}
+
+bool UPSUIAccessibilitySubsystem::StartCameraShake(APlayerController* Player, TSubclassOf<UCameraShakeBase> Shake, float Scale)
+{
+    const float Played = Scale * GetCameraShakeScale();
+    if (!Player || !Shake || Played <= 0.f)
+    {
+        return false;
+    }
+    Player->ClientStartCameraShake(Shake, Played);
+    return true;
 }
 
 int32 UPSUIAccessibilitySubsystem::GetCaptionFontSize()

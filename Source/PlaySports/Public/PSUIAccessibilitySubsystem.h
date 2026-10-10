@@ -4,12 +4,15 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/DataTable.h"
+#include "Templates/SubclassOf.h"
 #include "PSTelemetryBus.h"
 #include "PSUIColorAccessibility.h"
 #include "PSUIAccessibilitySubsystem.generated.h"
 
 class UPSSettingsSubsystem;
 class UPSUICaptionWidget;
+class UCameraShakeBase;
+class APlayerController;
 
 /** Caption and color tuning (Data/ui_accessibility.json; Architecture rule 4). */
 USTRUCT(BlueprintType)
@@ -80,6 +83,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSNarrationSignature, const FString
  *     voice; none is wired yet).
  *   - Color vision (103.2). GetColorblindMode reads the ColorblindMode setting for
  *     UPSUIColorLibrary, which every team and overlay color goes through.
+ *   - Motion and flashes (103.5). With Reduced motion on, transitions are cuts
+ *     (GetTransitionSeconds: APSPlayerController's camera blends, menu fades), cameras follow
+ *     without lag (GetCameraFollowSpeed), and nothing shakes. StartCameraShake plays a shake at
+ *     the Camera shake setting's strength, so every gameplay shake goes through it.
+ *     GetFlashScale is the Flashes and pyro setting, for stadium pyro and screen flashes.
  *
  * Settings are the game instance's (UPSSettingsSubsystem), or the ones given to SetSettings
  * (headless tests).
@@ -114,6 +122,33 @@ public:
 
     /** The ColorblindMode setting's mode in Settings (Off without settings). */
     static EPSColorblindMode GetColorblindMode(UPSSettingsSubsystem* Settings);
+
+    /** The Reduced motion setting (Epic 103.5); off without settings. */
+    UFUNCTION(BlueprintPure, Category = "Accessibility")
+    bool IsReducedMotion();
+
+    /** How hard camera shakes play, 0..1: the Camera shake setting, 0 with reduced motion. */
+    UFUNCTION(BlueprintPure, Category = "Accessibility")
+    float GetCameraShakeScale();
+
+    /** How bright flashes and pyro get, 0..1: the Flashes and pyro setting. */
+    UFUNCTION(BlueprintPure, Category = "Accessibility")
+    float GetFlashScale();
+
+    /** A blend or fade as the player wants it: AuthoredSeconds, or 0 (a cut) with reduced
+     *  motion. */
+    UFUNCTION(BlueprintPure, Category = "Accessibility")
+    float GetTransitionSeconds(float AuthoredSeconds);
+
+    /** A camera's follow speed (an FMath::FInterpTo speed): AuthoredSpeed, or 0 with reduced
+     *  motion, where FInterpTo snaps so there is no lag to swing through. */
+    UFUNCTION(BlueprintPure, Category = "Accessibility")
+    float GetCameraFollowSpeed(float AuthoredSpeed);
+
+    /** Starts Shake on Player at Scale times GetCameraShakeScale. Returns false and plays
+     *  nothing when that is 0, or without a player or shake. */
+    UFUNCTION(BlueprintCallable, Category = "Accessibility")
+    bool StartCameraShake(APlayerController* Player, TSubclassOf<UCameraShakeBase> Shake, float Scale);
 
     UFUNCTION(BlueprintPure, Category = "Accessibility")
     bool AreCaptionsOn();
@@ -163,6 +198,15 @@ public:
 
     UPROPERTY(EditDefaultsOnly, Category = "Accessibility")
     FName ColorblindSettingId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Accessibility")
+    FName ReducedMotionSettingId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Accessibility")
+    FName CameraShakeSettingId;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Accessibility")
+    FName FlashSettingId;
 
 private:
     void HandleSpeech(const FPSTelemetrySpeechEvent& Event);

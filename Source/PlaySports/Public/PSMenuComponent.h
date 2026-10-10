@@ -35,6 +35,11 @@ public:
     /** The menu catalog, loaded from Data/ui_menus.json on first use. */
     const FPSMenuCatalog& GetCatalog();
 
+    /** How long a screen fades in: the catalog's TransitionSeconds, or none with the Reduced
+     *  motion setting on (Epic 103.5). */
+    UFUNCTION(BlueprintPure, Category = "Menu")
+    float GetTransitionSeconds();
+
     /** Problems that would strand or confuse a player, one line each: missing root/pause
      *  screen, duplicate IDs, an option that does nothing or targets an unknown screen, a
      *  root screen Back could close, or an option-less screen Back can't leave. */
