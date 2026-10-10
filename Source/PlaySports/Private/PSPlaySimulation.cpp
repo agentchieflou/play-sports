@@ -190,8 +190,9 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
             UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: DELAY OF GAME penalty! 5 yards loss."));
         }
     }
-    else
+    else if (IsBallLive())
     {
+        // Holding is called while the ball is live, never after the whistle or on a kick.
         if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
         {
             ActivePenalty = EPSPenaltyType::Holding;
@@ -290,25 +291,23 @@ void UPSPlaySimulation::ResolvePlayResult()
     Defender.Agility = 80.0f;
     Defender.Awareness = 80.0f;
 
-    for (const FPlayerAttributes& Player : OffenseRoster)
+    // The starters take the snaps: the first of each role in roster order, which is the depth
+    // chart's (UPSRoster::BuildDefaultDepthChart), never a backup further down.
+    const auto FindStarter = [](const TArray<FPlayerAttributes>& Roster, EPlayerRole Role, EPlayerRole OrRole, FPlayerAttributes& OutPlayer)
     {
-        if (Player.Role == EPlayerRole::Quarterback)
+        const FPlayerAttributes* Starter = Roster.FindByPredicate([Role](const FPlayerAttributes& Candidate) { return Candidate.Role == Role; });
+        if (!Starter)
         {
-            Passer = Player;
+            Starter = Roster.FindByPredicate([OrRole](const FPlayerAttributes& Candidate) { return Candidate.Role == OrRole; });
         }
-        else if (Player.Role == EPlayerRole::WideReceiver || Player.Role == EPlayerRole::TightEnd)
+        if (Starter)
         {
-            Receiver = Player;
+            OutPlayer = *Starter;
         }
-    }
-
-    for (const FPlayerAttributes& Player : DefenseRoster)
-    {
-        if (Player.Role == EPlayerRole::DefensiveBack || Player.Role == EPlayerRole::Linebacker)
-        {
-            Defender = Player;
-        }
-    }
+    };
+    FindStarter(OffenseRoster, EPlayerRole::Quarterback, EPlayerRole::Quarterback, Passer);
+    FindStarter(OffenseRoster, EPlayerRole::WideReceiver, EPlayerRole::TightEnd, Receiver);
+    FindStarter(DefenseRoster, EPlayerRole::DefensiveBack, EPlayerRole::Linebacker, Defender);
 
     // Resolve Pass Completion (Incomplete vs Complete)
     float CompletionChance = 0.60f + (Passer.Awareness + Receiver.Agility - Defender.Awareness - Defender.Agility) * 0.005f;
@@ -923,6 +922,12 @@ UPSSpecialTeamsModel* UPSPlaySimulation::GetSpecialTeams()
         SpecialTeams->LoadTuningFromJson(UPSSpecialTeamsModel::GetDefaultTuningPath());
     }
     return SpecialTeams;
+}
+
+bool UPSPlaySimulation::IsBallLive() const
+{
+    const EPlayPhase Phase = CurrentState.Phase;
+    return Phase == EPlayPhase::Snap || Phase == EPlayPhase::PassRush || Phase == EPlayPhase::BallCarrierMovement;
 }
 
 bool UPSPlaySimulation::IsBallDead() const
