@@ -27,6 +27,7 @@ UPSMenuComponent::UPSMenuComponent()
     MenuContextId = TEXT("Menu");
     CancelActionId = TEXT("Cancel");
     PauseActionId = TEXT("Pause");
+    FavoriteActionId = TEXT("Favorite");
     GameplayContextId = TEXT("OnField");
     Stack = nullptr;
     ActiveWidget = nullptr;
@@ -152,7 +153,17 @@ TArray<FString> UPSMenuComponent::ValidateCatalog(const FPSMenuCatalog& InCatalo
 
 bool UPSMenuComponent::IsPlayCallContent(EPSMenuScreenContent Content)
 {
-    return Content == EPSMenuScreenContent::PlayCallFormations || Content == EPSMenuScreenContent::PlayCallPlays || Content == EPSMenuScreenContent::PlayCallRecent;
+    switch (Content)
+    {
+    case EPSMenuScreenContent::PlayCallFormations:
+    case EPSMenuScreenContent::PlayCallPlays:
+    case EPSMenuScreenContent::PlayCallRecent:
+    case EPSMenuScreenContent::PlayCallFavorites:
+    case EPSMenuScreenContent::PlayCallAdjustments:
+        return true;
+    default:
+        return false;
+    }
 }
 
 bool UPSMenuComponent::IsPlayCallScreenOpen()
@@ -305,6 +316,38 @@ void UPSMenuComponent::Resume()
     bPausedByMenu = false;
 }
 
+bool UPSMenuComponent::IsFavoriteKey(const FKey& Key)
+{
+    APSPlayerController* Player = Cast<APSPlayerController>(GetOwner());
+    UPSInputConfig* Config = Player ? Player->GetInputConfig() : nullptr;
+    return Config && Config->GetKeysFor(FavoriteActionId, MenuContextId).Contains(Key);
+}
+
+bool UPSMenuComponent::ToggleFavoriteOption(FName OptionId)
+{
+    UPSPlayCallSubsystem* PlayCall = GetWorld() ? GetWorld()->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+    if (!PlayCall || !IsPlayCallScreenOpen())
+    {
+        return false;
+    }
+
+    const FPSMenuScreenDef Screen = GetPresentedScreen(GetTopScreenId());
+    const FPSMenuOptionDef* Option = Screen.Options.FindByPredicate([OptionId](const FPSMenuOptionDef& Candidate) { return Candidate.OptionId == OptionId; });
+    if (!Option || Option->Command != EPSMenuCommand::CallPlay)
+    {
+        return false;
+    }
+    PlayCall->ToggleFavorite(Option->Payload);
+
+    // Redraw so the star shows, keeping the player's place on the screen.
+    ShowTopScreen();
+    if (ActiveWidget)
+    {
+        ActiveWidget->FocusOption(OptionId, GetOwningPlayer());
+    }
+    return true;
+}
+
 bool UPSMenuComponent::IsBackKey(const FKey& Key)
 {
     APSPlayerController* Player = Cast<APSPlayerController>(GetOwner());
@@ -374,9 +417,30 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
         {
             if (PlayCall->CallPlay(Payload, EPSPlayCaller::Human))
             {
-                Resume();
+                // A defensive call goes on to the optional pre-snap adjustments (102.4).
+                FPSPlayDefinition Called;
+                const FPSMenuScreenDef* Adjustments = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::PlayCallAdjustments);
+                if (Adjustments && PlayCall->FindPlay(Payload, Called) && !Called.bIsOffensivePlay && PlayCall->GetAdjustments().Num() > 0)
+                {
+                    if (Stack)
+                    {
+                        Stack->Clear();
+                    }
+                    OpenScreen(Adjustments->ScreenId);
+                }
+                else
+                {
+                    Resume();
+                }
             }
         }
+        break;
+    case EPSMenuCommand::ApplyAdjustment:
+        if (UPSPlayCallSubsystem* PlayCall = GetWorld() ? GetWorld()->GetSubsystem<UPSPlayCallSubsystem>() : nullptr)
+        {
+            PlayCall->SetDefensiveAdjustment(Payload);
+        }
+        Resume();
         break;
     default:
         break;
@@ -489,6 +553,15 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
                 Recent.TargetScreen = RecentScreen->ScreenId;
                 Presented.Options.Add(Recent);
             }
+            const FPSMenuScreenDef* FavoritesScreen = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::PlayCallFavorites);
+            if (FavoritesScreen && PlayCall->GetFavorites(bOffense).Num() > 0)
+            {
+                FPSMenuOptionDef Favorites;
+                Favorites.OptionId = TEXT("Favorites");
+                Favorites.Label = FavoritesScreen->Title;
+                Favorites.TargetScreen = FavoritesScreen->ScreenId;
+                Presented.Options.Add(Favorites);
+            }
             const FPSMenuScreenDef* PlaysScreen = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::PlayCallPlays);
             Presented.Options.Append(PlayCall->BuildFormationOptions(bOffense, PlaysScreen ? PlaysScreen->ScreenId : NAME_None));
         }
@@ -498,9 +571,18 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
             Presented.Title = Formation;
             Presented.Options.Append(PlayCall->BuildPlayOptions(Formation, bOffense));
         }
-        else if (PlayCall)
+        else if (PlayCall && Presented.Content == EPSMenuScreenContent::PlayCallRecent)
         {
             Presented.Options.Append(PlayCall->BuildRecentOptions(bOffense));
+        }
+        else if (PlayCall && Presented.Content == EPSMenuScreenContent::PlayCallFavorites)
+        {
+            Presented.Options.Append(PlayCall->BuildFavoriteOptions(bOffense));
+        }
+        else if (PlayCall)
+        {
+            Presented.Body = PlayCall->BuildAdjustmentScreenBody();
+            Presented.Options.Append(PlayCall->BuildAdjustmentOptions());
         }
     }
     return Presented;

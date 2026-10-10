@@ -49,6 +49,22 @@ calls, and what makes the ball snap. This is also the editor handoff for the scr
     `Your calls: Run 67% · Short pass 33%`, which is what an opponent would key on (ties to
     Epic 78).
   - Quick-calls and CPU calls don't count.
+- **Favourite plays (102.3).**
+  - On any play list, X or F (the `Favorite` action in the input catalog's `Menu` context)
+    stars or unstars the play under focus.
+  - Starred plays show a `*` wherever they are listed, and the call screen offers
+    **Favorite plays** for the side once there are any.
+  - Favourites live in the player's profile save (`UPSProfileSaveGame`, `Profile` slot through
+    `UPSSaveSubsystem`), so they outlast the game. A world without a game instance (headless
+    tests) keeps them in memory.
+- **Defensive adjustments (102.4).**
+  - After a human defense calls its front and coverage, an **Adjust** screen shows the
+    offense's formation (visible at the line; the play itself isn't) and offers the adjustments
+    in `Data/defensive_adjustments.json`, or no adjustment.
+  - An adjustment turns every defender of one role to one assignment on top of the call, e.g.
+    "Send the linebacker" makes the LBs blitz. It is applied when the calls go out at the snap
+    (`GetDefensivePlayToRun`) and cleared each new down.
+  - Back keeps the call as it is. The CPU defense doesn't adjust yet.
 - **Play clock (102.5).**
   - The play-call screens show the live play clock. The game mode passes it to the subsystem
     every pre-snap tick (`SetPlayClock`).
@@ -66,10 +82,9 @@ calls, and what makes the ball snap. This is also the editor handoff for the scr
 
 ## 2. Not yet (102's remaining stories and other epics)
 
-- **Favourite plays (102.3's remainder).** A player-starred list needs a second action on a
-  menu option (say Y to star) and storage that outlives the level, such as the save system.
-- **Defensive adjustments (102.4).** Pre-snap shifts and changing the coverage once the offense
-  lines up. Today the defensive call is its front and coverage.
+- **Adjustment timing.** A CPU offense snaps `CpuSnapDelaySeconds` after both calls are in.
+  A human defense's call comes last, so that delay is all the time the Adjust screen gets. A
+  longer delay against a human defense may be wanted after playtesting.
 - **Play art (102.1).** Drawn route diagrams need Epic 35.
 - **Passing.** A human QB can't throw yet; the passing input model is Epic 104. On a pass play the
   human QB scrambles while the AI runs the routes.

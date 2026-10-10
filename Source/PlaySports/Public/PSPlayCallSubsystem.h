@@ -12,6 +12,7 @@
 
 class APSPlayerPawn;
 class UDataTable;
+class UPSSaveSubsystem;
 class UPSCoachingAI;
 class UPSPlayOrchestrator;
 struct FPlayState;
@@ -47,6 +48,7 @@ public:
     static FString GetDefaultPlaybookPath();
     static FString GetDefaultRoutesPath();
     static FString GetDefaultTuningPath();
+    static FString GetDefaultAdjustmentsPath();
 
     /** Replaces the playbook with these files, read through UPSPlaybookIngestion. */
     bool LoadPlaybook(const FString& PlaysJsonPath, const FString& RoutesJsonPath);
@@ -102,6 +104,44 @@ public:
 
     const TArray<FPSPlayCallRecord>& GetCallHistory() const { return CallHistory; }
 
+    /** The pre-snap defensive adjustments (102.4), loaded on first use. */
+    const TArray<FPSDefensiveAdjustmentDef>& GetAdjustments();
+
+    /** Replaces the adjustments with JsonFilePath's, read through UPSDataIngestion. */
+    bool LoadAdjustmentsFromJson(const FString& JsonFilePath);
+
+    /** Problems with an adjustment table, one line each: empty or duplicate IDs, no label,
+     *  a role that isn't a defender's, or a kind that isn't a defensive assignment. */
+    static TArray<FString> ValidateAdjustments(const FPSDefensiveAdjustmentCatalog& InCatalog);
+
+    /** Applies AdjustmentId over the defense's call for this snap; NAME_None clears it. False
+     *  when the window is closed, the defense hasn't called, or the ID is unknown. */
+    bool SetDefensiveAdjustment(FName AdjustmentId);
+
+    FName GetDefensiveAdjustment() const { return DefensiveAdjustment; }
+
+    /** The defense's call as it will run: the play with the adjustment applied. */
+    bool GetDefensivePlayToRun(FPSPlayDefinition& OutPlay);
+
+    /** The adjustments screen: "No adjustment", then one option per adjustment. */
+    TArray<FPSMenuOptionDef> BuildAdjustmentOptions();
+
+    /** "Offense lines up in Trips Right" once the offense has called. */
+    FString BuildAdjustmentScreenBody() const;
+
+    /** Favourite plays (102.3), kept in the player's profile save when a game instance has
+     *  UPSSaveSubsystem (in memory otherwise, e.g. headless tests). */
+    bool IsFavorite(FName PlayId);
+
+    /** Stars or unstars PlayId and saves; returns whether it is now a favourite. */
+    bool ToggleFavorite(FName PlayId);
+
+    /** The side's favourite plays, in the order they were starred. */
+    TArray<FName> GetFavorites(bool bOffense);
+
+    /** One option per favourite play of the side, each calling it. */
+    TArray<FPSMenuOptionDef> BuildFavoriteOptions(bool bOffense);
+
     /** A one-line text stand-in for play art until Track A's art pipeline (Epic 35) exists:
      *  "WR Slant, RB Flat, TE pass block" (dot-separated). */
     static FString DescribePlay(const FPSPlayDefinition& Play);
@@ -155,6 +195,10 @@ private:
     void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
 
     void EnsurePlaybookLoaded();
+    void EnsureFavoritesLoaded();
+    void SaveFavorites();
+    UPSSaveSubsystem* GetSaveSubsystem() const;
+    FPSMenuOptionDef MakePlayOption(const FPSPlayDefinition& Play, const FString& Label);
     void CallForCpu(bool bOffense);
     void QuickCall(bool bOffense);
     void SetCall(const FPSPlayDefinition& Play, EPSPlayCaller Caller);
@@ -189,6 +233,12 @@ private:
     UPROPERTY(Transient)
     FPSPlayCall DefenseCall;
 
+    UPROPERTY(Transient)
+    FPSDefensiveAdjustmentCatalog AdjustmentCatalog;
+
+    UPROPERTY(Transient)
+    TArray<FName> FavoritePlays;
+
     /** Every play a human called and ran this game, oldest first. */
     UPROPERTY(Transient)
     TArray<FPSPlayCallRecord> CallHistory;
@@ -199,6 +249,9 @@ private:
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
     float TimeSinceCallsComplete = 0.f;
     float PlayClockSeconds = -1.f;
+    FName DefensiveAdjustment;
+    bool bAdjustmentsLoaded = false;
+    bool bFavoritesLoaded = false;
     bool bWindowOpen = false;
     bool bSnapRequested = false;
     bool bPlaybookLoaded = false;

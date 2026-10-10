@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "PSPlaybookData.h"
 #include "PSPlayCallTypes.generated.h"
 
 /** Who made a side's call. */
@@ -67,3 +68,39 @@ struct FPSPlayCallRecord
     UPROPERTY(BlueprintReadOnly, Category = "PlayCall")
     bool bOffense = true;
 };
+
+/** A pre-snap defensive adjustment (102.4): every defender of Role plays Kind on top of the
+ *  called play, e.g. "Send the linebacker" turns the LBs' assignment into a blitz. */
+USTRUCT(BlueprintType)
+struct FPSDefensiveAdjustmentDef
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
+    FName AdjustmentId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
+    FString Label;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
+    FString Description;
+
+    /** A defensive role: DefensiveLineman, Linebacker or DefensiveBack. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
+    EPlayerRole Role = EPlayerRole::Linebacker;
+
+    /** A defensive assignment: PassRush, Blitz, RunFit, ManCoverage or ZoneCoverage. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
+    EPSAssignmentKind Kind = EPSAssignmentKind::Blitz;
+};
+
+/** Top-level shape of Data/defensive_adjustments.json. */
+USTRUCT(BlueprintType)
+struct FPSDefensiveAdjustmentCatalog
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
+    TArray<FPSDefensiveAdjustmentDef> Adjustments;
+};
+

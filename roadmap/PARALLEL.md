@@ -41,7 +41,7 @@ These groups can run at the same time (see the scope note under the table):
 | G5 | Bridge track | 25 (then 118/119) | Any strong agent |
 | G7 | Phase 2 AI | 14.2–14.5 → 17.4–17.5 (15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
-| G9 | Front end and input feel (Track I) | 102 (102.1/.3/.4 remain) → 104 → 103 → 106 → 105 (101 done) | Claude Code |
+| G9 | Front end and input feel (Track I) | 104 → 103 → 106 → 105 (101 done; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
 Scope note: G7's epics carry no `scope` field, so rule 3 gives them the whole `core` scope
 (`Source/PlaySports/**`, `Data/**`, `Config/**`), which overlaps G8's and G9's track scopes on
@@ -73,7 +73,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
     "F": ["Source/PlaySports/**/PSAI*", "Source/PlaySports/**/PSTendency*", "Source/PlaySports/**/PSCalibration*"],
     "G": ["Source/PlaySports/**/PSFranchise*", "Source/PlaySports/**/PSDraft*", "Source/PlaySports/**/PSContract*", "Source/PlaySports/**/PSStats*"],
     "H": ["Content/Audio/**", "Source/PlaySports/**/PSAudio*", "Source/PlaySports/**/PSCommentary*"],
-    "I": ["Source/PlaySports/**/PSUI*", "Source/PlaySports/**/PSMenu*", "Source/PlaySports/**/PSPlayCall*", "Content/UI/**", "Data/ui_*", "Data/loading_tips*", "Data/play_call*", "Source/PlaySports/**/PSLoading*", "Specs/Front_End_Shell.md", "Specs/Play_Call_Interface.md"],
+    "I": ["Source/PlaySports/**/PSUI*", "Source/PlaySports/**/PSMenu*", "Source/PlaySports/**/PSPlayCall*", "Content/UI/**", "Data/ui_*", "Data/loading_tips*", "Data/play_call*", "Data/defensive_adjustments*", "Source/PlaySports/**/PSLoading*", "Specs/Front_End_Shell.md", "Specs/Play_Call_Interface.md"],
     "J": ["Source/PlaySports/**/PSNet*", "Source/PlaySports/**/PSSession*"],
     "K": [".github/workflows/**", "tools/**", "eval/**", "Source/PlaySports/**/PSSave*", "Source/PlaySports/**/PSPerf*", "Source/PlaySports/**/PSDeterminism*", "Plugins/**"],
     "L": ["tools/generators/**", "Data/generated/**", "Source/PlaySports/**/PSGenerator*"],

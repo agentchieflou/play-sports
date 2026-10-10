@@ -146,6 +146,19 @@ void UPSMenuScreenWidget::FocusFirstOption(APlayerController* Player)
     }
 }
 
+void UPSMenuScreenWidget::FocusOption(FName OptionId, APlayerController* Player)
+{
+    for (UPSMenuButton* Button : OptionButtons)
+    {
+        if (Button && Button->OptionId == OptionId)
+        {
+            Button->SetUserFocus(Player);
+            return;
+        }
+    }
+    FocusFirstOption(Player);
+}
+
 void UPSMenuScreenWidget::ChooseOption(FName OptionId)
 {
     if (UPSMenuComponent* Menu = OwnerMenu.Get())
@@ -169,6 +182,19 @@ FReply UPSMenuScreenWidget::NativeOnKeyDown(const FGeometry& InGeometry, const F
     {
         Menu->HandleBack();
         return FReply::Handled();
+    }
+    if (Menu && Menu->IsFavoriteKey(InKeyEvent.GetKey()))
+    {
+        // Star the play under focus (Epic 102.3); the menu redraws this screen.
+        for (UPSMenuButton* Button : OptionButtons)
+        {
+            if (Button && Button->HasAnyUserFocus())
+            {
+                const FName FocusedOption = Button->OptionId;
+                Menu->ToggleFavoriteOption(FocusedOption);
+                return FReply::Handled();
+            }
+        }
     }
     return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }

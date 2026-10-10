@@ -9,6 +9,7 @@
 
 class UPSMenuComponent;
 class UTextBlock;
+class APlayerController;
 
 DECLARE_DELEGATE_OneParam(FPSMenuOptionChosen, FName /* OptionId */);
 
@@ -59,6 +60,9 @@ public:
 
     /** Gives the first option user focus so a gamepad can navigate straight away. */
     void FocusFirstOption(APlayerController* Player);
+
+    /** Gives OptionId's button focus (the first option when it is not on the screen). */
+    void FocusOption(FName OptionId, APlayerController* Player);
 
 protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;

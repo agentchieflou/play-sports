@@ -29,6 +29,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `ui_menus.json` | `FPSMenuCatalog` (single object: `RootScreen`, `PauseScreen`, `TransitionSeconds`, `Screens`) | `UPSDataIngestion::LoadMenuCatalogFromJson`, via `UPSMenuComponent` |
 | `force_feedback.json` | `FPSForceFeedbackTuning` (single object: `MasterIntensity`, `Cues`) | `UPSDataIngestion::LoadForceFeedbackTuningFromJson`, via `UPSForceFeedbackComponent` |
 | `play_call.json` | `FPlayCallTuningRow` (single object) | `UPSDataIngestion::LoadPlayCallTuningFromJson`, via `UPSPlayCallSubsystem` |
+| `defensive_adjustments.json` | `FPSDefensiveAdjustmentCatalog` (single object: `Adjustments`) | `UPSDataIngestion::LoadDefensiveAdjustmentsFromJson`, via `UPSPlayCallSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
@@ -115,8 +116,9 @@ open, a `Command`, or both. `Command` is one of `EPSMenuCommand`: `None`, `Resum
 `Content` is `Static` (its authored options), `TeamSelect` (one option per team, generated) or
 `Loading` (its body is the loading tip; `LoadingScreen` names it and it is left only by travel),
 `PlayCallFormations` (the player's formations; `PlayCallScreen` names it), `PlayCallPlays` (a
-formation's plays, each with the `CallPlay` command) or `PlayCallRecent` (the player's recent
-calls). Options may carry a `Detail` line.
+formation's plays, each with the `CallPlay` command), `PlayCallRecent` (the player's recent
+calls), `PlayCallFavorites` (their starred plays) or `PlayCallAdjustments` (after a human defense
+calls; options carry the `ApplyAdjustment` command). Options may carry a `Detail` line.
 `UPSMenuComponent::ValidateCatalog` and `tools/validate_data.py` reject dangling targets,
 options that do nothing, a root screen Back could close, and screens that can never be left.
 
@@ -155,3 +157,12 @@ Single object (Epic 102; `Specs/Play_Call_Interface.md`):
 - `QuickCallPlayClockSeconds` (0 or more): the play clock at which a human's uncalled side gets
   the top suggestion called for them.
 - `RecentPlaysShown` (1 or more): how many recent calls the Recent plays screen lists.
+
+## Defensive adjustments schema (`FPSDefensiveAdjustmentCatalog`)
+
+`Adjustments[]`, each: `AdjustmentId` (unique), `Label`, `Description`, `Role` (a defender:
+`DefensiveLineman`, `Linebacker` or `DefensiveBack`) and `Kind` (a defensive assignment:
+`PassRush`, `Blitz`, `RunFit`, `ManCoverage` or `ZoneCoverage`). Choosing one on the Adjust
+screen makes every defender of `Role` play `Kind` over the called play for that snap (Epic 102).
+`UPSPlayCallSubsystem::ValidateAdjustments` and `tools/validate_data.py` check it.
+

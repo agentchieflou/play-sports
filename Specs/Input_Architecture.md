@@ -74,6 +74,7 @@ as the Xbox glyph set labels them.
 | Confirm | Boolean | OnField, Menu | Enter | A | `UPSPlayCallComponent` via `OnCatalogActionStarted`: hikes, or reopens the play-call screen (Epic 102); menus via Slate |
 | Cancel | Boolean | World, OnField, Menu | Esc | B | `OnCatalogActionStarted`; menu Back |
 | Pause | Boolean | OnField | P | Menu (Start) | the controller → `UPSMenuComponent::TogglePause` |
+| Favorite | Boolean | Menu | F | X | the menu widget stars the focused play (Epic 102); like Back, read through Slate |
 | SwitchPlayer | Boolean | OnField | T | X, LB | the controller → `SwitchToBestPawn` |
 | Interact | Boolean | World | E, Enter | A | `OnCatalogActionStarted` |
 | Secondary | Boolean | World | T | X | `OnCatalogActionStarted` |
