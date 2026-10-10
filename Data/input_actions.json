@@ -286,6 +286,66 @@
                 { "Key": "LeftControl" },
                 { "Key": "Gamepad_LeftShoulder" }
             ]
+        },
+        {
+            "ActionId": "Audible",
+            "ValueType": "Boolean",
+            "Description": "Check out of the call to the next play in the same formation (Epic 66). UPSPreSnapInputComponent; the rules are UPSPreSnapSubsystem's.",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "R" },
+                { "Key": "Gamepad_DPad_Up" }
+            ]
+        },
+        {
+            "ActionId": "PreSnapSelect",
+            "ValueType": "Boolean",
+            "Description": "Pick the receiver the hot route, motion and protection buttons act on: the next one left to right across the field (Epic 66).",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "Tab" },
+                { "Key": "Gamepad_RightShoulder" }
+            ]
+        },
+        {
+            "ActionId": "HotRoute",
+            "ValueType": "Boolean",
+            "Description": "Send the selected receiver on the next route his alignment allows (Epic 66, Data/presnap_tuning.json).",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "H" },
+                { "Key": "Gamepad_DPad_Right" }
+            ]
+        },
+        {
+            "ActionId": "Motion",
+            "ValueType": "Boolean",
+            "Description": "Send the selected receiver in motion across the formation; a defender who travels with him shows man coverage (Epic 66).",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "M" },
+                { "Key": "Gamepad_DPad_Left" }
+            ]
+        },
+        {
+            "ActionId": "SlideProtection",
+            "ValueType": "Boolean",
+            "Description": "Slide the line's protection: none, left, right (Epic 66).",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "L" },
+                { "Key": "Gamepad_LeftTrigger" }
+            ]
+        },
+        {
+            "ActionId": "BlockRelease",
+            "ValueType": "Boolean",
+            "Description": "Keep the selected back or tight end in to block, or release him into a route (Epic 66).",
+            "Contexts": ["PreSnap"],
+            "Bindings": [
+                { "Key": "K" },
+                { "Key": "Gamepad_DPad_Down" }
+            ]
         }
     ]
 }
