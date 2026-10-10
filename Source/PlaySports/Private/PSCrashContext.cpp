@@ -1,6 +1,19 @@
 #include "PSCrashContext.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
+namespace PSCrashContextPrivate
+{
+    /** The engine keeps its game-data lookup protected; a derived type may call it. Used only to
+     *  read back what a crash report would carry (tests, diagnostics). */
+    struct FGameDataReader : public FGenericCrashContext
+    {
+        static const FString* Find(const FString& Key)
+        {
+            return FGenericCrashContext::GetGameData(Key);
+        }
+    };
+}
+
 void FPSCrashContext::SetSession(const FGuid& SessionId, const FString& Mode, const FString& PlatformTier, int32 PlayCount, float SessionSeconds)
 {
     FGenericCrashContext::SetGameData(FString(SessionIdKey), SessionId.ToString(EGuidFormats::DigitsWithHyphens));
@@ -42,6 +55,6 @@ void FPSCrashContext::Clear()
 
 FString FPSCrashContext::GetValue(const TCHAR* Key)
 {
-    const FString* Value = FGenericCrashContext::GetGameData(FString(Key));
+    const FString* Value = PSCrashContextPrivate::FGameDataReader::Find(FString(Key));
     return Value ? *Value : FString();
 }
