@@ -1,4 +1,5 @@
 #include "PSOverlayBadgeComponent.h"
+#include "PSPerfBudget.h"
 #include "PSBall.h"
 #include "PSDataIngestion.h"
 #include "PSInputConfig.h"
@@ -199,6 +200,7 @@ void UPSOverlayBadgeComponent::AdvanceTime(float DeltaSeconds)
 
 void UPSOverlayBadgeComponent::UpdateForCurrentView(float DeltaSeconds)
 {
+    PS_PERF_SCOPE(Overlays);
     AdvanceTime(DeltaSeconds);
     FPSBadgeView View;
     if (GetCurrentView(View))

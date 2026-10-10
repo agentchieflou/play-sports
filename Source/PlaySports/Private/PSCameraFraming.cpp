@@ -159,6 +159,27 @@ bool UPSCameraFraming::ProjectToShot(const FPSCameraShot& Shot, const FVector& P
         && ScreenY >= -FrameEdgeTolerance && ScreenY <= 1.0 + FrameEdgeTolerance;
 }
 
+bool UPSCameraFraming::DeprojectToField(const FPSCameraShot& Shot, const FVector2D& Screen, float FieldHeight, FVector& OutPoint)
+{
+    using namespace PSCameraFramingPrivate;
+
+    // The line of sight through Screen, in the camera's axes: ProjectToShot's mapping reversed.
+    const FRotationMatrix Axes(Shot.Rotation);
+    const double TanHalf = FMath::Tan(FMath::DegreesToRadians(FMath::Clamp<double>(Shot.FieldOfView, 1.0, MaxSupportedFieldOfView) * 0.5));
+    const double Aspect = SafeAspect(Shot.AspectRatio);
+    const double Right = (2.0 * Screen.X - 1.0) * TanHalf;
+    const double Up = (1.0 - 2.0 * Screen.Y) * TanHalf / Aspect;
+    const FVector Sight = Axes.GetScaledAxis(EAxis::X) + Axes.GetScaledAxis(EAxis::Y) * Right + Axes.GetScaledAxis(EAxis::Z) * Up;
+
+    const double Drop = static_cast<double>(FieldHeight) - Shot.Location.Z;
+    if (FMath::Abs(Sight.Z) < KINDA_SMALL_NUMBER || Drop / Sight.Z <= 0.0)
+    {
+        return false;
+    }
+    OutPoint = Shot.Location + Sight * (Drop / Sight.Z);
+    return true;
+}
+
 bool UPSCameraFraming::IsPointInShot(const FPSCameraShot& Shot, const FVector& Point)
 {
     FVector2D Screen;

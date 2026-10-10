@@ -760,7 +760,10 @@ void UPSDefenderPreSnapSubsystem::ApplyMatchup(const APSPlayerPawn* Defender, EP
 void UPSDefenderPreSnapSubsystem::PlanCpu(const FPSPlayDefinition& Play)
 {
     const FPSDefensivePreSnapTuning& Settings = GetTuning();
-    const float Aggression = FMath::Clamp(Tendency.AggressionScore, 0.f, 1.f);
+    // The defending team's own head coach: his aggression, read from the team's plan where the
+    // match applies it (UPSPlayCallSubsystem, Epic 89), never a copy.
+    const UPSPlayCallSubsystem* PlayCall = GetPlayCall();
+    const float Aggression = FMath::Clamp(PlayCall ? PlayCall->GetCallingPlan(false).DefenseTendency.AggressionScore : FPSTendencyProfile().AggressionScore, 0.f, 1.f);
 
     // Who would carry each disguise: the safeties, the blitzers, the linebackers who drop.
     TArray<APSPlayerPawn*> Backs;

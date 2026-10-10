@@ -143,6 +143,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "Camera|All22")
     static bool ProjectToShot(const FPSCameraShot& Shot, const FVector& Point, FVector2D& OutScreen);
 
+    /**
+     * ProjectToShot undone onto the field: the point at height FieldHeight that shows at Screen
+     * (normalized, (0,0) top left) in Shot's frame. False when that line of sight never comes
+     * down to the field (at or above the horizon). The telestrator (Epic 44) pins drawings to
+     * the field with it.
+     */
+    UFUNCTION(BlueprintPure, Category = "Camera|All22")
+    static bool DeprojectToField(const FPSCameraShot& Shot, const FVector2D& Screen, float FieldHeight, FVector& OutPoint);
+
     /** True when Point is in front of the camera and inside Shot's frame. */
     UFUNCTION(BlueprintPure, Category = "Camera|All22")
     static bool IsPointInShot(const FPSCameraShot& Shot, const FVector& Point);

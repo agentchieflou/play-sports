@@ -52,6 +52,7 @@ Engine fields, exactly as in `FPSPlayDefinition` (names are case-sensitive, as e
 | `bIsOffensivePlay` | `true` for offense, `false` for defense. |
 | `PlayCategory` | Offense: `Run`, `ShortPass`, `DeepPass`, `PlayAction`, `Screen`. Defense: `Base`, `Blitz`, `Prevent` (the coaching AI's weights, Epic 18). |
 | `Front`, `CoverageShell` | Defense only, e.g. `4-3` / `Cover2`. Empty on offense. |
+| `Deception` | Optional, offense only (`FPSDeceptionDef`, Epic 72): `Type` (`None`, `PlayAction`, `RPO`, `ZoneRead`, `TripleOption`), `PlaySide` (`1` right, `-1` left), `PassRole` (the RPO's pass option, on a route), `PitchRole` (the triple option's pitch man). Play-action goes on a pass play; the run options on a `Run` play with a `RunningBack` on a `Route`. See `Data/README.md`. |
 | `Assignments[]` | Per role: `Role` (an `EPlayerRole`) and `Kind` (an `EPSAssignmentKind`: `Route`, `PassBlock`, `RunBlock`, `ManCoverage`, `ZoneCoverage`, `PassRush`, `RunFit`, `Blitz`). Also `RouteId`, which must exist in `Data/sample_routes.json` (or a route file loaded beside it), and optionally `ZoneOffset` / `FormationOffset` (cm). Slots of one role apply in order; extra players of the role repeat its last slot. |
 
 Extraction block. The loader ignores it; validation and provenance use it:

@@ -1,5 +1,6 @@
 #include "PSOverlayScoreBugWidget.h"
 #include "PSLocalization.h"
+#include "PSPerfBudget.h"
 #include "PSOverlayBroadcastSubsystem.h"
 #include "PSUITeamCatalog.h"
 #include "Blueprint/WidgetTree.h"
@@ -181,6 +182,7 @@ void UPSOverlayScoreBugWidget::BuildDefaultLayout()
 
 void UPSOverlayScoreBugWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
+    PS_PERF_SCOPE(Overlays);
     Super::NativeTick(MyGeometry, InDeltaTime);
 
     const UPSOverlayBroadcastSubsystem* Broadcast = GetBroadcast();
@@ -293,6 +295,7 @@ void UPSOverlayChyronWidget::BuildDefaultLayout()
 
 void UPSOverlayChyronWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
+    PS_PERF_SCOPE(Overlays);
     Super::NativeTick(MyGeometry, InDeltaTime);
 
     const UWorld* World = GetWorld();

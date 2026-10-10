@@ -54,8 +54,12 @@ LEAGUE_FIELDS = {
 }
 PLAY_FIELDS = {
     "PlayId": str, "DisplayName": str, "Formation": str, "bIsOffensivePlay": bool,
-    "PlayCategory": str, "Front": str, "CoverageShell": str, "Assignments": list,
+    "PlayCategory": str, "Front": str, "CoverageShell": str, "Assignments": list, "Deception": dict,
 }
+# FPSDeceptionDef (Epic 72): a play-action fake or a run option's read.
+DECEPTION_FIELDS = {"Type": str, "PlaySide": int, "PassRole": str, "PitchRole": str}
+DECEPTION_TYPES = {"None", "PlayAction", "RPO", "ZoneRead", "TripleOption"}
+RUN_OPTIONS = {"RPO", "ZoneRead", "TripleOption"}
 PLAY_REQUIRED = ("PlayId", "DisplayName", "Formation", "bIsOffensivePlay", "PlayCategory", "Assignments")
 ASSIGNMENT_FIELDS = {"Role": str, "Kind": str, "RouteId": str, "ZoneOffset": dict, "FormationOffset": dict}
 
@@ -250,6 +254,51 @@ def validate_playbook(path, plays, err):
                 err(path, f"{awhere}.RouteId: only a Route assignment runs one (Kind is '{kind}')")
             for field in ("ZoneOffset", "FormationOffset"):
                 check_vector(path, f"{awhere}.{field}", assignment.get(field), err)
+        validate_deception(path, where, play, err)
+
+
+def validate_deception(path, where, play, err):
+    """FPSDeceptionDef (Epic 72): a play-action fake on a pass play, a run option on a Run play
+    with a back at the mesh, an RPO's pass option on a route, a triple option's pitch man."""
+    deception = play.get("Deception")
+    if deception is None:
+        return
+    dwhere = f"{where}.Deception"
+    if not check_object(path, dwhere, deception, DECEPTION_FIELDS, ("Type",), err, "FPSDeceptionDef"):
+        return
+    kind = deception.get("Type")
+    if kind not in DECEPTION_TYPES:
+        err(path, f"{dwhere}.Type: '{kind}' is not an EPSDeception ({sorted(DECEPTION_TYPES)})")
+        return
+    if kind == "None":
+        return
+    if not play.get("bIsOffensivePlay", True):
+        err(path, f"{dwhere}: only offensive plays deceive")
+        return
+    category = play.get("PlayCategory")
+    if kind in RUN_OPTIONS and category != "Run":
+        err(path, f"{dwhere}.Type: {kind} is a run option, so the play is a Run (the QB meets the back at the mesh), not '{category}'")
+    if kind == "PlayAction" and category in {"Run", "Screen"} | OFFENSE_SPECIAL_TEAMS:
+        err(path, f"{dwhere}.Type: play-action fakes a run to pass, not on a '{category}' play")
+    if deception.get("PlaySide", 1) not in (1, -1):
+        err(path, f"{dwhere}.PlaySide: {deception.get('PlaySide')} must be 1 (right) or -1 (left)")
+    for field in ("PassRole", "PitchRole"):
+        role = deception.get(field)
+        if role is not None and role not in OFFENSE_ROLES:
+            err(path, f"{dwhere}.{field}: '{role}' is not an offensive role ({sorted(OFFENSE_ROLES)})")
+    assignments = [a for a in play.get("Assignments", []) if isinstance(a, dict)]
+    if kind in RUN_OPTIONS and not any(a.get("Role") == "RunningBack" and a.get("Kind") == "Route" for a in assignments):
+        err(path, f"{dwhere}: a run option needs a RunningBack on a Route (to the mesh)")
+    if kind == "RPO":
+        role = deception.get("PassRole", "WideReceiver")
+        if not any(a.get("Role") == role and a.get("Kind") == "Route" and a.get("RouteId") for a in assignments):
+            err(path, f"{dwhere}.PassRole: no {role} runs a route to be the pass option")
+    if kind == "TripleOption":
+        role = deception.get("PitchRole", "TightEnd")
+        if role in ("Quarterback", "RunningBack"):
+            err(path, f"{dwhere}.PitchRole: the pitch man is not the {role} (the QB pitches, the back dives)")
+        elif not any(a.get("Role") == role for a in assignments):
+            err(path, f"{dwhere}.PitchRole: no {role} in the play to pitch to")
 
 
 def is_league_config(payload):

@@ -1,4 +1,5 @@
 #include "PSOverlayBroadcastSubsystem.h"
+#include "PSPerfBudget.h"
 #include "PSCoachingData.h"
 #include "PSDataIngestion.h"
 #include "PSGameStateEvents.h"
@@ -521,6 +522,7 @@ bool UPSOverlayBroadcastSubsystem::GetCurrentChyron(FPSChyron& OutChyron) const
 
 void UPSOverlayBroadcastSubsystem::AdvanceTime(float DeltaSeconds)
 {
+    PS_PERF_SCOPE(Overlays);
     if (DeltaSeconds <= 0.f)
     {
         return;
