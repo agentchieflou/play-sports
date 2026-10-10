@@ -52,6 +52,7 @@ keeps that mapping.
 | Defensive technique | `Data/defensive_techniques.json` → `UPSDefenderTechniqueComponent` (on every `APSPlayerPawn`), pressed through `UPSDefenseInputComponent` (on the controller, Epic 104.5) | The jump at the snap (a get-off burst, or offside) and the strip attempt `ResolveTackle` reads. |
 | Kick meter | `Data/kick_meter.json` → `UPSKickMeterComponent` (on the controller, Epic 104.5) | The human kicker's hold-release-press meter; the kick goes on the bus for `UPSPlaySimulation`. |
 | Pre-snap calls | `Data/presnap_tuning.json` → `UPSPreSnapSubsystem` (world subsystem), pressed through `UPSPreSnapInputComponent` (on the controller, Epic 66) | The offense's audibles, hot routes, motion and protection. The subsystem is the authority on them for the human and the CPU alike; the component maps the PreSnap context's buttons onto it. |
+| Defensive pre-snap | `Data/defensive_presnap.json` → `UPSDefenderPreSnapSubsystem` (world subsystem), pressed through `UPSDefenderPreSnapInputComponent` (on the controller, Epic 67) | The defense's audibles, disguises (shell, show blitz, creep) and shadow matchups. The subsystem is the authority on them for the human and the CPU alike; the component maps the DefensePreSnap context's buttons onto it. |
 
 ## 3. The context stack
 
@@ -64,7 +65,7 @@ bind the same key.
 | `OnField` | 1 | `APSPlayerController::OnPossess` of an `APSPlayerPawn`; popped on unpossess | The possessed pawn during play. |
 | `Menu` | 2 | not pushed on Enhanced Input | Names the keys menus treat as Confirm (Enter, A) and Back (Escape, B). While a screen is open the player is in UI input mode and Slate moves focus (D-pad, stick, arrows, Tab); `UPSMenuComponent` reads its Back keys from this context. |
 | `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle, on offense | The offense's pre-snap calls (Epic 66): audible, select, hot route, motion, slide, block/release. Pre-snap clock controls (Epic 76): `Tempo` (N / Y) cycles the offense's tempo, `Timeout` (O / View) calls a timeout, both through `UPSPlayCallComponent`. The direct pick across the field (Epic 30): `PickPlayerLeft`/`PickPlayerRight`. Hiking stays Confirm on `OnField`. |
-| `DefensePreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle, on defense | The defender's jump at the snap (Epic 104.5), `Timeout` (Epic 76) and the direct pick across the field (Epic 30, `PickPlayerLeft`/`PickPlayerRight`, so either side of the ball can pick). The offense's calls mean nothing to him, so the same buttons are free for the defense; X and LB still switch player from `OnField`. |
+| `DefensePreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle, on defense | The defender's jump at the snap (Epic 104.5). The defense's pre-snap calls (Epic 67, `UPSDefenderPreSnapInputComponent`): `DefenseAudible`, `ShadowSelect`, `Shadow`, `ShowBlitz`, `DisguiseShell`, `Creep`. They sit where the offense's calls sit in `PreSnap`, except the disguise, which is on Y because LT jumps the snap. `Timeout` (Epic 76) and the direct pick across the field (Epic 30, `PickPlayerLeft`/`PickPlayerRight`, so either side of the ball can pick). The offense's calls mean nothing to him, so the same buttons are free for the defense; X and LB still switch player from `OnField`. |
 | `Passing` | 3 | `UPSPlayContextComponent`: the controlled QB holds the ball behind the line | The pass buttons and the pump fake. They take A, X and LB from `OnField` while on. |
 | `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | The move set (Epic 104.2). It takes the face buttons and both bumpers from `OnField` while on. |
 | `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | The strip attempt (Epic 104.5). X and LB still switch player from `OnField`. |
@@ -118,9 +119,15 @@ as the Xbox glyph set labels them.
 | BlockRelease | Boolean | PreSnap | K | D-pad Down | the same: the selected back or tight end is kept in or released |
 | PickPlayerLeft | Boolean | PreSnap | Q | RS flick left | `UPSControlHandoffComponent`: control to the nearest teammate to the left across the field (Epic 30) |
 | PickPlayerRight | Boolean | PreSnap | E | RS flick right | the same, to the right |
+| DefenseAudible | Boolean | DefensePreSnap | R | D-pad Up | `UPSDefenderPreSnapInputComponent` → `UPSDefenderPreSnapSubsystem::AudibleToNext`: the next play of the front (Epic 67) |
+| ShadowSelect | Boolean | DefensePreSnap | Tab | RB | the same: picks the offensive receiver Shadow acts on, left to right |
+| Shadow | Boolean | DefensePreSnap | H | D-pad Right | the same: the AI defensive back nearest the selected receiver shadows him, man on him at the snap whatever the call; pressed again, lets him go |
+| ShowBlitz | Boolean | DefensePreSnap | M | D-pad Left | the same: linebackers walk up to show a blitz that isn't coming (toggles) |
+| DisguiseShell | Boolean | DefensePreSnap | L | Y | the same: the safeties show the other shell, rotating to their real zones at the snap (toggles) |
+| Creep | Boolean | DefensePreSnap | K | D-pad Down | the same: the blitzers line up in coverage and creep up late (toggles) |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
-every off-field context. On the field Y is taken: the tempo before the snap, slot 2 while
+every off-field context. On the field Y is taken: the tempo before the snap (the shell disguise on defense), slot 2 while
 passing, and the hurdle with the ball. A camera toggle on Y would also cut the camera when Y is
 pressed around the snap, and it would stop the input buffer from carrying that press into the
 throw. So the film view (Epic 40) is on R3 and F, which no pass, move or pre-snap button uses.
@@ -399,6 +406,7 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.StripTradesTackleForFumble` | A strip attempt lowers tackle odds and raises fumble odds, wears off, and waits out its cooldown in the buffer (Epic 104.5). |
 | `PlaySports.Input.KickMeterDrivesTheKick` | A kick phase lines the human kicker up and the play waits; the meter's roll decides the field goal, punt and kickoff; without a human the CPU kicks on time (Epic 104.5). |
 | `PlaySports.PreSnap.HumanButtons` | The PreSnap context's buttons select, keep in, slide, hot-route, motion and audible, and do nothing on defense (Epic 66). |
+| `PlaySports.PreSnap.Defense.HumanButtons` | The defense's calls are their own Boolean actions in DefensePreSnap with glyphs, on keys free there and in `OnField`; pressed through the catalog they disguise, show blitz, creep, select, shadow and audible while the human controls a defender before the snap, and are off the stack on offense (Epic 67). |
 | `PlaySports.Camera.All22ToggleThroughCatalog` | FilmView is on the field with a key and an R3 glyph. Its keys are free in every context stacked over the field. It steps the film view on the viewing controller only (Epic 40). |
 
 What CI cannot show is how the input feels in a player's hands: real rumble strength on a pad,

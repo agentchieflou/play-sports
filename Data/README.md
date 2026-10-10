@@ -93,6 +93,7 @@ every CI build.
 | `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
 | `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
 | `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
+| `defensive_presnap.json` | `FPSDefensivePreSnapTuning` (single object) | `UPSDataIngestion::LoadDefensivePreSnapTuningFromJson`, via `UPSDefenderPreSnapSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1059,3 +1060,34 @@ control decides what it does. `PSTouchControls::ValidateLayout` and `tools/valid
 check all of this. **Adding an action means adding its touch control and its Touch glyph in
 the same change; adding a context means adding its touch button set (or listing it in
 `ContextsWithoutTouch`).**
+
+## Defensive pre-snap schema (`FPSDefensivePreSnapTuning`)
+
+Single object (Epic 67; how the defense lines up, disguises and adjusts before the snap,
+`UPSDefenderPreSnapSubsystem`). Depths are cm past the front of the offensive line, widths cm
+across the field from its centre:
+- `ShellSafeties[]`: each coverage shell (a play's `CoverageShell`) and its `DeepSafeties`
+  (0, 1 or 2). A shell not listed plays one.
+- `TwoHighDepth`, `TwoHighWidth`: two-high safeties' spots. `SingleHighDepth`: the single-high
+  safety's, in the middle. `RobberDepth`, `RobberWidth`: a safety rolled down into the box.
+- `DeepSafetyDepth`: the offense counts a defender this deep as a deep safety. It must lie past
+  `RobberDepth` and no deeper than the deep spots.
+- `ShowBlitzDepth`: a linebacker or back showing blitz walks up to here. The offense reads a
+  blitz from one within `BlitzLookDepth` of the line and `BlitzLookWidth` of its centre
+  (`ShowBlitzDepth` must be within `BlitzLookDepth`). `ShowBlitzCount`: how many linebackers,
+  nearest the ball, show a blitz that isn't coming.
+- `CreepDelaySeconds`, `CreepSpeedScale` (0-1): when creeping blitzers start walking up, and how
+  fast.
+- `MaxDisguiseLeak` (0-1): at Awareness 0 a disguising safety lines up this fraction of the way
+  to his real spot (none at 100).
+- `DisguiseChance*`, `ShowBlitzChance*`, `CreepChance*` (0-1, `Conservative` and `Aggressive`):
+  how often a CPU defense uses each disguise, from AggressionScore 0 to 1, times the involved
+  defenders' average Awareness / 100.
+- `bCpuShadowsTopReceiver`: on a CPU man call, its best defensive back shadows the best
+  receiver.
+- `AudibleAction`, `SelectAction`, `ShadowAction`, `ShowBlitzAction`, `DisguiseAction`,
+  `CreepAction`: the human defense's buttons, each a different Boolean action in the input
+  catalog's `DefensePreSnap` context (`DefenseAudible`, `ShadowSelect`, `Shadow`, `ShowBlitz`,
+  `DisguiseShell`, `Creep`), on while he controls a defender before the snap.
+
+`UPSDefenderPreSnapSubsystem::ValidateTuning` and `tools/validate_data.py` check it.

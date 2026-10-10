@@ -479,3 +479,19 @@ void UPSTelemetryBus::PublishPocket(const FPSTelemetryPocketEvent& Event)
     }
     OnPocketMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishDefensivePreSnap(const FPSTelemetryDefensivePreSnapEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryDefensivePreSnapEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("DefensivePreSnap: %s %s %s by %s"),
+        *Event.Action.ToString(), *Event.PlayerName, *Event.Detail.ToString(), Event.bHumanCall ? TEXT("human") : TEXT("CPU"));
+    RecordHistory(EPSTelemetryEventType::DefensivePreSnap, Description, JsonPayload);
+
+    if (OnDefensivePreSnap.IsBound())
+    {
+        OnDefensivePreSnap.Broadcast(Event);
+    }
+    OnDefensivePreSnapMC.Broadcast(Event);
+}

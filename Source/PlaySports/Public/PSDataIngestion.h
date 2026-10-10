@@ -45,6 +45,7 @@
 #include "PSContractData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
+#include "PSDefenderPreSnapTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -264,6 +265,11 @@ public:
      *  UPSContractManager::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadContractTuningFromJson(const FString& JsonFilePath, FPSContractTuning& OutTuning);
+
+    /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
+     *  missing file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadDefensivePreSnapTuningFromJson(const FString& JsonFilePath, FPSDefensivePreSnapTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

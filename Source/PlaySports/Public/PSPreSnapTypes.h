@@ -74,8 +74,10 @@ struct FPSPreSnapPlayerAdjustment
     EPSProtectionCall Protection = EPSProtectionCall::AsCalled;
 };
 
-/** What the offense can see of the defense before the snap. The defense's call is the
- *  source today; Epic 67's disguises will make what it shows differ from what it plays. */
+/** What the offense can see of the defense before the snap. With an offensive line to read
+ *  against, the shell and the blitz are what the defense shows (UPSDefenderPreSnapSubsystem,
+ *  Epic 67), which a disguise makes differ from what it plays; without one they fall back to
+ *  the call. */
 USTRUCT(BlueprintType)
 struct FPSDefensiveLook
 {
@@ -84,6 +86,8 @@ struct FPSDefensiveLook
     UPROPERTY(BlueprintReadOnly, Category = "PreSnap")
     FString Front;
 
+    /** The shown safety structure ("TwoHigh", "SingleHigh", "ZeroHigh"), or the call's shell
+     *  with no line to read against. */
     UPROPERTY(BlueprintReadOnly, Category = "PreSnap")
     FString CoverageShell;
 
@@ -99,7 +103,8 @@ struct FPSDefensiveLook
     UPROPERTY(BlueprintReadOnly, Category = "PreSnap")
     int32 BoxRight = 0;
 
-    /** Linebackers or backs are coming (a Blitz call, or a blitz adjustment). */
+    /** Linebackers or backs are walked up to the line (or, with no line to read against, the
+     *  call is a blitz). */
     UPROPERTY(BlueprintReadOnly, Category = "PreSnap")
     bool bShowsBlitz = false;
 };
