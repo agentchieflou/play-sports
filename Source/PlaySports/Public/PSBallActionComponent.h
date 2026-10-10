@@ -24,9 +24,10 @@ public:
     /** Throw the ball to a target location. IntendedTarget, when provided, is
      *  published on the TelemetryBus as the pass's intended receiver (Epic 140: an
      *  interception on this pass auto-kills IntendedTarget, not whoever the ball
-     *  happens to hit). */
+     *  happens to hit). SpeedScale (0-1] throws softer than the passer's full arm: a touch
+     *  pass (Epic 104); a target out of reach that softly is thrown at full speed. */
     UFUNCTION(BlueprintCallable, Category = "BallAction")
-    bool ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr);
+    bool ThrowPass(APSBall* Ball, const FVector& TargetLocation, bool bHighArc = false, APSPlayerPawn* IntendedTarget = nullptr, float SpeedScale = 1.f);
 
     /** Perform an instant handoff of the ball to a target player pawn */
     /** Hands the carried ball to TargetPlayer (within 200 cm). */

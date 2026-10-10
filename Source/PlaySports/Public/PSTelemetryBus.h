@@ -19,7 +19,8 @@ enum class EPSTelemetryEventType : uint8
     Respawn,
     InputDeviceChange,
     ControlChange,
-    PlayCall
+    PlayCall,
+    PumpFake
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -82,6 +83,11 @@ struct FPSTelemetryThrowEvent
      *  Receivers converge on this (Epic 14). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     FVector LandingLocation = FVector::ZeroVector;
+
+    /** How hard it was thrown (cm/s): a bullet at the passer's full arm, a touch pass less
+     *  (Epic 104). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float LaunchSpeed = 0.f;
 };
 
 USTRUCT(BlueprintType)
@@ -284,6 +290,23 @@ struct FPSTelemetryPlayCallEvent
     bool bHumanCall = false;
 };
 
+/** The passer sold a throw he didn't make (Epic 104): coverage that bites freezes. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPumpFakeEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PasserName;
+
+    /** The receiver the fake was aimed at, if any. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString TargetReceiverName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FVector PasserLocation = FVector::ZeroVector;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -315,6 +338,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRespawnSignature, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryInputDeviceSignature, const FPSTelemetryInputDeviceEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeSignature, const FPSTelemetryControlChangeEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallSignature, const FPSTelemetryPlayCallEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeSignature, const FPSTelemetryPumpFakeEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -329,6 +353,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRespawnMC, const FPSTelemetryRes
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryInputDeviceMC, const FPSTelemetryInputDeviceEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeMC, const FPSTelemetryControlChangeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallMC, const FPSTelemetryPlayCallEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeMC, const FPSTelemetryPumpFakeEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -378,6 +403,9 @@ public:
     void PublishPlayCall(const FPSTelemetryPlayCallEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPumpFake(const FPSTelemetryPumpFakeEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -422,6 +450,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPlayCallSignature OnPlayCall;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPumpFakeSignature OnPumpFake;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -435,6 +466,7 @@ public:
     FPSTelemetryInputDeviceMC OnInputDeviceChangeMC;
     FPSTelemetryControlChangeMC OnControlChangeMC;
     FPSTelemetryPlayCallMC OnPlayCallMC;
+    FPSTelemetryPumpFakeMC OnPumpFakeMC;
 
 private:
     UPROPERTY(Transient)

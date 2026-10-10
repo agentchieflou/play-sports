@@ -1,0 +1,9 @@
+{
+    "SlotActions": ["PassTarget1", "PassTarget2", "PassTarget3", "PassTarget4", "PassTarget5"],
+    "PumpFakeAction": "PumpFake",
+    "BulletHoldSeconds": 0.25,
+    "TouchSpeedScale": 0.75,
+    "PlacementDepth": 300,
+    "PlacementWidth": 250,
+    "LeadSpeed": 2000
+}

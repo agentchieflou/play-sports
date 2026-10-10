@@ -320,10 +320,7 @@ void UPSSkillPlayerAIComponent::ThrowTo(APSPlayerPawn* Self, APSPlayerPawn* Rece
     }
 
     // Lead the receiver by where he will be when the ball arrives.
-    const FVector ReceiverLocation = Receiver->GetActorLocation();
-    const float LeadSeconds = FVector::Dist(Self->GetActorLocation(), ReceiverLocation) / FMath::Max(1.f, GetTuning().ThrowLeadSpeed);
-    FVector Lead = ReceiverLocation + Receiver->GetVelocity() * LeadSeconds;
-    Lead.Z = ReceiverLocation.Z;
+    const FVector Lead = PSFieldReads::LeadPoint(Self->GetActorLocation(), Receiver, GetTuning().ThrowLeadSpeed);
     if (Self->ThrowPass(Ball, Lead, false, Receiver))
     {
         Action = EPSSkillPlayerAction::Idle;
