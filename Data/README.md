@@ -89,6 +89,7 @@ every CI build.
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
 | `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
 | `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
+| `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -132,6 +133,9 @@ depth chart by package:
 When a side calls a play, its formation's package comes on: per role, the first players on the
 depth chart who can play (a ball carrier sitting out and a resting player are skipped). Only the
 players who change come off. A roster that can't fill a package gets the side's default instead.
+Every playbook formation has a package: the clock plays (kneel, spike) use 11 personnel, and the
+special-teams formations (Epic 75) bring on the `KickingUnit` (punt, field goal, kickoff), the
+`ReturnUnit` (kick returns and desperation laterals), the `BlockUnit` and the `HandsTeam`.
 `UPSPersonnelManager::ValidateCatalog` and `tools/validate_data.py` check it.
 
 ## Team schema (`FPSTeamInfo`)
@@ -843,6 +847,33 @@ Track C's branding reskins the broadcast by swapping this file:
   (above 0).
 
 `UPSOverlayBroadcastSubsystem::ValidateTheme` and `tools/validate_data.py` check it.
+
+## Position badge schema (`FPSOverlayBadgeStyle`)
+
+Single object (Epic 28; the letters floating over players' heads, laid out by
+`UPSOverlayBadgeComponent` on the player controller and drawn by `UPSOverlayBadgeWidget`). While the
+human's quarterback can throw, his receiver slots wear the button that throws to them (the glyph of
+the slot's `PassTarget` action on the device in use, so a remapped key shows); everyone else wears
+his role's label.
+- `Groups[]`: exactly one each for `Receiver` (wide receivers, tight ends), `Back` (running backs),
+  `Quarterback`, `Line` (offensive line) and `Defense` (anyone on defense):
+  - `Color`, `TextColor` (`#RRGGBB`);
+  - `bPreSnap` (shown before the snap and after the whistle);
+  - `InPlay`: `Hidden`, `WhilePassing` (while the human's QB can still throw) or `Always`;
+  - `bEssential`: kept on a tier whose `OverlayDetail` is `Minimal` (the pass buttons).
+- `RoleLabels[]`: a `Label` for every `EPlayerRole` (`Role`), worn by players without a button.
+- `HeadClearance` (cm above the top of the capsule, 0 or more); `BadgeWidth`, `BadgeHeight` (pixels
+  at scale 1, above 0); `FontSize` (1 or more).
+- `ReferenceDistance` (cm from the camera drawn at scale 1, above 0), `MinScale` and `MaxScale`
+  (above 0, `MinScale` at most `MaxScale`).
+- Overlap rules: `BallClearance` (pixels kept clear around the ball each way, 0 or more),
+  `NudgeStep` (pixels a badge moves up per try, times its scale, above 0) and `MaxNudges` (tries
+  before a badge with no room isn't drawn, 0 or more). Pass buttons are placed first, then nearer
+  badges before farther.
+- `FadeInSeconds` (0 or more; a Full tier only) and `bBadgeControlledPlayer` (badge the human's own
+  player too; he already has the reticle).
+
+`UPSOverlayBadgeComponent::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Skycam schema (`FPSSkycamTuning`)
 
