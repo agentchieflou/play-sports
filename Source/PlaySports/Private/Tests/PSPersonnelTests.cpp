@@ -7,8 +7,9 @@
 //      packages, each package picks the right players, a sit-out and a player on another
 //      pawn are skipped, and a package the roster can't fill is refused.
 //   3. Play calls through UPSPlayCallSubsystem change who is on the field: 12 personnel,
-//      nickel and goal line come on with only the changes moving, each side lines up again,
-//      the bus hears every change, and at the snap the substitutes run the call's jobs.
+//      nickel and goal line come on with only the changes moving, each side lines up again in
+//      its call's formation or front and shell (Data/formations.json), the bus hears every
+//      change, and at the snap the substitutes run the call's jobs.
 //   4. Between plays: a downed carrier sits a play for his backup, a tired receiver rests a
 //      play, a player on the 4th-down extra pawn isn't fielded twice, and a substituted pawn
 //      a human controls stays the human's.
@@ -159,6 +160,33 @@ namespace PSPersonnelTests
             Roles.Add(Pawn->GetAttributes().Role);
         }
         const TArray<FVector> Lineup = APSFieldGrid::ComputeLineup(Roles, ScrimmageX);
+        for (int32 PawnIndex = 0; PawnIndex < Pawns.Num(); ++PawnIndex)
+        {
+            if (!Pawns[PawnIndex]->GetActorLocation().Equals(Lineup[PawnIndex], 1.f))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** True when the pawns stand where APSFieldGrid::ComputeLineup puts them for Call: the
+     *  offense in its formation, the defense in its front and shell against Offense's pawns. */
+    static bool IsLinedUpFor(const TArray<APSPlayerPawn*>& Pawns, float ScrimmageX, const FPSLineupCall& Call, const TArray<APSPlayerPawn*>& Offense)
+    {
+        TArray<EPlayerRole> Roles;
+        for (const APSPlayerPawn* Pawn : Pawns)
+        {
+            Roles.Add(Pawn->GetAttributes().Role);
+        }
+        TArray<FPSAlignedPlayer> Aligned;
+        for (const APSPlayerPawn* Pawn : Offense)
+        {
+            FPSAlignedPlayer& Player = Aligned.AddDefaulted_GetRef();
+            Player.Role = Pawn->GetAttributes().Role;
+            Player.Location = Pawn->GetActorLocation();
+        }
+        const TArray<FVector> Lineup = APSFieldGrid::ComputeLineup(Roles, ScrimmageX, Call, Offense.Num() > 0 ? &Aligned : nullptr);
         for (int32 PawnIndex = 0; PawnIndex < Pawns.Num(); ++PawnIndex)
         {
             if (!Pawns[PawnIndex]->GetActorLocation().Equals(Lineup[PawnIndex], 1.f))
@@ -445,7 +473,9 @@ bool FPSPersonnelPlayCallTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("...which stays on offense"), SlotPawn && SlotPawn->TeamSide == EPSTeamSide::Offense);
     TestTrue(TEXT("The quarterback kept his pawn"), HasPlayer(QuarterbackPawn, TEXT("QB_001")));
     TestEqual(TEXT("No pawn was spawned or destroyed"), CountPawnsInWorld(World), 22);
-    TestTrue(TEXT("The offense lines up for its new personnel"), IsLinedUp(SidePawns(Pawns, EPSTeamSide::Offense), ScrimmageX));
+    FPSLineupCall AceCall;
+    AceCall.OffenseFormation = TEXT("Ace");
+    TestTrue(TEXT("The offense lines up for its new personnel, in Ace"), IsLinedUpFor(SidePawns(Pawns, EPSTeamSide::Offense), ScrimmageX, AceCall, TArray<APSPlayerPawn*>()));
     TestEqual(TEXT("The change is announced once"), Changes.Num(), 1);
     if (Changes.Num() == 1)
     {
@@ -467,7 +497,11 @@ bool FPSPersonnelPlayCallTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Five defensive backs"), CountRole(Pawns, EPlayerRole::DefensiveBack), 5);
     TestEqual(TEXT("Two linebackers"), CountRole(Pawns, EPlayerRole::Linebacker), 2);
     TestTrue(TEXT("The nickel back took the third linebacker's pawn"), HasPlayer(ThirdLinebackerPawn, TEXT("DB_005")));
-    TestTrue(TEXT("The defense lines up for nickel"), IsLinedUp(SidePawns(Pawns, EPSTeamSide::Defense), ScrimmageX));
+    FPSLineupCall NickelCall;
+    NickelCall.DefenseFront = TEXT("Nickel");
+    NickelCall.DefenseShell = TEXT("ManFree");
+    TestTrue(TEXT("The defense lines up for nickel, in its front and shell against Ace"),
+        IsLinedUpFor(SidePawns(Pawns, EPSTeamSide::Defense), ScrimmageX, NickelCall, SidePawns(Pawns, EPSTeamSide::Offense)));
     TestTrue(TEXT("Nickel is announced for the defense"), Changes.Num() == 2 && !Changes[1].bOffense && IsOnly(Changes[1].PlayersIn, TEXT("DB_005")) && IsOnly(Changes[1].PlayersOut, TEXT("LB_003")));
 
     TestTrue(TEXT("The defense switches to the goal-line stack"), PlayCall->CallPlay(TEXT("Defense_GoalLineStack"), EPSPlayCaller::CPU));
