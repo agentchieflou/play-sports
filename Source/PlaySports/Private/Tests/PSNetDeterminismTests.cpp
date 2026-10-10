@@ -403,10 +403,12 @@ bool FPSNetDeterminismQuickSimTest::RunTest(const FString& Parameters)
 
     // Something else draws from the global stream, seeded otherwise, between the two games.
     FMath::RandInit(2);
+    float Drawn = 0.f;
     for (int32 Draw = 0; Draw < 37; ++Draw)
     {
-        FMath::FRand();
+        Drawn += FMath::FRand();
     }
+    AddInfo(FString::Printf(TEXT("Drew %.3f from the global stream between the games."), Drawn));
     FPSReplayRecording Again;
     const FPSQuickSimResult AgainScore = Runner->RecordGame(World, Home, Away, 2024, Again);
 
