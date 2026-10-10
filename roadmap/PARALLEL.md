@@ -41,7 +41,7 @@ These groups can run at the same time (see the scope note under the table):
 | G3 | Playbook extraction (Track O) | **Blocked on the owner:** 132's compliance gate is not cleared (the source refuses automated access). 133 → 134 wait for the decision in `tools/playbook_scraper/COMPLIANCE.md` (manual authoring or permission) | Owner decision first |
 | G4 | Platform ports (Track N, iPhone first) | 130 touch (129 done; 131 done but its ADR, which waits on the owner's answer about a Mac and an Apple account) | Claude Code; packaging waits on a Mac |
 | G5 | Bridge track | 25: 25.3 MCP server and 25.5 router done; 25.1–25.2 Autonomix and 25.6 smoke test need an editor, 25.4 registration waits on the owner (then 118/119) | Any strong agent |
-| G7 | Phase 2 AI | 17.4 (blown-coverage reactions done; the scramble drill and blocked-kick chaos are open), 17.5's device measurement (14, 15, 16, 18 done) | Any strong agent |
+| G7 | Phase 2 AI | 17.4 (scramble drill and blown coverage done; live blocked-kick chaos is open), 17.5's device measurement (14, 15, 16, 18 done) | Any strong agent |
 | G8 | World kit (Track R, code stories) | 142.1 import spec → 142.2 `--unreal` packer output (142.4 done) | Any agent; editor stories wait for an editor session |
 | G9 | Front end and input feel (Track I) | 103.5's broadcast-camera follow → 106's play-call screens → 105 (101 and 104 done; 103.1, 103.3 and 103.4 done; 103.2 waits on Epic 37 and the overlay palettes; 102 done but 102.1's play art, which waits on Epic 35) | Claude Code |
 
@@ -53,7 +53,7 @@ take it on trust.
 
 Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
 
-- **Tier 1, Track E:** 67 defensive pre-snap (66 is in), 71 QB pocket play (75 special-teams
+- **Tier 1, Track E:** 67 defensive pre-snap (66 is in), (71 QB pocket play and 75 special-teams
   depth done).
 - **Tier 2:** 89 coaching staffs (19.5 personnel packages done).
 - **Tier 3 / infra:** 24.1 gym map (editor; 24.2–24.5, 117 and 125 done).
@@ -116,7 +116,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "14":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["6", "7", "9", "C1", "C2", "C3-ff-B", "C4"]},
     "15":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["9", "14"]},
     "16":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["14"]},
-    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation (blown-coverage reactions done; scramble drill and blocked-kick chaos open)", "17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
+    "17":  {"track": "core", "mode": "code", "status": "partial", "depends_on": ["14", "15", "16"], "open_stories": ["17.4 broken-play adaptation (scramble drill and blown coverage, both sides, done; live blocked-kick chaos open)", "17.5 performance pass (code pass done: one field scan per frame; frame-rate measurement on a device open)"]},
     "18":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["16", "17"]},
     "19":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["1"]},
     "20":  {"track": "core", "mode": "code", "status": "done", "depends_on": ["12", "19"]},
@@ -170,7 +170,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "68":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "14", "16"]},
     "69":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["C3", "C4", "15", "68"]},
     "70":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["C3", "C4", "9"]},
-    "71":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["14", "9"]},
+    "71":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["14", "9"]},
     "72":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["66", "68", "14", "15"]},
     "73":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["11", "69", "61"]},
     "74":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["7", "8", "61"]},
