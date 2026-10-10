@@ -475,44 +475,14 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     }
 
     bool bTurnover = false;
+    bool bReturnTouchdown = false;
     EPlayPhase NextPhase = EPlayPhase::PreSnap;
 
     // Touchdown Score Tracking
     if (CurrentPlayResult.ResultType == EPlayResultType::Touchdown)
     {
-        int32 TouchdownPoints = 6;
-        int32 PatPoints = 0;
-
-        if (FMath::FRand() < 0.94f)
-        {
-            PatPoints = 1;
-            UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: PAT kick is GOOD!"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: PAT kick is MISSED!"));
-        }
-
-        int32 TotalPoints = TouchdownPoints + PatPoints;
-
-        if (CurrentState.bHomeHasPossession)
-        {
-            CurrentState.HomeScore += TotalPoints;
-        }
-        else
-        {
-            CurrentState.AwayScore += TotalPoints;
-        }
-
         CurrentDriveSummary.Result = TEXT("Touchdown");
-        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Next play: Kickoff."), 
-            CurrentState.HomeScore, CurrentState.AwayScore);
-
-        // The scoring team kicks off (Epic 75).
-        CurrentState.bKickoff = true;
-        CurrentState.YardLine = GetSpecialTeams()->GetTuning().KickoffYardLine;
-        CurrentState.Down = 1;
-        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+        ScoreTouchdown();
     }
     // Safety Score Tracking
     else if (CurrentPlayResult.ResultType == EPlayResultType::Safety)
@@ -551,6 +521,9 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         CurrentState.YardLine = InterceptionSpot >= 100 ? 100 - GetSpecialTeams()->GetTuning().PuntTouchbackYardLine : InterceptionSpot;
         CurrentDriveSummary.Result = TEXT("Interception");
         bTurnover = true;
+        // Returned to the offense's goal line: a touchdown for the defense, scored once the
+        // ball is its (below).
+        bReturnTouchdown = InterceptionSpot <= 0;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: INTERCEPTION! The return ended at the offense's %d."), InterceptionSpot);
     }
     else
@@ -648,6 +621,13 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         }
     }
 
+    // A pick-six: the defense, the team with the ball now, scores and kicks off.
+    if (bReturnTouchdown)
+    {
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: The interception is returned for a touchdown."));
+        ScoreTouchdown();
+    }
+
     CurrentState.YardLineToGain = FMath::Min(CurrentState.YardLineToGain, 100);
     CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
 
@@ -683,6 +663,37 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     {
         GM->ResetPawnPositions();
     }
+}
+
+void UPSPlaySimulation::ScoreTouchdown()
+{
+    const UPSRulesConfig* Rules = RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>();
+    int32 Points = Rules->TouchdownPoints;
+    if (FMath::FRand() < Rules->PATSuccessChance)
+    {
+        ++Points;
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: PAT kick is GOOD!"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: PAT kick is MISSED!"));
+    }
+    if (CurrentState.bHomeHasPossession)
+    {
+        CurrentState.HomeScore += Points;
+    }
+    else
+    {
+        CurrentState.AwayScore += Points;
+    }
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Next play: Kickoff."),
+        CurrentState.HomeScore, CurrentState.AwayScore);
+
+    // The scoring team kicks off (Epic 75).
+    CurrentState.bKickoff = true;
+    CurrentState.YardLine = GetSpecialTeams()->GetTuning().KickoffYardLine;
+    CurrentState.Down = 1;
+    CurrentState.YardLineToGain = CurrentState.YardLine + 10;
 }
 
 void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)

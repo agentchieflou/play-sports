@@ -10,6 +10,9 @@
 //   5. A live interception is a turnover: the defense gets the ball where the return ended (the
 //      interceptor's tackle; a touchback in the end zone he defends), the box score counts the
 //      turnover and the takeaway, and a defensive flag the offense accepts wipes it out.
+//   6. A pick-six is the defense's touchdown: a return to the offense's goal line scores for the
+//      defense through the simulation's scoring (six and the try, then it kicks off), in the
+//      state, the play's announcement and the box score; a return stopped at the 1 does not.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -390,6 +393,99 @@ bool FPSSimInterceptionTurnover::RunTest(const FString& Parameters)
         {
             TestFalse(TEXT("...with no interception in it"), Plays[0].bInterception);
         }
+        DestroyTestWorld(World);
+    }
+
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 6 -- A pick-six is the defense's touchdown
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSSimPickSix,
+    "PlaySports.C2.PickSixIsADefensiveTouchdown",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSSimPickSix::RunTest(const FString& Parameters)
+{
+    using namespace PSSimInterceptionTests;
+
+    // 1. Picked off at the 45 and returned all the way: the receiver catches the corner on the
+    //    home goal line, too late.
+    {
+        UWorld* World = CreateTestWorld();
+        UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+        if (!TestNotNull(TEXT("Bus"), Bus))
+        {
+            if (World)
+            {
+                DestroyTestWorld(World);
+            }
+            return false;
+        }
+        UPSStatsEngine* Stats = NewObject<UPSStatsEngine>();
+        Stats->BindToBus(Bus);
+        Stats->BeginGame(1, FName(TEXT("Home")), FName(TEXT("Away")));
+        TArray<FPSTelemetryPlayResultEvent> Plays;
+        Bus->OnPlayResultMC.AddLambda([&Plays](const FPSTelemetryPlayResultEvent& Event) { Plays.Add(Event); });
+
+        UPSPlaySimulation* Sim = SnapNewSimulation(World);
+        PublishPick(Bus, 4500.f);
+        FPSTelemetryTackleEvent ReturnTackle;
+        ReturnTackle.TacklerName = HomeOffense()[1].DisplayName;
+        ReturnTackle.BallCarrierName = AwayDefense()[0].DisplayName;
+        ReturnTackle.YardLine = 0;
+        Bus->PublishTackle(ReturnTackle);
+        Sim->EndPlayAndPrepareNext();
+
+        const FPlayState State = Sim->GetPlayState();
+        TestEqual(TEXT("No home points"), State.HomeScore, 0);
+        TestTrue(TEXT("The away team scores six, or seven with the try"), State.AwayScore == 6 || State.AwayScore == 7);
+        TestFalse(TEXT("The scorers have the ball"), State.bHomeHasPossession);
+        TestTrue(TEXT("...to kick off"), State.bKickoff);
+        TestEqual(TEXT("...from the kickoff line"), State.YardLine, Sim->GetSpecialTeams()->GetTuning().KickoffYardLine);
+        if (TestEqual(TEXT("One play announced"), Plays.Num(), 1))
+        {
+            TestTrue(TEXT("...an interception"), Plays[0].Result == TEXT("Interception") && Plays[0].bInterception);
+            TestEqual(TEXT("...worth the away team's points"), Plays[0].AwayPoints, State.AwayScore);
+            TestEqual(TEXT("...and none for the home team"), Plays[0].HomePoints, 0);
+            TestFalse(TEXT("...not a turnover on downs"), Plays[0].bTurnoverOnDowns);
+        }
+        const FPSBoxScore& Game = Stats->GetCurrentGame();
+        TestEqual(TEXT("The box score has the away team's points"), Game.Away.Points, State.AwayScore);
+        TestTrue(TEXT("...the home team's turnover and the away team's takeaway"), Game.Home.Turnovers == 1 && Game.Away.Takeaways == 1);
+
+        Stats->UnbindFromBus();
+        DestroyTestWorld(World);
+    }
+
+    // 2. Picked off and stopped a yard short, at the 1: no score, the away team's ball there.
+    {
+        UWorld* World = CreateTestWorld();
+        UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+        if (!TestNotNull(TEXT("Bus"), Bus))
+        {
+            if (World)
+            {
+                DestroyTestWorld(World);
+            }
+            return false;
+        }
+        UPSPlaySimulation* Sim = SnapNewSimulation(World);
+        PublishPick(Bus, 4500.f);
+        FPSTelemetryTackleEvent ReturnTackle;
+        ReturnTackle.TacklerName = HomeOffense()[1].DisplayName;
+        ReturnTackle.BallCarrierName = AwayDefense()[0].DisplayName;
+        ReturnTackle.YardLine = 1;
+        Bus->PublishTackle(ReturnTackle);
+        Sim->EndPlayAndPrepareNext();
+
+        const FPlayState State = Sim->GetPlayState();
+        TestTrue(TEXT("Stopped at the 1: no score"), State.HomeScore == 0 && State.AwayScore == 0);
+        TestFalse(TEXT("The away team has the ball"), State.bHomeHasPossession);
+        TestFalse(TEXT("...on offense, not kicking off"), State.bKickoff);
+        TestEqual(TEXT("...a yard from the home goal line"), State.YardLine, 99);
         DestroyTestWorld(World);
     }
 
