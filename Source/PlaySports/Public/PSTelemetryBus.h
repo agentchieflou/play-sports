@@ -107,6 +107,11 @@ struct FPSTelemetryTackleEvent
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     int32 YardsGained = 0;
+
+    /** The carrier was the quarterback, down behind the line before throwing. The publisher
+     *  (the play-outcome authority) decides; subscribers such as rumble only read it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bIsSack = false;
 };
 
 USTRUCT(BlueprintType)
@@ -203,7 +208,8 @@ struct FPSTelemetryRespawnEvent
 };
 
 /** The human player's active device changed, or a gamepad connected/disconnected
- *  (Epic 127). HUD glyphs and rumble follow this instead of asking the controller. */
+ *  (Epic 127). HUD glyphs (UPSInputGlyphs) and rumble (UPSForceFeedbackComponent, Epic 128)
+ *  follow this instead of asking the controller. */
 USTRUCT(BlueprintType)
 struct FPSTelemetryInputDeviceEvent
 {

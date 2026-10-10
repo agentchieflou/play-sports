@@ -59,10 +59,10 @@ Core Epics 1–25 sizes for reference: 1(L) 2(M-editor) 3(L) 4(M) 5(M) 6(L) 7(L)
 ## MVP priority sequencing (code-mode tracks)
 
 Core Epics 1–21 shipped an AI-vs-AI simulation loop (play sim, coaching AI, orchestration,
-roster/season/franchise), but **no human input path exists yet** — Track M (Enhanced
-Input/`PSPlayerController`/gamepad, 126–128) and Track I's front-end/play-call UI (101–102) are
-both still open. That is the single biggest gap between "impressive AI sim" and "a person can sit
-down and play a game" — bigger than any amount of additional AI depth. The tiers below are a
+roster/season/franchise). The human input path is now in: Track M (Enhanced
+Input/`PSPlayerController`/gamepad/rumble/glyphs, 126–128) and the front-end shell (101) are done;
+Track I's play-call UI (102) is the remaining Tier 0 gap between "impressive AI sim" and "a person
+can sit down and play a game" — bigger than any amount of additional AI depth. The tiers below are a
 recommended execution order for the entirely-or-mostly-`code`-mode tracks (E, F, G, I, J, K, L, M,
 O, P, Q, R) toward an actual playable MVP; they do not change any `depends_on` edge in
 `roadmap/PARALLEL.md`, which remains the source of truth for what's actually unblocked. Editor-

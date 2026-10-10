@@ -3,7 +3,7 @@
         {
             "ContextId": "World",
             "Priority": 0,
-            "Description": "Lobby, sideline and world walking: the browser world's baseline mapping (Specs/Input_Architecture.md section 2)."
+            "Description": "Lobby, sideline and world walking: the browser world's baseline mapping (Specs/Input_Architecture.md section 4)."
         },
         {
             "ContextId": "OnField",
@@ -130,7 +130,7 @@
         {
             "ActionId": "Picker",
             "ValueType": "Boolean",
-            "Description": "Open the character / look picker (Epic 143). Start opens it in every context.",
+            "Description": "Open the character / look picker (Epic 143). Start opens it off the field; on the field Start pauses.",
             "Contexts": ["World"],
             "Bindings": [
                 { "Key": "C" },

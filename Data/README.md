@@ -27,6 +27,8 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `input_tuning.json` | `FInputTuningRow` (single object) | `UPSDataIngestion::LoadInputTuningFromJson`, via `UPSInputConfig::LoadDefaults` |
 | `loading_tips.json` | `FPSLoadingTipCatalog` (single object: `MinimumDisplaySeconds`, `Tips`) | `UPSDataIngestion::LoadLoadingTipsFromJson`, via `UPSLoadingTips` |
 | `ui_menus.json` | `FPSMenuCatalog` (single object: `RootScreen`, `PauseScreen`, `TransitionSeconds`, `Screens`) | `UPSDataIngestion::LoadMenuCatalogFromJson`, via `UPSMenuComponent` |
+| `force_feedback.json` | `FPSForceFeedbackTuning` (single object: `MasterIntensity`, `Cues`) | `UPSDataIngestion::LoadForceFeedbackTuningFromJson`, via `UPSForceFeedbackComponent` |
+| `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -119,3 +121,24 @@ options that do nothing, a root screen Back could close, and screens that can ne
 `MinimumDisplaySeconds` (how long the engine loading screen stays up), `Tips[]`: `TipId`
 (unique), `Text`, `Contexts` (any of `Any`, `PlayNow`, `Franchise`, `Practice`). A mode shows its
 own tips and the `Any` tips, shuffled, with no repeat until all have been shown.
+
+## Force feedback schema (`FPSForceFeedbackTuning`)
+
+`MasterIntensity` (0–1, scales every cue) and `Cues[]`, exactly one row per
+`EPSForceFeedbackCue`: `Hit`, `Tackle`, `Sack`, `Catch`, `Interception`, `Fumble`, `Score`. Each
+row (`FForceFeedbackTuningRow`): `Intensity` (0–1; 0 turns the cue off), `Duration` (seconds,
+above 0 and at most 3), the four motors `bLeftLarge`, `bLeftSmall`, `bRightLarge`, `bRightSmall`
+(at least one on), and `bOnlyWhenInvolved` (true: only when the event names the pawn the player
+controls; false: everyone feels it). `UPSForceFeedbackComponent::ValidateTuning` and
+`tools/validate_data.py` check all of it.
+
+## Button glyph schema (`FPSInputGlyphCatalog`)
+
+`GlyphSets[]`, each: `GlyphSetId` (unique, e.g. `Xbox`), `Device` (`KeyboardMouse` or
+`Gamepad`), `bDefaultForDevice` (exactly one default set per device), `bFallbackToKeyName`
+(unlisted keys get a keycap with the key's name -- for keyboards), `Keys[]` (`Key` an engine
+`EKeys` name of that device, `GlyphId` the icon an imported texture is registered under, `Label`
+the text shown until then) and `Actions[]` (`ActionId`, `GlyphId`, `Label`: one glyph for a
+whole action, such as `WASD` for Move). Which key an action uses comes from `input_actions.json`,
+so a rebinding never needs a glyph edit; every key the input catalog binds must be drawable by
+its device's default set, which `UPSInputGlyphs::Validate` and `tools/validate_data.py` check.

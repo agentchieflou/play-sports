@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "PSInputConfigTypes.h"
+#include "PSInputGlyphs.h"
 #include "PSInputConfig.generated.h"
 
 class UInputAction;
@@ -17,7 +18,8 @@ class UInputMappingContext;
  * per context, so nothing in Content/ is needed for input to work.
  *
  * APSPlayerController owns an instance and applies its contexts on possession; gameplay
- * code refers to actions and contexts by catalog ID only.
+ * code refers to actions and contexts by catalog ID only. The button glyph table (Epic 128)
+ * loads alongside, so the action's glyph always follows its current binding.
  */
 UCLASS(BlueprintType)
 class PLAYSPORTS_API UPSInputConfig : public UDataAsset
@@ -31,8 +33,9 @@ public:
     /** Absolute path of the gamepad tuning: <ProjectDir>/Data/input_tuning.json. */
     static FString GetDefaultTuningPath();
 
-    /** Loads the tuning, then the catalog, from their default paths. A missing tuning file
-     *  keeps FInputTuningRow's defaults; false only when the catalog fails to load. */
+    /** Loads the tuning, then the catalog, then the glyph table, from their default paths. A
+     *  missing tuning or glyph file keeps defaults (or no glyphs); false only when the
+     *  catalog fails to load. */
     UFUNCTION(BlueprintCallable, Category = "Input")
     bool LoadDefaults();
 
@@ -76,6 +79,15 @@ public:
      *  there). Slate-driven screens such as menus read their keys from here (Epic 101). */
     TArray<FKey> GetKeysFor(FName ActionId, FName ContextId) const;
 
+    /** The button glyph for ActionId in ContextId on Device (UPSInputGlyphs over this
+     *  catalog's bindings). False when there is none, e.g. the action isn't bound there. */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    bool GetGlyphForAction(FName ActionId, FName ContextId, EPSInputDevice Device, FPSInputGlyph& OutGlyph) const;
+
+    /** The glyph table; empty until LoadDefaults (or its own LoadFromJson) runs. */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSInputGlyphs* GetGlyphs() const { return Glyphs; }
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
     FPSInputCatalog Catalog;
 
@@ -83,6 +95,9 @@ public:
     FInputTuningRow Tuning;
 
 private:
+    UPROPERTY(Transient)
+    UPSInputGlyphs* Glyphs;
+
     UPROPERTY(Transient)
     TMap<FName, UInputAction*> RuntimeActions;
 

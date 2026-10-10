@@ -23,7 +23,19 @@ FString UPSInputConfig::GetDefaultTuningPath()
 bool UPSInputConfig::LoadDefaults()
 {
     LoadTuningFromJson(GetDefaultTuningPath());
-    return LoadFromJson(GetDefaultCatalogPath());
+    const bool bCatalogLoaded = LoadFromJson(GetDefaultCatalogPath());
+
+    if (!Glyphs)
+    {
+        Glyphs = NewObject<UPSInputGlyphs>(this, TEXT("RuntimeGlyphs"));
+    }
+    Glyphs->LoadDefaults();
+    return bCatalogLoaded;
+}
+
+bool UPSInputConfig::GetGlyphForAction(FName ActionId, FName ContextId, EPSInputDevice Device, FPSInputGlyph& OutGlyph) const
+{
+    return Glyphs && Glyphs->GetGlyphForAction(Catalog, ActionId, ContextId, Device, OutGlyph);
 }
 
 bool UPSInputConfig::LoadTuningFromJson(const FString& JsonFilePath)
