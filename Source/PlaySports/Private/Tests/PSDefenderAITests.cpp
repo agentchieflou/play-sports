@@ -108,6 +108,9 @@ namespace PSDefenderAITests
         return Ball;
     }
 
+    /** On a snap outside a call window the play-call subsystem calls and hands out CPU
+     *  plays, so tests assign defenders after the snap, before their first tick (when the
+     *  AI takes the assignment up). */
     static void Snap(UPSTelemetryBus* Bus)
     {
         FPSTelemetrySnapEvent Event;
@@ -156,9 +159,6 @@ bool FPSDefenderRushTest::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
         return false;
     }
-    Assign(Rusher, EPSDefensiveAssignmentType::PassRush);
-    Assign(Edge, EPSDefensiveAssignmentType::Contain);
-    Assign(Blocked, EPSDefensiveAssignmentType::PassRush);
     Blocked->bIsEngaged = true;
 
     UPSDefenderAIComponent* RushAI = AIOf(Rusher);
@@ -169,6 +169,9 @@ bool FPSDefenderRushTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("...not even a rusher"), RushAI->GetDesiredDirection().IsNearlyZero());
 
     Snap(Bus);
+    Assign(Rusher, EPSDefensiveAssignmentType::PassRush);
+    Assign(Edge, EPSDefensiveAssignmentType::Contain);
+    Assign(Blocked, EPSDefensiveAssignmentType::PassRush);
     RushAI->TickAI(0.1f);
     EdgeAI->TickAI(0.1f);
     BlockedAI->TickAI(0.1f);
@@ -224,11 +227,11 @@ bool FPSDefenderManCoverageTest::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
         return false;
     }
+
+    Snap(Bus);
     Assign(Corner, EPSDefensiveAssignmentType::ManCoverage);
     Assign(OtherCorner, EPSDefensiveAssignmentType::ManCoverage);
     Assign(Nickel, EPSDefensiveAssignmentType::ManCoverage);
-
-    Snap(Bus);
     UPSDefenderAIComponent* CornerAI = AIOf(Corner);
     UPSDefenderAIComponent* OtherCornerAI = AIOf(OtherCorner);
     UPSDefenderAIComponent* NickelAI = AIOf(Nickel);
@@ -291,9 +294,9 @@ bool FPSDefenderZoneCoverageTest::RunTest(const FString& Parameters)
         return false;
     }
     const FVector Zone(1200.f, 600.f, 100.f);
-    Assign(Safety, EPSDefensiveAssignmentType::ZoneCoverage, Zone);
 
     Snap(Bus);
+    Assign(Safety, EPSDefensiveAssignmentType::ZoneCoverage, Zone);
     UPSDefenderAIComponent* SafetyAI = AIOf(Safety);
     SafetyAI->TickAI(0.1f);
     TestTrue(TEXT("Zone coverage"), SafetyAI->GetAction() == EPSDefenderAction::Zone);
@@ -350,8 +353,6 @@ bool FPSDefenderRunFitTest::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
         return false;
     }
-    Assign(Sharp, EPSDefensiveAssignmentType::RunFit);
-    Assign(Raw, EPSDefensiveAssignmentType::RunFit);
     UPSDefenderAIComponent* SharpAI = AIOf(Sharp);
     UPSDefenderAIComponent* RawAI = AIOf(Raw);
     const float RawReaction = RawAI->GetReactionSeconds();
@@ -360,6 +361,8 @@ bool FPSDefenderRunFitTest::RunTest(const FString& Parameters)
 
     // A drop-back: a pass read, so the linebackers drop.
     Snap(Bus);
+    Assign(Sharp, EPSDefensiveAssignmentType::RunFit);
+    Assign(Raw, EPSDefensiveAssignmentType::RunFit);
     SharpAI->TickAI(0.1f);
     RawAI->TickAI(0.1f);
     TestTrue(TEXT("At the snap the linebacker reads"), SharpAI->GetAction() == EPSDefenderAction::Read && SharpAI->GetDesiredDirection().IsNearlyZero());
@@ -376,6 +379,8 @@ bool FPSDefenderRunFitTest::RunTest(const FString& Parameters)
     // Next play, a hand-off: a run read, so the linebackers pursue the back.
     QB->SetActorLocation(FVector(-100.f, 0.f, 100.f));
     Snap(Bus);
+    Assign(Sharp, EPSDefensiveAssignmentType::RunFit);
+    Assign(Raw, EPSDefensiveAssignmentType::RunFit);
     SharpAI->TickAI(0.1f);
     RawAI->TickAI(0.1f);
     TestTrue(TEXT("The QB hands off"), QB->ExecuteHandoff(RB));
@@ -426,12 +431,12 @@ bool FPSDefenderBallHawkTest::RunTest(const FString& Parameters)
         DestroyTestWorld(World);
         return false;
     }
-    Assign(Near, EPSDefensiveAssignmentType::ZoneCoverage);
-    Assign(Far, EPSDefensiveAssignmentType::ZoneCoverage);
     UPSDefenderAIComponent* NearAI = AIOf(Near);
     UPSDefenderAIComponent* FarAI = AIOf(Far);
 
     Snap(Bus);
+    Assign(Near, EPSDefensiveAssignmentType::ZoneCoverage);
+    Assign(Far, EPSDefensiveAssignmentType::ZoneCoverage);
     NearAI->TickAI(0.1f);
     FarAI->TickAI(0.1f);
     TestTrue(TEXT("A zone with no offset is the spot he lined up on"), FarAI->GetZoneSpot().Equals(Far->GetActorLocation()));
