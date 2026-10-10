@@ -1,0 +1,8 @@
+{
+    "HistorySeconds": 20.0,
+    "KeyframeEvents": ["Snap", "Throw", "Catch", "Tackle", "Fumble", "Score", "PumpFake"],
+    "DegradeAfterSamples": 5,
+    "RecoverAfterSamples": 90,
+    "RecoverBelowFraction": 0.5,
+    "MaxDegradeLevel": 3
+}

@@ -19,6 +19,11 @@ class UPSPassingComponent;
 class UPSCarrierInputComponent;
 class UPSPreSnapInputComponent;
 class UPSInputBufferComponent;
+class UPSDefenseInputComponent;
+class UPSKickMeterComponent;
+class UPSSettingsComponent;
+class UPSControlHandoffComponent;
+class UPSOverlayReticleComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -48,7 +53,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * UPSPassingComponent throws to receiver slots when the controlled QB passes, and
  * UPSCarrierInputComponent turns the move buttons into the carrier's moves. Both hear their
  * buttons through UPSInputBufferComponent, which holds a press while its target is busy and
- * carries a press into a depth context that came on just after it (Epic 104.4).
+ * carries a press into a depth context that came on just after it (Epic 104.4). On defense,
+ * UPSDefenseInputComponent times the jump at the snap and the strip; on a kick,
+ * UPSKickMeterComponent is the kicker's meter (Epic 104.5).
+ *
+ * Control switching (Epic 30) is UPSControlHandoffComponent's: it picks who the switch and
+ * pre-snap pick buttons go to, and this controller moves control there. A handoff in either
+ * direction keeps the pawn's velocity, so neither the human nor the resuming AI starts from a
+ * standstill. UPSOverlayReticleComponent draws the selected-player reticle under the
+ * controlled pawn.
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -101,6 +114,31 @@ public:
     /** Buffers catalog presses whose target is busy (Epic 104.4). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSInputBufferComponent* GetInputBufferComponent() const { return InputBufferComponent; }
+
+    /** The human defender's jump at the snap and strip button (Epic 104.5). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSDefenseInputComponent* GetDefenseInputComponent() const { return DefenseInputComponent; }
+
+    /** The human kicker's meter (Epic 104.5). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSKickMeterComponent* GetKickMeterComponent() const { return KickMeterComponent; }
+
+    /** Applies the player's settings to this controller's input and rumble (Epic 103). */
+    UFUNCTION(BlueprintPure, Category = "Settings")
+    UPSSettingsComponent* GetSettingsComponent() const { return SettingsComponent; }
+
+    /** Re-applies the context stack to the local player's Enhanced Input subsystem after the
+     *  input config rebuilt its mapping contexts (a settings change or a remap). */
+    UFUNCTION(BlueprintCallable, Category = "Input")
+    void RefreshInputMappings();
+
+    /** Who the switch and pick buttons give control to (Epic 30). */
+    UFUNCTION(BlueprintPure, Category = "Possession")
+    UPSControlHandoffComponent* GetControlHandoffComponent() const { return ControlHandoffComponent; }
+
+    /** The selected-player reticle (Epic 30). */
+    UFUNCTION(BlueprintPure, Category = "Overlay")
+    UPSOverlayReticleComponent* GetOverlayReticleComponent() const { return OverlayReticleComponent; }
 
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -240,6 +278,21 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSInputBufferComponent* InputBufferComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSDefenseInputComponent* DefenseInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSKickMeterComponent* KickMeterComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Settings")
+    UPSSettingsComponent* SettingsComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Possession")
+    UPSControlHandoffComponent* ControlHandoffComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Overlay")
+    UPSOverlayReticleComponent* OverlayReticleComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

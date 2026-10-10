@@ -1,0 +1,10 @@
+{
+    "JumpSnapAction": "JumpSnap",
+    "StripAction": "Strip",
+    "JumpWindowSeconds": 0.2,
+    "GetOffSpeed": 400,
+    "StripWindowSeconds": 0.4,
+    "StripCooldownSeconds": 1.5,
+    "StripTackleScale": 0.8,
+    "StripFumbleChance": 0.3
+}

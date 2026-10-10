@@ -13,16 +13,19 @@ class APSPlayerController;
  * stack, above the gameplay (OnField) context, matching what the controlled player is doing
  * (Epic 104.1):
  *
- *   PreSnap      before the snap and once the play is over
+ *   PreSnap      before the snap and once the play is over, on offense
+ *   DefensePreSnap  the same, on defense (Epic 104.5)
  *   Passing      the controlled QB holds the ball behind the line of scrimmage
  *   BallCarrier  the controlled player holds the ball anywhere else
  *   Defense      the controlled player is on defense during the play
+ *   Kicking      a kick phase (kickoff, punt, field goal) and the controlled player is on the
+ *                kicking side, the offense (Epic 104.5); the other side has none
  *   (none)       an offensive player without the ball during the play
  *
  * The contexts and their bindings are catalog data (Data/input_actions.json); this only
- * decides which is on. The snap and the end of the play come from UPSTelemetryBus (rule 5);
- * possession is the pawn's own (rule 6). It re-evaluates every tick; headless tests call
- * Refresh.
+ * decides which is on. The snap, the kick phases and the end of the play come from
+ * UPSTelemetryBus (rule 5); possession is the pawn's own (rule 6). It re-evaluates every tick;
+ * headless tests call Refresh.
  */
 UCLASS(ClassGroup = "PlaySports", BlueprintType, meta = (BlueprintSpawnableComponent))
 class PLAYSPORTS_API UPSPlayContextComponent : public UActorComponent
@@ -49,6 +52,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Input")
     bool IsPlayLive() const { return bPlayLive; }
 
+    /** True during a kickoff, punt or field goal. */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    bool IsKickPhase() const { return bKickPhase; }
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     FName PreSnapContextId;
 
@@ -60,6 +67,12 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     FName DefenseContextId;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    FName KickingContextId;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    FName DefensePreSnapContextId;
 
 protected:
     virtual void BeginPlay() override;
@@ -75,4 +88,5 @@ private:
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;
     FVector LineOfScrimmage = FVector::ZeroVector;
     bool bPlayLive = false;
+    bool bKickPhase = false;
 };

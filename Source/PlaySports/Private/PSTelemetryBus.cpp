@@ -13,6 +13,41 @@ void UPSTelemetryBus::ClearHistory()
     EventHistory.Empty();
 }
 
+int32 UPSTelemetryBus::GetOldestEventSequence() const
+{
+    return EventHistory.Num() > 0 ? EventHistory[0].Sequence : 0;
+}
+
+bool UPSTelemetryBus::FindEventBySequence(int32 Sequence, FPSTelemetryEvent& OutEvent) const
+{
+    // Sequences in the history are consecutive, so the event's index is its distance from
+    // the oldest one.
+    if (EventHistory.Num() == 0)
+    {
+        return false;
+    }
+    const int32 Index = Sequence - EventHistory[0].Sequence;
+    if (!EventHistory.IsValidIndex(Index) || EventHistory[Index].Sequence != Sequence)
+    {
+        return false;
+    }
+    OutEvent = EventHistory[Index];
+    return true;
+}
+
+bool UPSTelemetryBus::FindLatestEventOfType(EPSTelemetryEventType EventType, FPSTelemetryEvent& OutEvent) const
+{
+    for (int32 Index = EventHistory.Num() - 1; Index >= 0; --Index)
+    {
+        if (EventHistory[Index].EventType == EventType)
+        {
+            OutEvent = EventHistory[Index];
+            return true;
+        }
+    }
+    return false;
+}
+
 void UPSTelemetryBus::RecordHistory(EPSTelemetryEventType EventType, const FString& Description, const FString& JsonPayload)
 {
     FPSTelemetryEvent Event;
@@ -20,12 +55,16 @@ void UPSTelemetryBus::RecordHistory(EPSTelemetryEventType EventType, const FStri
     Event.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
     Event.Description = Description;
     Event.PayloadJson = JsonPayload;
+    Event.Sequence = ++LastEventSequence;
 
     EventHistory.Add(Event);
     if (EventHistory.Num() > MaxHistorySize)
     {
         EventHistory.RemoveAt(0);
     }
+
+    // A local copy: a listener may publish, which changes EventHistory under it.
+    OnEventRecordedMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishSnap(const FPSTelemetrySnapEvent& Event)
@@ -264,6 +303,39 @@ void UPSTelemetryBus::PublishPassRushMove(const FPSTelemetryPassRushEvent& Event
     OnPassRushMoveMC.Broadcast(Event);
 }
 
+void UPSTelemetryBus::PublishKick(const FPSTelemetryKickEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryKickEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Description = Event.bLiningUp
+        ? FString::Printf(TEXT("Kick: %s lines up for the %s"), *Event.KickerName, *Event.KickType)
+        : FString::Printf(TEXT("Kick: %s's %s, power %.2f, accuracy %.2f (roll %.2f)"), *Event.KickerName, *Event.KickType, Event.Power, Event.Accuracy, Event.Roll);
+    RecordHistory(EPSTelemetryEventType::Kick, Description, JsonPayload);
+
+    if (OnKick.IsBound())
+    {
+        OnKick.Broadcast(Event);
+    }
+    OnKickMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishJumpSnap(const FPSTelemetryJumpSnapEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryJumpSnapEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Description = FString::Printf(TEXT("JumpSnap: %s moved %.2fs before the snap%s"),
+        *Event.DefenderName, Event.LeadSeconds, Event.bOffside ? TEXT(", offside") : TEXT(""));
+    RecordHistory(EPSTelemetryEventType::JumpSnap, Description, JsonPayload);
+
+    if (OnJumpSnap.IsBound())
+    {
+        OnJumpSnap.Broadcast(Event);
+    }
+    OnJumpSnapMC.Broadcast(Event);
+}
+
 void UPSTelemetryBus::PublishPreSnap(const FPSTelemetryPreSnapEvent& Event)
 {
     FString JsonPayload;
@@ -295,4 +367,52 @@ void UPSTelemetryBus::PublishTimeout(const FPSTelemetryTimeoutEvent& Event)
         OnTimeout.Broadcast(Event);
     }
     OnTimeoutMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishGapIntegrity(const FPSTelemetryGapIntegrityEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryGapIntegrityEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("GapIntegrity: %s, %d open (%s)%s, exchanges %d"), *Event.Front, Event.OpenGapCount, *Event.OpenGaps,
+        Event.bRunRead ? TEXT(", run read") : TEXT(""), Event.ScrapeExchanges);
+    RecordHistory(EPSTelemetryEventType::GapIntegrity, Description, JsonPayload);
+
+    if (OnGapIntegrity.IsBound())
+    {
+        OnGapIntegrity.Broadcast(Event);
+    }
+    OnGapIntegrityMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishRouteRunning(const FPSTelemetryRouteEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryRouteEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("RouteRunning: %s %s vs %s: %s"),
+        *UEnum::GetValueAsString(Event.Kind), *Event.ReceiverName, *Event.DefenderName, *Event.Outcome.ToString());
+    RecordHistory(EPSTelemetryEventType::RouteRunning, Description, JsonPayload);
+
+    if (OnRouteRunning.IsBound())
+    {
+        OnRouteRunning.Broadcast(Event);
+    }
+    OnRouteRunningMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishGameState(const FPSTelemetryGameStateEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryGameStateEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("GameState: Q%d %.0f s, %s, down %d & %d at %d, %d-%d"),
+        Event.Quarter, Event.GameClockSeconds, *Event.Phase, Event.Down, Event.Distance, Event.YardLine, Event.HomeScore, Event.AwayScore);
+    RecordHistory(EPSTelemetryEventType::GameState, Description, JsonPayload);
+
+    if (OnGameState.IsBound())
+    {
+        OnGameState.Broadcast(Event);
+    }
+    OnGameStateMC.Broadcast(Event);
 }

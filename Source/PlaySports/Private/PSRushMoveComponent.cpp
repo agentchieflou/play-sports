@@ -1,4 +1,5 @@
 #include "PSRushMoveComponent.h"
+#include "PSAIFieldSnapshot.h"
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
 #include "PSDefenseController.h"
@@ -6,7 +7,6 @@
 #include "PSTelemetryBus.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "Misc/Paths.h"
 
 namespace PSRushMovePrivate
@@ -304,7 +304,7 @@ bool UPSRushMoveComponent::ResolveActiveMove(float Roll)
 
     if (bWon)
     {
-        // Free of the block, and past him toward the passer.
+        // Free of the block, and past him toward the ball: the carrier, else the passer.
         Self->bIsEngaged = false;
         Self->EngagedOpponent = nullptr;
         if (Blocker->EngagedOpponent == Self)
@@ -312,16 +312,21 @@ bool UPSRushMoveComponent::ResolveActiveMove(float Roll)
             Blocker->bIsEngaged = false;
             Blocker->EngagedOpponent = nullptr;
         }
-        FVector Toward(-1.f, 0.f, 0.f);
-        for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
+        const APSPlayerPawn* Holder = nullptr;
+        if (UPSAIFieldSnapshot* Field = GetWorld() ? GetWorld()->GetSubsystem<UPSAIFieldSnapshot>() : nullptr)
         {
-            if (It->TeamSide == EPSTeamSide::Offense && It->GetAttributes().Role == EPlayerRole::Quarterback)
+            Holder = Field->FindBallCarrier();
+            if (!Holder || Holder->TeamSide != EPSTeamSide::Offense)
             {
-                Toward = It->GetActorLocation() - Self->GetActorLocation();
-                Toward.Z = 0.f;
-                Toward = Toward.GetSafeNormal();
-                break;
+                Holder = Field->FindPawn(EPSTeamSide::Offense, EPlayerRole::Quarterback);
             }
+        }
+        FVector Toward(-1.f, 0.f, 0.f);
+        if (Holder)
+        {
+            Toward = Holder->GetActorLocation() - Self->GetActorLocation();
+            Toward.Z = 0.f;
+            Toward = Toward.GetSafeNormal();
         }
         if (UFloatingPawnMovement* Movement = Self->GetFloatingMovementComponent())
         {
@@ -367,13 +372,20 @@ void UPSRushMoveComponent::EndEngagementState()
 
 bool UPSRushMoveComponent::ReadDoubleTeam(const APSPlayerPawn* Self) const
 {
+    UPSAIFieldSnapshot* Field = GetWorld() ? GetWorld()->GetSubsystem<UPSAIFieldSnapshot>() : nullptr;
+    if (!Field)
+    {
+        return false;
+    }
     // His own blocker, any lineman engaged on him, and any free lineman at his side.
     const float Radius = Catalog.DoubleTeamRadius;
+    const TArray<APSPlayerPawn*>& Pawns = Field->GetPawns();
+    const TArray<EPlayerRole>& Roles = Field->GetRoles();
     int32 Blockers = 0;
-    for (TActorIterator<APSPlayerPawn> It(GetWorld()); It; ++It)
+    for (int32 Index = 0; Index < Pawns.Num(); ++Index)
     {
-        const APSPlayerPawn* Pawn = *It;
-        if (Pawn == Self || Pawn->TeamSide != EPSTeamSide::Offense || Pawn->GetAttributes().Role != EPlayerRole::OffensiveLineman)
+        const APSPlayerPawn* Pawn = Pawns[Index];
+        if (Pawn == Self || Pawn->TeamSide != EPSTeamSide::Offense || Roles[Index] != EPlayerRole::OffensiveLineman)
         {
             continue;
         }
@@ -409,7 +421,8 @@ bool UPSRushMoveComponent::IsRushing() const
     const APSDefenseController* Controller = GetDefenseController();
     const UPSDefenderAIComponent* DefenderAI = Controller ? Controller->GetDefenderAI() : nullptr;
     const EPSDefenderAction Action = DefenderAI ? DefenderAI->GetAction() : EPSDefenderAction::Idle;
-    return Action == EPSDefenderAction::Rush || Action == EPSDefenderAction::Contain;
+    // Rushing the passer, or fitting a gap on a run (shedding to make the play, Epic 81).
+    return Action == EPSDefenderAction::Rush || Action == EPSDefenderAction::Contain || Action == EPSDefenderAction::Fit;
 }
 
 APSPlayerPawn* UPSRushMoveComponent::GetBlocker() const

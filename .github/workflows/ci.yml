@@ -26,10 +26,24 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Convention linter failed" }
 
       - name: Validate data contracts
+        # Every contract and every cross-file reference (tools/content_contracts.py, Epic 125):
+        # a generated-content PR is gated here like any other.
         shell: powershell
         run: |
           python tools/validate_data.py
           if ($LASTEXITCODE -ne 0) { throw "Data validation failed" }
+
+      - name: Content report
+        # Rating distributions, name duplication and roster shape (Epic 125). Informational:
+        # it warns in the log and does not fail the build.
+        shell: powershell
+        run: python tools/content.py report
+
+      - name: Tool tests
+        shell: powershell
+        run: |
+          python -m unittest discover -s tools/tests -t . -v
+          if ($LASTEXITCODE -ne 0) { throw "Tool unit tests failed" }
 
       - name: Build PlaySportsEditor
         shell: powershell
@@ -50,6 +64,13 @@ jobs:
           if (-not (Test-Path $Index)) { throw "Automation report missing - tests did not run" }
           $Json = Get-Content $Index -Raw
           if ($Json -match '"failed"\s*:\s*[1-9]' -or $Json -match '"state"\s*:\s*"fail') { throw "Automation report contains failed test(s)" }
+
+      - name: Summarize crash reports
+        # Epic 117: a crash during the build or the tests leaves Saved/Crashes/<id>; print its
+        # scrubbed call stack and game state here. Informational: it always exits 0.
+        if: ${{ !cancelled() }}
+        shell: powershell
+        run: python tools/crash_report.py summarize
 
       - name: Upload test report
         if: always()

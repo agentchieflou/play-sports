@@ -58,3 +58,7 @@ A self-hosted runner on a public repo executes workflow code on this PC. Mitigat
   the compile check server-side.
 - The test job runs the automation harness even while zero project tests match — Epic 24 fills
   the suite; the harness existing first is deliberate.
+- Beyond the UE build: `tools/tests` (Python unit tests for the repo's tools) run before the
+  build, and after the automation tests `tools/crash_report.py summarize` prints a scrubbed
+  summary of any crash the editor left in `Saved/Crashes` (Epic 117). The job log is public, so
+  that summary carries only allowlisted fields (`Specs/Privacy_Telemetry.md`).

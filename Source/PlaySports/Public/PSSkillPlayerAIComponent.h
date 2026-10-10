@@ -12,6 +12,7 @@
 
 class APSOffenseController;
 class APSPlayerPawn;
+class UPSRouteRunnerComponent;
 
 /** What an offensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -87,6 +88,15 @@ struct FSkillPlayerAITuningRow : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float ThrowLeadSpeed = 2000.f;
 
+    /** A receiver on a planned route is read until this long after his break (Epic 68). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float ReadWindowSeconds = 0.8f;
+
+    /** A QB with 100 Awareness reads a receiver this long before his break, counting the
+     *  separation the break will make (none at 0). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float MaxAnticipationSeconds = 0.3f;
+
     /** How far in front of the QB a pass blocker sets up. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float BlockSetDistance = 150.f;
@@ -140,7 +150,8 @@ public:
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
 
-    /** Listens for the call, the snap, throws and the end of the play. Idempotent. */
+    /** Listens for the call, the snap, throws, the end of the play and control handoffs.
+     *  Idempotent. */
     void BindToBus();
 
     void UnbindFromBus();
@@ -153,6 +164,12 @@ public:
      *  interval (Epic 129); headless tests pass their own. */
     void UpdateAI(float DeltaSeconds, float DecisionInterval);
 
+    /** Picks the pawn back up from a human mid-play without a pop (Epic 30): carries on in the
+     *  direction the pawn is moving until the next decision, takes up the opening action if
+     *  the human had him from before the snap, and skips route waypoints he is already past.
+     *  Called when the bus says a human released this pawn. */
+    void ResumeFromHuman();
+
     UFUNCTION(BlueprintPure, Category = "AI")
     EPSSkillPlayerAction GetAction() const { return Action; }
 
@@ -164,8 +181,10 @@ public:
     bool IsRunPlay() const { return bRunPlay; }
 
     /** The receiver the QB would throw to now and whether he reads him as open: the most
-     *  separated eligible receiver, with the separation the QB's Awareness lets him see. */
-    APSPlayerPawn* ChooseReceiver(bool& bOutOpen, float& OutSeparation);
+     *  separated eligible receiver whose read is up (his route's timing window, Epic 68), with
+     *  the separation the QB's Awareness lets him see. bWholeField reads everyone, timing or
+     *  not (the QB out of time). */
+    APSPlayerPawn* ChooseReceiver(bool& bOutOpen, float& OutSeparation, bool bWholeField = false);
 
 protected:
     virtual void BeginPlay() override;
@@ -177,6 +196,10 @@ private:
     void HandleSnap(const FPSTelemetrySnapEvent& Event);
     void HandleThrow(const FPSTelemetryThrowEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
+    void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
+
+    /** The first action of the play: the route if he has one, else the QB's read or a block. */
+    void StartOpeningAction(const APSPlayerPawn* Self);
 
     void TickQuarterback(APSPlayerPawn* Self);
     void ThrowTo(APSPlayerPawn* Self, APSPlayerPawn* Receiver);
@@ -185,9 +208,10 @@ private:
     FVector SteerAsBlocker(APSPlayerPawn* Self) const;
 
     APSOffenseController* GetOffenseController() const;
+    UPSRouteRunnerComponent* GetRouteRunner() const;
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindTeammate(EPlayerRole Role) const;
-    TArray<APSPlayerPawn*> GetFieldPawns() const;
+    const TArray<APSPlayerPawn*>& GetFieldPawns() const;
 
     UPROPERTY(Transient)
     FSkillPlayerAITuningRow Tuning;

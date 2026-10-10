@@ -4,14 +4,40 @@ All game content (players, teams, playbooks, league config) is authored as JSON 
 loaded through `UPSDataIngestion` / `UPSPlaybookIngestion` (`Source/PlaySports/Public/PSDataIngestion.h`,
 `PSPlaybookIngestion.h`) — never through a new ad-hoc parser (Architecture rule 4).
 
-Re-import and validate everything in one action with the content commandlet (Epic 21):
+`tools/content.py` is the one command for content (Epic 125):
+
+```
+python tools/content.py validate   # every contract below and every reference between files
+python tools/content.py report     # rating distributions, name duplication, roster shape
+python tools/content.py import     # validate, then the commandlet below (needs UE_ROOT)
+python tools/content.py            # validate, then report
+```
+
+`validate` is `tools/validate_data.py`. CI runs it on every PR, so generated content is gated
+like hand-written content. The per-file contracts for teams, the league config, the playbook
+and player rating ranges live in `tools/content_contracts.py`, which also
+checks the references between files:
+
+- the league config's `TeamsDataTablePath` names a teams file with at least `NumPlayoffTeams`
+  teams;
+- every team's `RosterDataTablePath` names a roster, and every file in `rosters/` belongs to a
+  team;
+- `PlayerId`s are unique across the league;
+- every play's `RouteId` is in the route library.
+
+`report` prints its warnings in the CI log; they do not fail the build. `--strict` makes them fail.
+
+The import is the content commandlet (Epic 21):
 
 ```
 UnrealEditor-Cmd.exe play-sports.uproject -run=PSContentReimport
 ```
 
-This validates every file below and logs actionable `Row N: <field> <problem>` errors before
-loading anything, so a bad row never silently produces a half-populated DataTable.
+It loads the league config, follows it to the teams and each team's roster, and loads the route
+library and the playbook, all through the game's own loaders. It logs actionable
+`<file> - <problem>` errors, including a `PlayerId` on two teams and a play's route missing from
+the library. The automation test `PlaySports.Content.ImportShippedContent` runs the same import on
+every CI build.
 
 ## Files
 
@@ -35,17 +61,31 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `route_running.json` | `FRouteRunningTuningRow` (single object) | `UPSDataIngestion::LoadRouteRunningTuningFromJson`, via `UPSRouteRunnerComponent` |
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
+| `defensive_techniques.json` | `FDefensiveTechniqueTuningRow` (single object) | `UPSDataIngestion::LoadDefensiveTechniquesFromJson`, via `UPSDefenderTechniqueComponent` |
+| `kick_meter.json` | `FKickMeterTuningRow` (single object) | `UPSDataIngestion::LoadKickMeterTuningFromJson`, via `UPSKickMeterComponent` |
+| `ui_settings.json` | `FPSSettingsCatalog` (single object: `Categories`, `Settings`) | `UPSDataIngestion::LoadSettingsCatalogFromJson`, via `UPSSettingsSubsystem` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
+| `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
+| `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
+| `camera_all22.json` | `FPSAll22CameraTuning` (single object: `All22Rigs`, framing tuning) | `UPSDataIngestion::LoadAll22CameraTuningFromJson`, via `UPSCameraAll22Component` |
+| `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
+| `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
+| `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
+| `overlay_reticle.json` | `FPSOverlayReticleStyle` (single object: colors, mesh, `ReticleStates`) | `UPSDataIngestion::LoadOverlayReticleStyleFromJson`, via `UPSOverlayReticleComponent` |
+| `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
+| `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
 Field names must match exactly (case-sensitive): `PlayerId`, `DisplayName`, `Role`, `WeightKg`,
-`HeightCm`, `Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`, `Stamina`.
+`HeightCm`, `Speed`, `Agility`, `Strength`, `Acceleration`, `Awareness`, `Stamina`. Ratings run
+0-100; `WeightKg` and `HeightCm` are above 0.
 
 `Role` must be one of the `EPlayerRole` enum names: `Quarterback`, `RunningBack`,
 `WideReceiver`, `TightEnd`, `OffensiveLineman`, `DefensiveLineman`, `Linebacker`,
@@ -64,21 +104,38 @@ if (!Ingestion->ValidatePlayersJson(JsonPath, Errors))
 
 ## Team schema (`FPSTeamInfo`)
 
-`TeamId` (unique), `DisplayName`, `Division`, `RosterDataTablePath` (relative path to that
-team's player roster JSON, loaded separately via `LoadPlayerAttributesFromJson`).
+`TeamId`, `DisplayName`, `Division` and `RosterDataTablePath` are required. `TeamId`,
+`DisplayName` and `Abbreviation` are each unique in the league. `RosterDataTablePath` is the
+project-relative path to that team's player roster JSON, loaded separately via
+`LoadPlayerAttributesFromJson`.
 Identity for team select (Epic 101): `Abbreviation` (2-4 letters or digits), `PrimaryColor` and
 `SecondaryColor` (`#RRGGBB`), `LogoPath` (soft object path; empty until logos are imported).
 Team ratings are not stored: `UPSUITeamCatalog` derives them from the roster.
 
 ## League config schema (`FPSLeagueConfig`)
 
-Single JSON object (not an array): `LeagueName`, `NumWeeks`, `ByeWeekNumbers` (int array),
-`NumPlayoffTeams`, `TeamsDataTablePath`.
+Single JSON object (not an array), every field required: `LeagueName`, `NumWeeks` (1 or more),
+`ByeWeekNumbers` (distinct weeks within the season), `NumPlayoffTeams` (2 or more, at most the
+league's teams), `TeamsDataTablePath` (the teams file, project-relative).
 
 ## Playbook schema (`FPSPlayDefinition` / `FPSRoute`)
 
-See `Source/PlaySports/Public/PSPlaybookData.h` for the full assignment/route shape. Every
-`Route`-kind assignment's `RouteId` must exist in `sample_routes.json`.
+See `Source/PlaySports/Public/PSPlaybookData.h` for the full assignment/route shape. The rules
+are:
+
+- Each play has a unique `PlayId`, a `Formation`, `bIsOffensivePlay` and a `PlayCategory` for its
+  side:
+  - offense: `Run`, `ShortPass`, `DeepPass`, `PlayAction`, `Screen`;
+  - defense: `Base`, `Blitz`, `Prevent`.
+- `Front` and `CoverageShell` are for defensive plays only.
+- Assignments use their side's roles and kinds:
+  - offense: `Route`, `PassBlock`, `RunBlock`;
+  - defense: `ManCoverage`, `ZoneCoverage`, `PassRush`, `RunFit`, `Blitz`.
+- Only a `Route` assignment names a `RouteId`, and it must exist in the route library. A `Route`
+  assignment without one is "go to your spot", such as the QB's drop.
+- `PlayCategory` may also be a clock play, `Spike` or `Kneel` (Epic 76), which the simulation
+  resolves at the snap.
+- The route library's own rules are under "Route schema extras" below.
 
 Two `PlayCategory` values are clock plays (Epic 76): `Spike` and `Kneel` (the `Clock` formation).
 The CPU calls them only when the clock does (`UPSSituationAI::DecideClockPlay`), and
@@ -98,9 +155,8 @@ calls and returns only; a scrimmage down everything else. The CPU calls one only
 1. Add a `rosters/team_<name>.json` roster file following the player schema above (aim for at
    least one player per `EPlayerRole`).
 2. Add an entry to `sample_teams.json` pointing `RosterDataTablePath` at it.
-3. Run the content commandlet (or `ValidatePlayersJson`/`ValidateTeamsJson` directly) before
-   committing -- CI's "Validate data contracts" step does not currently know about this
-   commandlet, so validate locally.
+3. Run `python tools/content.py` before committing. CI runs the same validation and imports
+   the roster through the game's loaders (`PlaySports.Content.ImportShippedContent`).
 
 ## Input catalog schema (`FPSInputCatalog`)
 
@@ -110,7 +166,8 @@ context from it at runtime; `APSPlayerController` applies the `OnField` context 
 possesses a pawn.
 
 - `Contexts[]`: `ContextId` (unique), `Priority` (int; higher wins on a shared key),
-  `Description`.
+  `Description`, optional `bRemappable` (default true). An action in a context with
+  `bRemappable` false keeps its keys: the menus read `Menu`'s through Slate (Epic 103.4).
 - `Actions[]`: `ActionId` (unique), `ValueType` (`Boolean`, `Axis1D`, `Axis2D`, `Axis3D` --
   the `EInputActionValueType` names), `Description`, `Contexts` (IDs above), `Bindings[]`.
 - `Bindings[]`: `Key` (an engine `EKeys` name such as `W`, `Mouse2D`, `Gamepad_Left2D`),
@@ -118,7 +175,8 @@ possesses a pawn.
 
 Rules enforced by `tools/validate_data.py` and `UPSInputConfig::Validate()`: every action has
 at least one keyboard/mouse key and one `Gamepad_*` key in every context it is declared for,
-and no key is bound to two actions in the same context.
+and no key is bound to two actions in the same context. A player's remap (saved in the profile,
+never written here) passes the same checks before it applies.
 
 ## Input tuning schema (`FInputTuningRow`)
 
@@ -211,6 +269,9 @@ more; distances are cm, times seconds:
   `FieldHalfWidth` either side of the middle. When the call says stay in bounds the carrier turns
   back inside within `SidelineCushion` of a sideline; when it says get out of bounds he heads for
   the nearer one once past the line. The weight is how hard (1 = as much as upfield).
+- `ReadWindowSeconds`, `MaxAnticipationSeconds` (Epic 68): a receiver on a planned route is read
+  from his break (as much as `MaxAnticipationSeconds` before it at Awareness 100) until
+  `ReadWindowSeconds` after it.
 
 ## Defensive AI tuning schema (`FDefenderAITuningRow`)
 
@@ -253,6 +314,12 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
     profile (`Windows`, `IOS`, ...) or one declared in `Config/DefaultDeviceProfiles.ini`;
   - `AIDecisionInterval`: seconds between each AI player's decisions, 0 for every frame. The AI
     steers every frame in between.
+  - `OverlayDetail`: `Full` (everything, animated), `Simplified` (no animated transitions or
+    pulses) or `Minimal` (the score bug and the control reticle, static). Track A's overlays
+    read it.
+  - `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` (above 0): how often the telemetry
+    sampler (Epic 26) records every pawn, and what one recording may cost in ms before the
+    sampler halves its rate.
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -319,6 +386,35 @@ Single object (Epic 70; how a CPU pass rusher beats the man blocking him):
 
 `PSRushMoves::ValidateCatalog` and `tools/validate_data.py` check it.
 
+## Defensive technique schema (`FDefensiveTechniqueTuningRow`)
+
+Single object (Epic 104.5; the human defender's buttons, `Specs/Input_Architecture.md` section 6):
+- `JumpSnapAction`: a Boolean action in the catalog's `DefensePreSnap` context. `StripAction`: one
+  in its `Defense` context.
+- `JumpWindowSeconds`: a jump pressed at most this long before the snap is clean; an earlier one
+  is offside.
+- `GetOffSpeed` (cm/s): what a clean jump adds toward the line of scrimmage at the snap.
+- `StripWindowSeconds`, `StripCooldownSeconds`: how long a strip attempt lasts, and from one to
+  the next.
+- `StripTackleScale` (0-1): a stripping defender's tackles succeed this many times as often.
+- `StripFumbleChance` (0-1): what his tackles add to the fumble chance at Strength 100, in
+  proportion below.
+
+`UPSDefenderTechniqueComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Kick meter schema (`FKickMeterTuningRow`)
+
+Single object (Epic 104.5; the human kicker, `Specs/Input_Architecture.md` section 6):
+- `KickAction`: a Boolean action in the catalog's `Kicking` context.
+- `LineUpSeconds` (above 0): how long into a kick phase the play waits for the human's kick.
+- `PowerFillSeconds` (above 0): held, the power bar fills from empty to full in this long, then
+  drains back.
+- `AccuracySweepSeconds` (above 0): with power locked, the needle runs from -1 to 1 in this long.
+- `PowerWeight`, `AccuracyWeight` (0 or more, not both 0): the kick's roll is
+  `PowerWeight x (1 - power) + AccuracyWeight x |needle|`, clamped to 0-1, where 0 is perfect.
+
+`UPSKickMeterComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
 ## Pre-snap tuning schema (`FPreSnapTuningRow`)
 
 Single object (Epic 66; the offense's audibles, hot routes, motion and protection,
@@ -347,6 +443,23 @@ Single object (Epic 66; the offense's audibles, hot routes, motion and protectio
   catalog's `PreSnap` context.
 
 `tools/validate_data.py` checks it, including the routes and the actions.
+
+## Settings schema (`FPSSettingsCatalog`)
+
+Single object (Epic 103; the settings menu, `Specs/Front_End_Shell.md`):
+- `Categories[]`: `CategoryId` (unique) and `Label`. Each is one screen in the settings menu.
+- `Settings[]`, each with:
+  - `SettingId` (unique), `Category` (one of the categories), `Label` and `Description`;
+  - `Kind`: `Toggle` (value 0 or 1), `Choice` (value is the index into `Choices`, at least two)
+    or `Slider` (`Min` < `Max`, a positive `Step`, an optional `Unit` shown after the value);
+  - `Values` (choices only, optional): the number each choice stands for, one per choice. A
+    frame-rate cap's 60, a dead-zone scale's 1.5.
+  - `Default`: the value before the player changes it.
+
+The player's values live in the profile save, by `SettingId`. A setting removed from this file
+is dropped from the profile on load; a stored value outside today's range is snapped into it.
+Code refers to settings by ID (`UPSSettingsSubsystem` and `UPSSettingsComponent` name the
+ones they apply). `UPSSettingsSubsystem::ValidateCatalog` and `tools/validate_data.py` check it.
 
 ## Situational tuning schema (`FPSSituationalTuning`)
 
@@ -409,3 +522,217 @@ Single object (Epic 75). Yard lines (1-99) count from the team's own goal line; 
 
 `tools/validate_data.py` checks it, including that each return scheme is a `KickReturn` play's
 formation.
+## Telemetry sampling schema (`FPSTelemetrySamplingTuning`)
+
+Single object (Epic 26; how `UPSTelemetrySamplingSubsystem` records every pawn's position,
+velocity, acceleration and facing for overlays, trails and replay). The sampling rate and the
+per-frame budget are per platform tier (`TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` in
+`platform_tiers.json`), never in this file:
+- `HistorySeconds` (above 0): how much the ring of scheduled frames covers at full rate. The
+  fastest tier's rate x `HistorySeconds` is at most 10000 frames.
+- `KeyframeEvents`: `EPSTelemetryEventType` names (`Snap`, `Catch`, ...), each once. Each such
+  bus event captures every pawn the instant it is published; the keyframe lives as long as its
+  event stays in the bus's history.
+- `DegradeAfterSamples` frames in a row over the tier's budget halve the rate, at most
+  `MaxDegradeLevel` times (0 to 8); `RecoverAfterSamples` frames in a row under
+  `RecoverBelowFraction` (above 0, at most 1) of it double the rate back.
+
+`UPSTelemetrySamplingSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Session telemetry schema (`FPSSessionTelemetryTuning`)
+
+Single object (Epic 117). It sets what an opted-in player's sessions record and how much a crash
+report says (`Specs/Privacy_Telemetry.md`):
+- `FrameTimeBucketMs` (above 0), `FrameTimeBucketCount` (1 or more): the frame-time histogram's
+  bucket width and count. Percentiles are reported to the bucket width, rounded up. A frame slower
+  than width × count lands in the overflow bucket, which reports the slowest frame.
+- `Percentiles`: the frame-time percentiles each session records, each above 0 and at most 100.
+- `MinSessionSeconds` (0 or more): a session that ends cleanly with less play than this is not
+  kept. One that never ends cleanly is always kept, because it is a crash.
+- `MaxStoredSessions` (1 or more): how many sessions the local store keeps; the oldest go first.
+- `CheckpointEveryPlays` (0 or more): save the open session every this many plays (0: only at
+  the start and the end).
+- `CrashBreadcrumbCount` (0 or more): how many recent telemetry-bus events a crash report carries.
+
+`UPSSessionTelemetrySubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Run-fit schema (`FPSRunFitCatalog`)
+
+Single object (Epic 81; how the run defense accounts for every gap). Gaps are `EPSRunGap` names,
+left (-Y) and right (+Y) of the ball: `ALeft`/`ARight` beside the center, then `B`, `C` (outside
+the tackle, inside an inline tight end) and `D`.
+- `Fronts[]`, each with:
+  - `Front`: the play's `Front` (`4-3`, `3-4`, `Nickel`, ...), each listed once.
+  - `Fits[]`: a `Role` (an `EPlayerRole`, each once per front) and its `Gaps`, given to that
+    role's defenders left to right across the field. A gap appears at most once per front;
+    defenders beyond the list have none.
+- `DefaultFront`: the listed front a call with an unlisted front (or no call) plays.
+- `GapWidth` (above 0): a gap outside the last lineman is this wide (cm).
+- `InlineTightEndWidth`: a tight end this close outside the end lineman extends the line.
+- `FitDepth`, `SecondLevelDepth`: how far past the line of scrimmage a defensive lineman, and
+  everyone else, fits his gap.
+- `LeverageOffset`: a spill fitter plays this far inside his gap's center, the force player (the
+  outermost fitter on each side) this far outside it.
+- `FlowWeight` (0-1): a second-level fitter moves this fraction of the way from his gap toward
+  the carrier, across the field.
+- `AttackRadius`: a carrier this close to a fitter's gap, across the field, is coming through it,
+  and the fitter attacks.
+- `FillRadius`: a fitter this close to his gap's spot, across the field, fills it (gap
+  integrity).
+
+`PSDefenderGaps::ValidateCatalog` and `tools/validate_data.py` check it.
+
+## Route-running tuning schema (`FRouteRunningTuningRow`)
+
+Single object (Epic 68; how receivers run routes as contested skills, `UPSRouteRunnerComponent`
+and `PSRouteRunning`). Every field is a number, 0 or more; distances are cm, chances 0-1:
+- `PressRadius`: a defender this close in front of a receiver at the snap presses him.
+- `ReleaseBaseWinChance`, `ReleaseRatingWeight`, `ReleaseMinWinChance`, `ReleaseMaxWinChance`
+  (min not above max): the receiver's chance to win his release is the base plus the weight per
+  point his release rating ((Agility + Strength) / 2) beats the presser's, clamped.
+- `DelayShare` (at most 1), `DelaySeconds`, `RerouteOffset`, `RerouteDelaySeconds`: of the
+  releases he loses this share are a delay (held `DelaySeconds`); the rest a reroute (his route
+  moved `RerouteOffset` toward his sideline, held `RerouteDelaySeconds`).
+- `BreakMinAngleDegrees` (at most 180): a waypoint turning the route this much is a break.
+- `MaxBreakRounding`: at Agility 0 a receiver turns for the next leg this far before the corner;
+  at 100 he cuts on the spot.
+- `BreakSeparationBase`, `BreakSeparationPerAgility`: the separation a break makes, plus this per
+  point of Agility on the defender (never below zero). The QB counts on it throwing early.
+- `FakeSellSeconds`: a double move's receiver sells the fake this long.
+- `BiteRadius`, `BiteBaseChance`, `BiteAgilityWeight`, `BiteAwarenessWeight`, `BiteMinChance`,
+  `BiteMaxChance` (min not above max), `BiteFreezeSeconds`: the nearest defender within the
+  radius bites with the base chance plus the receiver's Agility / 100 times its weight minus his
+  own Awareness / 100 times its weight, clamped; one who bites freezes `BiteFreezeSeconds`.
+- `ManReadRadius`: an option route's receiver reads man when a defender is this close at the
+  read point.
+
+## Route schema extras (`FPSRoute`, Epic 68)
+
+On top of `RouteId` and `Waypoints` (`Offset`, `TimingSeconds`) in `sample_routes.json`:
+- `Waypoints[].bFake`: a double move's fake break (not the last waypoint).
+- `OptionReadWaypoint` (-1 for none): an option route reads the coverage at this waypoint and
+  runs `VsManBranch` or `VsZoneBranch` from there. A branch is a route whose offsets start at the
+  read point and whose timings count from the read; it is authored breaking outside, and turns
+  inside against a man defender with outside leverage. Branches must exist and not be options
+  themselves.
+
+## All-22 camera schema (`FPSAll22CameraTuning`)
+
+Single object (Epic 40; the coaches film view, `UPSCameraAll22Component` on the broadcast camera):
+- `All22Rigs[]`, in the order the film view toggles through them. Each has:
+  - `RigId` (unique) and `Placement`: `Sideline` (high on the -Y sideline, the broadcast camera's
+    side) or `EndZone` (high behind the end zone the offense defends).
+  - `HeightCm` and `StandoffCm` (both positive): the rig's fixed height, and its distance from the
+    field's centre (across the field for the sideline rig, along it for the end-zone rig).
+  - `bTrackPlay` and `RailHalfLengthCm`: whether the rig slides along its rail (X for the sideline
+    rig, Y for the end-zone rig) to stay square to the players, and how far the rail runs either
+    side of its centre.
+  - `MinFieldOfView`, `MaxFieldOfView` (degrees, 0 < min <= max < 170): the zoom range. Players
+    too spread for the widest zoom make the rig back away along its line of sight.
+- `FramingMarginCm`: padding kept around the players on the ground.
+- `PlayerHeightCm`: a player's height, centred on the pawn, so heads and feet stay in frame.
+- `AspectRatio`: the frame's width over height when no game viewport says otherwise.
+- `ReframeSpeed`: how fast the frame closes in once play bunches up (0 closes in at once).
+  Widening is always immediate.
+
+`UPSCameraFraming::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Camera director schema (`FPSCameraDirectorTuning`)
+
+Single object (Epic 38; `UPSCameraDirectorComponent` on the broadcast camera cuts the game by itself):
+- `bDirectorEnabled`: off leaves the broadcast camera to its plain follow.
+- `Shots[]`, the vocabulary, each `Shot` once: `LosWide`, `All22High`, `TightFollow`, `EndZone`,
+  `SidelineReaction`, `Skycam`.
+  - `All22High` and `EndZone` are taken by the Epic 40 rig named by `RigId`, which must be in
+    `camera_all22.json`.
+  - `Skycam` is Epic 39's cable rig (`camera_skycam.json`), which flies itself; its numbers here
+    are only a fallback for a camera without one.
+  - The others stand `DistanceCm` from their target toward the camera side, at `HeightCm`, with a
+    `FieldOfView` (0-170 degrees), aiming `AimHeightCm` above the field. The target is the ball
+    for `LosWide` and the live subject for the rest. `TightFollow` aims `LeadSeconds` ahead of
+    him along his run.
+- `CutRules[]`: `Trigger` (`PreSnap`, `Snap`, `Throw`, `Catch`, `Tackle`, `Fumble`, `Score`,
+  `PlayEnd`, `Breakaway`; each once, and `PreSnap` is required: it is the opening shot) to the
+  `Shot` it asks for. `Breakaway` fires when the live subject breaks into the clear (see
+  `Interest`).
+- `Interest`: how a player's interest is scored to pick the live subject. It is the sum of:
+  - `BallWeight` for holding the ball;
+  - `ProximityWeight` falling off to nothing at `ProximityRadiusCm` from the ball;
+  - `BreakawayWeight` for a breakaway: at least `BreakawaySpeedCms` with no opponent within
+    `BreakawayClearanceCm`;
+  - `BigHitWeight`, fading over `BigHitSeconds`, after a tackle, or a hit of at least
+    `BigHitDamage`.
+
+  `SwitchMargin` is how much a new subject must out-score the current one by.
+- `MinShotSeconds`: the shortest a shot runs before the director cuts away; an earlier ask waits,
+  and the latest one wins.
+- `FollowInterpSpeed`: how fast the camera eases after its target within a shot.
+- `CameraSide` (-1 or 1) and `NeutralBandCm`: the side of the line of action every shot stays on
+  (the 180-degree rule), and how close to the line a shot counts as on it.
+
+`UPSCameraDirectorComponent::ValidateTuning` and `tools/validate_data.py` check it, including the
+rigs.
+
+## Selected-player reticle schema (`FPSOverlayReticleStyle`)
+
+Single object (Epic 30; the ring under the player the human controls, drawn by
+`APSOverlayReticle`):
+- `OffenseColor`, `DefenseColor` (`#RRGGBB`): the ring's color by side, used when the human's
+  team isn't known or `bUseTeamColor` is false. With `bUseTeamColor`, the team picked at team
+  select gives its `PrimaryColor` (`sample_teams.json`).
+- `MeshPath`, `MaterialPath`, `ColorParameter`: the ring's mesh, its material and the material's
+  vector parameter the color goes into. Engine basic shapes until an editor session authors the
+  broadcast hexagon (`Specs/Overlay_Reticle_Spec.md`).
+- `MeshDiameter` (above 0, cm across at scale 1), `Thickness`, `GroundClearance` (cm, 0 or more).
+- `ReticleStates[]`: one look each for `PreSnap`, `InPlay` and `BallCarrier`: `Radius` (cm, above
+  0), `Brightness` (multiplies the color), `PulseHz` and `PulseAmount` (0-1, how far the radius
+  swells; pulses only on a tier whose `OverlayDetail` is `Full`).
+
+`UPSOverlayReticleComponent::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Player-switch schema (`FControlHandoffTuningRow`)
+
+Single object (Epic 30; `UPSControlHandoffComponent`):
+- `CycleWindowSeconds` (0 or more): a switch press this soon after the last one moves on to the
+  next player in the same nearest-to-the-ball order instead of ranking again.
+- `PickLeftAction`, `PickRightAction`: the pre-snap direct-pick actions, each a Boolean action in
+  the input catalog's `PreSnap` context.
+
+## Broadcast package schema (`FPSBroadcastOverlayTheme`)
+
+Single object (Epic 33; the score bug and the lower-third chyrons, `UPSOverlayBroadcastSubsystem`).
+Track C's branding reskins the broadcast by swapping this file:
+- `HomeLabel`, `AwayLabel`, `HomeColor`, `AwayColor`: a side whose team isn't known. With
+  `bUseTeamColors`, a known team (`sample_teams.json`) shows its own abbreviation and primary color.
+- Colors (`#RRGGBB`): `BarColor`, `TextColor`, `RedZoneColor` (the down-and-distance box in the
+  red zone), `TwoMinuteColor` (the clock in the two-minute state), `TimeoutColor` and
+  `TimeoutUsedColor` (the timeout pips), `ChyronColor`.
+- `Anchor` (`BottomCenter`, `TopCenter`, `TopLeft`), `ScoreFontSize`, `TextFontSize` (1 or more).
+- `RedZoneYardLine` (1-99, from the offense's goal line: 80 is the opponent's 20) and
+  `TwoMinuteSeconds` (the last this-many seconds of the 2nd and 4th quarters).
+- Chyron rules: `ChyronMaxQueued` (1 or more waiting; past it the lowest priority goes, oldest
+  first), `ChyronMinShowSeconds` (a higher priority chyron cuts in only after this),
+  `ChyronGapSeconds`, and `ChyronKinds[]`: one `Kind` each (`ScoreAlert`, `DriveSummary`,
+  `PlayStat`, `StatLine`, `Custom`) with its `Priority` (higher first) and `Seconds` on screen
+  (above 0).
+
+`UPSOverlayBroadcastSubsystem::ValidateTheme` and `tools/validate_data.py` check it.
+
+## Skycam schema (`FPSSkycamTuning`)
+
+Single object (Epic 39; `UPSCameraSkycamComponent`, a camera hung from four cables over the field):
+- `AnchorHalfLengthCm`, `AnchorHalfWidthCm`, `AnchorHeightCm`: the cable towers stand at
+  (±half length, ±half width) and the cables leave them at this height.
+- `CatenaryParameterCm` (tension over weight per length): the cables hang in catenaries, so the
+  camera's ceiling at a point is the anchor height less both cable families' sag there. It is
+  highest by the towers and lowest over midfield.
+- `EdgeMarginCm`: how far inside the towers' rectangle the camera keeps. `MinHeightCm`: the lowest
+  it flies (it must be below the ceiling over midfield).
+- `StiffnessPerSecSq`, `DampingPerSec`: the rig's mass, a damped spring toward where it wants to
+  be (2·√stiffness damps it critically). `MaxSpeedCms`, `MaxAccelerationCms2`: the winches.
+- `BehindQuarterbackDistanceCm`, `BehindQuarterbackHeightCm`: where it parks before the snap.
+- `ChaseDistanceCm`, `ChaseHeightCm`: how far behind the ball carrier, along his run, it chases
+  from the snap.
+- `LookAheadCm`: how far ahead of whoever it follows it looks. `FieldOfView` (0-170 degrees).
+
+`UPSCameraSkycamComponent::ValidateTuning` and `tools/validate_data.py` check it.

@@ -1,0 +1,18 @@
+{
+    "AnchorHalfLengthCm": 6400,
+    "AnchorHalfWidthCm": 3600,
+    "AnchorHeightCm": 4500,
+    "CatenaryParameterCm": 25000,
+    "EdgeMarginCm": 300,
+    "MinHeightCm": 700,
+    "StiffnessPerSecSq": 4.0,
+    "DampingPerSec": 4.0,
+    "MaxSpeedCms": 1400,
+    "MaxAccelerationCms2": 900,
+    "BehindQuarterbackDistanceCm": 1500,
+    "BehindQuarterbackHeightCm": 1300,
+    "ChaseDistanceCm": 1300,
+    "ChaseHeightCm": 1000,
+    "LookAheadCm": 1500,
+    "FieldOfView": 60
+}

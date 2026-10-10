@@ -1,4 +1,5 @@
 #include "PSPlaySimulation.h"
+#include "PSGameStateEvents.h"
 #include "PSRulesConfig.h"
 #include "PSSpecialTeamsModel.h"
 #include "PSGameMode.h"
@@ -61,6 +62,7 @@ void UPSPlaySimulation::InitializePlay(const TArray<FPlayerAttributes>& Offense,
     ActivePenalty = EPSPenaltyType::None;
     bPenaltyDeclined = false;
     PhaseTimer = 0.f;
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::TriggerSnap()
@@ -92,13 +94,17 @@ void UPSPlaySimulation::TriggerSnap()
         PhaseTimer = 0.f;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
     }
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
 {
     CurrentState.Phase = NewPhase;
     PhaseTimer = 0.f;
+    bHumanKickLinedUp = false;
+    HumanKickRoll = -1.f;
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play phase overridden. Transited to: %s"), *UEnum::GetValueAsString(NewPhase));
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::RecordTackle(int32 YardsGained)
@@ -142,8 +148,7 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     CurrentState.GameTimeSeconds += DeltaSeconds;
     PhaseTimer += DeltaSeconds;
 
-    bool bShouldTickGameClock = (CurrentState.Phase != EPlayPhase::PreSnap) || CurrentState.bIsClockRunning;
-    if (bShouldTickGameClock && CurrentState.Phase != EPlayPhase::Scoring)
+    if (PSGameStateEvents::IsGameClockRunning(CurrentState))
     {
         CurrentState.GameClockSeconds -= DeltaSeconds;
         if (CurrentState.GameClockSeconds <= 0.f)
@@ -234,9 +239,11 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     case EPlayPhase::Kickoff:
     case EPlayPhase::Punt:
     case EPlayPhase::FieldGoal:
-        if (PhaseTimer >= 2.0f)
+        // The kick resolves through the special-teams model when the kicker is ready: the
+        // human's meter roll (Epic 104.5), or the CPU's after its two seconds.
+        if (IsKickReady())
         {
-            ResolveKick();
+            ResolveKick(ConsumeKickRoll());
         }
         break;
     case EPlayPhase::Scoring:
@@ -248,6 +255,7 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
     default:
         break;
     }
+    PublishGameStateIfChanged();
 }
 
 FPlayState UPSPlaySimulation::GetPlayState() const
@@ -560,6 +568,9 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Drive complete. Plays: %d, Yards: %d, Result: %s"), 
             CurrentDriveSummary.Plays, CurrentDriveSummary.Yards, *CurrentDriveSummary.Result);
             
+        LastCompletedDrive = CurrentDriveSummary;
+        ++CompletedDrives;
+
         // Reset drive summary for next drive
         CurrentDriveSummary.Plays = 0;
         CurrentDriveSummary.Yards = 0;
@@ -593,6 +604,11 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     CurrentState.YardLineToGain = FMath::Min(CurrentState.YardLineToGain, 100);
     CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
 
+    // Quick sim has no calls: a kickoff goes straight to the kick (Epic 75).
+    if (bQuickSimMode && CurrentState.bKickoff)
+    {
+        NextPhase = EPlayPhase::Kickoff;
+    }
     SetPlayPhase(NextPhase);
     CurrentPlayResult.YardsGained = 0;
     CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
@@ -639,10 +655,14 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnCatch.AddDynamic(this, &UPSPlaySimulation::OnBusCatchEvent);
     Bus->OnTackle.AddDynamic(this, &UPSPlaySimulation::OnBusTackleEvent);
     Bus->OnScore.AddDynamic(this, &UPSPlaySimulation::OnBusScoreEvent);
+    // Epic 104.5: the human kicker's meter and the human defender's jump at the snap
+    Bus->OnKick.AddDynamic(this, &UPSPlaySimulation::OnBusKickEvent);
+    Bus->OnJumpSnap.AddDynamic(this, &UPSPlaySimulation::OnBusJumpSnapEvent);
     Bus->OnPlayCall.AddDynamic(this, &UPSPlaySimulation::OnBusPlayCallEvent);
     Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Subscribed to TelemetryBus (C2)."));
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
@@ -683,6 +703,7 @@ void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
     // FPlayState in agreement so GetPlayState() callers see the right values).
     CurrentState.HomeScore = Event.HomeScore;
     CurrentState.AwayScore = Event.AwayScore;
+    PublishGameStateIfChanged();
 }
 
 void UPSPlaySimulation::OnBusPlayCallEvent(const FPSTelemetryPlayCallEvent& Event)
@@ -750,6 +771,7 @@ bool UPSPlaySimulation::CallTimeout(bool bHomeTeam)
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Timeout called by %s team. Timeouts remaining: %d"),
         bHomeTeam ? TEXT("Home") : TEXT("Away"), TimeoutsRemaining);
+    PublishGameStateIfChanged();
     return true;
 }
 
@@ -796,3 +818,68 @@ void UPSPlaySimulation::ResolveKick(float KickRoll)
         *UEnum::GetValueAsString(LastSpecialTeamsOutcome.Result), LastSpecialTeamsOutcome.Yards);
     SetPlayPhase(EPlayPhase::Scoring);
 }
+
+void UPSPlaySimulation::OnBusKickEvent(const FPSTelemetryKickEvent& Event)
+{
+    const EPlayPhase Phase = CurrentState.Phase;
+    if (Phase != EPlayPhase::Kickoff && Phase != EPlayPhase::Punt && Phase != EPlayPhase::FieldGoal)
+    {
+        return;
+    }
+    if (Event.bLiningUp)
+    {
+        bHumanKickLinedUp = true;
+        HumanKickHoldSeconds = Event.HoldSeconds;
+    }
+    else
+    {
+        HumanKickRoll = FMath::Clamp(Event.Roll, 0.f, 1.f);
+    }
+}
+
+void UPSPlaySimulation::OnBusJumpSnapEvent(const FPSTelemetryJumpSnapEvent& Event)
+{
+    if (Event.bOffside && ActivePenalty == EPSPenaltyType::None)
+    {
+        ActivePenalty = EPSPenaltyType::Offsides;
+        bPenaltyDeclined = false;
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: FLAG! %s jumped offside."), *Event.DefenderName);
+    }
+}
+
+bool UPSPlaySimulation::IsKickReady() const
+{
+    if (HumanKickRoll >= 0.f)
+    {
+        return true;
+    }
+    // The CPU kicker kicks after two seconds; a lined-up human gets until his hold runs out.
+    return PhaseTimer >= (bHumanKickLinedUp ? FMath::Max(2.0f, HumanKickHoldSeconds) : 2.0f);
+}
+
+float UPSPlaySimulation::ConsumeKickRoll()
+{
+    const float KickRoll = HumanKickRoll >= 0.f ? HumanKickRoll : FMath::FRand();
+    bHumanKickLinedUp = false;
+    HumanKickHoldSeconds = 0.f;
+    HumanKickRoll = -1.f;
+    return KickRoll;
+}
+void UPSPlaySimulation::PublishGameStateIfChanged()
+{
+    UPSTelemetryBus* Bus = CachedWorld ? CachedWorld->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Bus)
+    {
+        return;
+    }
+    const int32 MaxTimeouts = RulesConfig ? RulesConfig->MaxTimeoutsPerHalf : 3;
+    const FPSTelemetryGameStateEvent Event = PSGameStateEvents::MakeEvent(CurrentState, LastCompletedDrive, CompletedDrives, MaxTimeouts);
+    if (bHasPublishedGameState && Event.HasSameStateAs(LastPublishedGameState))
+    {
+        return;
+    }
+    LastPublishedGameState = Event;
+    bHasPublishedGameState = true;
+    Bus->PublishGameState(Event);
+}
+
