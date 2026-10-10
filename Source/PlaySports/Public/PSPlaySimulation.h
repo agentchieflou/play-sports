@@ -211,6 +211,9 @@ public:
     UFUNCTION()
     void OnBusCatchEvent(const FPSTelemetryCatchEvent& Event);
 
+    /** The carrier is down (a live tackle): the play's yards are from the line of scrimmage to
+     *  the event's spot (YardLine), not the event's YardsGained, which counts from where the
+     *  carrier lined up. */
     UFUNCTION()
     void OnBusTackleEvent(const FPSTelemetryTackleEvent& Event);
 
