@@ -128,6 +128,7 @@ every CI build.
 | `crowd.json` | `FPSCrowdTuning` (single object: the excitement model, `Levels`, `CrowdReactions`) | `UPSDataIngestion::LoadCrowdTuningFromJson`, via `UPSCrowdExcitementSubsystem` |
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
 | `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
+| `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -2067,3 +2068,23 @@ The players' own flags (an offside jump, pass interference) come from their syst
   rolled.
 
 `UPSPenaltyModel::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Online matchmaking schema (`FPSSessionMatchmakingTuning`)
+
+Single object (Epic 108.5; the session and matchmaking service, `UPSSessionService`, and its
+in-process stand-in, `UPSLocalSessionRegistry`). The rules every online backend matches by:
+- `ProtocolVersion` (1 or more): this build's network protocol. Only requests with the same version
+  are matched; bump it whenever two builds can't play each other.
+- `InitialSkillWindow`, `SkillWindowGrowthPerSecond`, `MaxSkillWindow` (0 or more; the cap no
+  narrower than the start): ratings this far apart are matched at once, the window widening with
+  the longer wait of the two players up to the cap.
+- `RegionRelaxSeconds` (0 or more): after this long, players who asked for different regions are
+  matched. `MaxWaitSeconds` (above 0): matchmaking then gives up (`Timeout`).
+- `HostScoreDesktop`, `HostScoreOnPower`, `HostScoreUnmetered` (0 or more): who hosts the match
+  (the authoritative machine, `Specs/ADR_Online_Architecture.md`). Each player scores these for a PC
+  or Mac, mains power and an unmetered network; the highest score hosts, the first seat on a tie.
+- `DefaultCrossPlay`, `TouchDefaultCrossPlay` (`Anyone`, `SameInput`, `SamePlatform`): a new
+  request's cross-play policy for gamepad and keyboard players, and for touch players. Both
+  players' policies must accept the other.
+
+`UPSSessionService::ValidateTuning` and `tools/validate_data.py` check it.

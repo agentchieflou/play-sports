@@ -104,9 +104,12 @@ FPSFieldDimensions (Data/field_dimensions.json, the field's one frame): every di
 number; "HoldingChancePerPlay" files against FPSPenaltyTuning (Data/penalties.json): each flag's
 chance from 0 to 1; "PickRoundValues" files against FPSTradeTuning (Epic 88): one entry per
 EPSTradeStance, 0-1 weights, chances and win percentages (the rebuilder's under the contender's), a
-counter ratio no more than the accept ratio, a falling pick chart above its last pick's value.
-Teams, the league config, the playbook, player rating ranges and every reference
-between files are tools/content_contracts.py's (Epic 125), run from here.
+counter ratio no more than the accept ratio, a falling pick chart above its last pick's value;
+"SkillWindowGrowthPerSecond" files against FPSSessionMatchmakingTuning (Epic 108.5): a protocol
+version of 1 or more, skill windows that widen to a cap no narrower than they start, waits and host
+scores of 0 or more, each default cross-play policy an EPSCrossPlayPolicy. Teams, the league config,
+the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -4161,6 +4164,36 @@ def validate_versus_rules(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSVersusRules exactly")
 
 
+CROSS_PLAY_POLICIES = {"Anyone", "SameInput", "SamePlatform"}
+SESSION_MATCHMAKING_NUMBERS = ("InitialSkillWindow", "SkillWindowGrowthPerSecond", "MaxSkillWindow", "RegionRelaxSeconds",
+                               "MaxWaitSeconds", "HostScoreDesktop", "HostScoreOnPower", "HostScoreUnmetered")
+SESSION_MATCHMAKING_FIELDS = {"ProtocolVersion", "DefaultCrossPlay", "TouchDefaultCrossPlay"} | set(SESSION_MATCHMAKING_NUMBERS)
+
+
+def validate_session_matchmaking(path, payload):
+    """FPSSessionMatchmakingTuning (Data/session_matchmaking.json, Epic 108.5); mirrors
+    UPSSessionService::ValidateTuning."""
+    protocol = payload.get("ProtocolVersion")
+    if not isinstance(protocol, int) or isinstance(protocol, bool) or protocol < 1:
+        err(path, f"ProtocolVersion: '{protocol}' must be a whole number, 1 or more")
+    for field in SESSION_MATCHMAKING_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    initial, widest = payload.get("InitialSkillWindow"), payload.get("MaxSkillWindow")
+    if is_number(initial) and is_number(widest) and widest < initial:
+        err(path, f"MaxSkillWindow: {widest} must be at least InitialSkillWindow ({initial})")
+    wait = payload.get("MaxWaitSeconds")
+    if is_number(wait) and wait <= 0:
+        err(path, "MaxWaitSeconds: must be above 0")
+    for field in ("DefaultCrossPlay", "TouchDefaultCrossPlay"):
+        if payload.get(field) not in CROSS_PLAY_POLICIES:
+            err(path, f"{field}: '{payload.get(field)}' must be one of {sorted(CROSS_PLAY_POLICIES)} (EPSCrossPlayPolicy)")
+    extra = set(payload) - SESSION_MATCHMAKING_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSSessionMatchmakingTuning exactly")
+
+
 AI_DEBUG_FIELDS = {"bLogDecisions": bool, "bWritePostMortems": bool, "PostMortemDirectory": str, "MaxPostMortemFiles": int,
                    "MaxRecordsPerPlay": int, "OverlayHeightCm": (int, float), "OverlayFontScale": (int, float)}
 DEFENSIVE_ASSIGNMENTS = {"PassRush", "Contain", "ManCoverage", "ZoneCoverage", "RunFit", "Block"}
@@ -5586,6 +5619,8 @@ def main(root=None):
             validate_commentary_hooks(path, payload)
         if isinstance(payload, dict) and "CentimetresPerYard" in payload:
             validate_field_dimensions(path, payload)
+        if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
+            validate_session_matchmaking(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()
