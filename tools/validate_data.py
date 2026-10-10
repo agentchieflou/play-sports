@@ -16,7 +16,8 @@ catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRo
 "Adjustments" files against FPSDefensiveAdjustmentCatalog; "OpenSeparation" files against
 FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotActions" files
 against FPassingInputTuningRow, including that each named action is a Boolean in the input
-catalog's Passing context.
+catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
+Boolean in the BallCarrier context.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -545,6 +546,59 @@ def validate_passing_input(path, payload, catalog):
             err(path, f"'{action_id}' must be a Boolean action in the Passing context")
 
 
+CARRIER_MOVES = {"Juke", "Spin", "Truck", "StiffArm", "Hurdle", "Slide"}
+CARRIER_MOVE_ATTRIBUTES = {"Agility", "Strength", "Speed"}
+CARRIER_MOVE_NUMBERS = ("MinAttribute", "WindowSeconds", "CooldownSeconds", "StaminaCost", "TackleChanceScale",
+                        "SpeedRetained", "LateralSpeed", "ForwardSpeed")
+
+
+def validate_carrier_moves(path, payload, catalog):
+    """FPSCarrierMoveCatalog (Data/carrier_moves.json, Epic 104.2); mirrors
+    UPSCarrierMoveComponent::ValidateCatalog plus the catalog cross-check."""
+    moves = payload.get("Moves")
+    if not isinstance(moves, list):
+        err(path, "'Moves' must be an array")
+        return
+    actions = {a.get("ActionId"): a for a in (catalog or {}).get("Actions", []) if isinstance(a, dict)}
+    seen_moves, seen_actions = set(), set()
+    for idx, row in enumerate(moves):
+        where = f"Moves[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        move = row.get("Move")
+        if move not in CARRIER_MOVES:
+            err(path, f"{where}.Move: '{move}' is not an EPSCarrierMove ({sorted(CARRIER_MOVES)})")
+        elif move in seen_moves:
+            err(path, f"{where}.Move: '{move}' is defined twice")
+        seen_moves.add(move)
+        action_id = row.get("ActionId")
+        if not isinstance(action_id, str) or not action_id or action_id in seen_actions:
+            err(path, f"{where}.ActionId: empty or used twice")
+        seen_actions.add(action_id)
+        if catalog is not None:
+            action = actions.get(action_id)
+            if action is None:
+                err(path, f"{where}.ActionId: '{action_id}' is not an action in input_actions.json")
+            elif action.get("ValueType") != "Boolean" or "BallCarrier" not in (action.get("Contexts") or []):
+                err(path, f"{where}.ActionId: '{action_id}' must be a Boolean action in the BallCarrier context")
+        if row.get("Attribute") not in CARRIER_MOVE_ATTRIBUTES:
+            err(path, f"{where}.Attribute: '{row.get('Attribute')}' must be one of {sorted(CARRIER_MOVE_ATTRIBUTES)}")
+        for field in CARRIER_MOVE_NUMBERS:
+            value = row.get(field)
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.{field}: '{value}' must be a number, 0 or more")
+        if is_number(row.get("MinAttribute")) and row["MinAttribute"] > 100:
+            err(path, f"{where}.MinAttribute: ratings run 0-100")
+        if is_number(row.get("SpeedRetained")) and row["SpeedRetained"] > 1:
+            err(path, f"{where}.SpeedRetained: at most 1 (a move never adds speed this way)")
+        if not isinstance(row.get("bGivesUp"), bool):
+            err(path, f"{where}.bGivesUp: must be true or false")
+        extra = set(row) - set(CARRIER_MOVE_NUMBERS) - {"Move", "ActionId", "Attribute", "bGivesUp"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -595,6 +649,8 @@ def main():
             validate_input_glyphs(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "SlotActions" in payload:
             validate_passing_input(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "Moves" in payload:
+            validate_carrier_moves(path, payload, load_input_catalog())
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

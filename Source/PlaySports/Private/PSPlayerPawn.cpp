@@ -1,6 +1,7 @@
 #include "PSPlayerPawn.h"
 #include "PSFieldGrid.h"
 #include "PSBallActionComponent.h"
+#include "PSCarrierMoveComponent.h"
 #include "PSArchetypeTuning.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -36,6 +37,9 @@ APSPlayerPawn::APSPlayerPawn()
 
     // Epic 139: HealthComponent owns the live in-play hitpoint pool
     HealthComponent = CreateDefaultSubobject<UPSHealthComponent>(TEXT("HealthComp"));
+
+    // Epic 104.2: the ball carrier's move set
+    CarrierMoveComponent = CreateDefaultSubobject<UPSCarrierMoveComponent>(TEXT("CarrierMoveComp"));
 
     bHasPossession = false;
     TeamSide = EPSTeamSide::Offense;

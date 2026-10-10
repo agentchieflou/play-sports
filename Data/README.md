@@ -33,6 +33,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `skill_ai_tuning.json` | `FSkillPlayerAITuningRow` (single object) | `UPSDataIngestion::LoadSkillPlayerAITuningFromJson`, via `UPSSkillPlayerAIComponent` |
 | `defense_ai_tuning.json` | `FDefenderAITuningRow` (single object) | `UPSDataIngestion::LoadDefenderAITuningFromJson`, via `UPSDefenderAIComponent` |
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
+| `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
@@ -219,4 +220,20 @@ Single object (Epic 104; how the human QB's buttons throw, `Specs/Input_Architec
 - `PlacementDepth`, `PlacementWidth` (cm): the Move stick at release moves the throw this far
   deeper/shorter and to either side of the receiver's lead point.
 - `LeadSpeed` (above 0): ball speed used to lead a moving receiver, as the AI passer does.
+
+## Carrier move schema (`FPSCarrierMoveCatalog`)
+
+`Moves[]` (Epic 104.2), one per move. Each has:
+- `Move`: `Juke`, `Spin`, `Truck`, `StiffArm`, `Hurdle` or `Slide`, each once.
+- `ActionId`: a Boolean action in the input catalog's `BallCarrier` context.
+- `Attribute` (`Agility`, `Strength` or `Speed`) and `MinAttribute` (0-100): the rating the move
+  runs on, and the least that can do it.
+- `WindowSeconds`, `CooldownSeconds`, `StaminaCost`.
+- `TackleChanceScale`: what a tackle's chance is multiplied by during the window for a carrier
+  rated 100; a lower rating gets proportionally less help.
+- `SpeedRetained` (0-1), `LateralSpeed`, `ForwardSpeed` (cm/s): the velocity change as the move
+  starts. A juke cuts toward the Move stick's side.
+- `bGivesUp`: the slide. The next contact downs the carrier with no hit and no fumble.
+
+`UPSCarrierMoveComponent::ValidateCatalog` and `tools/validate_data.py` check it.
 
