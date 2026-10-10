@@ -68,10 +68,16 @@ ships tests.
 **Goal:** The game detects its own big moments and assembles a highlight reel per game.
 **Depends on:** 41
 
-- [ ] Play-importance scoring (yardage, score change, turnover, broken tackles, win probability swing)
-- [ ] Clip assembly: top-N plays with director-selected angles and slow-mo beats
-- [ ] End-of-game highlight package playback
-- [ ] Franchise hook: highlights persist per season (Track G consumes)
+- [x] Play-importance scoring (yardage, score change, turnover, broken tackles, win probability swing) *(as built: `UPSHighlightSubsystem` follows every play on the bus from its snap until it settles: the first game state after the whistle, `SettleAfterWhistleSeconds` of running game after it, or the next snap. It reads five things.
+  - Yards: the longest tackle or catch, else the yard line's move.
+  - Points: the game state's score, which is the authority, or `Score` events.
+  - Turnovers: an interception, a lost fumble, or the ball changing hands on a play that wasn't a kick.
+  - Broken tackles: a hit the carrier survives (Epic 139's hitpoints).
+  - The swing in the home team's chance of winning: `HomeWinProbability`, a logistic of the margin plus the ball's worth where it is, sharpened as time runs out.
+  Each is weighed by `Data/highlights.json`)*
+- [x] Clip assembly: top-N plays with director-selected angles and slow-mo beats *(as built: a play of at least `MinImportance`, among the `ReelSize` best so far, is cut into a clip as it settles (Epic 41's `CaptureClip`); only the reel keeps clips. Each kind has its director shot: end zone for a score, skycam for a turnover, tight follow for a big play. The slow-motion beat starts `BeatLeadSeconds` before the play's key moment (the score, the turnover, the catch, the broken tackle, the tackle, by that rank) and plays `BeatSeconds` at `BeatPlaybackRate`)*
+- [x] End-of-game highlight package playback *(as built: `PlayReel` plays the reel in game order through the replay system, each clip from its angle (`UPSReplaySubsystem::CutToDirectorShot`), slowing through its beat, with `ClipGapSeconds` between clips. A game state past the fourth quarter starts it by itself `GameEndReelDelaySeconds` later. With Reduced motion on it opens on the still rig like every replay, and the viewer leaving the replay ends it. Tests: `PlaySports.Highlights.*`. Not seen yet: the package on screen)*
+- [x] Franchise hook: highlights persist per season (Track G consumes) *(as built: `ArchiveForSeason` saves the reel's clips (under `Saved/Replays/Highlights`) and adds the game's highlights to `UPSFranchiseSaveGame::SeasonHighlights` (`FPSSeasonHighlight`: week, teams, kind, importance, situation, clip file). It keeps the season's `SeasonHighlightsKept` most important and deletes the clips of those it drops. Calling it when a franchise game ends, and showing the season's highlights, is Track G's)*
 
 ### Epic 43: Cinematic Play Framing Sequences
 
