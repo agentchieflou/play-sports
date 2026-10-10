@@ -74,6 +74,7 @@ protected:
 
 private:
     void HandleSnap(const FPSTelemetrySnapEvent& Event);
+    void HandleEventRecorded(const FPSTelemetryEvent& Event);
     void HandleWorldCleanup(UWorld* CleanedWorld, bool bSessionEnded, bool bCleanupResources);
 
     /** Rewrites the crash context's session keys and breadcrumbs. */

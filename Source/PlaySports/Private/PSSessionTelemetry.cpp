@@ -89,21 +89,7 @@ void UPSSessionTelemetrySubsystem::Deinitialize()
     if (UPSTelemetryBus* Bus = BoundBus.Get())
     {
         Bus->OnSnapMC.RemoveAll(this);
-        Bus->OnThrowMC.RemoveAll(this);
-        Bus->OnCatchMC.RemoveAll(this);
-        Bus->OnTackleMC.RemoveAll(this);
-        Bus->OnFumbleMC.RemoveAll(this);
-        Bus->OnScoreMC.RemoveAll(this);
-        Bus->OnPhaseChangeMC.RemoveAll(this);
-        Bus->OnDamageMC.RemoveAll(this);
-        Bus->OnDeathMC.RemoveAll(this);
-        Bus->OnRespawnMC.RemoveAll(this);
-        Bus->OnInputDeviceChangeMC.RemoveAll(this);
-        Bus->OnControlChangeMC.RemoveAll(this);
-        Bus->OnPlayCallMC.RemoveAll(this);
-        Bus->OnPumpFakeMC.RemoveAll(this);
-        Bus->OnPassRushMoveMC.RemoveAll(this);
-        Bus->OnPreSnapMC.RemoveAll(this);
+        Bus->OnEventRecordedMC.RemoveAll(this);
     }
     BoundBus.Reset();
 
@@ -137,24 +123,9 @@ void UPSSessionTelemetrySubsystem::BindToBus(UPSTelemetryBus* Bus)
     }
     BoundBus = Bus;
 
-    // A snap counts a play; every event refreshes the breadcrumbs. A new bus event type
-    // belongs in this list (and in Deinitialize).
+    // A snap counts a play; every event, as the bus records it, refreshes the breadcrumbs.
     Bus->OnSnapMC.AddUObject(this, &UPSSessionTelemetrySubsystem::HandleSnap);
-    Bus->OnThrowMC.AddWeakLambda(this, [this](const FPSTelemetryThrowEvent&) { RefreshCrashContext(); });
-    Bus->OnCatchMC.AddWeakLambda(this, [this](const FPSTelemetryCatchEvent&) { RefreshCrashContext(); });
-    Bus->OnTackleMC.AddWeakLambda(this, [this](const FPSTelemetryTackleEvent&) { RefreshCrashContext(); });
-    Bus->OnFumbleMC.AddWeakLambda(this, [this](const FPSTelemetryFumbleEvent&) { RefreshCrashContext(); });
-    Bus->OnScoreMC.AddWeakLambda(this, [this](const FPSTelemetryScoreEvent&) { RefreshCrashContext(); });
-    Bus->OnPhaseChangeMC.AddWeakLambda(this, [this](const FPSTelemetryPhaseChangeEvent&) { RefreshCrashContext(); });
-    Bus->OnDamageMC.AddWeakLambda(this, [this](const FPSTelemetryDamageEvent&) { RefreshCrashContext(); });
-    Bus->OnDeathMC.AddWeakLambda(this, [this](const FPSTelemetryDeathEvent&) { RefreshCrashContext(); });
-    Bus->OnRespawnMC.AddWeakLambda(this, [this](const FPSTelemetryRespawnEvent&) { RefreshCrashContext(); });
-    Bus->OnInputDeviceChangeMC.AddWeakLambda(this, [this](const FPSTelemetryInputDeviceEvent&) { RefreshCrashContext(); });
-    Bus->OnControlChangeMC.AddWeakLambda(this, [this](const FPSTelemetryControlChangeEvent&) { RefreshCrashContext(); });
-    Bus->OnPlayCallMC.AddWeakLambda(this, [this](const FPSTelemetryPlayCallEvent&) { RefreshCrashContext(); });
-    Bus->OnPumpFakeMC.AddWeakLambda(this, [this](const FPSTelemetryPumpFakeEvent&) { RefreshCrashContext(); });
-    Bus->OnPassRushMoveMC.AddWeakLambda(this, [this](const FPSTelemetryPassRushEvent&) { RefreshCrashContext(); });
-    Bus->OnPreSnapMC.AddWeakLambda(this, [this](const FPSTelemetryPreSnapEvent&) { RefreshCrashContext(); });
+    Bus->OnEventRecordedMC.AddUObject(this, &UPSSessionTelemetrySubsystem::HandleEventRecorded);
 }
 
 void UPSSessionTelemetrySubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -252,6 +223,11 @@ void UPSSessionTelemetrySubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event
     {
         Persist(false);
     }
+}
+
+void UPSSessionTelemetrySubsystem::HandleEventRecorded(const FPSTelemetryEvent& Event)
+{
+    RefreshCrashContext();
 }
 
 void UPSSessionTelemetrySubsystem::HandleWorldCleanup(UWorld* CleanedWorld, bool bSessionEnded, bool bCleanupResources)
