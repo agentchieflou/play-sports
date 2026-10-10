@@ -133,6 +133,9 @@ depth chart by package:
 When a side calls a play, its formation's package comes on: per role, the first players on the
 depth chart who can play (a ball carrier sitting out and a resting player are skipped). Only the
 players who change come off. A roster that can't fill a package gets the side's default instead.
+Every playbook formation has a package: the clock plays (kneel, spike) use 11 personnel, and the
+special-teams formations (Epic 75) bring on the `KickingUnit` (punt, field goal, kickoff), the
+`ReturnUnit` (kick returns and desperation laterals), the `BlockUnit` and the `HandsTeam`.
 `UPSPersonnelManager::ValidateCatalog` and `tools/validate_data.py` check it.
 
 ## Team schema (`FPSTeamInfo`)
