@@ -44,7 +44,8 @@ namespace PSCarrierMoveTests
         World->DestroyWorld(false);
     }
 
-    /** A running back with the ball, running upfield at 600 cm/s. */
+    /** A running back with the ball, running upfield at 600 cm/s (set after possession, which
+     *  restarts the pawn and stops it). */
     static APSPlayerPawn* SpawnCarrier(UWorld* World, float Agility, float Strength)
     {
         FActorSpawnParameters SpawnParams;
@@ -64,11 +65,11 @@ namespace PSCarrierMoveTests
         Attributes.Stamina = 100.f;
         Pawn->InitializePlayer(Attributes);
         Pawn->GainPossession();
-        Pawn->GetFloatingMovementComponent()->Velocity = FVector(600.f, 0.f, 0.f);
         if (APSOffenseController* AI = World->SpawnActor<APSOffenseController>(APSOffenseController::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams))
         {
             AI->Possess(Pawn);
         }
+        Pawn->GetFloatingMovementComponent()->Velocity = FVector(600.f, 0.f, 0.f);
         return Pawn;
     }
 
