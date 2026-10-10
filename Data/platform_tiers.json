@@ -1,0 +1,29 @@
+{
+    "DefaultTier": "DesktopHigh",
+    "Platforms": [
+        { "Platform": "Windows", "Tier": "DesktopHigh" },
+        { "Platform": "Mac", "Tier": "DesktopHigh" },
+        { "Platform": "IOS", "Tier": "MobileBaseline" },
+        { "Platform": "Android", "Tier": "MobileLow" }
+    ],
+    "Tiers": [
+        {
+            "TierId": "DesktopHigh",
+            "Description": "The Win64 development baseline: engine scalability defaults, AI decides every frame.",
+            "DeviceProfile": "Windows",
+            "AIDecisionInterval": 0
+        },
+        {
+            "TierId": "MobileBaseline",
+            "Description": "Current iPhones (the iPhone 17 Pro is the reference device): mobile renderer, 60 fps cap, AI decides 30 times a second.",
+            "DeviceProfile": "IOS",
+            "AIDecisionInterval": 0.033
+        },
+        {
+            "TierId": "MobileLow",
+            "Description": "Older or hotter phones: 30 fps cap, lower resolution and shadows, AI decides 15 times a second.",
+            "DeviceProfile": "PSMobileLow",
+            "AIDecisionInterval": 0.066
+        }
+    ]
+}

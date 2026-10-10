@@ -14,6 +14,7 @@
 #include "PSSkillPlayerAIComponent.h"
 #include "PSDefenderAIComponent.h"
 #include "PSPassingComponent.h"
+#include "PSPlatformTiers.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -86,6 +87,10 @@ public:
     /** Loads the human passing tuning (Data/passing_input.json, Epic 104). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPassingInputTuningFromJson(const FString& JsonFilePath, FPassingInputTuningRow& OutTuning);
+
+    /** Loads the platform tiers (Data/platform_tiers.json, Epic 129). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlatformTiersFromJson(const FString& JsonFilePath, FPSPlatformTierCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

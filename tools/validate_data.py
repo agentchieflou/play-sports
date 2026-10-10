@@ -16,7 +16,8 @@ catalog binds has a glyph; "CpuSnapDelaySeconds" files against FPlayCallTuningRo
 "Adjustments" files against FPSDefensiveAdjustmentCatalog; "OpenSeparation" files against
 FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotActions" files
 against FPassingInputTuningRow, including that each named action is a Boolean in the input
-catalog's Passing context.
+catalog's Passing context; "Tiers" files against FPSPlatformTierCatalog, each tier's DeviceProfile
+defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -545,6 +546,52 @@ def validate_passing_input(path, payload, catalog):
             err(path, f"'{action_id}' must be a Boolean action in the Passing context")
 
 
+ENGINE_DEVICE_PROFILES = {"Windows", "Mac", "IOS", "Android", "Linux"}
+
+
+def project_device_profiles():
+    """Profile names declared in Config/DefaultDeviceProfiles.ini ([Name DeviceProfile])."""
+    ini = REPO / "Config" / "DefaultDeviceProfiles.ini"
+    try:
+        text = ini.read_text(encoding="utf-8")
+    except OSError:
+        return set()
+    return set(re.findall(r"^\[(\S+) DeviceProfile\]", text, flags=re.MULTILINE))
+
+
+def validate_platform_tiers(path, payload):
+    """FPSPlatformTierCatalog (Data/platform_tiers.json, Epic 129); mirrors
+    PSPlatformTiers::ValidateCatalog plus the device-profile cross-check."""
+    tiers = payload.get("Tiers")
+    if not isinstance(tiers, list) or not tiers:
+        err(path, "'Tiers' must be a non-empty array")
+        return
+    profiles = ENGINE_DEVICE_PROFILES | project_device_profiles()
+    ids = set()
+    for idx, tier in enumerate(tiers):
+        where = f"Tiers[{idx}]"
+        if not isinstance(tier, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        tier_id = tier.get("TierId")
+        if not isinstance(tier_id, str) or not tier_id or tier_id in ids:
+            err(path, f"{where}.TierId: empty or used twice")
+        ids.add(tier_id)
+        if tier.get("DeviceProfile") not in profiles:
+            err(path, f"{where}.DeviceProfile: '{tier.get('DeviceProfile')}' is neither an engine profile nor in Config/DefaultDeviceProfiles.ini")
+        interval = tier.get("AIDecisionInterval")
+        if not is_number(interval) or interval < 0:
+            err(path, f"{where}.AIDecisionInterval: '{interval}' must be a number, 0 or more")
+        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    if payload.get("DefaultTier") not in ids:
+        err(path, f"DefaultTier '{payload.get('DefaultTier')}' is not a tier")
+    for idx, mapping in enumerate(payload.get("Platforms") or []):
+        if not isinstance(mapping, dict) or mapping.get("Tier") not in ids or not mapping.get("Platform"):
+            err(path, f"Platforms[{idx}]: needs a Platform and a known Tier")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -593,6 +640,8 @@ def main():
             validate_play_call_tuning(path, payload)
         if isinstance(payload, dict) and "GlyphSets" in payload:
             validate_input_glyphs(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "Tiers" in payload:
+            validate_platform_tiers(path, payload)
         if isinstance(payload, dict) and "SlotActions" in payload:
             validate_passing_input(path, payload, load_input_catalog())
     if errors:
