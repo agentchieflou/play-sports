@@ -13,9 +13,9 @@ systems are thin, deliberate skeletons.
   row struct), `PSPlaySimulation` (headless play-phase state machine, no physics yet),
   `PSDataIngestion` (JSON → DataTable loader), `PSScheduleEngine` (season schedule generator),
   `PSFunctionalGym` (functional test actor).
-- `Plugins/Autonomix/` and `Plugins/AgenticLink/` — **both are stub modules** that only log on
-  startup/shutdown. They're the intended homes for, respectively, an in-editor Python/T3D AI
-  bridge and an external MCP agent bridge — neither is implemented. Don't assume they do anything.
+- `Plugins/AgenticLink/` (an MCP server over engine reflection) and `Plugins/Autonomix/` (T3D import
+  and Python tools served through it) are editor bridges that do nothing unless their command-line
+  switches are given (`-AgenticLinkMcp`, `-AutonomixT3D`, `-AutonomixPython`); see `AGENTS.md`.
 - `Data/sample_players.json` — sample payload for `PSDataIngestion`.
 
 ## Conventions
