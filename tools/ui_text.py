@@ -8,8 +8,9 @@ localization gather collects them:
                          Comment). Code names its keys: UPSLocalization::GetText(TEXT("Key"))
                          and UPSLocalization::Format(TEXT("Key"), ...).
   Data/ui_text_data.csv  "PSUIData": generated from the UI data files' strings
-                         (ui_menus.json, ui_settings.json, loading_tips.json). Don't edit it;
-                         run this script with --write after changing one of those files.
+                         (ui_menus.json, ui_settings.json, loading_tips.json,
+                         defensive_adjustments.json). Don't edit it; run this script with
+                         --write after changing one of those files.
 
   python tools/ui_text.py           check (exit 1 with the problems)
   python tools/ui_text.py --write   regenerate Data/ui_text_data.csv
@@ -19,9 +20,9 @@ the code:
   - every key the code names exists in Data/ui_text.csv;
   - every remappable input action has an Input.Action.<ActionId> name, and each of its
     contexts an Input.Context.<ContextId> name (the key remapping screen shows them);
-  - UI code (Private/PSUI*, PSMenu*, PSHUD*, PSLoading*, PSSettings*) builds no FText from
-    raw strings: its text comes through UPSLocalization (GetText, Format, GetDataText,
-    Verbatim, FromLocalized).
+  - UI code (Private/PSUI*, PSMenu*, PSHUD*, PSLoading*, PSSettings*, PSPlayCall*) builds no
+    FText from raw strings: its text comes through UPSLocalization (GetText, Format,
+    GetDataText, Verbatim, FromLocalized).
 
 Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones):
   Menu.<ScreenId>.Title | Body
@@ -30,6 +31,7 @@ Keys of generated rows (UPSLocalization::MenuKey and friends build the same ones
   Setting.<SettingId>.Label | Description | Unit
   Setting.<SettingId>.Choice<Index>
   Tip.<TipId>
+  Adjustment.<AdjustmentId>.Label | Description
 """
 
 import csv
@@ -44,7 +46,7 @@ DATA_DIR = REPO / "Data"
 UI_TEXT = DATA_DIR / "ui_text.csv"
 UI_TEXT_DATA = DATA_DIR / "ui_text_data.csv"
 SOURCE_DIR = REPO / "Source"
-GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings")
+GATED_PREFIXES = ("PSUI", "PSMenu", "PSHUD", "PSLoading", "PSSettings", "PSPlayCall")
 RAW_TEXT = re.compile(r"\bFText::FromString\(|\bFText::AsCultureInvariant\(|\bN?S?LOCTEXT\(|\bINVTEXT\(")
 KEY_USE = re.compile(r"(?<![\w:])(?:UPSLocalization::)?(?:GetText|Format)\(\s*TEXT\(\"([^\"]+)\"\)")
 
@@ -99,6 +101,13 @@ def data_rows():
     for tip in tips.get("Tips", []) if isinstance(tips, dict) else []:
         if isinstance(tip, dict):
             add(f"Tip.{tip.get('TipId', '')}", tip.get("Text"), "loading_tips.json: loading screen tip")
+
+    adjustments = _load("defensive_adjustments.json") or {}
+    for adjustment in adjustments.get("Adjustments", []) if isinstance(adjustments, dict) else []:
+        if isinstance(adjustment, dict):
+            adjustment_id = adjustment.get("AdjustmentId", "")
+            add(f"Adjustment.{adjustment_id}.Label", adjustment.get("Label"), "defensive_adjustments.json: play-call adjustment")
+            add(f"Adjustment.{adjustment_id}.Description", adjustment.get("Description"), "defensive_adjustments.json: adjustment detail")
     return rows
 
 

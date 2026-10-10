@@ -102,7 +102,7 @@ editor handoff: what exists in code, and what an editor session adds.
   - Pseudo-localization: `ps.Loc.Pseudo 1` in the console accents, pads and brackets every
     string from the tables, and marks names with single angle quotes. Anything still plain
     on screen bypassed the tables. `PlaySports.Localization.PseudoLocalizedUI` checks every
-    menu screen except play calling this way.
+    menu screen this way, play calling included.
 
 ## 2. Not yet (other epics)
 
@@ -120,8 +120,10 @@ editor handoff: what exists in code, and what an editor session adds.
   - The skycam's own flight (a damped cable move, Epic 39) is unchanged with reduced motion;
     only its framing reads through the director.
 - Localization gaps (Epic 106):
-  - The play-call screens' generated text is still built in English in
-    `UPSPlayCallSubsystem`, so those screens are left out of the pseudo-localization check.
+  - The broadcast overlays (Track A: the score bug and its chyron, the ball-flight readout)
+    still build their text from raw strings.
+  - Text other systems write in English is shown verbatim: the coaching AI's suggestion
+    reasons, the situation AI's moments and the tempo labels.
   - Key-refusal reasons from `UPSInputConfig` are developer English and shown verbatim.
   - There is no language setting yet: the culture is the platform's.
 - Logos: `LogoPath` is empty for every team until an editor session imports logo textures; the

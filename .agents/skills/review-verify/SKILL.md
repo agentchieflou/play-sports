@@ -49,8 +49,9 @@ evidence). A rejected review returns to the Supervisor, never directly to the Co
    `GetDataText`, or `Verbatim` for names. Reject `FText::FromString`, `FText::AsCultureInvariant`,
    `LOCTEXT`/`NSLOCTEXT`/`INVTEXT` and `FString::Printf` building display text in any
    user-facing file, including new widgets, overlays and HUD code outside the prefixes
-   `validate_data.py` gates (`PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`, `PSSettings*`). Changes
-   to `ui_menus.json`, `ui_settings.json` or `loading_tips.json` must carry a regenerated
+   `validate_data.py` gates (`PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`, `PSSettings*`,
+   `PSPlayCall*`). Changes to `ui_menus.json`, `ui_settings.json`, `loading_tips.json` or
+   `defensive_adjustments.json` must carry a regenerated
    `Data/ui_text_data.csv` (`python tools/ui_text.py --write`). Log lines and validation
    messages for developers are exempt.
 

@@ -26,17 +26,18 @@ enum class EPSUnitSystem : uint8
  *     (hand-written: "Reset to defaults", "{Label}: {Value}", unit patterns, HUD banners,
  *     input action names).
  *   - The UI data files' text. GetDataText reads the "PSUIData" table, Data/ui_text_data.csv.
- *     It is generated from ui_menus.json, ui_settings.json and loading_tips.json by
- *     tools/ui_text.py, and validate_data.py fails when it is stale. The keys are
- *     MenuKey/SettingKey/TipKey. A string missing from it, or changed since it was
- *     generated, is shown as written, untranslated.
+ *     It is generated from ui_menus.json, ui_settings.json, loading_tips.json and
+ *     defensive_adjustments.json by tools/ui_text.py, and validate_data.py fails when it is
+ *     stale. The keys are MenuKey/SettingKey/TipKey/AdjustmentKey. A string missing from it,
+ *     or changed since it was generated, is shown as written, untranslated.
  *   - Text that is not ours to translate: team and player names, button labels, text the
  *     engine already localized. Verbatim says so.
  *
  * Presenters (UPSMenuComponent::GetPresentedScreen) localize as they build a screen, so
  * widgets receive localized strings and show them with FromLocalized. tools/validate_data.py
  * rejects FText built from raw strings in UI code (PSUI*, PSMenu*, PSHUD*, PSLoading*,
- * PSSettings*), and the review-verify skill asks the same of every other user-facing file.
+ * PSSettings*, PSPlayCall*), and the review-verify skill asks the same of every other
+ * user-facing file.
  *
  * Pseudo-localization (ps.Loc.Pseudo 1, or SetPseudoLocalization) swaps every letter of the
  * text that came through the tables for an accented one, pads it by a third and brackets it,
@@ -104,6 +105,8 @@ public:
     static FString SettingKey(FName SettingId, const FString& Field);
     static FString SettingChoiceKey(FName SettingId, int32 Index);
     static FString TipKey(FName TipId);
+    /** Adjustment.<AdjustmentId>.Label|Description (Data/defensive_adjustments.json). */
+    static FString AdjustmentKey(FName AdjustmentId, const FString& Field);
 
     /** Turns pseudo-localization on or off (the ps.Loc.Pseudo console variable). */
     UFUNCTION(BlueprintCallable, Category = "Localization")
@@ -126,7 +129,7 @@ public:
     static FText FormatNumber(float Value, int32 MaxFractionalDigits);
     static FText FormatNumberIn(float Value, int32 MaxFractionalDigits, const FCulturePtr& Culture);
 
-    /** Fraction (1 = 100%) as the culture writes a percentage. */
+    /** Fraction (1 = 100%) as the culture writes a whole percentage. */
     UFUNCTION(BlueprintPure, Category = "Localization")
     static FText FormatPercent(float Fraction);
 

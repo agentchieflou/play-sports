@@ -528,14 +528,19 @@ reads them.
   Code names keys literally: `UPSLocalization::GetText(TEXT("Menu.ResetToDefaults"))`,
   `UPSLocalization::Format(TEXT("Menu.Option"), Arguments)`. Families the code builds:
   `Input.Action.<ActionId>` (one per remappable action), `Input.Context.<ContextId>`,
-  `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`.
+  `HUD.Phase.<Phase>`, `HUD.Score.<ScoreType>`, `PlayCall.Category.<PlayCategory>` (a
+  category without a row shows its ID split into words).
 - `ui_text_data.csv` (table `PSUIData`) is **generated** from the user-facing strings of
-  `ui_menus.json`, `ui_settings.json` and `loading_tips.json`. Don't edit it. After changing one
-  of those files, run `python tools/ui_text.py --write`. Keys: `Menu.<ScreenId>.Title|Body`,
-  `Menu.<ScreenId>.<OptionId>.Label|Detail`, `Setting.Category.<CategoryId>`,
-  `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`, `Tip.<TipId>`.
-- Not translated, shown through `UPSLocalization::Verbatim`: team, player and formation names,
-  button glyph labels (`input_glyphs.json`), and the engine's key names.
+  `ui_menus.json`, `ui_settings.json`, `loading_tips.json` and `defensive_adjustments.json`.
+  Don't edit it. After changing one of those files, run `python tools/ui_text.py --write`.
+  Keys: `Menu.<ScreenId>.Title|Body`, `Menu.<ScreenId>.<OptionId>.Label|Detail`,
+  `Setting.Category.<CategoryId>`, `Setting.<SettingId>.Label|Description|Unit|Choice<Index>`,
+  `Tip.<TipId>`, `Adjustment.<AdjustmentId>.Label|Description`.
+- Not translated, shown through `UPSLocalization::Verbatim`:
+  - names: team, player, play, formation, front, coverage and route names;
+  - button glyph labels (`input_glyphs.json`) and the engine's key names;
+  - for now, text other systems write in English: the coaching AI's suggestion reasons, the
+    situation AI's moments and the tempo labels (`situational_tuning.json`).
 - UI strings may not contain backslashes, because the string table import reads them as
   escapes. A real newline is fine.
 
@@ -545,7 +550,7 @@ reads them.
 - a remappable action, or one of its contexts, without a name row;
 - duplicate or empty keys, or unbalanced placeholders;
 - FText built from a raw string in UI code (`Private/PSUI*`, `PSMenu*`, `PSHUD*`, `PSLoading*`,
-  `PSSettings*`).
+  `PSSettings*`, `PSPlayCall*`).
 
 The `Units` setting (`ui_settings.json`, Gameplay) picks feet and pounds or centimeters and
 kilograms for `WeightKg`/`HeightCm` wherever they are shown (`UPSLocalization::FormatWeight`,
