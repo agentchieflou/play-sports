@@ -269,6 +269,15 @@ public:
     UFUNCTION()
     void OnBusTimeoutEvent(const FPSTelemetryTimeoutEvent& Event);
 
+    /** The field's volumes report a crossing (BoundaryCrossed); this rules on it once, while the
+     *  ball is live. The ball alone out of bounds is dead. A carrier out of bounds is down there
+     *  (RecordOutOfBounds, the yards from the line of scrimmage). A carrier in the end zone the
+     *  offense attacks scores (RecordTouchdown). An interceptor's return ends where he crossed:
+     *  out of bounds at the spot, into the offense's end zone for a touchdown, into his own for
+     *  a touchback. A dead ball ignores every later crossing. */
+    UFUNCTION()
+    void OnBusBoundaryCrossedEvent(const FPSTelemetryBoundaryCrossedEvent& Event);
+
     UFUNCTION(BlueprintCallable, Category = "Simulation|Clock")
     bool CallTimeout(bool bHomeTeam);
 

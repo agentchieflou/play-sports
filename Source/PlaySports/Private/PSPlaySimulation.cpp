@@ -723,6 +723,8 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnLooseBall.AddDynamic(this, &UPSPlaySimulation::OnBusLooseBallEvent);
     Bus->OnPlayCall.AddDynamic(this, &UPSPlaySimulation::OnBusPlayCallEvent);
     Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
+    // The field's volumes: out of bounds and the end zones.
+    Bus->OnBoundaryCrossed.AddDynamic(this, &UPSPlaySimulation::OnBusBoundaryCrossedEvent);
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Subscribed to TelemetryBus (C2)."));
     PublishGameStateIfChanged();
@@ -915,6 +917,40 @@ void UPSPlaySimulation::OnBusPlayCallEvent(const FPSTelemetryPlayCallEvent& Even
 void UPSPlaySimulation::OnBusTimeoutEvent(const FPSTelemetryTimeoutEvent& Event)
 {
     CallTimeout(Event.bOffense == CurrentState.bHomeHasPossession);
+}
+
+void UPSPlaySimulation::OnBusBoundaryCrossedEvent(const FPSTelemetryBoundaryCrossedEvent& Event)
+{
+    // Before the snap nothing is live; after the whistle the play has its result.
+    if (bQuickSimMode || IsBallDead() || CurrentState.Phase == EPlayPhase::PreSnap)
+    {
+        return;
+    }
+
+    const int32 Spot = FMath::Clamp(Event.YardLine, 0, 100);
+    if (Event.CarrierName.IsEmpty())
+    {
+        // The ball alone out of bounds is dead; loose in an end zone it plays on.
+        if (!Event.bEndZone)
+        {
+            SetPlayPhase(EPlayPhase::Scoring);
+        }
+        return;
+    }
+    if (CurrentPlayResult.ResultType == EPlayResultType::Interception)
+    {
+        InterceptionSpot = Spot;
+        SetPlayPhase(EPlayPhase::Scoring);
+        return;
+    }
+    if (!Event.bEndZone)
+    {
+        RecordOutOfBounds(Spot - CurrentState.YardLine);
+    }
+    else if (Spot >= 100)
+    {
+        RecordTouchdown();
+    }
 }
 
 void UPSPlaySimulation::RecordTouchdown()
