@@ -1,0 +1,5 @@
+{
+    "private": true,
+    "description": "The Film Room replay viewer: static files, no build step. type module lets Node run loader.js for tools/tests/test_replay_viewer.py.",
+    "type": "module"
+}

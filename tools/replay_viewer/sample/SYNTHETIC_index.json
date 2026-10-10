@@ -1,0 +1,26 @@
+{
+    "plays": [
+        {
+            "file": "SYNTHETIC_handoff_run.json",
+            "name": "SYNTHETIC handoff run (hand-made test data)",
+            "offenseCall": "Inside Zone Right (synthetic)",
+            "defenseCall": "Cover 2 Base (synthetic)",
+            "result": "Tackle",
+            "yards": 5,
+            "durationSeconds": 4.467,
+            "seed": 0,
+            "synthetic": true
+        },
+        {
+            "file": "SYNTHETIC_short_pass.json",
+            "name": "SYNTHETIC short pass (hand-made test data)",
+            "offenseCall": "Quick Slant (synthetic)",
+            "defenseCall": "Cover 3 Sky (synthetic)",
+            "result": "Tackle",
+            "yards": 15,
+            "durationSeconds": 5.333,
+            "seed": 0,
+            "synthetic": true
+        }
+    ]
+}
