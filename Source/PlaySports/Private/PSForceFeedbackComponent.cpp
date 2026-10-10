@@ -189,9 +189,10 @@ void UPSForceFeedbackComponent::Play(EPSForceFeedbackCue Cue, bool bInvolved)
         return;
     }
 
-    // Only a gamepad has motors; on keyboard/mouse the cue is decided but goes nowhere.
+    // Only a gamepad has motors; on keyboard/mouse the cue is decided but goes nowhere. A
+    // controller without a local player (headless worlds) accepts the call and plays nothing.
     APlayerController* PlayerController = Cast<APlayerController>(GetOwner());
-    if (ActiveDevice == EPSInputDevice::Gamepad && PlayerController && PlayerController->IsLocalController())
+    if (ActiveDevice == EPSInputDevice::Gamepad && PlayerController)
     {
         PlayerController->PlayDynamicForceFeedback(Dispatch.Intensity, Dispatch.Duration,
             Dispatch.bLeftLarge, Dispatch.bLeftSmall, Dispatch.bRightLarge, Dispatch.bRightSmall);
