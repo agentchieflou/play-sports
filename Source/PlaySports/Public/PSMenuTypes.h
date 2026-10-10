@@ -26,7 +26,10 @@ enum class EPSMenuCommand : uint8
     /** Wait for the next key, then give it to the action named by the Payload (Epic 103.4). */
     BeginRemap,
     /** Put every action back on its catalog keys. */
-    ResetRemaps
+    ResetRemaps,
+    /** Start a local head-to-head game (Epic 107); the Payload is the seat ("0" for player 1,
+     *  "1" for player 2) whose player is the home team. */
+    StartVersus
 };
 
 /** Where a screen's options come from. */

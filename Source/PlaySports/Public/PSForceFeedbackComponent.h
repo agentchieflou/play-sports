@@ -22,6 +22,10 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSForceFeedbackDispatchMC, const FPSForceFe
  * event names the controlled pawn; nothing reaches the motors while the player is on
  * keyboard/mouse.
  *
+ * With two players on one machine (Epic 107) each controller has its own: it follows only the
+ * ControlChange and InputDeviceChange events of its own human (the events' HumanIndex is its
+ * controller's), so one player's switch or pad never redirects the other's rumble.
+ *
  * APSPlayerController owns one. It subscribes at BeginPlay; headless tests call BindToBus.
  */
 UCLASS(ClassGroup = "PlaySports", BlueprintType, meta = (BlueprintSpawnableComponent))
@@ -92,6 +96,10 @@ private:
 
     /** True when Name is the controlled pawn's. */
     bool IsControlled(const FString& Name) const;
+
+    /** True when an event naming HumanIndex is this player's: the owning controller's index,
+     *  0 without one. */
+    bool IsOwnHuman(int32 HumanIndex) const;
 
     void Play(EPSForceFeedbackCue Cue, bool bInvolved);
 

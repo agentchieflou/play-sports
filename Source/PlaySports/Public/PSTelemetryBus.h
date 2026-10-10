@@ -33,7 +33,8 @@ enum class EPSTelemetryEventType : uint8
     BlownCoverage,
     Personnel,
     Speech,
-    Pocket
+    Pocket,
+    Versus
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -81,6 +82,30 @@ enum class EPSPocketEventKind : uint8
     StripAttempt,
     /** Running past the line, he slid to protect himself. */
     Slide
+};
+
+/** What happened in a local head-to-head session (Epic 107). UPSVersusSubsystem publishes it. */
+UENUM(BlueprintType)
+enum class EPSVersusEventKind : uint8
+{
+    /** Both seats have their teams and play begins. */
+    Started,
+    /** The ball changed hands: the seats swapped offense and defense. */
+    SidesChanged,
+    Paused,
+    /** A pause the etiquette refused; Reason says why. */
+    PauseRefused,
+    /** A seat is ready to play on. */
+    ResumeConfirmed,
+    /** Everyone is ready and the countdown to play is running. */
+    ResumeCountdown,
+    Resumed,
+    /** A seat's controller disconnected (the game pauses) ... */
+    Disconnected,
+    /** ... or came back. */
+    Reconnected,
+    /** A seat quit: the other seat wins. */
+    Forfeit
 };
 
 /** Which kind of hardware the human player last used (Epic 127; Touch is Epic 130's
@@ -299,6 +324,11 @@ struct FPSTelemetryInputDeviceEvent
     /** For connection changes: whether the gamepad connected (true) or disconnected. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bConnected = true;
+
+    /** Which human's device this is (APSPlayerController::HumanIndex): 0 for the first local
+     *  player, 1 for the second in a head-to-head game (Epic 107). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 HumanIndex = 0;
 };
 
 /** A human took or released control of a pawn (Epic 127). */
@@ -315,6 +345,11 @@ struct FPSTelemetryControlChangeEvent
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bHumanControlled = false;
+
+    /** Which human took or released the pawn (APSPlayerController::HumanIndex), so each of two
+     *  local players follows only their own (Epic 107). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 HumanIndex = 0;
 };
 
 /** A side called its play for the coming snap (Epic 102). The call itself lives in
@@ -763,6 +798,38 @@ struct FPSTelemetryPocketEvent
     bool bSuccess = false;
 };
 
+/** A local head-to-head session changed (Epic 107): pauses and their etiquette, the seats
+ *  swapping sides, a disconnect, a forfeit. The HUD shows it; the session itself is
+ *  UPSVersusSubsystem's. It never carries either side's call. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryVersusEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSVersusEventKind Kind = EPSVersusEventKind::Started;
+
+    /** The seat it concerns (0 is player 1, 1 is player 2); -1 for both. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Seat = -1;
+
+    /** Whether the home team has the ball, so the HUD knows which seat is on offense. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHomeOnOffense = true;
+
+    /** Paused: the pausing seat's pauses left this half; -1 without a limit. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PausesLeft = -1;
+
+    /** ResumeCountdown: seconds until play resumes. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float CountdownSeconds = 0.f;
+
+    /** PauseRefused: the ui_text key that says why ("Versus.Refused.PlayLive"). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Reason;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -814,6 +881,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageSignature, 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelSignature, const FPSTelemetryPersonnelEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetrySpeechSignature, const FPSTelemetrySpeechEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketSignature, const FPSTelemetryPocketEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryVersusSignature, const FPSTelemetryVersusEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -844,6 +912,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageMC, const FPSTeleme
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelMC, const FPSTelemetryPersonnelEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySpeechMC, const FPSTelemetrySpeechEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPocketMC, const FPSTelemetryPocketEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryVersusMC, const FPSTelemetryVersusEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -930,6 +999,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishPocket(const FPSTelemetryPocketEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishVersus(const FPSTelemetryVersusEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -1035,6 +1107,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPocketSignature OnPocket;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryVersusSignature OnVersus;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -1065,6 +1140,7 @@ public:
     FPSTelemetryPersonnelMC OnPersonnelMC;
     FPSTelemetrySpeechMC OnSpeechMC;
     FPSTelemetryPocketMC OnPocketMC;
+    FPSTelemetryVersusMC OnVersusMC;
 
 private:
     UPROPERTY(Transient)

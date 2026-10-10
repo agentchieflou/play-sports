@@ -43,6 +43,12 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSHumanCallNeededMC, bool /* bOffense */);
  * a timeout (Timeout on the bus; the simulation charges it); a human side asks with
  * RequestTimeout.
  *
+ * Head-to-head (Epic 107): with humans on both sides, each side waits for its own player's
+ * call, the offense hikes only once both are in, and nothing here shows a side the other's
+ * call. The recent list, the tendency readout and a hurry-up rerun then use only the calling
+ * team's own history, so one player never sees (or reruns) the other's plays after the ball
+ * changes hands.
+ *
  * Scheme identity (Epic 89): each team can carry a plan (FPSTeamPlan, built by UPSStaffManager
  * from its coaching staff). The team on each side calls only the plays its playbook keeps, and
  * the CPU calls and the suggestions use its coordinators' tendencies. Without plans, both sides
@@ -140,11 +146,19 @@ public:
     /** The coaching AI, which holds the situational read (UPSSituationAI). */
     UPSCoachingAI* GetCoachingAI() const { return CoachingAI; }
 
-    /** Distinct plays the human called and ran for the side, most recent first. */
+    /** Distinct plays the human called and ran for the side, most recent first. Head to head,
+     *  only the calling team's own. */
     TArray<FName> GetRecentCalls(bool bOffense, int32 MaxCount) const;
 
-    /** "Your calls: Run 67% / Short pass 33%" over the side's history; empty without one. */
+    /** "Your calls: Run 67% / Short pass 33%" over the side's history (head to head, the
+     *  calling team's own); empty without one. */
     FString DescribeTendencies(bool bOffense) const;
+
+    /** True while humans control pawns on both sides: a local head-to-head game (Epic 107). */
+    bool IsHeadToHead() const { return IsHumanSide(true) && IsHumanSide(false); }
+
+    /** Whether the team calling for a side at this down is the home team. */
+    bool IsHomeTeamCalling(bool bOffense) const { return bOffense == Situation.bHomeHasPossession; }
 
     const TArray<FPSPlayCallRecord>& GetCallHistory() const { return CallHistory; }
 
@@ -221,7 +235,8 @@ public:
     bool IsWaitingForHuman(bool bOffense) const;
 
     /** The human offense hikes. False unless the window is open and a human made the
-     *  offense's call. */
+     *  offense's call; head to head, also while the defending player has yet to call (the hike
+     *  is refused, not held, so the defense always gets to line up). */
     bool RequestSnap();
 
     /** Called every pre-snap tick by the game mode: fills CPU calls for sides no human
@@ -251,6 +266,9 @@ private:
     void SetCall(const FPSPlayDefinition& Play, EPSPlayCaller Caller);
     void Distribute(const FVector& LineOfScrimmage);
     APSPlayerPawn* FindPawnByPlayerId(FName PlayerId) const;
+    /** Whether Record belongs in the side's history as it is shown now: the same side and,
+     *  head to head, the calling team's. */
+    bool IsOwnRecord(const FPSPlayCallRecord& Record, bool bOffense) const;
 
     UPROPERTY(Transient)
     UDataTable* PlaysTable;

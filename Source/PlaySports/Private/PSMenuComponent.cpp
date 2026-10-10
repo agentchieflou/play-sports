@@ -15,6 +15,7 @@
 #include "PSLocalization.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSUIColorAccessibility.h"
+#include "PSVersusSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Blueprint/UserWidget.h"
@@ -296,7 +297,10 @@ bool UPSMenuComponent::HandleBack()
     const FName Top = Stack->Top();
     if (Top == GetCatalog().PauseScreen && Stack->Depth() == 1)
     {
-        Resume();
+        if (!DeferResumeToVersus())
+        {
+            Resume();
+        }
         return true;
     }
 
@@ -336,6 +340,15 @@ void UPSMenuComponent::ChooseOption(FName OptionId)
 
 void UPSMenuComponent::TogglePause()
 {
+    // A head-to-head game pauses by its etiquette (Epic 107).
+    if (UPSVersusSubsystem* Versus = GetActiveVersus())
+    {
+        if (Versus->HandlePausePressed(Cast<APSPlayerController>(GetOwner())))
+        {
+            return;
+        }
+    }
+
     if (IsMenuOpen())
     {
         if (GetTopScreenId() == GetCatalog().PauseScreen)
@@ -491,6 +504,8 @@ FString UPSMenuComponent::BuildTravelOptions(EPSMenuCommand Command, FName Paylo
     {
     case EPSMenuCommand::StartPlayNow:
         return Payload.IsNone() ? FString(TEXT("mode=PlayNow")) : FString::Printf(TEXT("mode=PlayNow?team=%s"), *Payload.ToString());
+    case EPSMenuCommand::StartVersus:
+        return Payload.IsNone() ? FString(TEXT("mode=Versus")) : FString::Printf(TEXT("mode=Versus?home=%s"), *Payload.ToString());
     case EPSMenuCommand::StartFranchise:
         return TEXT("mode=Franchise");
     case EPSMenuCommand::StartPractice:
@@ -507,12 +522,23 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
     switch (Command)
     {
     case EPSMenuCommand::Resume:
-        Resume();
+        if (!DeferResumeToVersus())
+        {
+            Resume();
+        }
+        break;
+    case EPSMenuCommand::QuitToMainMenu:
+        // Quitting a head-to-head game forfeits it (Epic 107).
+        if (UPSVersusSubsystem* Versus = GetActiveVersus())
+        {
+            Versus->HandleQuitPressed(Cast<APSPlayerController>(GetOwner()));
+        }
+        BeginTravel(Command, Payload);
         break;
     case EPSMenuCommand::StartPlayNow:
     case EPSMenuCommand::StartFranchise:
     case EPSMenuCommand::StartPractice:
-    case EPSMenuCommand::QuitToMainMenu:
+    case EPSMenuCommand::StartVersus:
         BeginTravel(Command, Payload);
         break;
     case EPSMenuCommand::QuitGame:
@@ -579,6 +605,19 @@ void UPSMenuComponent::ExecuteCommand(EPSMenuCommand Command, FName Payload)
     default:
         break;
     }
+}
+
+UPSVersusSubsystem* UPSMenuComponent::GetActiveVersus() const
+{
+    const UWorld* World = GetWorld();
+    UPSVersusSubsystem* Versus = World ? World->GetSubsystem<UPSVersusSubsystem>() : nullptr;
+    return Versus && Versus->IsSessionActive() ? Versus : nullptr;
+}
+
+bool UPSMenuComponent::DeferResumeToVersus()
+{
+    UPSVersusSubsystem* Versus = GetActiveVersus();
+    return Versus && Versus->HandleResumePressed(Cast<APSPlayerController>(GetOwner()));
 }
 
 void UPSMenuComponent::BeginTravel(EPSMenuCommand Command, FName Payload)

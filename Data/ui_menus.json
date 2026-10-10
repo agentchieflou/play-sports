@@ -45,6 +45,30 @@
                     "OptionId": "Practice",
                     "Label": "Practice / Gym",
                     "Command": "StartPractice"
+                },
+                {
+                    "OptionId": "HeadToHead",
+                    "Label": "Head to Head",
+                    "TargetScreen": "HeadToHead"
+                }
+            ]
+        },
+        {
+            "ScreenId": "HeadToHead",
+            "Title": "Head to Head",
+            "Body": "Two players, one machine. Player 2 plays on the second controller.",
+            "Options": [
+                {
+                    "OptionId": "Player1Home",
+                    "Label": "Player 1 home, Player 2 away",
+                    "Command": "StartVersus",
+                    "Payload": "0"
+                },
+                {
+                    "OptionId": "Player2Home",
+                    "Label": "Player 2 home, Player 1 away",
+                    "Command": "StartVersus",
+                    "Payload": "1"
                 }
             ]
         },

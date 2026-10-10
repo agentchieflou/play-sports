@@ -72,6 +72,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * actions and come back here through InjectCatalogInput, so every handler below and every
  * OnCatalogActionStarted consumer hears touch exactly as it hears the gamepad.
  *
+ * Two players on one machine (Epic 107) each have one of these, seated by UPSVersusSubsystem:
+ * HumanIndex says which human it is, and it never takes the other human's player.
+ *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
  * OnCatalogActionStarted by ID for its consumer to subscribe to -- no consumer casts to this
@@ -193,8 +196,9 @@ public:
      *  headlessly without a local player. */
     void HandleMove(const FInputActionValue& Value);
 
-    /** Takes control of Target from whatever controls it. Its AI controller is remembered
-     *  and resumes the pawn when control is released or moves elsewhere. */
+    /** Takes control of Target from the AI that controls it. Its AI controller is remembered
+     *  and resumes the pawn when control is released or moves elsewhere. A pawn another
+     *  player controller holds (the other human in a head-to-head game) is never taken. */
     UFUNCTION(BlueprintCallable, Category = "Possession")
     bool TakeControlOf(APSPlayerPawn* Target);
 
@@ -240,6 +244,13 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     FName PauseActionId;
+
+    /** Which human this controller is (Epic 107): 0 for the first local player, 1 for the
+     *  second in a head-to-head game. UPSVersusSubsystem sets it when it seats the controller.
+     *  The control and device events this controller publishes carry it, so each player's
+     *  consumers (rumble, HUD) follow only their own. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Possession")
+    int32 HumanIndex;
 
     /** The side the human plays when not yet controlling a pawn. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Possession")

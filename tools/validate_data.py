@@ -44,9 +44,10 @@ with the control's value type, every action of a covered context is reachable by
 touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
-coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle. Teams, the league config, the
-playbook, player rating ranges and every reference between files are tools/content_contracts.py's
-(Epic 125), run from here.
+coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "PausesPerHalf" files against
+FPSVersusRules (Epic 107): control roles on their sides, screen and overlay audiences, pause and
+resume etiquette. Teams, the league config, the playbook, player rating ranges and every reference
+between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -211,7 +212,7 @@ def validate_input_catalog(path, payload):
 
 
 MENU_COMMANDS = {"None", "Resume", "StartPlayNow", "StartFranchise", "StartPractice", "QuitToMainMenu", "QuitGame", "CallPlay", "ApplyAdjustment",
-                 "StepSetting", "ResetSettings", "BeginRemap", "ResetRemaps"}
+                 "StepSetting", "ResetSettings", "BeginRemap", "ResetRemaps", "StartVersus"}
 MENU_CONTENTS = {"Static", "TeamSelect", "Loading", "PlayCallFormations", "PlayCallPlays", "PlayCallRecent",
                  "PlayCallFavorites", "PlayCallAdjustments", "Settings", "SettingsCategory", "InputRemap"}
 TIP_CONTEXTS = {"Any", "PlayNow", "Franchise", "Practice"}
@@ -2529,6 +2530,40 @@ def validate_overlay_badges(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOverlayBadgeStyle exactly")
 
 
+VERSUS_SCREENS = {"Shared", "Split"}
+VERSUS_AUDIENCES = {"Everyone", "OwnerOnly", "Nobody"}
+VERSUS_FLAGS = ("bResetControlEachDown", "bDefenseSwitchDuringPlay", "bDefensePreSnapPicks", "bPauseOnlyBetweenPlays",
+                "bResumeNeedsBoth", "bPauseOnDisconnect", "bQuitForfeits")
+VERSUS_FIELDS = {"OffenseControlRole", "DefenseControlRole", "Screen", "RouteArtAudience", "DefensiveIconsAudience",
+                 "PausesPerHalf", "ResumeCountdownSeconds"} | set(VERSUS_FLAGS)
+
+
+def validate_versus_rules(path, payload):
+    """FPSVersusRules (Data/versus_rules.json, Epic 107); mirrors UPSVersusSubsystem::ValidateRules."""
+    offense_role, defense_role = payload.get("OffenseControlRole"), payload.get("DefenseControlRole")
+    if offense_role not in OFFENSIVE_ROLES:
+        err(path, f"OffenseControlRole: '{offense_role}' must be an offensive role ({sorted(OFFENSIVE_ROLES)})")
+    if defense_role not in DEFENSIVE_ROLES:
+        err(path, f"DefenseControlRole: '{defense_role}' must be a defensive role ({sorted(DEFENSIVE_ROLES)})")
+    for flag in VERSUS_FLAGS:
+        if not isinstance(payload.get(flag), bool):
+            err(path, f"{flag}: must be true or false")
+    if payload.get("Screen") not in VERSUS_SCREENS:
+        err(path, f"Screen: '{payload.get('Screen')}' must be one of {sorted(VERSUS_SCREENS)}")
+    for field in ("RouteArtAudience", "DefensiveIconsAudience"):
+        if payload.get(field) not in VERSUS_AUDIENCES:
+            err(path, f"{field}: '{payload.get(field)}' must be one of {sorted(VERSUS_AUDIENCES)}")
+    pauses = payload.get("PausesPerHalf")
+    if not isinstance(pauses, int) or isinstance(pauses, bool) or pauses < -1:
+        err(path, f"PausesPerHalf: '{pauses}' must be a whole number, -1 (no limit) or 0 or more")
+    countdown = payload.get("ResumeCountdownSeconds")
+    if not is_number(countdown) or countdown < 0:
+        err(path, f"ResumeCountdownSeconds: '{countdown}' must be a number, 0 or more")
+    extra = set(payload) - VERSUS_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSVersusRules exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -2640,6 +2675,8 @@ def main():
             validate_personnel_catalog(path, payload)
         if isinstance(payload, dict) and "TouchControls" in payload:
             validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
+        if isinstance(payload, dict) and "PausesPerHalf" in payload:
+            validate_versus_rules(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:
