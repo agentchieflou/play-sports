@@ -18,11 +18,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** The user (or AI) can audible, hot-route, motion, and adjust protection before the snap.
 **Depends on:** Core 14, Core 16
 
-- [ ] Audible system: swap to a compatible play from the same formation
-- [ ] Hot-route individual receivers (route swap from an allowed set per alignment)
-- [ ] Pre-snap motion with defensive reaction (man-indicator when a DB travels)
-- [ ] Protection adjustments: slide protection, RB/TE block-or-release
-- [ ] Crowd-noise interference on road audibles (consumes Epic 49's coupling)
+- [x] Audible system: swap to a compatible play from the same formation *(`UPSPreSnapSubsystem::Audible`/`AudibleToNext`: another play of the call's formation, made at `UPSPlayCallSubsystem` as a new call; the old call's changes go with it. A CPU QB with `CpuReadMinAwareness` checks a run out of a blitz or heavy box and a pass out of a light one. Three plays added so formations share plays. Tuning: `Data/presnap_tuning.json`)*
+- [x] Hot-route individual receivers (route swap from an allowed set per alignment) *(`HotRoute`/`CycleHotRoute`: wide, slot, tight and backfield sets in `HotRouteSets`; `UPSPlayOrchestrator` applies them at the snap. The CPU beats a blitz look with its slot on `BlitzHotRoute`)*
+- [x] Pre-snap motion with defensive reaction (man-indicator when a DB travels) *(`StartMotion`: across the formation; in man coverage the AI defender over him travels with him and the `PreSnap` bus event carries `bManIndicator`; the route starts where the motion ends)*
+- [x] Protection adjustments: slide protection, RB/TE block-or-release *(`SetSlide`: the game mode's line pairing now goes through `ComputeBlockingPairs`, slide side first, leaving the backside rusher to a back or tight end kept in (`SetProtection` Block/Release). Human buttons: `UPSPreSnapInputComponent`, PreSnap context)*
+- [ ] Crowd-noise interference on road audibles (consumes Epic 49's coupling) *(waits for Epic 49: there is no crowd-noise model to consume yet)*
 
 ### Epic 67: Defensive Pre-Snap Interaction
 
@@ -143,10 +143,10 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** The game understands its own leverage moments — two-minute drill, four-minute offense, clock-kill, hurry-up.
 **Depends on:** Core 12, Core 18
 
-- [ ] Tempo system: huddle/no-huddle/hurry-up pacing controls for user and AI
-- [ ] Two-minute logic: sideline throws, spike/kneel, timeout optimization
-- [ ] Four-minute (leading) logic: clock-kill runs, stay-inbounds behavior
-- [ ] End-of-half decision correctness harness (scripted scenarios asserting sane AI choices, extends Epic 24)
+- [x] Tempo system: huddle/no-huddle/hurry-up pacing controls for user and AI *(every offensive call carries a tempo (`EPSTempo`, `Data/situational_tuning.json`): the CPU's from `UPSSituationAI::ChooseTempo`, a human's from the `Tempo` action (N / Y) through `UPSPlayCallSubsystem::CycleHumanTempo`; hurry-up reruns the human's last real play with no call screen. The call's play-clock mark rides the `PlayCall` bus event and `UPSPlaySimulation` runs a running game clock down to it at the snap (an accelerated clock: the CPU still snaps after `CpuSnapDelaySeconds`), replacing the flat 30-second tackle runoff outside quick sim)*
+- [x] Two-minute logic: sideline throws, spike/kneel, timeout optimization *(`UPSSituationAI` reads the two-minute drill; `UPSCoachingAI` weights sideline routes up and middle routes and runs down from data, calls a spike on a running clock with no timeout left, and the CPU side calls its timeout when the window opens (`Timeout` bus event, charged by the sim). Spike and kneel are `Clock` plays in `sample_playbook.json`, resolved by the sim at the snap; a carrier out of bounds stops the clock in the last 2:00 / 5:00 of a half (`DoesOutOfBoundsStopClock`); the carrier AI heads for the sideline when the call says so)*
+- [x] Four-minute (leading) logic: clock-kill runs, stay-inbounds behavior *(four-minute offense puts the run first and milks the play clock; the carrier AI turns back inside near the sideline (`FSkillPlayerAITuningRow::SidelineCushion`); victory formation kneels when the kneels and the milked clock the defense can't stop cover the time; a trailing defense spends its timeouts on a running clock)*
+- [x] End-of-half decision correctness harness (scripted scenarios asserting sane AI choices, extends Epic 24) *(`PlaySports.Situation.EndOfHalfDecisionHarness`: 16 scripted clock/score/field scenarios, each asserting the situation, clock play, both sides' timeouts, tempo, sideline intent and the play caller's pick)*
 
 ### Epic 77: Momentum & Composure Layer
 

@@ -6,6 +6,7 @@
 #include "PSOffenseController.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayerPawn.h"
+#include "PSPreSnapSubsystem.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/Paths.h"
@@ -128,6 +129,7 @@ void UPSSkillPlayerAIComponent::HandlePlayCall(const FPSTelemetryPlayCallEvent& 
     if (Event.bOffense)
     {
         bRunPlay = Event.PlayCategory == TEXT("Run");
+        BoundaryIntent = Event.BoundaryIntent;
     }
 }
 
@@ -419,6 +421,18 @@ FVector UPSSkillPlayerAIComponent::SteerAsCarrier(APSPlayerPawn* Self) const
         const float Urgency = 1.f - Distance / Settings.CarrierAvoidRadius;
         Heading += Away.GetSafeNormal() * Settings.CarrierAvoidWeight * Urgency;
     }
+
+    // The call's sideline intent (Epic 76): past the line, head out of bounds to stop the clock;
+    // near the sideline, turn back inside to keep it running.
+    const float Side = Location.Y >= 0.f ? 1.f : -1.f;
+    if (BoundaryIntent == EPSBoundaryIntent::GetOutOfBounds && Location.X > LineOfScrimmage.X)
+    {
+        Heading.Y += Side * Settings.SidelineSteerWeight;
+    }
+    else if (BoundaryIntent == EPSBoundaryIntent::StayInbounds && FMath::Abs(Location.Y) > Settings.FieldHalfWidth - Settings.SidelineCushion)
+    {
+        Heading.Y = -Side * Settings.SidelineSteerWeight;
+    }
     Heading.Z = 0.f;
     return Heading.GetSafeNormal();
 }
@@ -432,9 +446,40 @@ FVector UPSSkillPlayerAIComponent::SteerAsBlocker(APSPlayerPawn* Self) const
         return FVector::ZeroVector;
     }
 
+    // With the line sliding one way, a back or tight end kept in takes the backside: the
+    // nearest free rusher on the other side of the passer (Epic 66).
+    const TArray<APSPlayerPawn*> Pawns = GetFieldPawns();
+    const UPSPreSnapSubsystem* PreSnap = GetWorld() ? GetWorld()->GetSubsystem<UPSPreSnapSubsystem>() : nullptr;
+    const EPSSlideDirection Slide = PreSnap ? PreSnap->GetSlide() : EPSSlideDirection::None;
+    if (Slide != EPSSlideDirection::None)
+    {
+        const float Backside = Slide == EPSSlideDirection::Left ? 1.f : -1.f;
+        const FVector PasserLocation = Quarterback->GetActorLocation();
+        const APSPlayerPawn* Free = nullptr;
+        float FreeDistance = Settings.BlockEngageRadius;
+        for (const APSPlayerPawn* Candidate : Pawns)
+        {
+            if (!Candidate || Candidate->TeamSide == Self->TeamSide || Candidate->bIsEngaged || (Candidate->GetActorLocation().Y - PasserLocation.Y) * Backside <= 0.f
+                || (Candidate->GetHealthComponent() && Candidate->GetHealthComponent()->IsDowned()))
+            {
+                continue;
+            }
+            const float CandidateDistance = FVector::Dist2D(Candidate->GetActorLocation(), PasserLocation);
+            if (CandidateDistance <= FreeDistance)
+            {
+                FreeDistance = CandidateDistance;
+                Free = Candidate;
+            }
+        }
+        if (Free)
+        {
+            return PSSkillPlayerAIPrivate::GroundDirection(Self->GetActorLocation(), Free->GetActorLocation());
+        }
+    }
+
     // Take on the rusher nearest the QB, else set up in front of him.
     float Distance = TNumericLimits<float>::Max();
-    const APSPlayerPawn* Rusher = PSFieldReads::NearestOpponent(GetFieldPawns(), Self->TeamSide, Quarterback->GetActorLocation(), &Distance);
+    const APSPlayerPawn* Rusher = PSFieldReads::NearestOpponent(Pawns, Self->TeamSide, Quarterback->GetActorLocation(), &Distance);
     if (Rusher && Distance <= Settings.BlockEngageRadius)
     {
         return PSSkillPlayerAIPrivate::GroundDirection(Self->GetActorLocation(), Rusher->GetActorLocation());

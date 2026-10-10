@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "Engine/DataTable.h"
 #include "PSPlayerAttributes.h"
+#include "PSSituationData.h"
 #include "PSTelemetryBus.h"
 #include "PSSkillPlayerAIComponent.generated.h"
 
@@ -92,6 +93,19 @@ struct FSkillPlayerAITuningRow : public FTableRowBase
     /** A blocker takes on rushers within this distance of the QB. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
     float BlockEngageRadius = 500.f;
+
+    /** The sidelines are this far either side of the middle of the field (Y = 0). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float FieldHalfWidth = 2438.4f;
+
+    /** A carrier told to stay in bounds (Epic 76) turns back inside this close to the sideline. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float SidelineCushion = 450.f;
+
+    /** How hard a carrier steers for or away from the sideline when the call says so
+     *  (1 = as much as upfield). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+    float SidelineSteerWeight = 1.f;
 };
 
 /**
@@ -99,7 +113,8 @@ struct FSkillPlayerAITuningRow : public FTableRowBase
  * (Epic 14): receivers run their routes and converge on a ball thrown to them, the QB drops,
  * reads and throws (or hands off on a run, or scrambles), the RB takes the hand-off and hits
  * the run lane, blockers set up in front of the QB, and whoever has the ball runs upfield away
- * from the nearest defender.
+ * from the nearest defender -- past the line toward the sideline when the call says get out of
+ * bounds, back inside before the sideline when it says stay in (Epic 76).
  *
  * It moves the pawn the same way a human does -- AddMovementInput, so the pawn's acceleration,
  * turning and cutting rules (FMovementTuningRow) apply -- and needs no Behavior Tree asset,
@@ -188,4 +203,6 @@ private:
     bool bSnapPending = false;
     bool bRunPlay = false;
     bool bTuningLoaded = false;
+    /** From the offense's call: what the carrier does about the sideline (Epic 76). */
+    EPSBoundaryIntent BoundaryIntent = EPSBoundaryIntent::None;
 };

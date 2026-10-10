@@ -17,6 +17,7 @@ class UPSPlayCallComponent;
 class UPSPlayContextComponent;
 class UPSPassingComponent;
 class UPSCarrierInputComponent;
+class UPSPreSnapInputComponent;
 class UPSInputBufferComponent;
 struct FInputActionValue;
 struct FInputActionInstance;
@@ -92,6 +93,10 @@ public:
     /** The human ball carrier's move buttons (Epic 104.2). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSCarrierInputComponent* GetCarrierInputComponent() const { return CarrierInputComponent; }
+
+    /** The human offense's pre-snap buttons: audible, hot route, motion, protection (Epic 66). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSPreSnapInputComponent* GetPreSnapInputComponent() const { return PreSnapInputComponent; }
 
     /** Buffers catalog presses whose target is busy (Epic 104.4). */
     UFUNCTION(BlueprintPure, Category = "Input")
@@ -229,6 +234,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSCarrierInputComponent* CarrierInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSPreSnapInputComponent* PreSnapInputComponent;
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSInputBufferComponent* InputBufferComponent;

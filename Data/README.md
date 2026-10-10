@@ -35,9 +35,11 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `passing_input.json` | `FPassingInputTuningRow` (single object) | `UPSDataIngestion::LoadPassingInputTuningFromJson`, via `UPSPassingComponent` |
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
+| `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
+| `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -76,6 +78,11 @@ Single JSON object (not an array): `LeagueName`, `NumWeeks`, `ByeWeekNumbers` (i
 
 See `Source/PlaySports/Public/PSPlaybookData.h` for the full assignment/route shape. Every
 `Route`-kind assignment's `RouteId` must exist in `sample_routes.json`.
+
+Two `PlayCategory` values are clock plays (Epic 76): `Spike` and `Kneel` (the `Clock` formation).
+The CPU calls them only when the clock does (`UPSSituationAI::DecideClockPlay`), and
+`UPSPlaySimulation` resolves them at the snap: a spike is an incompletion, a kneel is down for
+`UPSRulesConfig::KneelYardage` with the clock running.
 
 ## Adding a new team
 
@@ -191,6 +198,10 @@ more; distances are cm, times seconds:
 - `ThrowLeadSpeed` (above 0): ball speed for leading a receiver.
 - `BlockSetDistance`, `BlockEngageRadius`: a blocker sets up this far in front of the QB and
   takes on rushers within the radius of him.
+- `FieldHalfWidth`, `SidelineCushion`, `SidelineSteerWeight` (Epic 76): the sidelines are
+  `FieldHalfWidth` either side of the middle. When the call says stay in bounds the carrier turns
+  back inside within `SidelineCushion` of a sideline; when it says get out of bounds he heads for
+  the nearer one once past the line. The weight is how hard (1 = as much as upfield).
 
 ## Defensive AI tuning schema (`FDefenderAITuningRow`)
 
@@ -299,3 +310,61 @@ Single object (Epic 70; how a CPU pass rusher beats the man blocking him):
 
 `PSRushMoves::ValidateCatalog` and `tools/validate_data.py` check it.
 
+## Pre-snap tuning schema (`FPreSnapTuningRow`)
+
+Single object (Epic 66; the offense's audibles, hot routes, motion and protection,
+`UPSPreSnapSubsystem`). Distances are cm:
+- `HotRouteSets[]`, one per `Alignment` (`Wide`, `Slot`, `Tight`, `Backfield`, each once):
+  `Routes`, the route IDs a player lined up there may be hot-routed to, in the order the
+  hot-route button cycles them; and `ReleaseRoute`, the route a blocker there runs when
+  released. Every route must exist in `sample_routes.json`.
+- `SlotMaxSplit`: a wide receiver no further than this from the ball is in the slot.
+- `MotionEndSplit`, `MotionArrivalRadius`: motion runs across to this far on the other side of
+  the ball; arriving is being this close.
+- `ManTravelLateralRadius`: in man coverage, the defender within this distance across the field
+  of the man in motion travels with him (the man indicator).
+- `SlideAimOffset`: a sliding lineman looks for his man this far toward the slide.
+- `BoxWidth`, `BoxDepth`: the box, either side of the ball and off the line.
+- `CpuReadMinAwareness` (0-100): the CPU quarterback reads the defense before the snap only
+  with at least this Awareness.
+- `HeavyBoxCount`, `LightBoxCount` (whole numbers, light below heavy): a run into a heavy box
+  or a blitz look is checked out of, to a pass; a pass against a light box and no blitz, to a
+  run.
+- `BlitzHotRoute`, `bCpuKeepsBackInVsBlitz`: against a blitz look the CPU sends its slot
+  receiver on this route and keeps a back with a route in to block.
+- `bCpuMotionOnPass`: on a pass the CPU motions its slot receiver.
+- `AudibleAction`, `SelectAction`, `HotRouteAction`, `MotionAction`, `SlideAction`,
+  `ProtectionAction`: the human's pre-snap buttons, each a different Boolean action in the input
+  catalog's `PreSnap` context.
+
+`tools/validate_data.py` checks it, including the routes and the actions.
+
+## Situational tuning schema (`FPSSituationalTuning`)
+
+Single object (Epic 76; how the coaching AI reads the end of a half). Times are game-clock
+seconds left in the quarter; yard lines count from the offense's goal line (0) to the opponent's.
+- `Tempos[]`: `Tempo` (`Huddle`, `NoHuddle`, `HurryUp`, `MilkClock`, each once), `Label`,
+  `SnapAtPlayClockSeconds` (0-40: the play-clock reading the snap comes at; a running game clock
+  runs down to it at the snap) and `bRerunLastCall` (a human offense gets its last play again,
+  with no call screen).
+- `SituationTempos[]`: per `Situation` (`Normal`, `TwoMinuteDrill`, `FourMinuteOffense`,
+  `VictoryFormation`), the CPU offense's `ClockRunningTempo` and `ClockStoppedTempo`.
+- `HumanTempoCycle`: the tempos the `Tempo` action cycles through. `SpikeTempo`, `KneelTempo`:
+  what a spike or kneel snaps at, whatever the offense's tempo.
+- Two-minute drill: `TwoMinuteWindowSeconds` (the 2nd quarter, or a trailing or tied 4th),
+  `TwoScoreWindowSeconds` (a 4th-quarter offense down more than `OneScorePoints`),
+  `ClockUrgencySeconds` (under it a running clock is stopped: timeout if one is left, else a
+  spike on down `MaxSpikeDown` or earlier, with at least `SpikeMinSeconds` left).
+- Four-minute offense: `FourMinuteWindowSeconds` (a leading 4th-quarter offense); the defense
+  calls timeouts on a running clock under `DefenseTimeoutWindowSeconds` when down by no more than
+  `MaxDeficitToChase`.
+- Victory formation: the offense kneels when `KneelPlaySeconds` per kneel plus
+  `KneelPreSnapSeconds` per gap the defense has no timeout to stop covers the time left; at the
+  end of the 1st half, inside its own `EndOfHalfKneelMaxYardLine` with `EndOfHalfKneelSeconds`
+  or less.
+- Play calling: `ClockPlayWeight` (a spike or kneel the clock calls for), `SidelineRouteIds` and
+  `MiddleRouteIds` (route library IDs), `SidelinePlayDelta` and `MiddlePlayDelta` (two-minute
+  drill pass plays), and `CategoryWeights[]`: `Situation`, `bOffense` (whose call), `Category`,
+  `Delta` and the `Reason` the play-call screen shows.
+
+`tools/validate_data.py` checks it.
