@@ -1000,9 +1000,17 @@ here.
   of his career totals over their `Thresholds[]` (`Category`, a player `EPSStatCategory`;
   `CareerValue`).
 - `LeaderCategories`: the player categories whose season leader each season's archive keeps.
+- `RoleCurves[]` (read by `UPSPlayerAging`): `Role` and its `Curve`, Core 19's `FPSProgressionTuning`
+  (`PeakAgeStart`, `PeakAgeEnd`, `GrowthPerYear`, `DeclinePerYear`, `LowSnapShareThreshold`); a role
+  not listed ages on `player_progression.json`'s curve.
+- `Retirement` (`UPSPlayerAging`): from `MinAge`, `BaseChance` plus `ChancePerYear` a year past it,
+  plus `LowRatingChance` under `LowRating`, `InjuredChance` when hurt at the season's end,
+  `LowMoraleChance` under `LowMorale`; always at `ForcedAge`; at most `MaxRetirementShare` of a
+  roster a season (the forced always); `RandomSeed`.
 
 `tools/validate_data.py` checks it: whole-number waits, a positive score, each threshold and leader
-a player category listed once.
+a player category listed once, one curve per role with its peak in order, 0-1 chances, `ForcedAge`
+above `MinAge`.
 
 ## Owner economics schema (`FPSEconomyTuning`)
 

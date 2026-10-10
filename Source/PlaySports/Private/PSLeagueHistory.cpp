@@ -89,6 +89,42 @@ TArray<FString> UPSLeagueHistory::ValidateTuning(const FPSLegacyTuning& InTuning
         }
         Leaders.Add(Category);
     }
+
+    TSet<EPlayerRole> Roles;
+    for (const FPSRoleAgingCurve& RoleCurve : InTuning.RoleCurves)
+    {
+        const FString Role = StaticEnum<EPlayerRole>()->GetNameStringByValue(static_cast<int64>(RoleCurve.Role));
+        const FPSProgressionTuning& Curve = RoleCurve.Curve;
+        if (Roles.Contains(RoleCurve.Role))
+        {
+            Problems.Add(FString::Printf(TEXT("RoleCurves: %s is listed twice"), *Role));
+        }
+        Roles.Add(RoleCurve.Role);
+        if (Curve.PeakAgeStart > Curve.PeakAgeEnd || Curve.GrowthPerYear < 0.f || Curve.DeclinePerYear < 0.f
+            || Curve.LowSnapShareThreshold < 0.f || Curve.LowSnapShareThreshold > 1.f)
+        {
+            Problems.Add(FString::Printf(TEXT("RoleCurves: %s needs PeakAgeStart <= PeakAgeEnd, growth and decline of 0 or more and a 0-1 LowSnapShareThreshold"), *Role));
+        }
+    }
+
+    const FPSRetirementTuning& Retirement = InTuning.Retirement;
+    if (Retirement.MinAge < 0 || Retirement.ForcedAge <= Retirement.MinAge)
+    {
+        Problems.Add(TEXT("Retirement: MinAge must be 0 or more and ForcedAge above it"));
+    }
+    for (const float Fraction : { Retirement.BaseChance, Retirement.ChancePerYear, Retirement.LowRatingChance, Retirement.InjuredChance,
+        Retirement.LowMorale, Retirement.LowMoraleChance, Retirement.MaxRetirementShare })
+    {
+        if (Fraction < 0.f || Fraction > 1.f)
+        {
+            Problems.Add(TEXT("Retirement: the chances, LowMorale and MaxRetirementShare are 0-1"));
+            break;
+        }
+    }
+    if (Retirement.LowRating < 0.f || Retirement.LowRating > 100.f)
+    {
+        Problems.Add(TEXT("Retirement: LowRating is a 0-100 rating"));
+    }
     return Problems;
 }
 

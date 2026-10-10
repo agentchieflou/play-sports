@@ -28,10 +28,15 @@ class LegacyContractTest(unittest.TestCase):
         broken["HallOfFame"]["Thresholds"][1]["CareerValue"] = 0
         broken["HallOfFame"]["Thresholds"][2]["Category"] = broken["HallOfFame"]["Thresholds"][3]["Category"]
         broken["LeaderCategories"].append("PassingYards")                    # listed twice
+        broken["RoleCurves"][1]["Role"] = broken["RoleCurves"][0]["Role"]
+        broken["RoleCurves"][2]["Curve"]["PeakAgeStart"] = 35                 # after its end
+        broken["Retirement"]["ForcedAge"] = 20                                # before MinAge
+        broken["Retirement"]["InjuredChance"] = 1.5
         validate_data.validate_legacy(self.path, broken)
         joined = "\n".join(validate_data.errors)
         for expected in ("MaxInducteesPerSeason", "InductionScore", "Thresholds[0].Category: 'TeamPoints'",
-                         "Thresholds[1].CareerValue", "Thresholds[3].Category", "LeaderCategories[8]"):
+                         "Thresholds[1].CareerValue", "Thresholds[3].Category", "LeaderCategories[8]",
+                         "RoleCurves[1].Role", "RoleCurves[2].Curve", "ForcedAge above it", "Retirement.InjuredChance"):
             self.assertIn(expected, joined)
 
 

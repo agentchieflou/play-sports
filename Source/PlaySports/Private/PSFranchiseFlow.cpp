@@ -10,6 +10,7 @@
 #include "PSLeagueHistory.h"
 #include "PSMatchSetup.h"
 #include "PSOwnerEconomy.h"
+#include "PSPlayerAging.h"
 #include "PSPlayerAttributes.h"
 #include "PSQuickSimRunner.h"
 #include "PSRoster.h"
@@ -26,6 +27,7 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     UserTeamId = InUserTeamId;
     CarouselEvents.Reset();
     EconomyReports.Reset();
+    Retirements.Reset();
     LockerRoomEvents.Reset();
     TrainingEvents.Reset();
     FreeAgency = nullptr;
@@ -405,6 +407,20 @@ bool UPSFranchiseFlow::EndSeason()
     {
         Stats->EndSeason();
     }
+    if (LeagueHistory)
+    {
+        // Epic 94: the season goes into the archive.
+        LeagueHistory->ArchiveSeason(FinishedSeason, Season->GetSortedStandings(), Stats);
+    }
+    Retirements.Reset();
+    if (PlayerAging)
+    {
+        // Epic 94: veterans retire (before the injured heal), everyone else ages a year.
+        for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+        {
+            Retirements.Append(PlayerAging->RunOffseason(Team.Key, Team.Value, FinishedSeason, Contracts, Stats, Preparation, LockerRoom, LeagueHistory));
+        }
+    }
     if (Preparation)
     {
         // The off-season heals everyone (Epic 90).
@@ -412,8 +428,7 @@ bool UPSFranchiseFlow::EndSeason()
     }
     if (LeagueHistory)
     {
-        // Epic 94: the season goes into the archive, then the hall of fame votes.
-        LeagueHistory->ArchiveSeason(FinishedSeason, Season->GetSortedStandings(), Stats);
+        // The hall of fame votes on the retired (Epic 94).
         LeagueHistory->RunHallOfFameVote(FinishedSeason);
     }
     if (Economy)

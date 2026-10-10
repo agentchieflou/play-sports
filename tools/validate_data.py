@@ -82,8 +82,9 @@ pools and the real-person NameBlocklist, which every roster's DisplayNames are c
 uncertainties and costs, 0-1 shares and guarantees, each drill reading a rating, a rookie deal no
 longer than contracts.json's MaxContractYears; "HallOfFame" files against FPSLegacyTuning (Epic 94):
 the hall of fame's waits and score, each threshold and archived leader a player stat category,
-listed once. Teams, the league config, the playbook, player rating ranges and every reference
-between files are tools/content_contracts.py's (Epic 125), run from here.
+listed once, each role's age curve and the retirement chances. Teams, the league config, the
+playbook, player rating ranges and every reference between files are tools/content_contracts.py's
+(Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -4292,11 +4293,69 @@ PLAYER_STAT_CATEGORIES = {
 HALL_OF_FAME_INT_FIELDS = ("WaitSeasons", "MinSeasons", "MaxInducteesPerSeason")
 
 
+AGING_CURVE_FIELDS = {"PeakAgeStart", "PeakAgeEnd", "GrowthPerYear", "DeclinePerYear", "LowSnapShareThreshold"}
+RETIREMENT_FRACTIONS = ("BaseChance", "ChancePerYear", "LowRatingChance", "InjuredChance", "LowMorale", "LowMoraleChance",
+                        "MaxRetirementShare")
+RETIREMENT_INTS = ("MinAge", "ForcedAge", "RandomSeed")
+
+
+def validate_legacy_aging(path, payload):
+    """FPSLegacyTuning's RoleCurves (each an FPSProgressionTuning) and Retirement (Epic 94)."""
+    curves = payload.get("RoleCurves")
+    if not isinstance(curves, list):
+        err(path, "'RoleCurves' must be an array of { Role, Curve }")
+        curves = []
+    seen = set()
+    for idx, entry in enumerate(curves):
+        where = f"RoleCurves[{idx}]"
+        if not isinstance(entry, dict) or not isinstance(entry.get("Curve"), dict):
+            err(path, f"{where}: must be an object with a Role and a Curve object")
+            continue
+        role = entry.get("Role")
+        if role not in PLAYER_ROLES or role in seen:
+            err(path, f"{where}.Role: '{role}' must be an EPlayerRole, listed once")
+        seen.add(role)
+        curve = entry["Curve"]
+        start, end = curve.get("PeakAgeStart"), curve.get("PeakAgeEnd")
+        if not isinstance(start, int) or not isinstance(end, int) or isinstance(start, bool) or isinstance(end, bool) or start > end:
+            err(path, f"{where}.Curve: PeakAgeStart and PeakAgeEnd must be whole numbers, the start no later than the end")
+        for field in ("GrowthPerYear", "DeclinePerYear"):
+            if not is_number(curve.get(field)) or curve[field] < 0:
+                err(path, f"{where}.Curve.{field}: must be a number, 0 or more")
+        threshold = curve.get("LowSnapShareThreshold")
+        if not is_number(threshold) or not 0 <= threshold <= 1:
+            err(path, f"{where}.Curve.LowSnapShareThreshold: must be a number from 0 to 1")
+        if set(curve) - AGING_CURVE_FIELDS or set(entry) - {"Role", "Curve"}:
+            err(path, f"{where}: unknown field(s) - names must match FPSRoleAgingCurve and FPSProgressionTuning exactly")
+
+    rules = payload.get("Retirement")
+    if not isinstance(rules, dict):
+        err(path, "'Retirement' must be an FPSRetirementTuning object")
+        return
+    for field in RETIREMENT_FRACTIONS:
+        value = rules.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"Retirement.{field}: '{value}' must be a number from 0 to 1")
+    for field in RETIREMENT_INTS:
+        value = rules.get(field)
+        if isinstance(value, bool) or not isinstance(value, int):
+            err(path, f"Retirement.{field}: '{value}' must be a whole number")
+    if isinstance(rules.get("MinAge"), int) and isinstance(rules.get("ForcedAge"), int) and not 0 <= rules["MinAge"] < rules["ForcedAge"]:
+        err(path, "Retirement: MinAge must be 0 or more and ForcedAge above it")
+    rating = rules.get("LowRating")
+    if not is_number(rating) or not 0 <= rating <= 100:
+        err(path, f"Retirement.LowRating: '{rating}' must be a 0-100 rating")
+    known = set(RETIREMENT_FRACTIONS) | set(RETIREMENT_INTS) | {"LowRating"}
+    if set(rules) - known:
+        err(path, f"Retirement: unknown field(s) {sorted(set(rules) - known)} - names must match FPSRetirementTuning exactly")
+
+
 def validate_legacy(path, payload):
     """FPSLegacyTuning (Data/legacy.json, Epic 94); mirrors UPSLeagueHistory::ValidateTuning."""
-    extra = set(payload) - {"HallOfFame", "LeaderCategories"}
+    extra = set(payload) - {"HallOfFame", "LeaderCategories", "RoleCurves", "Retirement"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSLegacyTuning exactly")
+    validate_legacy_aging(path, payload)
     hall = payload.get("HallOfFame")
     if not isinstance(hall, dict):
         err(path, "'HallOfFame' must be an FPSHallOfFameTuning object")

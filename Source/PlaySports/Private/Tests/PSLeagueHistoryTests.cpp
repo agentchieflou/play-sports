@@ -144,6 +144,12 @@ bool FPSLegacyTuningTest::RunTest(const FString& Parameters)
             TestTrue(*FString::Printf(TEXT("HallOfFame.%s matches the default"), *It->GetName()), It->Identical_InContainer(&FromFile.HallOfFame, &Defaults));
         }
     }
+    const FPSRetirementTuning RetirementDefaults;
+    for (TFieldIterator<FProperty> It(FPSRetirementTuning::StaticStruct()); It; ++It)
+    {
+        TestTrue(*FString::Printf(TEXT("Retirement.%s matches the default"), *It->GetName()), It->Identical_InContainer(&FromFile.Retirement, &RetirementDefaults));
+    }
+    TestEqual(TEXT("An age curve for every role"), FromFile.RoleCurves.Num(), 8);
 
     FPSLegacyTuning Broken = FromFile;
     Broken.HallOfFame.MaxInducteesPerSeason = 0;

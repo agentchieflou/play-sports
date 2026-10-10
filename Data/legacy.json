@@ -19,5 +19,28 @@
     },
     "LeaderCategories": [
         "PassingYards", "PassingTouchdowns", "RushingYards", "Receptions", "ReceivingYards", "Tackles", "Sacks", "Interceptions"
-    ]
+    ],
+    "RoleCurves": [
+        { "Role": "Quarterback", "Curve": { "PeakAgeStart": 27, "PeakAgeEnd": 33, "GrowthPerYear": 2.0, "DeclinePerYear": 2.0, "LowSnapShareThreshold": 0.2 } },
+        { "Role": "RunningBack", "Curve": { "PeakAgeStart": 23, "PeakAgeEnd": 26, "GrowthPerYear": 3.0, "DeclinePerYear": 3.5, "LowSnapShareThreshold": 0.2 } },
+        { "Role": "WideReceiver", "Curve": { "PeakAgeStart": 25, "PeakAgeEnd": 29, "GrowthPerYear": 2.5, "DeclinePerYear": 2.5, "LowSnapShareThreshold": 0.2 } },
+        { "Role": "TightEnd", "Curve": { "PeakAgeStart": 26, "PeakAgeEnd": 30, "GrowthPerYear": 2.5, "DeclinePerYear": 2.5, "LowSnapShareThreshold": 0.2 } },
+        { "Role": "OffensiveLineman", "Curve": { "PeakAgeStart": 26, "PeakAgeEnd": 31, "GrowthPerYear": 2.0, "DeclinePerYear": 2.0, "LowSnapShareThreshold": 0.2 } },
+        { "Role": "DefensiveLineman", "Curve": { "PeakAgeStart": 25, "PeakAgeEnd": 29, "GrowthPerYear": 2.5, "DeclinePerYear": 2.5, "LowSnapShareThreshold": 0.2 } },
+        { "Role": "Linebacker", "Curve": { "PeakAgeStart": 25, "PeakAgeEnd": 29, "GrowthPerYear": 2.5, "DeclinePerYear": 2.5, "LowSnapShareThreshold": 0.2 } },
+        { "Role": "DefensiveBack", "Curve": { "PeakAgeStart": 24, "PeakAgeEnd": 28, "GrowthPerYear": 2.5, "DeclinePerYear": 3.0, "LowSnapShareThreshold": 0.2 } }
+    ],
+    "Retirement": {
+        "MinAge": 30,
+        "BaseChance": 0.05,
+        "ChancePerYear": 0.08,
+        "ForcedAge": 40,
+        "LowRating": 60.0,
+        "LowRatingChance": 0.25,
+        "InjuredChance": 0.15,
+        "LowMorale": 0.3,
+        "LowMoraleChance": 0.1,
+        "MaxRetirementShare": 0.15,
+        "RandomSeed": 94
+    }
 }

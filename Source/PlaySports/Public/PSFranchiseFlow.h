@@ -8,6 +8,7 @@
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
 #include "PSTrainingData.h"
+#include "PSLegacyData.h"
 #include "PSFranchiseFlow.generated.h"
 
 class UPSContractManager;
@@ -17,6 +18,7 @@ class UPSFreeAgency;
 class UPSLeagueGenerator;
 class UPSLockerRoom;
 class UPSOwnerEconomy;
+class UPSPlayerAging;
 class UPSMatchSetup;
 class UPSRoster;
 class UPSStaffManager;
@@ -41,8 +43,9 @@ class UPSWeeklyPreparation;
  *    ends.
  *  - EndSeason: the off-season, once per season. The coaching carousel
  *    (UPSStaffManager::RunCarousel) runs on the final standings, the statistics engine (Epic 92)
- *    archives the season, the league's history (Epic 94) keeps its standings and leaders and votes
- *    in a hall of fame class, the owner economy (Epic 95) closes the books; then, with a contract manager
+ *    archives the season, the league's history (Epic 94) keeps its standings and leaders, veterans
+ *    retire and everyone else ages a year (Epic 94), the hall of fame votes, the owner economy
+ *    (Epic 95) closes the books; then, with a contract manager
  *    (UPSContractManager, Epic 87), the league year rolls over, CPU teams over the new cap cut
  *    back under it, and free agency (UPSFreeAgency) opens with every player whose deal ran out or
  *    who was cut. The player's team bids there; GetFreeAgency()->AdvanceDay() runs its days.
@@ -151,6 +154,19 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSLeagueHistory* GetLeagueHistory() const { return LeagueHistory; }
+
+    /** The turn of the years (Epic 94): at each season's end, before the injured heal, every team's
+     *  veterans may retire (into the league's history) and everyone else ages a year along his
+     *  role's curve. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetPlayerAging(UPSPlayerAging* InAging) { PlayerAging = InAging; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSPlayerAging* GetPlayerAging() const { return PlayerAging; }
+
+    /** Who retired at the season's end (empty before then). */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    const TArray<FPSRetirementDecision>& GetRetirements() const { return Retirements; }
 
     /** Every team's books for the season that just ended (empty before then). */
     UFUNCTION(BlueprintPure, Category = "Franchise")
@@ -267,6 +283,12 @@ private:
 
     UPROPERTY(Transient)
     UPSLeagueHistory* LeagueHistory = nullptr;
+
+    UPROPERTY(Transient)
+    UPSPlayerAging* PlayerAging = nullptr;
+
+    UPROPERTY(Transient)
+    TArray<FPSRetirementDecision> Retirements;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;

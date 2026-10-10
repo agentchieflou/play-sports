@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "PSLeagueData.h"
 #include "PSPlayerAttributes.h"
+#include "PSPlayerProgression.h"
 #include "PSStatsData.h"
 #include "PSTelemetryBus.h"
 #include "PSLegacyData.generated.h"
@@ -50,6 +51,65 @@ struct PLAYSPORTS_API FPSHallOfFameTuning
     TArray<FPSHallOfFameThreshold> Thresholds;
 };
 
+/** A role's age curve: Core 19's progression model (FPSProgressionTuning) at that role's ages. */
+USTRUCT(BlueprintType)
+struct PLAYSPORTS_API FPSRoleAgingCurve
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    EPlayerRole Role = EPlayerRole::Quarterback;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    FPSProgressionTuning Curve;
+};
+
+/** Who retires at a season's end (Data/legacy.json). A player under MinAge never does; from
+ *  MinAge his chance is BaseChance plus ChancePerYear for each year past it, plus
+ *  LowRatingChance when his rating (the contract market's) is under LowRating, InjuredChance when
+ *  he ends the season hurt (Epic 90) and LowMoraleChance when his morale is under LowMorale (Epic
+ *  91); at ForcedAge he always retires. At most MaxRetirementShare of a roster retires a season (the
+ *  likeliest first), so the draft can refill it; the forced always go. */
+USTRUCT(BlueprintType)
+struct PLAYSPORTS_API FPSRetirementTuning
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    int32 MinAge = 30;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float BaseChance = 0.05f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float ChancePerYear = 0.08f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    int32 ForcedAge = 40;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float LowRating = 60.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float LowRatingChance = 0.25f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float InjuredChance = 0.15f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float LowMorale = 0.3f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float LowMoraleChance = 0.1f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    float MaxRetirementShare = 0.15f;
+
+    /** Seeds each player's roll with his id and the season, so a season retires the same. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    int32 RandomSeed = 94;
+};
+
 /** The league's history (Data/legacy.json, Epic 94). The defaults equal the file's, but for the
  *  arrays. */
 USTRUCT(BlueprintType)
@@ -63,6 +123,36 @@ struct PLAYSPORTS_API FPSLegacyTuning
     /** The player categories whose season leader each season's archive keeps. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
     TArray<EPSStatCategory> LeaderCategories;
+
+    /** Each role's age curve; a role not listed ages on Core 19's (Data/player_progression.json). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    TArray<FPSRoleAgingCurve> RoleCurves;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Legacy")
+    FPSRetirementTuning Retirement;
+};
+
+/** A player who retired at a season's end, and why. */
+USTRUCT(BlueprintType)
+struct PLAYSPORTS_API FPSRetirementDecision
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Legacy")
+    FName PlayerId;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Legacy")
+    FName TeamId;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Legacy")
+    int32 Age = 0;
+
+    /** His chance of retiring, and its biggest reason ("Age 36", "Declining", "Injured", "Unhappy"). */
+    UPROPERTY(BlueprintReadOnly, Category = "Legacy")
+    float Chance = 0.f;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Legacy")
+    FString Reason;
 };
 
 /** A season's leader in one category. */
