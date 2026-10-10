@@ -38,6 +38,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `presnap_tuning.json` | `FPreSnapTuningRow` (single object) | `UPSDataIngestion::LoadPreSnapTuningFromJson`, via `UPSPreSnapSubsystem` |
 | `input_buffer.json` | `FInputBufferTuningRow` (single object: `MaxQueued`, `Actions`) | `UPSDataIngestion::LoadInputBufferTuningFromJson`, via `UPSInputBufferComponent` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
+| `session_telemetry.json` | `FPSSessionTelemetryTuning` (single object) | `UPSDataIngestion::LoadSessionTelemetryTuningFromJson`, via `UPSSessionTelemetrySubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -389,3 +390,20 @@ per-frame budget are per platform tier (`TelemetrySampleRateHz`, `TelemetrySampl
   `RecoverBelowFraction` (above 0, at most 1) of it double the rate back.
 
 `UPSTelemetrySamplingSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Session telemetry schema (`FPSSessionTelemetryTuning`)
+
+Single object (Epic 117). It sets what an opted-in player's sessions record and how much a crash
+report says (`Specs/Privacy_Telemetry.md`):
+- `FrameTimeBucketMs` (above 0), `FrameTimeBucketCount` (1 or more): the frame-time histogram's
+  bucket width and count. Percentiles are reported to the bucket width, rounded up. A frame slower
+  than width × count lands in the overflow bucket, which reports the slowest frame.
+- `Percentiles`: the frame-time percentiles each session records, each above 0 and at most 100.
+- `MinSessionSeconds` (0 or more): a session that ends cleanly with less play than this is not
+  kept. One that never ends cleanly is always kept, because it is a crash.
+- `MaxStoredSessions` (1 or more): how many sessions the local store keeps; the oldest go first.
+- `CheckpointEveryPlays` (0 or more): save the open session every this many plays (0: only at
+  the start and the end).
+- `CrashBreadcrumbCount` (0 or more): how many recent telemetry-bus events a crash report carries.
+
+`UPSSessionTelemetrySubsystem::ValidateTuning` and `tools/validate_data.py` check it.

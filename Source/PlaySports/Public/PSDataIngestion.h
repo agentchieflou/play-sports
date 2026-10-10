@@ -21,6 +21,7 @@
 #include "PSTelemetrySamplingTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
+#include "PSSessionTelemetryTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -126,6 +127,10 @@ public:
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSituationalTuningFromJson(const FString& JsonFilePath, FPSSituationalTuning& OutTuning);
+
+    /** Loads the session telemetry tuning (Data/session_telemetry.json, Epic 117). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSessionTelemetryTuningFromJson(const FString& JsonFilePath, FPSSessionTelemetryTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

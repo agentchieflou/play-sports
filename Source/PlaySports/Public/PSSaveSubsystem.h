@@ -31,6 +31,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Save")
     bool DoesSlotExist(const FString& SlotName) const;
 
+    // Deletes the slot and its backup, so nothing it held survives (Epic 117: opting out of
+    // telemetry erases it). True when neither file remains.
+    UFUNCTION(BlueprintCallable, Category = "Save")
+    bool DeleteSlot(const FString& SlotName);
+
     UFUNCTION(BlueprintPure, Category = "Save")
     static FString MakeSlotName(EPSSaveCategory Category, const FString& Id);
 
