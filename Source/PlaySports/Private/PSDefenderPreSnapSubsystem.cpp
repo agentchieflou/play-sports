@@ -70,6 +70,7 @@ void UPSDefenderPreSnapSubsystem::Initialize(FSubsystemCollectionBase& Collectio
         Bus->OnPlayCallMC.AddUObject(this, &UPSDefenderPreSnapSubsystem::HandlePlayCall);
         Bus->OnSnapMC.AddUObject(this, &UPSDefenderPreSnapSubsystem::HandleSnap);
         Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderPreSnapSubsystem::HandlePhaseChange);
+        Bus->OnPersonnelMC.AddUObject(this, &UPSDefenderPreSnapSubsystem::HandlePersonnel);
         BoundBus = Bus;
     }
 }
@@ -81,6 +82,7 @@ void UPSDefenderPreSnapSubsystem::Deinitialize()
         Bus->OnPlayCallMC.RemoveAll(this);
         Bus->OnSnapMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
+        Bus->OnPersonnelMC.RemoveAll(this);
     }
     BoundBus.Reset();
     Super::Deinitialize();
@@ -276,10 +278,24 @@ bool UPSDefenderPreSnapSubsystem::GetCalledKind(const APSPlayerPawn* Defender, c
 
 void UPSDefenderPreSnapSubsystem::HandlePlayCall(const FPSTelemetryPlayCallEvent& Event)
 {
+    // The defense lines up for its call on the next tick, or at the first read of its look or
+    // change to it: after everything else that answers the call, such as a personnel change
+    // lining the side up in its formation (UPSPersonnelManager), which the alignment builds on.
     if (!Event.bOffense)
     {
         bAlignDirty = true;
-        EnsureAligned();
+    }
+}
+
+void UPSDefenderPreSnapSubsystem::HandlePersonnel(const FPSTelemetryPersonnelEvent& Event)
+{
+    // New players came on and the side lined up afresh in its formation: that is where each
+    // defender now starts from.
+    if (!Event.bOffense && Event.PlayersIn.Num() > 0)
+    {
+        BaseSpots.Reset();
+        Creepers.Reset();
+        bAlignDirty = true;
     }
 }
 
@@ -594,6 +610,10 @@ bool UPSDefenderPreSnapSubsystem::IsCreeper(const APSPlayerPawn* Defender) const
 void UPSDefenderPreSnapSubsystem::TickPreSnap(float DeltaSeconds)
 {
     SCOPE_CYCLE_COUNTER(STAT_PSDefenderPreSnap);
+    if (bAlignDirty)
+    {
+        EnsureAligned();
+    }
     if (Creepers.Num() == 0 || !IsAdjustable())
     {
         return;

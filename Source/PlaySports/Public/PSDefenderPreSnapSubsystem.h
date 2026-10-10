@@ -21,8 +21,11 @@ class UPSPlayCallSubsystem;
  *
  *  - Alignment: once the defense has called, it lines up for the call -- the safeties in the
  *    shell's structure (two-high, or one deep and one rolled down), the blitzers walked up --
- *    and for any disguise. At the snap UPSDefenderAIComponent plays the real assignment from
- *    wherever each man stands: the disguise rotates.
+ *    and for any disguise. It does so on its next tick, or at the first read of its look,
+ *    moving defenders from the formation spots the side stands on. Those stay the lineup's
+ *    (a personnel change lines the side up afresh, UPSPersonnelManager). At the snap
+ *    UPSDefenderAIComponent plays the real assignment from wherever each man stands: the
+ *    disguise rotates.
  *  - Disguise: show the other shell; show a blitz with linebackers who drop at the snap; or
  *    creep the real blitzers up late from a coverage look.
  *  - Audibles: another defensive play of the same front, made as a new call at
@@ -94,7 +97,8 @@ public:
     /** True while Defender is a blitzer lined up in a coverage look, to creep up late. */
     bool IsCreeper(const APSPlayerPawn* Defender) const;
 
-    /** One pre-snap step: creeping blitzers walk up once CreepDelaySeconds has passed. */
+    /** One pre-snap step: the defense lines up for a new call, and creeping blitzers walk up
+     *  once CreepDelaySeconds has passed. */
     void TickPreSnap(float DeltaSeconds);
 
     // --- Audibles ---
@@ -145,6 +149,7 @@ private:
     void HandlePlayCall(const FPSTelemetryPlayCallEvent& Event);
     void HandleSnap(const FPSTelemetrySnapEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
+    void HandlePersonnel(const FPSTelemetryPersonnelEvent& Event);
     void ResetDown();
 
     UPSPlayCallSubsystem* GetPlayCall() const;

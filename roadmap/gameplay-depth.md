@@ -31,7 +31,9 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Depends on:** Core 15, Core 16, 66
 
 - [x] Coverage-shell disguise (show two-high, rotate at snap)
-  *As built: `UPSDefenderPreSnapSubsystem` lines the defense up once it has called. The safeties
+  *As built: `UPSDefenderPreSnapSubsystem` lines the defense up once it has called, on its next
+  tick (or the first read of its look). It starts from the formation spots the side stands on,
+  so a personnel change's lineup (`UPSPersonnelManager`) comes first. The safeties
   take the shell's structure (`ShellSafeties` in `Data/defensive_presnap.json`), or the other
   one when disguised. At the snap `UPSDefenderAIComponent` plays the real assignment from there,
   so the disguise rotates.*

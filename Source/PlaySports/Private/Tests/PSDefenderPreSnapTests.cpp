@@ -253,12 +253,17 @@ bool FPSDefenderShellDisguiseTest::RunTest(const FString& Parameters)
     // takes the middle when one is deep. The line's front is at X -50.
     APSPlayerPawn* RightSafety = Field.Backs[0];
     APSPlayerPawn* LeftSafety = Field.Backs[1];
+    const FVector LeftSafetyBase = LeftSafety->GetActorLocation();
+    const FVector RightSafetyBase = RightSafety->GetActorLocation();
     const float LineX = -50.f;
 
     // Cover 3: one deep safety, the other rolled down into the box.
     PlayCall->OpenPlayCall(FirstAndTen());
     TestTrue(TEXT("The offense calls"), PlayCall->CallPlay(TEXT("Offense_SlantFlat"), EPSPlayCaller::Human));
     TestTrue(TEXT("The defense calls Cover 3"), PlayCall->CallPlay(TEXT("Defense_34Cover3"), EPSPlayCaller::Human));
+    TestTrue(TEXT("Called, it stands in its formation until its next tick"),
+        LeftSafety->GetActorLocation().Equals(LeftSafetyBase, 1.f) && RightSafety->GetActorLocation().Equals(RightSafetyBase, 1.f));
+    DefensePreSnap->TickPreSnap(0.f);
     TestEqual(TEXT("Cover 3 plays one deep safety"), DefensePreSnap->GetCalledDeepSafeties(), 1);
     TestTrue(TEXT("The left safety lines up deep in the middle"),
         LeftSafety->GetActorLocation().Equals(FVector(LineX + Tuning.SingleHighDepth, 0.f, LeftSafety->GetActorLocation().Z), 1.f));
@@ -341,6 +346,7 @@ bool FPSDefenderShowBlitzTest::RunTest(const FString& Parameters)
     PlayCall->OpenPlayCall(FirstAndTen());
     PlayCall->CallPlay(TEXT("Offense_SlantFlat"), EPSPlayCaller::Human);
     PlayCall->CallPlay(TEXT("Defense_DoubleABlitz"), EPSPlayCaller::Human);
+    DefensePreSnap->TickPreSnap(0.f);
     TestTrue(TEXT("Blitzing linebackers walk up"), FMath::IsNearlyEqual(Mike->GetActorLocation().X, LineX + Tuning.ShowBlitzDepth, 1.f));
     TestTrue(TEXT("...and the offense sees the blitz"), OffensePreSnap->GetDefensiveLook().bShowsBlitz);
 
@@ -493,6 +499,8 @@ bool FPSDefenderCpuDisguiseTest::RunTest(const FString& Parameters)
         NewDown(Bus, PlayCall);
         PlayCall->CallPlay(TEXT("Offense_SlantFlat"), EPSPlayCaller::Human);
         PlayCall->CallPlay(PlayId, EPSPlayCaller::CPU);
+        // The CPU plans its look as the defense lines up, on its next tick.
+        DefensePreSnap->TickPreSnap(0.f);
     };
 
     DefensePreSnap->SetTendency(Aggressive);
