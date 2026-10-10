@@ -31,6 +31,9 @@ Rules of engagement:
 - When the story is complete and verified, call `finish` with an honest
   summary: what changed, what you verified locally, and what CI still needs
   to prove (you cannot compile UE C++ locally - never claim you built it).
+- If the story is mis-sized, ambiguous, or needs a decision the roadmap
+  doesn't answer, don't guess: call `finish` with a summary that starts with
+  `BLOCKED:` and says what a person must decide.
 """
 
 
@@ -45,6 +48,8 @@ class StoryAssignment:
     track_file: str = ""
     branch: str = ""
     specialization: str = DEFAULT_SPECIALIZATION
+    # What failed last time, for a fresh worker retrying the story (Epic 138).
+    findings: str = ""
 
     @property
     def story_id(self) -> str:
@@ -88,4 +93,12 @@ def build_task_prompt(assignment: StoryAssignment) -> str:
         "Complete this story now. Explore first, then implement, then verify, "
         "then call finish.",
     ]
+    if assignment.findings.strip():
+        lines += [
+            "",
+            "## Findings from the previous attempt",
+            "A previous worker attempted this story and failed. Start fresh, and make "
+            "sure these findings are fixed:",
+            assignment.findings.strip(),
+        ]
     return "\n".join(line for line in lines if line is not None)

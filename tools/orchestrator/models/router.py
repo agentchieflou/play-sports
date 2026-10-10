@@ -67,3 +67,17 @@ class ModelRouter:
             report[tier] = [(client.label, client.healthy())
                             for client in self.clients(tier)]
         return report
+
+
+class TierClient:
+    """One client for a tier with the router's fallback behind it, so the
+    harness and the supervisor see a single ModelClient."""
+
+    def __init__(self, router: ModelRouter, tier: str):
+        self._router = router
+        self._tier = tier
+        self.label = f"tier:{tier}"
+
+    def chat(self, messages, tools=None, temperature=0.2, max_tokens=8192):
+        return self._router.chat(self._tier, messages, tools=tools,
+                                 temperature=temperature, max_tokens=max_tokens)
