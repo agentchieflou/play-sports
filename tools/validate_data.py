@@ -25,7 +25,8 @@ route in the route library and each action a Boolean in the PreSnap context; "Si
 files against FPSSituationalTuning, its route IDs against the route library; "KeyframeEvents"
 files against FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header
 declares it; "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts"
-files against FPSRunFitCatalog.
+files against FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow;
+"Routes" files against the FPSRoute library (timing, fakes, option branches).
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -479,7 +480,8 @@ def validate_defensive_adjustments(path, payload):
 SKILL_AI_FIELDS = ("WaypointArrivalRadius", "OpenSeparation", "AwarenessMisreadSeparation", "MinReadSeconds",
                    "MaxReadSeconds", "PressureRadius", "PressuredThrowSeparation", "HandoffRadius",
                    "HandoffTimeoutSeconds", "CarrierAvoidRadius", "CarrierAvoidWeight", "ThrowLeadSpeed",
-                   "BlockSetDistance", "BlockEngageRadius", "FieldHalfWidth", "SidelineCushion", "SidelineSteerWeight")
+                   "BlockSetDistance", "BlockEngageRadius", "FieldHalfWidth", "SidelineCushion", "SidelineSteerWeight",
+                   "ReadWindowSeconds", "MaxAnticipationSeconds")
 
 
 def validate_skill_ai_tuning(path, payload):
@@ -1188,6 +1190,100 @@ def validate_run_fits(path, payload):
         err(path, f"DefaultFront: '{payload.get('DefaultFront')}' must name a listed front")
 
 
+ROUTE_RUNNING_FIELDS = ("PressRadius", "ReleaseBaseWinChance", "ReleaseRatingWeight", "ReleaseMinWinChance",
+                        "ReleaseMaxWinChance", "DelayShare", "DelaySeconds", "RerouteOffset", "RerouteDelaySeconds",
+                        "BreakMinAngleDegrees", "MaxBreakRounding", "BreakSeparationBase", "BreakSeparationPerAgility",
+                        "FakeSellSeconds", "BiteRadius", "BiteBaseChance", "BiteAgilityWeight", "BiteAwarenessWeight",
+                        "BiteMinChance", "BiteMaxChance", "BiteFreezeSeconds", "ManReadRadius")
+ROUTE_RUNNING_CHANCES = ("ReleaseBaseWinChance", "ReleaseMinWinChance", "ReleaseMaxWinChance", "DelayShare",
+                         "BiteBaseChance", "BiteMinChance", "BiteMaxChance")
+
+
+def validate_route_running(path, payload):
+    """FRouteRunningTuningRow (Data/route_running.json, Epic 68)."""
+    for field in ROUTE_RUNNING_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ROUTE_RUNNING_CHANCES:
+        value = payload.get(field)
+        if is_number(value) and value > 1:
+            err(path, f"{field}: {value} is a chance, at most 1")
+    for low, high in (("ReleaseMinWinChance", "ReleaseMaxWinChance"), ("BiteMinChance", "BiteMaxChance")):
+        if is_number(payload.get(low)) and is_number(payload.get(high)) and payload[low] > payload[high]:
+            err(path, f"{low} must not exceed {high}")
+    if is_number(payload.get("BreakMinAngleDegrees")) and payload["BreakMinAngleDegrees"] > 180:
+        err(path, "BreakMinAngleDegrees: at most 180")
+    extra = set(payload) - set(ROUTE_RUNNING_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FRouteRunningTuningRow exactly")
+
+
+ROUTE_FIELDS = {"RouteId", "Waypoints", "OptionReadWaypoint", "VsManBranch", "VsZoneBranch"}
+ROUTE_WAYPOINT_FIELDS = {"Offset", "TimingSeconds", "bFake"}
+
+
+def validate_routes(path, payload):
+    """FPSRoute library (Data/sample_routes.json): waypoints, timing, fakes, option branches (Epic 68)."""
+    routes = payload.get("Routes")
+    if not isinstance(routes, list):
+        err(path, "'Routes' must be an array")
+        return
+    by_id = {}
+    for idx, route in enumerate(routes):
+        where = f"Routes[{idx}]"
+        if not isinstance(route, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        route_id = route.get("RouteId")
+        if not isinstance(route_id, str) or not route_id or route_id in by_id:
+            err(path, f"{where}.RouteId: empty or used twice")
+        by_id[route_id] = route
+        extra = set(route) - ROUTE_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSRoute exactly")
+        waypoints = route.get("Waypoints")
+        if not isinstance(waypoints, list) or not waypoints:
+            err(path, f"{where}.Waypoints: must be a non-empty array")
+            continue
+        last_time = None
+        for widx, waypoint in enumerate(waypoints):
+            wwhere = f"{where}.Waypoints[{widx}]"
+            if not isinstance(waypoint, dict):
+                err(path, f"{wwhere}: must be an object")
+                continue
+            extra = set(waypoint) - ROUTE_WAYPOINT_FIELDS
+            if extra:
+                err(path, f"{wwhere}: unknown field(s) {sorted(extra)}")
+            offset = waypoint.get("Offset")
+            if not isinstance(offset, dict) or not all(is_number(offset.get(axis)) for axis in ("X", "Y", "Z")):
+                err(path, f"{wwhere}.Offset: needs numeric X, Y and Z")
+            timing = waypoint.get("TimingSeconds")
+            if not is_number(timing) or timing < 0:
+                err(path, f"{wwhere}.TimingSeconds: '{timing}' must be a number, 0 or more")
+            elif last_time is not None and timing < last_time:
+                err(path, f"{wwhere}.TimingSeconds: earlier than the waypoint before")
+            else:
+                last_time = timing
+            fake = waypoint.get("bFake", False)
+            if not isinstance(fake, bool):
+                err(path, f"{wwhere}.bFake: must be true or false")
+            elif fake and widx == len(waypoints) - 1:
+                err(path, f"{wwhere}.bFake: the last waypoint can't be a fake")
+        read = route.get("OptionReadWaypoint", -1)
+        if not isinstance(read, int) or isinstance(read, bool) or read < -1 or read >= len(waypoints):
+            err(path, f"{where}.OptionReadWaypoint: '{read}' must be -1 or a waypoint index")
+    for idx, route in enumerate(routes):
+        if not isinstance(route, dict) or route.get("OptionReadWaypoint", -1) in (-1, None):
+            continue
+        for field in ("VsManBranch", "VsZoneBranch"):
+            branch = by_id.get(route.get(field))
+            if branch is None:
+                err(path, f"Routes[{idx}].{field}: '{route.get(field)}' is not a route here")
+            elif branch.get("OptionReadWaypoint", -1) not in (-1, None):
+                err(path, f"Routes[{idx}].{field}: '{route.get(field)}' is itself an option route")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1248,6 +1344,10 @@ def main():
             validate_telemetry_sampling(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
+        if isinstance(payload, dict) and "PressRadius" in payload:
+            validate_route_running(path, payload)
+        if isinstance(payload, dict) and "Routes" in payload:
+            validate_routes(path, payload)
         if isinstance(payload, dict) and "HotRouteSets" in payload:
             validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
         if isinstance(payload, dict) and "MaxQueued" in payload:

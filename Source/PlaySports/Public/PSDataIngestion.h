@@ -23,6 +23,7 @@
 #include "PSSituationData.h"
 #include "PSSessionTelemetryTypes.h"
 #include "PSDefenderGapSubsystem.h"
+#include "PSRouteRunning.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -104,6 +105,10 @@ public:
      *  missing file, malformed JSON, or an unrecognized Move. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
+
+    /** Loads the route-running model's tuning (Data/route_running.json, Epic 68). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadRouteRunningTuningFromJson(const FString& JsonFilePath, FRouteRunningTuningRow& OutTuning);
 
     /** Loads the offense's pre-snap tuning (Data/presnap_tuning.json, Epic 66). False on a
      *  missing file, malformed JSON, or an unrecognized Alignment. */
