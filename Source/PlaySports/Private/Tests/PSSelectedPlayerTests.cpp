@@ -256,7 +256,13 @@ bool FPSSelectedPlayerReticleTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Under the QB"), FVector::Dist2D(Reticle->GetActorLocation(), Quarterback->GetActorLocation()), 0.0, 0.5);
     TestEqual(TEXT("Pre-snap radius"), Reticle->GetRadius(), PreSnapLook->Radius, 0.01f);
     TestTrue(TEXT("Offense color"), Reticle->GetColor().Equals(PSSelectedPlayerTests::Brightened(OffenseColor, PreSnapLook->Brightness), 0.001f));
-    TestNotNull(TEXT("Drawn with the style's mesh"), Reticle->GetRingMesh() ? Reticle->GetRingMesh()->GetStaticMesh() : nullptr);
+    // GetStaticMesh may hand back a TObjectPtr; a raw pointer is what TestNotNull takes.
+    const UStaticMesh* RingAsset = nullptr;
+    if (Reticle->GetRingMesh())
+    {
+        RingAsset = Reticle->GetRingMesh()->GetStaticMesh();
+    }
+    TestNotNull(TEXT("Drawn with the style's mesh"), RingAsset);
 
     // The snap: in play, without the ball.
     FPSTelemetrySnapEvent Snap;
