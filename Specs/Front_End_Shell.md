@@ -77,7 +77,12 @@ editor handoff: what exists in code, and what an editor session adds.
       overrides `SetViewTarget` and passes the blend time through `GetTransitionSeconds`.
     - Menus don't fade (`UPSMenuComponent::GetTransitionSeconds`).
     - A camera's follow speed through `GetCameraFollowSpeed` is 0, so `FInterpTo` snaps and
-      there is no lag to swing through.
+      there is no lag to swing through. Three cameras read their speed this way
+      (`GetCameraFollowSpeedIn`):
+      - the broadcast camera's sideline follow (`TrackingSpeed`);
+      - the director's easing within a shot (`FollowInterpSpeed`; its cuts were already
+        instant);
+      - the all-22 film view's reframing (`ReframeSpeed`).
     - Nothing shakes. Every gameplay shake starts through `StartCameraShake`, which plays it at
       the Camera shake setting's strength, or not at all.
     - `GetFlashScale` is the Flashes and pyro setting, for stadium pyro and screen flashes to
@@ -110,10 +115,10 @@ editor handoff: what exists in code, and what an editor session adds.
 - Color vision covers team select only: the match's team colors (Epic 37) and the broadcast
   overlays (Track A) don't exist yet.
 - Motion gaps (Epic 103.5):
-  - The broadcast camera's follow (`APSBroadcastCamera::Tick`, `TrackingSpeed`) doesn't read
-    `GetCameraFollowSpeed` yet. That file has open camera-lane changes (Epics 38 and 39).
-  - Nothing in the game shakes the camera or fires pyro yet; the first shake or flash is to
+  - Nothing in the game shakes the camera or fires pyro yet. The first shake or flash is to
     use `StartCameraShake`/`GetFlashScale`.
+  - The skycam's own flight (a damped cable move, Epic 39) is unchanged with reduced motion;
+    only its framing reads through the director.
 - Localization gaps (Epic 106):
   - The play-call screens' generated text is still built in English in
     `UPSPlayCallSubsystem`, so those screens are left out of the pseudo-localization check.
