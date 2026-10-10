@@ -99,9 +99,10 @@ group, each rule's trigger an EPSAudioTrigger and its cue in the catalog, each l
 0-100 slider in ui_settings.json; "CrowdReactions" files against FPSCrowdTuning (Epic 23.2): every
 EPSCrowdLevel once with rising thresholds from Hush's 0, every EPSCrowdStimulus once with -1..1
 deltas; "ModelMoments" files against FPSCommentaryHookTuning (Epic 23.5), each moment an
-EPSCommentaryMoment and the task one of routing.json's. Teams, the league config, the playbook,
-player rating ranges and every reference between files are tools/content_contracts.py's (Epic 125),
-run from here.
+EPSCommentaryMoment and the task one of routing.json's; "CentimetresPerYard" files against
+FPSFieldDimensions (Data/field_dimensions.json, the field's one frame): every dimension a positive
+number. Teams, the league config, the playbook, player rating ranges and every reference between
+files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1889,6 +1890,22 @@ def validate_overlay_reticle(path, payload):
     for state in RETICLE_STATES:
         if state not in seen:
             err(path, f"ReticleStates: no '{state}' entry")
+
+
+FIELD_DIMENSION_FIELDS = ("CentimetresPerYard", "FieldLengthYards", "EndZoneDepthYards", "FieldWidthYards",
+                          "OutOfBoundsDepthYards", "BoundaryHeightCm")
+
+
+def validate_field_dimensions(path, payload):
+    """FPSFieldDimensions (Data/field_dimensions.json): the field's one frame, which PSField maps
+    yards to world space with; mirrors PSField::Validate."""
+    for field in FIELD_DIMENSION_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    extra = set(payload) - set(FIELD_DIMENSION_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldDimensions exactly")
 
 
 def validate_control_handoff(path, payload, catalog):
@@ -5456,6 +5473,8 @@ def main(root=None):
             validate_crowd(path, payload)
         if isinstance(payload, dict) and "ModelMoments" in payload:
             validate_commentary_hooks(path, payload)
+        if isinstance(payload, dict) and "CentimetresPerYard" in payload:
+            validate_field_dimensions(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()

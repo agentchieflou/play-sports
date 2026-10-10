@@ -1,4 +1,5 @@
 #include "PSFieldGrid.h"
+#include "PSFieldDimensions.h"
 #include "PSPlayerPawn.h"
 #include "PSDefenseController.h"
 #include "PSOffenseController.h"
@@ -15,154 +16,108 @@ APSFieldGrid::APSFieldGrid()
 void APSFieldGrid::BeginPlay()
 {
     Super::BeginPlay();
+    SpawnBoundaryVolumes();
+}
 
+const TArray<AActor*>& APSFieldGrid::SpawnBoundaryVolumes()
+{
     UWorld* World = GetWorld();
-    if (!World)
+    if (!World || BoundaryVolumes.Num() > 0)
     {
-        return;
+        return BoundaryVolumes;
     }
+
+    // Laid out on the field's one frame (PSField): yard line N at X = N yards, the offense's goal
+    // line at X = 0, Y = 0 the middle of the field -- where the game mode lines up and snaps.
+    const FPSFieldDimensions& Field = PSField::GetDimensions();
+    const float HalfHeight = Field.BoundaryHeightCm * 0.5f;
+    const float SidelineY = PSField::SidelineY();
+    const float EndZoneHalfDepth = PSField::YardsToCentimetres(Field.EndZoneDepthYards) * 0.5f;
+    const float OutHalfDepth = PSField::YardsToCentimetres(Field.OutOfBoundsDepthYards) * 0.5f;
+    const float HalfSpan = (PSField::EndLineX(true) - PSField::EndLineX(false)) * 0.5f;
 
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-    // 1. Home End Zone (End Zone A)
-    FVector LocEZA = GetActorTransform().TransformPosition(FVector(-5029.2f, 0.0f, 250.0f));
-    APSEndZoneVolume* EZA = World->SpawnActor<APSEndZoneVolume>(APSEndZoneVolume::StaticClass(), LocEZA, GetActorRotation(), SpawnParams);
-    if (EZA && EZA->CollisionBox)
+    auto SpawnVolume = [this, World, &SpawnParams](UClass* VolumeClass, const FVector& Center, const FVector& Extent, FName Tag) -> AActor*
     {
-        EZA->bIsEndZoneA = true;
-        EZA->CollisionBox->SetBoxExtent(FVector(457.2f, 2438.4f, 250.0f));
-        EZA->Tags.Add(TEXT("EndZoneA"));
+        AActor* Volume = World->SpawnActor<AActor>(VolumeClass, Center, FRotator::ZeroRotator, SpawnParams);
+        UBoxComponent* Box = Volume ? Volume->FindComponentByClass<UBoxComponent>() : nullptr;
+        if (!Box)
+        {
+            return nullptr;
+        }
+        Box->SetBoxExtent(Extent);
+        Volume->Tags.Add(Tag);
+        BoundaryVolumes.Add(Volume);
+        return Volume;
+    };
+
+    // The end zones: from each goal line to its end line, sideline to sideline.
+    const FVector EndZoneExtent(EndZoneHalfDepth, SidelineY, HalfHeight);
+    if (APSEndZoneVolume* NearEndZone = Cast<APSEndZoneVolume>(SpawnVolume(APSEndZoneVolume::StaticClass(),
+        FVector(PSField::GoalLineX(false) - EndZoneHalfDepth, 0.f, HalfHeight), EndZoneExtent, TEXT("EndZoneA"))))
+    {
+        NearEndZone->bIsEndZoneA = true;
+    }
+    if (APSEndZoneVolume* FarEndZone = Cast<APSEndZoneVolume>(SpawnVolume(APSEndZoneVolume::StaticClass(),
+        FVector(PSField::GoalLineX(true) + EndZoneHalfDepth, 0.f, HalfHeight), EndZoneExtent, TEXT("EndZoneB"))))
+    {
+        FarEndZone->bIsEndZoneA = false;
     }
 
-    // 2. Away End Zone (End Zone B)
-    FVector LocEZB = GetActorTransform().TransformPosition(FVector(5029.2f, 0.0f, 250.0f));
-    APSEndZoneVolume* EZB = World->SpawnActor<APSEndZoneVolume>(APSEndZoneVolume::StaticClass(), LocEZB, GetActorRotation(), SpawnParams);
-    if (EZB && EZB->CollisionBox)
+    // Out of bounds: past each sideline, and past each end line, overlapping at the corners.
+    const FVector SidelineExtent(HalfSpan + 2.f * OutHalfDepth, OutHalfDepth, HalfHeight);
+    for (const float Side : { -1.f, 1.f })
     {
-        EZB->bIsEndZoneA = false;
-        EZB->CollisionBox->SetBoxExtent(FVector(457.2f, 2438.4f, 250.0f));
-        EZB->Tags.Add(TEXT("EndZoneB"));
+        SpawnVolume(APSOutOfBoundsVolume::StaticClass(), FVector(PSField::MidfieldX(), Side * (SidelineY + OutHalfDepth), HalfHeight), SidelineExtent, TEXT("OutOfBounds"));
     }
-
-    // 3. Left Sideline Boundary
-    FVector LocOOB_L = GetActorTransform().TransformPosition(FVector(0.0f, -3719.2f, 250.0f));
-    APSOutOfBoundsVolume* OOB_L = World->SpawnActor<APSOutOfBoundsVolume>(APSOutOfBoundsVolume::StaticClass(), LocOOB_L, GetActorRotation(), SpawnParams);
-    if (OOB_L && OOB_L->CollisionBox)
-    {
-        OOB_L->CollisionBox->SetBoxExtent(FVector(6000.0f, 1280.8f, 250.0f));
-        OOB_L->Tags.Add(TEXT("OutOfBounds"));
-    }
-
-    // 4. Right Sideline Boundary
-    FVector LocOOB_R = GetActorTransform().TransformPosition(FVector(0.0f, 3719.2f, 250.0f));
-    APSOutOfBoundsVolume* OOB_R = World->SpawnActor<APSOutOfBoundsVolume>(APSOutOfBoundsVolume::StaticClass(), LocOOB_R, GetActorRotation(), SpawnParams);
-    if (OOB_R && OOB_R->CollisionBox)
-    {
-        OOB_R->CollisionBox->SetBoxExtent(FVector(6000.0f, 1280.8f, 250.0f));
-        OOB_R->Tags.Add(TEXT("OutOfBounds"));
-    }
-
-    // 5. Back Endline A Boundary (Home Side)
-    FVector LocOOB_BA = GetActorTransform().TransformPosition(FVector(-7986.4f, 0.0f, 250.0f));
-    APSOutOfBoundsVolume* OOB_BA = World->SpawnActor<APSOutOfBoundsVolume>(APSOutOfBoundsVolume::StaticClass(), LocOOB_BA, GetActorRotation(), SpawnParams);
-    if (OOB_BA && OOB_BA->CollisionBox)
-    {
-        OOB_BA->CollisionBox->SetBoxExtent(FVector(2500.0f, 5000.0f, 250.0f));
-        OOB_BA->Tags.Add(TEXT("OutOfBounds"));
-    }
-
-    // 6. Back Endline B Boundary (Away Side)
-    FVector LocOOB_BB = GetActorTransform().TransformPosition(FVector(7986.4f, 0.0f, 250.0f));
-    APSOutOfBoundsVolume* OOB_BB = World->SpawnActor<APSOutOfBoundsVolume>(APSOutOfBoundsVolume::StaticClass(), LocOOB_BB, GetActorRotation(), SpawnParams);
-    if (OOB_BB && OOB_BB->CollisionBox)
-    {
-        OOB_BB->CollisionBox->SetBoxExtent(FVector(2500.0f, 5000.0f, 250.0f));
-        OOB_BB->Tags.Add(TEXT("OutOfBounds"));
-    }
+    const FVector EndLineExtent(OutHalfDepth, SidelineY + 2.f * OutHalfDepth, HalfHeight);
+    SpawnVolume(APSOutOfBoundsVolume::StaticClass(), FVector(PSField::EndLineX(false) - OutHalfDepth, 0.f, HalfHeight), EndLineExtent, TEXT("OutOfBounds"));
+    SpawnVolume(APSOutOfBoundsVolume::StaticClass(), FVector(PSField::EndLineX(true) + OutHalfDepth, 0.f, HalfHeight), EndLineExtent, TEXT("OutOfBounds"));
+    return BoundaryVolumes;
 }
 
 FVector APSFieldGrid::GetWorldPositionFromFieldCoordinate(float YardLine, float LateralYard) const
 {
-    // Local X is relative to the 50-yard line (which is local X = 0)
-    float LocalX = (YardLine - 50.0f) * 91.44f;
-
-    // Local Y is relative to the center of the field width (which is local Y = 0)
-    float LocalY = (LateralYard - 26.6667f) * 91.44f;
-
-    // Local Z is at the actor's level
-    FVector LocalPos(LocalX, LocalY, 0.0f);
-
-    // Transform local position to world space
-    return GetActorTransform().TransformPosition(LocalPos);
+    // LateralYard runs from the left sideline (0) across; the field's frame is centred on Y = 0.
+    return PSField::YardLineToWorld(YardLine, LateralYard - PSField::GetDimensions().FieldWidthYards * 0.5f);
 }
 
 void APSFieldGrid::GetFieldCoordinateFromWorldPosition(const FVector& WorldPosition, float& OutYardLine, float& OutLateralYard) const
 {
-    // Transform world position to local space
-    FVector LocalPos = GetActorTransform().InverseTransformPosition(WorldPosition);
-
-    // Convert local X and Y back to yards
-    OutYardLine = (LocalPos.X / 91.44f) + 50.0f;
-    OutLateralYard = (LocalPos.Y / 91.44f) + 26.6667f;
+    OutYardLine = PSField::WorldToYardLine(WorldPosition);
+    OutLateralYard = PSField::CentimetresToYards(WorldPosition.Y) + PSField::GetDimensions().FieldWidthYards * 0.5f;
 }
 
 bool APSFieldGrid::IsLocationOutOfBounds(const FVector& WorldPosition) const
 {
-    FVector LocalPos = GetActorTransform().InverseTransformPosition(WorldPosition);
-
-    // Lengthwise bounds: endlines are at +/- 60 yards (+/- 5,486.4 cm)
-    // Widthwise bounds: sidelines are at +/- 26.6667 yards (+/- 2,438.4 cm)
-    bool bLengthwiseOut = (LocalPos.X < -5486.4f || LocalPos.X > 5486.4f);
-    bool bWidthwiseOut = (LocalPos.Y < -2438.4f || LocalPos.Y > 2438.4f);
-
-    return (bLengthwiseOut || bWidthwiseOut);
+    // Past an end line (behind an end zone) or a sideline.
+    const bool bLengthwiseOut = WorldPosition.X < PSField::EndLineX(false) || WorldPosition.X > PSField::EndLineX(true);
+    const bool bWidthwiseOut = FMath::Abs(WorldPosition.Y) > PSField::SidelineY();
+    return bLengthwiseOut || bWidthwiseOut;
 }
 
 bool APSFieldGrid::IsLocationInEndZone(const FVector& WorldPosition, bool& bOutIsEndZoneA) const
 {
     bOutIsEndZoneA = false;
-
     if (IsLocationOutOfBounds(WorldPosition))
     {
         return false;
     }
 
-    FVector LocalPos = GetActorTransform().InverseTransformPosition(WorldPosition);
-
-    // End Zone A (Home): X = -60 to -50 yards (-5,486.4 cm to -4,572.0 cm)
-    if (LocalPos.X >= -5486.4f && LocalPos.X < -4572.0f)
+    // End Zone A is behind the offense's own goal line (X = 0), End Zone B past the one it attacks.
+    if (WorldPosition.X < PSField::GoalLineX(false))
     {
         bOutIsEndZoneA = true;
         return true;
     }
-
-    // End Zone B (Away): X = 50 to 60 yards (4,572.0 cm to 5,486.4 cm)
-    if (LocalPos.X > 4572.0f && LocalPos.X <= 5486.4f)
-    {
-        bOutIsEndZoneA = false;
-        return true;
-    }
-
-    return false;
+    return WorldPosition.X > PSField::GoalLineX(true);
 }
 
 float APSFieldGrid::GetDistanceToGoalLine(const FVector& WorldPosition, bool bTargetGoalLineB) const
 {
-    float YardLine = 0.0f;
-    float LateralYard = 0.0f;
-    GetFieldCoordinateFromWorldPosition(WorldPosition, YardLine, LateralYard);
-
-    if (bTargetGoalLineB)
-    {
-        // Goal Line B is at YardLine = 100
-        return 100.0f - YardLine;
-    }
-    else
-    {
-        // Goal Line A is at YardLine = 0
-        return YardLine;
-    }
+    const float YardLine = PSField::WorldToYardLine(WorldPosition);
+    return bTargetGoalLineB ? PSField::GetDimensions().FieldLengthYards - YardLine : YardLine;
 }
 
 FVector APSFieldGrid::GetFormationSpawnLocation(
@@ -171,36 +126,12 @@ FVector APSFieldGrid::GetFormationSpawnLocation(
     bool bIsOffense,
     bool bPlayTowardsGoalLineB) const
 {
-    float TargetYardLine = LineOfScrimmageYard;
-    float LateralYard = 26.6667f + SpawnPoint.LateralYardOffset;
-
-    // If play direction is towards B (standard positive X direction):
-    // Offense is lined up behind (less than) the line of scrimmage.
-    // Defense is lined up in front of (greater than) the line of scrimmage.
-    if (bPlayTowardsGoalLineB)
-    {
-        if (bIsOffense)
-        {
-            TargetYardLine += SpawnPoint.ScrimmageYardOffset; // ScrimmageYardOffset is negative for offense behind line
-        }
-        else
-        {
-            TargetYardLine += SpawnPoint.ScrimmageYardOffset; // ScrimmageYardOffset is positive for defense in front of line
-        }
-    }
-    else
-    {
-        // Playing towards Goal Line A (reverse direction)
-        if (bIsOffense)
-        {
-            TargetYardLine -= SpawnPoint.ScrimmageYardOffset;
-        }
-        else
-        {
-            TargetYardLine -= SpawnPoint.ScrimmageYardOffset;
-        }
-    }
-
+    // The spawn point's offset is in the play's direction: toward Goal Line B it adds, toward A
+    // it subtracts (negative for the offense behind the line, positive for the defense).
+    const float TargetYardLine = bPlayTowardsGoalLineB
+        ? LineOfScrimmageYard + SpawnPoint.ScrimmageYardOffset
+        : LineOfScrimmageYard - SpawnPoint.ScrimmageYardOffset;
+    const float LateralYard = PSField::GetDimensions().FieldWidthYards * 0.5f + SpawnPoint.LateralYardOffset;
     return GetWorldPositionFromFieldCoordinate(TargetYardLine, LateralYard);
 }
 

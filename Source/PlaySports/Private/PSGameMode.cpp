@@ -279,6 +279,15 @@ void APSGameMode::StartPlay()
                 UE_LOG(LogTemp, Display, TEXT("PSGameMode: Found BroadcastCamera %s in level."), *BroadcastCamera->GetName());
             }
 
+            // The field's end zones and boundary volumes (APSFieldGrid), on the same frame the
+            // pawns line up on (PSField): the level's grid, or one spawned here when it has none.
+            if (!UGameplayStatics::GetActorOfClass(GetWorld(), APSFieldGrid::StaticClass()))
+            {
+                FActorSpawnParameters FieldSpawnParams;
+                FieldSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+                GetWorld()->SpawnActor<APSFieldGrid>(APSFieldGrid::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, FieldSpawnParams);
+            }
+
             CachedPawns.Reset();
             TArray<AActor*> ExistingPawns;
             UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), ExistingPawns);

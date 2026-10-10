@@ -1,5 +1,6 @@
 #include "PSEndZoneVolume.h"
 #include "Components/BoxComponent.h"
+#include "PSFieldDimensions.h"
 #include "PSPlayerPawn.h"
 #include "PSTelemetryBus.h"
 #include "Engine/World.h"
@@ -40,12 +41,12 @@ bool APSEndZoneVolume::ReportCrossing(AActor* OtherActor)
         return false;
     }
 
-    // Which goal line he crossed, in the offense's yard lines: the game mode places yard line N
-    // at X = N * 100 cm with the offense attacking +X, so the far end zone is its target (100)
-    // and the near one its own (0), whoever has the ball.
+    // Which goal line he crossed, in the offense's yard lines: on the field's one frame (PSField)
+    // the offense attacks +X, so the far end zone is its target (100) and the near one its own
+    // (0), whoever has the ball.
     FPSTelemetryBoundaryCrossedEvent Crossing;
     Crossing.CarrierName = Pawn->GetAttributes().DisplayName;
-    Crossing.YardLine = Pawn->GetActorLocation().X >= 5000.f ? 100 : 0;
+    Crossing.YardLine = Pawn->GetActorLocation().X >= PSField::MidfieldX() ? FMath::RoundToInt(PSField::GetDimensions().FieldLengthYards) : 0;
     Crossing.bEndZone = true;
     Bus->PublishBoundaryCrossed(Crossing);
     UE_LOG(LogTemp, Display, TEXT("PSEndZoneVolume: %s in the end zone at the %d."), *Crossing.CarrierName, Crossing.YardLine);

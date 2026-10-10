@@ -76,6 +76,7 @@
 #include "PSAudioTypes.h"
 #include "PSCrowdTypes.h"
 #include "PSCommentaryTypes.h"
+#include "PSFieldDimensions.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -466,6 +467,12 @@ public:
      *  or malformed JSON; UPSCommentaryEventModel::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCommentaryHookTuningFromJson(const FString& JsonFilePath, FPSCommentaryHookTuning& OutTuning);
+
+    /** Loads the field's dimensions and scale (Data/field_dimensions.json): the one frame
+     *  PSField maps yards to world space with. False on a missing file or malformed JSON;
+     *  PSField::Validate checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadFieldDimensionsFromJson(const FString& JsonFilePath, FPSFieldDimensions& OutDimensions);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

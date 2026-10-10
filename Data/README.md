@@ -125,6 +125,7 @@ every CI build.
 | `audio_cues.json` | `FPSAudioTuning` (single object: `Cues`, `EventCues`, `LayerSettings`, `StartupLoops` and the moments' thresholds) | `UPSDataIngestion::LoadAudioTuningFromJson`, via `UPSAudioSubsystem`; its layers' settings are checked against `ui_settings.json` |
 | `crowd.json` | `FPSCrowdTuning` (single object: the excitement model, `Levels`, `CrowdReactions`) | `UPSDataIngestion::LoadCrowdTuningFromJson`, via `UPSCrowdExcitementSubsystem` |
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
+| `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1990,3 +1991,21 @@ structured Commentary events):
   facts it gets.
 
 `UPSCommentaryEventModel::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Field schema (`FPSFieldDimensions`)
+
+Single object: the field's one frame (`PSField`). Yard line N, counted from the offense's own goal
+line, is at world X = N * `CentimetresPerYard`; the offense always attacks +X, and Y = 0 is the
+middle of the field. The game mode lines up and snaps on it, `APSFieldGrid` lays the end zones and
+boundary volumes out on it, and every yard read from a world location (a tackle's spot, a boundary
+crossing, an interception, a loose ball, the broadcast camera's scrimmage shot) goes through it.
+Every value is a number above 0.
+
+- `CentimetresPerYard`: world units in a yard. The game's yard is a metre (100): every distance
+  tuned in cm elsewhere (lineups, routes, coverage depths) is read against it.
+- `FieldLengthYards` (goal line to goal line), `EndZoneDepthYards`, `FieldWidthYards` (sideline to
+  sideline).
+- `OutOfBoundsDepthYards`: how far past the sidelines and end lines the out-of-bounds volumes
+  reach. `BoundaryHeightCm`: the boundary volumes' height.
+
+`PSField::Validate` and `tools/validate_data.py` check it.

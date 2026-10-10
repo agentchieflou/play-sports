@@ -3,6 +3,7 @@
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
 #include "PSDefenseController.h"
+#include "PSFieldDimensions.h"
 #include "PSHealthComponent.h"
 #include "PSOffenseController.h"
 #include "PSPlatformTiers.h"
@@ -19,9 +20,6 @@ DECLARE_CYCLE_STAT(TEXT("Coverage matchups"), STAT_PSAICoverageMatchups, STATGRO
 
 namespace PSCoverageMatchupPrivate
 {
-    /** The field's scale: APSGameMode puts yard line N at X = N * 100. */
-    constexpr float CentimetresPerYard = 100.f;
-
     bool IsStanding(const APSPlayerPawn* Pawn)
     {
         const UPSHealthComponent* Health = Pawn ? Pawn->GetHealthComponent() : nullptr;
@@ -995,7 +993,7 @@ void UPSCoverageMatchupSubsystem::CheckInterference()
         bInterferenceSeen = true;
         if (Rolls.FRand() < Settings.FlagChance)
         {
-            const int32 Yards = FMath::Max(1, FMath::RoundToInt((At.X - LineOfScrimmage.X) / PSCoverageMatchupPrivate::CentimetresPerYard));
+            const int32 Yards = FMath::Max(1, FMath::RoundToInt(PSField::CentimetresToYards(At.X - LineOfScrimmage.X)));
             Publish(EPSCoverageEventKind::PassInterference, Defender, Receiver, TEXT("Flag"), 0.f, At, nullptr, Yards);
         }
         return;

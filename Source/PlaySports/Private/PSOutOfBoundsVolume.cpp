@@ -2,6 +2,7 @@
 #include "Components/BoxComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
+#include "PSFieldDimensions.h"
 #include "PSTelemetryBus.h"
 #include "Engine/World.h"
 
@@ -60,8 +61,9 @@ bool APSOutOfBoundsVolume::ReportCrossing(AActor* OtherActor)
         return false;
     }
 
-    // The game mode places yard line N at X = N * 100 cm, the offense attacking +X.
-    Crossing.YardLine = FMath::Clamp(FMath::RoundToInt(OtherActor->GetActorLocation().X / 100.f), 0, 100);
+    // The spot on the field's one frame (PSField), where the game mode lines up: the offense
+    // attacking +X from its goal line.
+    Crossing.YardLine = PSField::WorldToSpot(OtherActor->GetActorLocation());
     Bus->PublishBoundaryCrossed(Crossing);
     UE_LOG(LogTemp, Display, TEXT("PSOutOfBoundsVolume: %s out of bounds at the %d."), Crossing.CarrierName.IsEmpty() ? TEXT("The ball") : *Crossing.CarrierName, Crossing.YardLine);
     return true;
