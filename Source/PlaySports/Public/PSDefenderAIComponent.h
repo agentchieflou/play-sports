@@ -12,6 +12,7 @@ class APSDefenseController;
 class APSPlayerPawn;
 class UPSAIFieldSnapshot;
 class UPSCoverageMatchupSubsystem;
+class UPSLooseBallSubsystem;
 
 /** What a defensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -37,7 +38,9 @@ enum class EPSDefenderAction : uint8
     Return,
     /** Run fit on a run read: filling his gap (UPSDefenderGapSubsystem, Epic 81) until the
      *  carrier comes to it. */
-    Fit
+    Fit,
+    /** Going for a blocked kick's loose ball (UPSLooseBallSubsystem, Epic 17.4). */
+    LooseBall
 };
 
 /** Defensive AI tuning (Data/defense_ai_tuning.json; Architecture rule 4). Distances in cm. */
@@ -106,7 +109,8 @@ struct FDefenderAITuningRow : public FTableRowBase
  * How coverage is played -- leverage, press, zone carries and hand-offs, safety help -- is the
  * coverage matchup engine's (UPSCoverageMatchupSubsystem, Epic 69): once it has a matchup or a
  * zone for this defender it gives the spot to play, and a contest it puts him out of phase in
- * (a beaten jam, a break away from his leverage) freezes him like a bite.
+ * (a beaten jam, a break away from his leverage) freezes him like a bite. A blocked kick's loose
+ * ball near him (UPSLooseBallSubsystem, Epic 17.4) comes before all of it: he goes for the ball.
  *
  * It is the defensive twin of UPSSkillPlayerAIComponent and works the same way: it moves the
  * pawn with AddMovementInput (so FMovementTuningRow applies), takes the assignment from
@@ -219,6 +223,9 @@ private:
 
     /** How coverage is played (Epic 69). */
     UPSCoverageMatchupSubsystem* GetMatchups() const;
+
+    /** A blocked kick's loose ball (Epic 17.4). */
+    UPSLooseBallSubsystem* GetLooseBall() const;
 
     UPROPERTY(Transient)
     FDefenderAITuningRow Tuning;

@@ -45,6 +45,7 @@
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSCoverageMatchupTypes.h"
+#include "PSLooseBallSubsystem.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -136,6 +137,10 @@ public:
      *  Epic 69). False on a missing file, malformed JSON, or an unrecognized Leverage or free role. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCoverageMatchupTuningFromJson(const FString& JsonFilePath, FPSCoverageMatchupTuning& OutTuning);
+
+    /** Loads how the players play a blocked kick's loose ball (Data/loose_ball.json, Epic 17.4). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadLooseBallTuningFromJson(const FString& JsonFilePath, FPSLooseBallTuning& OutTuning);
 
     /** Loads the quarterback's pocket and scramble tuning (Data/pocket_tuning.json, Epic 71). */
     UFUNCTION(BlueprintCallable, Category = "Data")

@@ -4,6 +4,7 @@
 #include "PSBallActionComponent.h"
 #include "PSDataIngestion.h"
 #include "PSFieldReads.h"
+#include "PSLooseBallSubsystem.h"
 #include "PSOffenseController.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayerDNA.h"
@@ -221,7 +222,34 @@ void UPSSkillPlayerAIComponent::TickAI(float DeltaSeconds)
     SCOPE_CYCLE_COUNTER(STAT_PSAISkillDecision);
     DesiredDirection = FVector::ZeroVector;
     APSPlayerPawn* Self = GetSelf();
-    if (!Self || !bPlayLive || bSpecialTeamsCall)
+    if (!Self || !bPlayLive)
+    {
+        return;
+    }
+
+    // A blocked kick's loose ball near him, or the defender returning it, is everyone's business
+    // -- the kick unit's and the linemen's too (Epic 17.4); once it is settled his part is done.
+    FVector LooseTarget;
+    const UWorld* OwningWorld = GetWorld();
+    const UPSLooseBallSubsystem* Loose = OwningWorld ? OwningWorld->GetSubsystem<UPSLooseBallSubsystem>() : nullptr;
+    if (!Self->HasPossession() && Loose && Loose->GetChaseTarget(Self, LooseTarget))
+    {
+        Action = EPSSkillPlayerAction::LooseBall;
+        if (!Self->bIsEngaged)
+        {
+            DesiredDirection = PSSkillPlayerAIPrivate::GroundDirection(Self->GetActorLocation(), LooseTarget);
+            if (!DesiredDirection.IsNearlyZero())
+            {
+                Self->AddMovementInput(DesiredDirection, 1.f);
+            }
+        }
+        return;
+    }
+    if (Action == EPSSkillPlayerAction::LooseBall)
+    {
+        Action = EPSSkillPlayerAction::Idle;
+    }
+    if (bSpecialTeamsCall)
     {
         return;
     }

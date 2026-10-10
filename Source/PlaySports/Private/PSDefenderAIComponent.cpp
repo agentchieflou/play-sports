@@ -4,6 +4,7 @@
 #include "PSDataIngestion.h"
 #include "PSDefenseController.h"
 #include "PSDefenderGapSubsystem.h"
+#include "PSLooseBallSubsystem.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
@@ -441,6 +442,28 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
         StartAssignment(Self);
     }
 
+    // A blocked kick's loose ball near him, or its returner to run down, comes before his job
+    // (Epic 17.4); once it is settled his job is done.
+    FVector LooseTarget;
+    const UPSLooseBallSubsystem* Loose = GetLooseBall();
+    if (!Self->HasPossession() && Loose && Loose->GetChaseTarget(Self, LooseTarget))
+    {
+        Action = EPSDefenderAction::LooseBall;
+        if (!IsFrozen() && !Self->bIsEngaged)
+        {
+            DesiredDirection = PSDefenderAIPrivate::GroundDirection(Self->GetActorLocation(), LooseTarget);
+            if (!DesiredDirection.IsNearlyZero())
+            {
+                Self->AddMovementInput(DesiredDirection, 1.f);
+            }
+        }
+        return;
+    }
+    if (Action == EPSDefenderAction::LooseBall && !Self->HasPossession())
+    {
+        Action = EPSDefenderAction::Idle;
+    }
+
     APSPlayerPawn* Carrier = FindCarrier();
     if (Self->HasPossession())
     {
@@ -685,6 +708,12 @@ APSPlayerPawn* UPSDefenderAIComponent::FindOpponent(EPlayerRole Role) const
 {
     UPSAIFieldSnapshot* Field = GetFieldSnapshot();
     return Field ? Field->FindPawn(EPSTeamSide::Offense, Role) : nullptr;
+}
+
+UPSLooseBallSubsystem* UPSDefenderAIComponent::GetLooseBall() const
+{
+    const UWorld* OwningWorld = GetWorld();
+    return OwningWorld ? OwningWorld->GetSubsystem<UPSLooseBallSubsystem>() : nullptr;
 }
 
 UPSCoverageMatchupSubsystem* UPSDefenderAIComponent::GetMatchups() const
