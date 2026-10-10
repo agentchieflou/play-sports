@@ -111,6 +111,27 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(any("'DeepPass' is not a defensive category" in e for e in errors), errors)
         self.assertTrue(any("PlayId: duplicate" in e for e in errors), errors)
 
+    def test_playbook_deception(self):
+        plays = copy.deepcopy(PLAYBOOK)
+        plays["Plays"][0]["Deception"] = {"Type": "PlayAction"}
+        self.assertEqual(check(league(**{"Data/playbook.json": plays})), [])
+        # A run option on a pass play without a back at the mesh; a pitch to the QB; a bad side.
+        plays["Plays"][0]["Deception"] = {"Type": "TripleOption", "PlaySide": 2, "PitchRole": "Quarterback"}
+        plays["Plays"][1]["Deception"] = {"Type": "PlayAction"}
+        plays["Plays"].append({"PlayId": "Offense_RPO", "DisplayName": "RPO", "Formation": "Shotgun", "bIsOffensivePlay": True,
+                               "PlayCategory": "Run", "Deception": {"Type": "RPO", "PassRole": "TightEnd"},
+                               "Assignments": [{"Role": "RunningBack", "Kind": "Route"}, {"Role": "TightEnd", "Kind": "RunBlock"}]})
+        plays["Plays"].append({"PlayId": "Offense_Screen", "DisplayName": "Screen", "Formation": "Shotgun", "bIsOffensivePlay": True,
+                               "PlayCategory": "Screen", "Deception": {"Type": "Bootleg"}, "Assignments": []})
+        errors = check(league(**{"Data/playbook.json": plays}))
+        self.assertTrue(any("TripleOption is a run option, so the play is a Run" in e for e in errors), errors)
+        self.assertTrue(any("a run option needs a RunningBack on a Route" in e for e in errors), errors)
+        self.assertTrue(any("PlaySide: 2 must be 1 (right) or -1 (left)" in e for e in errors), errors)
+        self.assertTrue(any("the pitch man is not the Quarterback" in e for e in errors), errors)
+        self.assertTrue(any("'Defense_Base'.Deception: only offensive plays deceive" in e for e in errors), errors)
+        self.assertTrue(any("no TightEnd runs a route to be the pass option" in e for e in errors), errors)
+        self.assertTrue(any("'Bootleg' is not an EPSDeception" in e for e in errors), errors)
+
 
 class ReferenceTests(unittest.TestCase):
     def test_missing_roster_and_orphan_roster(self):

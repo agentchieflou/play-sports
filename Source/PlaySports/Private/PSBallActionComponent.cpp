@@ -8,6 +8,7 @@
 #include "PSBallResolutionHelpers.h"
 #include "PSCarrierMoveComponent.h"
 #include "PSDefenderTechniqueComponent.h"
+#include "PSDifficultySubsystem.h"
 #include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -47,6 +48,11 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
     if (OwnerPawn->GetAttributes().Awareness < 100.f)
     {
         float AccuracyError = (100.f - OwnerPawn->GetAttributes().Awareness) * 2.f; // Max error up to 200cm
+        // A CPU passer's execution varies with the difficulty tier (Epic 84); his rating doesn't.
+        if (UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld()))
+        {
+            AccuracyError *= Difficulty->GetThrowScatterScale(OwnerPawn);
+        }
         FVector ErrorOffset = FMath::VRand() * FMath::FRandRange(0.f, AccuracyError);
         ErrorOffset.Z = 0.f; // Keep error on 2D plane
         ScatterTarget += ErrorOffset;

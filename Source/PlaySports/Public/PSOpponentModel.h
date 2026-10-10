@@ -81,7 +81,8 @@ public:
     /** Replaces the tuning (tests, or a mode with its own). */
     void SetTuning(const FPSOpponentModelTuning& InTuning);
 
-    /** How far the CPU adapts at all, 0-1: the difficulty's dial (Epic 84). */
+    /** How far the CPU adapts at all, 0-1. Unset, the player's difficulty tier gives it
+     *  (UPSDifficultySubsystem, Epic 84), else the tuning's DefaultAdaptationDial. */
     UFUNCTION(BlueprintCallable, Category = "OpponentModel")
     void SetAdaptationDial(float Dial);
 

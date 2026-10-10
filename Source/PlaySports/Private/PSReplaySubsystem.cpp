@@ -1019,16 +1019,23 @@ bool UPSReplaySubsystem::StartAutoReplay(EPSReplayTrigger Trigger)
     {
         SetPlaybackRate(Rule->PlaybackRate);
     }
-    // With Reduced motion on it stays on the still rig StartReplay opened on.
-    if (Rule && !IsReducedMotion() && SetReplayCamera(DirectorCamera))
+    if (Rule)
     {
-        APSBroadcastCamera* Camera = GetReplayBroadcastCamera();
-        if (UPSCameraDirectorComponent* Director = Camera ? Camera->GetDirectorComponent() : nullptr)
-        {
-            Director->CutNow(Rule->Shot);
-        }
+        CutToDirectorShot(Rule->Shot);
     }
     return true;
+}
+
+bool UPSReplaySubsystem::CutToDirectorShot(EPSDirectorShot Shot)
+{
+    // With Reduced motion on it stays on the still rig StartReplay opened on.
+    if (IsReducedMotion() || !SetReplayCamera(DirectorCamera))
+    {
+        return false;
+    }
+    APSBroadcastCamera* Camera = GetReplayBroadcastCamera();
+    UPSCameraDirectorComponent* Director = Camera ? Camera->GetDirectorComponent() : nullptr;
+    return Director && Director->CutNow(Shot);
 }
 
 void UPSReplaySubsystem::HandleEventRecorded(const FPSTelemetryEvent& Event)

@@ -32,9 +32,10 @@ class UPSPlayCallSubsystem;
  *    UPSPlayCallSubsystem.
  *  - Matchups: a defender shadows a receiver in man coverage, whatever the call gives him,
  *    until cleared. UPSPlayOrchestrator applies it at the snap (ApplyMatchup).
- *  - The CPU: a CPU call disguises as often as its coach's aggression and its defenders'
- *    Awareness say, and its best back shadows the best receiver on a man call. A low-Awareness
- *    safety leaks his disguise by lining up part-way to his real spot.
+ *  - The CPU: a CPU call disguises as often as its team's head coach's aggression (the defending
+ *    team's plan at UPSPlayCallSubsystem, Epic 89) and its defenders' Awareness say, and its best
+ *    back shadows the best receiver on a man call. A low-Awareness safety leaks his disguise by
+ *    lining up part-way to his real spot.
  *
  * The offense reads the defense through ReadShownLook -- where the defenders stand, never the
  * call (UPSPreSnapSubsystem::GetDefensiveLook). Every change is announced on UPSTelemetryBus
@@ -130,9 +131,6 @@ public:
 
     // --- The CPU ---
 
-    /** The CPU defense's coach (Epic 18), whose aggression sets how often it disguises. */
-    void SetTendency(const FPSTendencyProfile& InTendency) { Tendency = InTendency; }
-
     /** Seeds the CPU's disguise decisions, so a snap can be replayed. */
     void SeedDecisions(int32 Seed) { DecisionStream.Initialize(Seed); }
 
@@ -169,7 +167,6 @@ private:
     UPROPERTY(Transient)
     FPSDefensivePreSnapTuning Tuning;
 
-    FPSTendencyProfile Tendency;
     FPSDefensiveDisguise Disguise;
     FRandomStream DecisionStream;
     TWeakObjectPtr<UPSTelemetryBus> BoundBus;

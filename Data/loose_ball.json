@@ -1,0 +1,10 @@
+{
+    "BlockedFieldGoalYards": 7,
+    "ChaseRadius": 2000.0,
+    "RecoverRadius": 120.0,
+    "ScoopClearRadius": 300.0,
+    "SquirtDistance": 250.0,
+    "RetrySeconds": 0.5,
+    "MaxLooseSeconds": 4.0,
+    "MaxReturnSeconds": 10.0
+}

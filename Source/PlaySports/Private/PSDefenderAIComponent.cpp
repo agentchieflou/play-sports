@@ -1,9 +1,14 @@
 #include "PSDefenderAIComponent.h"
 #include "PSAIDecisionLog.h"
+#include "PSPerfBudget.h"
 #include "PSAIFieldSnapshot.h"
+#include "PSCoverageMatchupSubsystem.h"
 #include "PSDataIngestion.h"
+#include "PSDifficultySubsystem.h"
+#include "PSDeceptionSubsystem.h"
 #include "PSDefenseController.h"
 #include "PSDefenderGapSubsystem.h"
+#include "PSLooseBallSubsystem.h"
 #include "PSPlatformTiers.h"
 #include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
@@ -71,14 +76,21 @@ bool UPSDefenderAIComponent::LoadTuningFromJson(const FString& JsonFilePath)
     return true;
 }
 
-void UPSDefenderAIComponent::ApplyPlayerDNA(const APSPlayerPawn* Self)
+void UPSDefenderAIComponent::ApplyPlayTuning(const APSPlayerPawn* Self)
 {
     GetTuning();
     Tuning = BaseTuning;
-    UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld());
-    if (Self && DNA)
+    if (!Self)
+    {
+        return;
+    }
+    if (UPSPlayerDNASubsystem* DNA = UPSPlayerDNASubsystem::Get(GetWorld()))
     {
         DNA->ApplyTo(Self->GetAttributes(), TEXT("DefenderAI"), Tuning);
+    }
+    if (UPSDifficultySubsystem* Difficulty = UPSDifficultySubsystem::Get(GetWorld()))
+    {
+        Difficulty->ApplyTo(Self, TEXT("DefenderAI"), Tuning);
     }
 }
 
@@ -110,6 +122,8 @@ void UPSDefenderAIComponent::BindToBus()
     Bus->OnPumpFakeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePumpFake);
     Bus->OnRouteRunningMC.AddUObject(this, &UPSDefenderAIComponent::HandleRouteRunning);
     Bus->OnBlownCoverageMC.AddUObject(this, &UPSDefenderAIComponent::HandleBlownCoverage);
+    Bus->OnCoverageMC.AddUObject(this, &UPSDefenderAIComponent::HandleCoverage);
+    Bus->OnDeceptionMC.AddUObject(this, &UPSDefenderAIComponent::HandleDeception);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePhaseChange);
     Bus->OnControlChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandleControlChange);
     BoundBus = Bus;
@@ -125,6 +139,8 @@ void UPSDefenderAIComponent::UnbindFromBus()
         Bus->OnPumpFakeMC.RemoveAll(this);
         Bus->OnRouteRunningMC.RemoveAll(this);
         Bus->OnBlownCoverageMC.RemoveAll(this);
+        Bus->OnCoverageMC.RemoveAll(this);
+        Bus->OnDeceptionMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
         Bus->OnControlChangeMC.RemoveAll(this);
     }
@@ -297,6 +313,28 @@ void UPSDefenderAIComponent::HandleBlownCoverage(const FPSTelemetryBlownCoverage
     }
 }
 
+void UPSDefenderAIComponent::HandleCoverage(const FPSTelemetryCoverageEvent& Event)
+{
+    // A contest the coverage matchup engine put this defender out of phase in (Epic 69): a jam
+    // he lost, a break away from his leverage. He freezes while he makes it up, as on a bite.
+    const APSPlayerPawn* Self = GetSelf();
+    const bool bOutOfPhase = Event.Kind == EPSCoverageEventKind::Press || Event.Kind == EPSCoverageEventKind::Break;
+    if (bPlayLive && Self && bOutOfPhase && Event.Seconds > 0.f && Event.DefenderName == Self->GetAttributes().DisplayName)
+    {
+        FrozenUntil = FMath::Max(FrozenUntil, TimeSinceSnap + Event.Seconds);
+    }
+}
+
+void UPSDefenderAIComponent::HandleDeception(const FPSTelemetryDeceptionEvent& Event)
+{
+    // He bit on a play-action fake (Epic 72): he holds, playing the run, instead of dropping.
+    const APSPlayerPawn* Self = GetSelf();
+    if (bPlayLive && Self && Event.Kind == EPSDeceptionEventKind::Bite && Event.Seconds > 0.f && Event.PlayerName == Self->GetAttributes().DisplayName)
+    {
+        FrozenUntil = FMath::Max(FrozenUntil, TimeSinceSnap + Event.Seconds);
+    }
+}
+
 void UPSDefenderAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event)
 {
     if (Event.NewPhase == TEXT("Scoring") || Event.NewPhase == TEXT("PreSnap"))
@@ -309,8 +347,8 @@ void UPSDefenderAIComponent::HandlePhaseChange(const FPSTelemetryPhaseChangeEven
 
 void UPSDefenderAIComponent::StartAssignment(APSPlayerPawn* Self)
 {
-    // The play starts: he plays it in his own style (Epic 79).
-    ApplyPlayerDNA(Self);
+    // The play starts: he plays it in his own style (Epic 79), at the CPU's difficulty (Epic 84).
+    ApplyPlayTuning(Self);
     const APSDefenseController* Controller = GetDefenseController();
     const EPSDefensiveAssignmentType Assignment = Controller ? Controller->GetAssignment() : EPSDefensiveAssignmentType::RunFit;
     ZoneSpot = Self->GetActorLocation();
@@ -325,8 +363,11 @@ void UPSDefenderAIComponent::StartAssignment(APSPlayerPawn* Self)
         break;
     case EPSDefensiveAssignmentType::ManCoverage:
     {
+        // The man the play names, else the one he lined up to press (Epic 69), else his pick.
         APSPlayerPawn* Named = Controller ? Cast<APSPlayerPawn>(Controller->GetCoverageTarget()) : nullptr;
-        CoveredReceiver = Named ? Named : PickReceiverToCover(Self);
+        const UPSCoverageMatchupSubsystem* Matchups = GetMatchups();
+        APSPlayerPawn* Pressed = Matchups ? Matchups->GetPlannedReceiver(Self) : nullptr;
+        CoveredReceiver = Named ? Named : (Pressed ? Pressed : PickReceiverToCover(Self));
         // Nobody left to cover: he plays the spot he lined up on.
         Action = CoveredReceiver.IsValid() ? EPSDefenderAction::Cover : EPSDefenderAction::Zone;
         break;
@@ -361,7 +402,8 @@ APSPlayerPawn* UPSDefenderAIComponent::PickReceiverToCover(const APSPlayerPawn* 
     const TArray<APSPlayerPawn*>& Pawns = Field->GetPawns();
     const TArray<EPlayerRole>& Roles = Field->GetRoles();
 
-    // Receivers another defender already has in man coverage are taken.
+    // Receivers another defender already has in man coverage, or lined up to press, are taken.
+    const UPSCoverageMatchupSubsystem* Matchups = GetMatchups();
     TSet<const APSPlayerPawn*> Taken;
     for (const APSPlayerPawn* Pawn : Pawns)
     {
@@ -370,6 +412,11 @@ APSPlayerPawn* UPSDefenderAIComponent::PickReceiverToCover(const APSPlayerPawn* 
         if (Other && Other != this && Other->GetCoveredReceiver())
         {
             Taken.Add(Other->GetCoveredReceiver());
+        }
+        const APSPlayerPawn* Pressed = Matchups && Pawn != Self ? Matchups->GetPlannedReceiver(Pawn) : nullptr;
+        if (Pressed)
+        {
+            Taken.Add(Pressed);
         }
     }
 
@@ -403,6 +450,8 @@ bool UPSDefenderAIComponent::IsBallOut(const APSPlayerPawn* Carrier) const
 void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
 {
     SCOPE_CYCLE_COUNTER(STAT_PSAIDefenderDecision);
+    PS_PERF_SCOPE(AI);
+    PSPerf::AddCount(EPSPerfCounter::AIDecisions);
     DesiredDirection = FVector::ZeroVector;
     APSPlayerPawn* Self = GetSelf();
     if (!Self || !bPlayLive)
@@ -419,6 +468,45 @@ void UPSDefenderAIComponent::TickAI(float DeltaSeconds)
     {
         bSnapPending = false;
         StartAssignment(Self);
+    }
+
+    // A blocked kick's loose ball near him, or its returner to run down, comes before his job
+    // (Epic 17.4); once it is settled his job is done.
+    FVector LooseTarget;
+    const UPSLooseBallSubsystem* Loose = GetLooseBall();
+    if (!Self->HasPossession() && Loose && Loose->GetChaseTarget(Self, LooseTarget))
+    {
+        Action = EPSDefenderAction::LooseBall;
+        if (!IsFrozen() && !Self->bIsEngaged)
+        {
+            DesiredDirection = PSDefenderAIPrivate::GroundDirection(Self->GetActorLocation(), LooseTarget);
+            if (!DesiredDirection.IsNearlyZero())
+            {
+                Self->AddMovementInput(DesiredDirection, 1.f);
+            }
+        }
+        return;
+    }
+    if (Action == EPSDefenderAction::LooseBall && !Self->HasPossession())
+    {
+        Action = EPSDefenderAction::Idle;
+    }
+
+    // The option (Epic 72): once the defense has seen the mesh, a man with an option job plays
+    // his man while the quarterback has the ball near the line.
+    FVector OptionTarget;
+    const UPSDeceptionSubsystem* Deception = GetDeception();
+    if (!Self->HasPossession() && Deception && Deception->GetOptionTarget(Self, OptionTarget))
+    {
+        if (!IsFrozen() && !Self->bIsEngaged)
+        {
+            DesiredDirection = PSDefenderAIPrivate::GroundDirection(Self->GetActorLocation(), OptionTarget);
+            if (!DesiredDirection.IsNearlyZero())
+            {
+                Self->AddMovementInput(DesiredDirection, 1.f);
+            }
+        }
+        return;
     }
 
     APSPlayerPawn* Carrier = FindCarrier();
@@ -639,14 +727,30 @@ FVector UPSDefenderAIComponent::SteerToCover(const APSPlayerPawn* Self) const
     {
         return SteerInZone(Self);
     }
-    // Downfield of him by the cushion, reading where he is going as well as Awareness lets.
+    // Downfield of him by the cushion, reading where he is going as well as Awareness lets --
+    // and, once the coverage matchup engine has them as a matchup, to his leverage side (or
+    // tight on him after a won jam; Epic 69).
     const float Awareness = FMath::Clamp(Self->GetAttributes().Awareness, 0.f, 100.f);
     const FVector Anticipated = Receiver->GetVelocity() * Tuning.ManAnticipationSeconds * (Awareness / 100.f);
-    return SteerToward(Self, Receiver->GetActorLocation() + Anticipated + FVector(Tuning.ManCushion, 0.f, 0.f));
+    FVector Target = Receiver->GetActorLocation() + Anticipated + FVector(Tuning.ManCushion, 0.f, 0.f);
+    if (const UPSCoverageMatchupSubsystem* Matchups = GetMatchups())
+    {
+        Matchups->GetCoverTarget(Self, Receiver, Anticipated, Tuning.ManCushion, Target);
+    }
+    return SteerToward(Self, Target);
 }
 
 FVector UPSDefenderAIComponent::SteerInZone(const APSPlayerPawn* Self) const
 {
+    // The coverage matchup engine's spot once it has his zone: carries and hand-offs, over the
+    // top, a rotation, a free role (Epic 69).
+    FVector EngineTarget;
+    const UPSCoverageMatchupSubsystem* Matchups = GetMatchups();
+    if (Matchups && Matchups->GetZoneTarget(Self, EngineTarget))
+    {
+        return SteerToward(Self, EngineTarget);
+    }
+
     // The receiver nearest the spot, if he's in the zone, pulls the defender part-way to him.
     const APSPlayerPawn* Threat = nullptr;
     float ThreatDistance = Tuning.ZoneRadius;
@@ -726,6 +830,24 @@ APSPlayerPawn* UPSDefenderAIComponent::FindOpponent(EPlayerRole Role) const
 {
     UPSAIFieldSnapshot* Field = GetFieldSnapshot();
     return Field ? Field->FindPawn(EPSTeamSide::Offense, Role) : nullptr;
+}
+
+UPSDeceptionSubsystem* UPSDefenderAIComponent::GetDeception() const
+{
+    const UWorld* OwningWorld = GetWorld();
+    return OwningWorld ? OwningWorld->GetSubsystem<UPSDeceptionSubsystem>() : nullptr;
+}
+
+UPSLooseBallSubsystem* UPSDefenderAIComponent::GetLooseBall() const
+{
+    const UWorld* OwningWorld = GetWorld();
+    return OwningWorld ? OwningWorld->GetSubsystem<UPSLooseBallSubsystem>() : nullptr;
+}
+
+UPSCoverageMatchupSubsystem* UPSDefenderAIComponent::GetMatchups() const
+{
+    const UWorld* OwningWorld = GetWorld();
+    return OwningWorld ? OwningWorld->GetSubsystem<UPSCoverageMatchupSubsystem>() : nullptr;
 }
 
 UPSAIFieldSnapshot* UPSDefenderAIComponent::GetFieldSnapshot() const

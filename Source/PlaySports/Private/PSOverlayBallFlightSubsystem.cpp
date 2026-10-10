@@ -1,4 +1,5 @@
 #include "PSOverlayBallFlightSubsystem.h"
+#include "PSPerfBudget.h"
 #include "PSBall.h"
 #include "PSDataIngestion.h"
 #include "PSKickMeterComponent.h"
@@ -255,6 +256,7 @@ bool UPSOverlayBallFlightSubsystem::TrackFlight(APSBall* Ball, EPSBallFlightKind
 
 void UPSOverlayBallFlightSubsystem::AdvanceTime(float DeltaSeconds)
 {
+    PS_PERF_SCOPE(Overlays);
     const float Step = FMath::Max(DeltaSeconds, 0.f);
     APSBall* Ball = Flight.bActive ? TrackedBall.Get() : FindBall();
     const bool bInFlight = IsValid(Ball) && IsInFreeFlight(*Ball);
