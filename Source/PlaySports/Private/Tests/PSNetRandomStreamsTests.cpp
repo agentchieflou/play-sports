@@ -19,6 +19,7 @@
 #include "Engine/World.h"
 #include "HAL/PlatformTime.h"
 #include "PSBall.h"
+#include "PSBallActionComponent.h"
 #include "PSDifficultySubsystem.h"
 #include "PSNetRandomStreams.h"
 #include "PSPlayerPawn.h"
