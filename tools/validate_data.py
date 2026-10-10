@@ -24,7 +24,12 @@ DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDevi
 route in the route library and each action a Boolean in the PreSnap context; "JumpWindowSeconds"
 files against FDefensiveTechniqueTuningRow and "PowerFillSeconds" files against
 FKickMeterTuningRow, each named action a Boolean in its context; "SituationTempos" files against
-FPSSituationalTuning, its route IDs against the route library.
+FPSSituationalTuning, its route IDs against the route library; "KeyframeEvents" files against
+FPSTelemetrySamplingTuning, each event an EPSTelemetryEventType as the bus header declares it;
+"FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117); "Fronts" files against
+FPSRunFitCatalog; "PressRadius" files against FRouteRunningTuningRow; "Routes" files against the
+FPSRoute library (timing, fakes, option branches); "Settings" files against FPSSettingsCatalog
+(Epic 103).
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -482,7 +487,8 @@ def validate_defensive_adjustments(path, payload):
 SKILL_AI_FIELDS = ("WaypointArrivalRadius", "OpenSeparation", "AwarenessMisreadSeparation", "MinReadSeconds",
                    "MaxReadSeconds", "PressureRadius", "PressuredThrowSeparation", "HandoffRadius",
                    "HandoffTimeoutSeconds", "CarrierAvoidRadius", "CarrierAvoidWeight", "ThrowLeadSpeed",
-                   "BlockSetDistance", "BlockEngageRadius", "FieldHalfWidth", "SidelineCushion", "SidelineSteerWeight")
+                   "BlockSetDistance", "BlockEngageRadius", "FieldHalfWidth", "SidelineCushion", "SidelineSteerWeight",
+                   "ReadWindowSeconds", "MaxAnticipationSeconds")
 
 
 def validate_skill_ai_tuning(path, payload):
@@ -570,6 +576,10 @@ def project_device_profiles():
     return set(re.findall(r"^\[(\S+) DeviceProfile\]", text, flags=re.MULTILINE))
 
 
+# Epic 26's sampler: its rate and per-frame budget are per tier.
+TIER_TELEMETRY_NUMBERS = ("TelemetrySampleRateHz", "TelemetrySampleBudgetMs")
+
+
 def validate_platform_tiers(path, payload):
     """FPSPlatformTierCatalog (Data/platform_tiers.json, Epic 129); mirrors
     PSPlatformTiers::ValidateCatalog plus the device-profile cross-check."""
@@ -593,7 +603,11 @@ def validate_platform_tiers(path, payload):
         interval = tier.get("AIDecisionInterval")
         if not is_number(interval) or interval < 0:
             err(path, f"{where}.AIDecisionInterval: '{interval}' must be a number, 0 or more")
-        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval"}
+        for field in TIER_TELEMETRY_NUMBERS:
+            value = tier.get(field)
+            if not is_number(value) or value <= 0:
+                err(path, f"{where}.{field}: '{value}' must be a number above 0")
+        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -607,6 +621,45 @@ CARRIER_MOVES = {"Juke", "Spin", "Truck", "StiffArm", "Hurdle", "Slide"}
 CARRIER_MOVE_ATTRIBUTES = {"Agility", "Strength", "Speed"}
 CARRIER_MOVE_NUMBERS = ("MinAttribute", "WindowSeconds", "CommitSeconds", "CooldownSeconds", "StaminaCost",
                         "TackleChanceScale", "SpeedRetained", "LateralSpeed", "ForwardSpeed")
+
+
+SESSION_TELEMETRY_FIELDS = {
+    "FrameTimeBucketMs": "number", "FrameTimeBucketCount": "int", "Percentiles": "list",
+    "MinSessionSeconds": "number", "MaxStoredSessions": "int", "CheckpointEveryPlays": "int",
+    "CrashBreadcrumbCount": "int",
+}
+
+
+def validate_session_telemetry(path, payload):
+    """FPSSessionTelemetryTuning (Data/session_telemetry.json, Epic 117); mirrors
+    UPSSessionTelemetrySubsystem::ValidateTuning."""
+    extra = set(payload) - set(SESSION_TELEMETRY_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSSessionTelemetryTuning exactly")
+    for field, kind in SESSION_TELEMETRY_FIELDS.items():
+        value = payload.get(field)
+        if kind == "number" and not is_number(value):
+            err(path, f"{field}: '{value}' must be a number")
+        elif kind == "int" and not (isinstance(value, int) and not isinstance(value, bool)):
+            err(path, f"{field}: '{value}' must be a whole number")
+        elif kind == "list" and not isinstance(value, list):
+            err(path, f"{field}: must be an array")
+    if is_number(payload.get("FrameTimeBucketMs")) and payload["FrameTimeBucketMs"] <= 0:
+        err(path, "FrameTimeBucketMs must be above 0")
+    for field, least in (("FrameTimeBucketCount", 1), ("MaxStoredSessions", 1), ("CheckpointEveryPlays", 0),
+                         ("CrashBreadcrumbCount", 0)):
+        value = payload.get(field)
+        if isinstance(value, int) and value < least:
+            err(path, f"{field} must be {least} or more")
+    if is_number(payload.get("MinSessionSeconds")) and payload["MinSessionSeconds"] < 0:
+        err(path, "MinSessionSeconds must not be negative")
+    percentiles = payload.get("Percentiles")
+    if isinstance(percentiles, list):
+        if not percentiles:
+            err(path, "Percentiles must name at least one percentile")
+        for value in percentiles:
+            if not is_number(value) or not 0 < value <= 100:
+                err(path, f"Percentiles: '{value}' must be a number in (0, 100]")
 
 
 def validate_carrier_moves(path, payload, catalog):
@@ -654,6 +707,89 @@ def validate_carrier_moves(path, payload, catalog):
         extra = set(row) - set(CARRIER_MOVE_NUMBERS) - {"Move", "ActionId", "Attribute", "bGivesUp"}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
+
+
+TELEMETRY_BUS_HEADER = REPO / "Source" / "PlaySports" / "Public" / "PSTelemetryBus.h"
+TELEMETRY_SAMPLING_NUMBERS = ("HistorySeconds", "RecoverBelowFraction")
+TELEMETRY_SAMPLING_INTS = ("DegradeAfterSamples", "RecoverAfterSamples", "MaxDegradeLevel")
+TELEMETRY_MAX_RING_FRAMES = 10000  # PSTelemetrySamplingPrivate::MaxRingFrames
+TELEMETRY_MAX_DEGRADE_LEVEL = 8  # PSTelemetrySamplingPrivate::MaxAllowedDegradeLevel
+
+
+def telemetry_event_types():
+    """EPSTelemetryEventType's names, read from the bus header so new events need no edit here;
+    None when the header can't be read."""
+    try:
+        text = TELEMETRY_BUS_HEADER.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    match = re.search(r"enum\s+class\s+EPSTelemetryEventType\s*:\s*uint8\s*\{(.*?)\}", text, re.S)
+    if not match:
+        return None
+    body = re.sub(r"//[^\n]*|/\*.*?\*/", "", match.group(1), flags=re.S)
+    names = set()
+    for entry in body.split(","):
+        name = re.sub(r"UMETA\(.*?\)", "", entry).split("=")[0].strip()
+        if name:
+            names.add(name)
+    return names
+
+
+def fastest_tier_sample_rate():
+    """The highest TelemetrySampleRateHz in platform_tiers.json, or None when unreadable (its own
+    checks report that)."""
+    try:
+        tiers = json.loads((DATA_DIR / "platform_tiers.json").read_text(encoding="utf-8")).get("Tiers") or []
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return None
+    rates = [t.get("TelemetrySampleRateHz") for t in tiers if isinstance(t, dict)]
+    rates = [r for r in rates if is_number(r) and r > 0]
+    return max(rates) if rates else None
+
+
+def validate_telemetry_sampling(path, payload):
+    """FPSTelemetrySamplingTuning (Data/telemetry_sampling.json, Epic 26); mirrors
+    UPSTelemetrySamplingSubsystem::ValidateTuning."""
+    for field in TELEMETRY_SAMPLING_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in TELEMETRY_SAMPLING_INTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool):
+            err(path, f"{field}: '{value}' must be a whole number")
+    if is_number(payload.get("RecoverBelowFraction")) and payload["RecoverBelowFraction"] > 1:
+        err(path, "RecoverBelowFraction must be at most 1 (a fraction of the budget)")
+    for field in ("DegradeAfterSamples", "RecoverAfterSamples"):
+        value = payload.get(field)
+        if isinstance(value, int) and not isinstance(value, bool) and value < 1:
+            err(path, f"{field}: must be 1 or more")
+    level = payload.get("MaxDegradeLevel")
+    if isinstance(level, int) and not isinstance(level, bool) and not 0 <= level <= TELEMETRY_MAX_DEGRADE_LEVEL:
+        err(path, f"MaxDegradeLevel: must be 0 to {TELEMETRY_MAX_DEGRADE_LEVEL}")
+    rate, history = fastest_tier_sample_rate(), payload.get("HistorySeconds")
+    if rate is not None and is_number(history) and history > 0 and rate * history > TELEMETRY_MAX_RING_FRAMES:
+        err(path, f"HistorySeconds x the fastest tier's TelemetrySampleRateHz ({rate * history:g}) must be at most "
+                  f"{TELEMETRY_MAX_RING_FRAMES} frames")
+    events = payload.get("KeyframeEvents")
+    if not isinstance(events, list):
+        err(path, "'KeyframeEvents' must be an array of event type names")
+    else:
+        known = telemetry_event_types()
+        seen = set()
+        for idx, name in enumerate(events):
+            if known is not None and name not in known:
+                err(path, f"KeyframeEvents[{idx}]: '{name}' is not an EPSTelemetryEventType ({sorted(known)})")
+            elif name in seen:
+                err(path, f"KeyframeEvents[{idx}]: '{name}' is listed twice")
+            seen.add(name)
+    for field in ("SampleRateHz", "SampleBudgetMs"):
+        if field in payload:
+            err(path, f"{field}: set per tier, as Telemetry{field} in platform_tiers.json")
+    extra = (set(payload) - set(TELEMETRY_SAMPLING_NUMBERS) - set(TELEMETRY_SAMPLING_INTS) - {"KeyframeEvents"}
+             - {"SampleRateHz", "SampleBudgetMs"})
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelemetrySamplingTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -1116,6 +1252,165 @@ def validate_situational_tuning(path, payload, route_ids):
             err(path, f"{where}: no Reason (the play-call screen shows it)")
 
 
+RUN_GAPS = {"DLeft", "CLeft", "BLeft", "ALeft", "ARight", "BRight", "CRight", "DRight"}
+RUN_FIT_NUMBERS = ("GapWidth", "InlineTightEndWidth", "FitDepth", "SecondLevelDepth", "LeverageOffset", "FlowWeight",
+                   "AttackRadius", "FillRadius")
+
+
+def validate_run_fits(path, payload):
+    """FPSRunFitCatalog (Data/run_fits.json, Epic 81); mirrors PSDefenderGaps::ValidateCatalog."""
+    for field in RUN_FIT_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if is_number(payload.get("GapWidth")) and payload["GapWidth"] <= 0:
+        err(path, "GapWidth must be positive")
+    if is_number(payload.get("FlowWeight")) and payload["FlowWeight"] > 1:
+        err(path, "FlowWeight must be between 0 (hold the gap) and 1 (follow the carrier)")
+    extra = set(payload) - set(RUN_FIT_NUMBERS) - {"Fronts", "DefaultFront"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSRunFitCatalog exactly")
+    fronts = payload.get("Fronts")
+    if not isinstance(fronts, list) or not fronts:
+        err(path, "'Fronts' must be a non-empty array")
+        return
+    names = set()
+    for idx, front in enumerate(fronts):
+        where = f"Fronts[{idx}]"
+        if not isinstance(front, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        name = front.get("Front")
+        if not isinstance(name, str) or not name or name in names:
+            err(path, f"{where}.Front: empty or listed twice")
+        names.add(name)
+        fits = front.get("Fits")
+        if not isinstance(fits, list):
+            err(path, f"{where}.Fits: must be an array")
+            continue
+        roles, gaps = set(), set()
+        for fit_idx, fit in enumerate(fits):
+            fit_where = f"{where}.Fits[{fit_idx}]"
+            if not isinstance(fit, dict):
+                err(path, f"{fit_where}: must be an object")
+                continue
+            role = fit.get("Role")
+            if role not in PLAYER_ROLES:
+                err(path, f"{fit_where}.Role: '{role}' is not an EPlayerRole")
+            elif role in roles:
+                err(path, f"{fit_where}.Role: '{role}' is listed twice in this front")
+            roles.add(role)
+            fit_gaps = fit.get("Gaps")
+            if not isinstance(fit_gaps, list):
+                err(path, f"{fit_where}.Gaps: must be an array")
+                continue
+            for gap in fit_gaps:
+                if gap not in RUN_GAPS:
+                    err(path, f"{fit_where}.Gaps: '{gap}' is not an EPSRunGap ({sorted(RUN_GAPS)})")
+                elif gap in gaps:
+                    err(path, f"{fit_where}.Gaps: '{gap}' is given twice in this front")
+                gaps.add(gap)
+            extra = set(fit) - {"Role", "Gaps"}
+            if extra:
+                err(path, f"{fit_where}: unknown field(s) {sorted(extra)}")
+    if payload.get("DefaultFront") not in names:
+        err(path, f"DefaultFront: '{payload.get('DefaultFront')}' must name a listed front")
+
+
+ROUTE_RUNNING_FIELDS = ("PressRadius", "ReleaseBaseWinChance", "ReleaseRatingWeight", "ReleaseMinWinChance",
+                        "ReleaseMaxWinChance", "DelayShare", "DelaySeconds", "RerouteOffset", "RerouteDelaySeconds",
+                        "BreakMinAngleDegrees", "MaxBreakRounding", "BreakSeparationBase", "BreakSeparationPerAgility",
+                        "FakeSellSeconds", "BiteRadius", "BiteBaseChance", "BiteAgilityWeight", "BiteAwarenessWeight",
+                        "BiteMinChance", "BiteMaxChance", "BiteFreezeSeconds", "ManReadRadius")
+ROUTE_RUNNING_CHANCES = ("ReleaseBaseWinChance", "ReleaseMinWinChance", "ReleaseMaxWinChance", "DelayShare",
+                         "BiteBaseChance", "BiteMinChance", "BiteMaxChance")
+
+
+def validate_route_running(path, payload):
+    """FRouteRunningTuningRow (Data/route_running.json, Epic 68)."""
+    for field in ROUTE_RUNNING_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ROUTE_RUNNING_CHANCES:
+        value = payload.get(field)
+        if is_number(value) and value > 1:
+            err(path, f"{field}: {value} is a chance, at most 1")
+    for low, high in (("ReleaseMinWinChance", "ReleaseMaxWinChance"), ("BiteMinChance", "BiteMaxChance")):
+        if is_number(payload.get(low)) and is_number(payload.get(high)) and payload[low] > payload[high]:
+            err(path, f"{low} must not exceed {high}")
+    if is_number(payload.get("BreakMinAngleDegrees")) and payload["BreakMinAngleDegrees"] > 180:
+        err(path, "BreakMinAngleDegrees: at most 180")
+    extra = set(payload) - set(ROUTE_RUNNING_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FRouteRunningTuningRow exactly")
+
+
+ROUTE_FIELDS = {"RouteId", "Waypoints", "OptionReadWaypoint", "VsManBranch", "VsZoneBranch"}
+ROUTE_WAYPOINT_FIELDS = {"Offset", "TimingSeconds", "bFake"}
+
+
+def validate_routes(path, payload):
+    """FPSRoute library (Data/sample_routes.json): waypoints, timing, fakes, option branches (Epic 68)."""
+    routes = payload.get("Routes")
+    if not isinstance(routes, list):
+        err(path, "'Routes' must be an array")
+        return
+    by_id = {}
+    for idx, route in enumerate(routes):
+        where = f"Routes[{idx}]"
+        if not isinstance(route, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        route_id = route.get("RouteId")
+        if not isinstance(route_id, str) or not route_id or route_id in by_id:
+            err(path, f"{where}.RouteId: empty or used twice")
+        by_id[route_id] = route
+        extra = set(route) - ROUTE_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSRoute exactly")
+        waypoints = route.get("Waypoints")
+        if not isinstance(waypoints, list) or not waypoints:
+            err(path, f"{where}.Waypoints: must be a non-empty array")
+            continue
+        last_time = None
+        for widx, waypoint in enumerate(waypoints):
+            wwhere = f"{where}.Waypoints[{widx}]"
+            if not isinstance(waypoint, dict):
+                err(path, f"{wwhere}: must be an object")
+                continue
+            extra = set(waypoint) - ROUTE_WAYPOINT_FIELDS
+            if extra:
+                err(path, f"{wwhere}: unknown field(s) {sorted(extra)}")
+            offset = waypoint.get("Offset")
+            if not isinstance(offset, dict) or not all(is_number(offset.get(axis)) for axis in ("X", "Y", "Z")):
+                err(path, f"{wwhere}.Offset: needs numeric X, Y and Z")
+            timing = waypoint.get("TimingSeconds")
+            if not is_number(timing) or timing < 0:
+                err(path, f"{wwhere}.TimingSeconds: '{timing}' must be a number, 0 or more")
+            elif last_time is not None and timing < last_time:
+                err(path, f"{wwhere}.TimingSeconds: earlier than the waypoint before")
+            else:
+                last_time = timing
+            fake = waypoint.get("bFake", False)
+            if not isinstance(fake, bool):
+                err(path, f"{wwhere}.bFake: must be true or false")
+            elif fake and widx == len(waypoints) - 1:
+                err(path, f"{wwhere}.bFake: the last waypoint can't be a fake")
+        read = route.get("OptionReadWaypoint", -1)
+        if not isinstance(read, int) or isinstance(read, bool) or read < -1 or read >= len(waypoints):
+            err(path, f"{where}.OptionReadWaypoint: '{read}' must be -1 or a waypoint index")
+    for idx, route in enumerate(routes):
+        if not isinstance(route, dict) or route.get("OptionReadWaypoint", -1) in (-1, None):
+            continue
+        for field in ("VsManBranch", "VsZoneBranch"):
+            branch = by_id.get(route.get(field))
+            if branch is None:
+                err(path, f"Routes[{idx}].{field}: '{route.get(field)}' is not a route here")
+            elif branch.get("OptionReadWaypoint", -1) not in (-1, None):
+                err(path, f"Routes[{idx}].{field}: '{route.get(field)}' is itself an option route")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -1168,10 +1463,18 @@ def main():
             validate_platform_tiers(path, payload)
         if isinstance(payload, dict) and "SlotActions" in payload:
             validate_passing_input(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "FrameTimeBucketMs" in payload:
+            validate_session_telemetry(path, payload)
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "KeyframeEvents" in payload:
+            validate_telemetry_sampling(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
+        if isinstance(payload, dict) and "PressRadius" in payload:
+            validate_route_running(path, payload)
+        if isinstance(payload, dict) and "Routes" in payload:
+            validate_routes(path, payload)
         if isinstance(payload, dict) and "HotRouteSets" in payload:
             validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
         if isinstance(payload, dict) and "MaxQueued" in payload:
@@ -1184,6 +1487,8 @@ def main():
             validate_rush_moves(path, payload)
         if isinstance(payload, dict) and "Settings" in payload and "Categories" in payload:
             validate_settings_catalog(path, payload)
+        if isinstance(payload, dict) and "Fronts" in payload:
+            validate_run_fits(path, payload)
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

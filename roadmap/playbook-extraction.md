@@ -14,16 +14,21 @@ so CI stays offline-safe. Core 16's play-definition schema does not exist yet: E
 drafts a provisional schema, and whichever of (Epic 132, Core 16 story 1) lands first is
 authoritative — the other conforms. Do not hard-block extraction behind Phase 2.
 
+**Gate status (2026-10-10):** not cleared. The source refuses automated access (HTTP 403 from its
+Cloudflare edge, `robots.txt` included), and its terms couldn't be read. Epics 133 and 134 stay
+blocked until the owner records a decision in `tools/playbook_scraper/COMPLIANCE.md`: re-target
+to manual authoring, or get permission first.
+
 ### Epic 132: Compliance Gate & Extraction Design
 
 **Size/Mode:** S / code
 **Goal:** A written go/no-go on scraping the source plus the full extraction design — no fetch code before this lands.
 **Depends on:** —
 
-- [ ] Compliance review: fetch and archive `robots.txt` + terms of use of madden-school.com; written go/no-go finding with the constraints to honor (crawl-delay, disallowed paths) in `tools/playbook_scraper/COMPLIANCE.md` — on a no-go, Epics 133/134 re-target an allowed source or manual authoring and this track's scope note is updated
-- [ ] Site recon: URL structure map (playbook index → team playbook → formation → play pages) and extractable fields, derived from a handful of manually fetched sample pages committed as test fixtures
-- [ ] Extraction design doc: rate limit (≥5–10 s/request, single-threaded, identifying User-Agent), raw-HTML cache layout, checkpoint/resume state format, batch-size policy
-- [ ] Provisional play schema draft `Data/playbooks/SCHEMA.md` (formation, play name, concept family, personnel, per-position assignments; **no team field**) — co-designed with Core 16's play-definition story: whichever lands first is authoritative
+- [ ] Compliance review: fetch and archive `robots.txt` + terms of use of madden-school.com; written go/no-go finding with the constraints to honor (crawl-delay, disallowed paths) in `tools/playbook_scraper/COMPLIANCE.md` — on a no-go, Epics 133/134 re-target an allowed source or manual authoring and this track's scope note is updated — *finding written (2026-10-10): the site's Cloudflare edge answers 403 to automated clients, `robots.txt` included, so nothing could be archived; **not cleared**, and the repo owner must choose between re-targeting to manual authoring and seeking permission (see COMPLIANCE.md, "Decision needed")*
+- [ ] Site recon: URL structure map (playbook index → team playbook → formation → play pages) and extractable fields, derived from a handful of manually fetched sample pages committed as test fixtures — *blocked: no page can be fetched (403), and no page content may be committed without clearance*
+- [x] Extraction design doc: rate limit (≥5–10 s/request, single-threaded, identifying User-Agent), raw-HTML cache layout, checkpoint/resume state format, batch-size policy — *`tools/playbook_scraper/DESIGN.md`: 8 s default and 5 s floor (or Crawl-delay), stop on 401/403/challenge, URL-hash cache that never refetches, crash-safe `state.json`, 25 pages per run with a 200-page daily cap, and a first batch only by a person's call; source-agnostic so it serves manual authoring too*
+- [x] Provisional play schema draft `Data/playbooks/SCHEMA.md` (formation, play name, concept family, personnel, per-position assignments; **no team field**) — co-designed with Core 16's play-definition story: whichever lands first is authoritative — *Core 16 landed first, so the file is `FPSPlayDefinition` plus an `Extraction` block (concept family, personnel package, source, licence) that the loader ignores*
 
 ### Epic 133: Rate-Limited Resumable Scraper
 
