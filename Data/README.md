@@ -93,6 +93,7 @@ every CI build.
 | `special_teams.json` | `FPSSpecialTeamsTuning` (single object: kickoff, punt, field-goal, block, return, fake and AI fields) | `UPSDataIngestion::LoadSpecialTeamsTuningFromJson`, via `UPSSpecialTeamsModel` (owned by `UPSPlaySimulation`) and `UPSSpecialTeamsAI` (owned by `UPSCoachingAI`) |
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
 | `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
+| `draft.json` | `FPSDraftTuning` (single object: prospect uncertainty, `CombineDrills`, scouting, the CPU's board, the rookie scale) | `UPSDataIngestion::LoadDraftTuningFromJson`, via `UPSDraft` |
 | `training.json` | `FPSTrainingTuning` (single object: allocation, development, funding, gameplan `FocusAreas`, fatigue, `PracticeInjury`, recommendation fields) | `UPSDataIngestion::LoadTrainingTuningFromJson`, via `UPSWeeklyPreparation` |
 | `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
 | `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
@@ -1021,6 +1022,31 @@ team's practice and gameplan live in the franchise save (`UPSFranchiseSaveGame::
 `tools/validate_data.py` checks it: fractions at most 1, the bonus and swing below 1, the injury
 tuning's ranges, each focus area's roles, rating weights and categories (each one
 `opponent_model.json` tracks on its side).
+
+## Draft schema (`FPSDraftTuning`)
+
+Single object (Epic 86), read by `UPSDraft`. The class itself comes from `league_generator.json`'s
+draft-class mode (Epic 122); the class, every team's scouting and the picks live in the franchise
+save (`UPSFranchiseSaveGame::Draft`). Grades are the contract market's overall rating (0-100);
+money is in thousands of dollars.
+- `NumRounds`.
+- Prospects: the public projection is the true grade plus a hidden error drawn with
+  `PublicUncertainty` (`CombineCertainty` times it for a combine attendee); `BoomBustChance` of a
+  class is off by a further `BoomBustSwing` either way. `ProDayShare` skip the combine: their
+  measurables are seen only by teams that scout them.
+- `CombineDrills[]`: `DrillId`, `Label`, `Attribute` (the rating it reads), result `Base` +
+  `PerPoint` x the true rating + a draw of `Noise`.
+- Scouting: `PointsPerSeason` at average scouting funding (x `FundingFloor` + (1 - `FundingFloor`) x
+  the owner economy's index, at most `MaxFundingMultiplier`); a report costs `ReportCost` and reads
+  the true grade within `ReportNoise`, or `MisleadChance` of the time a further `MisleadSwing` off; a
+  range is the estimate +/- `RangeSigmas` of its uncertainty.
+- The CPU: scouts the `AIScoutTargets` best-projected; a pick's value is its estimate plus
+  `NeedWeight` x its need at his role (`contracts.json`'s `RosterTarget`).
+- Rookies: `RookieYears`; `FirstPickSalary` falling to the minimum salary as
+  (1 - t)^`RookieScaleExponent`; guarantees from `FirstPickGuarantee` to `LastPickGuarantee`.
+
+`tools/validate_data.py` checks it: positive uncertainties and costs, 0-1 shares and guarantees,
+each drill reading a rating, `RookieYears` within `contracts.json`'s `MaxContractYears`.
 
 ## Owner economics schema (`FPSEconomyTuning`)
 

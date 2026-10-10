@@ -1,0 +1,30 @@
+{
+    "NumRounds": 7,
+    "PublicUncertainty": 8.0,
+    "CombineCertainty": 0.6,
+    "ProDayShare": 0.15,
+    "BoomBustChance": 0.1,
+    "BoomBustSwing": 12.0,
+    "CombineDrills": [
+        { "DrillId": "FortyYardDash", "Label": "40-yard dash (s)", "Attribute": "Speed", "Base": 5.6, "PerPoint": -0.013, "Noise": 0.03 },
+        { "DrillId": "TenYardSplit", "Label": "10-yard split (s)", "Attribute": "Acceleration", "Base": 2.0, "PerPoint": -0.0055, "Noise": 0.02 },
+        { "DrillId": "ThreeCone", "Label": "3-cone drill (s)", "Attribute": "Agility", "Base": 8.3, "PerPoint": -0.016, "Noise": 0.05 },
+        { "DrillId": "BenchPress", "Label": "225 lb bench (reps)", "Attribute": "Strength", "Base": -10.0, "PerPoint": 0.45, "Noise": 1.5 },
+        { "DrillId": "BoardInterview", "Label": "Board interview (0-50)", "Attribute": "Awareness", "Base": -5.0, "PerPoint": 0.55, "Noise": 3.0 }
+    ],
+    "PointsPerSeason": 60.0,
+    "ReportCost": 1.0,
+    "ReportNoise": 5.0,
+    "MisleadChance": 0.1,
+    "MisleadSwing": 10.0,
+    "FundingFloor": 0.5,
+    "MaxFundingMultiplier": 1.5,
+    "RangeSigmas": 1.0,
+    "AIScoutTargets": 20,
+    "NeedWeight": 6.0,
+    "RookieYears": 4,
+    "FirstPickSalary": 9000,
+    "RookieScaleExponent": 2.0,
+    "FirstPickGuarantee": 1.0,
+    "LastPickGuarantee": 0.1
+}

@@ -82,8 +82,11 @@ pools and the real-person NameBlocklist, which every roster's DisplayNames are c
 category one of its side's play categories; "Concepts" + "Coverages" files against
 FPSPlaybookGeneratorTuning (Epic 121): its concepts' routes in the route library and formations in
 personnel packages, each front in run_fits.json, each coverage shell in coverage_matchups.json and
-each flavor's scheme in coaching_staffs.json. Teams, the league config, the playbook, player rating
-ranges and every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+each flavor's scheme in coaching_staffs.json; "CombineDrills" files against FPSDraftTuning (Epic
+86): positive uncertainties and costs, 0-1 shares and guarantees, each drill reading a rating, a
+rookie deal no longer than contracts.json's MaxContractYears. Teams, the league config, the
+playbook, player rating ranges and every reference between files are tools/content_contracts.py's
+(Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -4477,6 +4480,85 @@ def validate_play_art(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPlayArtStyle exactly")
 
 
+DRAFT_POSITIVE = ("PublicUncertainty", "ReportNoise", "ReportCost", "RangeSigmas", "RookieScaleExponent")
+DRAFT_NON_NEGATIVE = ("BoomBustSwing", "MisleadSwing", "PointsPerSeason", "NeedWeight", "MaxFundingMultiplier")
+DRAFT_FRACTIONS = ("CombineCertainty", "ProDayShare", "BoomBustChance", "MisleadChance", "FundingFloor",
+                   "FirstPickGuarantee", "LastPickGuarantee")
+DRAFT_COUNTS = {"NumRounds": 1, "AIScoutTargets": 1, "RookieYears": 1, "FirstPickSalary": 0}
+DRAFT_DRILL_FIELDS = {"DrillId", "Label", "Attribute", "Base", "PerPoint", "Noise"}
+DRAFT_DRILL_RATINGS = {"Speed", "Agility", "Strength", "Acceleration", "Awareness", "Stamina"}
+
+
+def load_contract_max_years():
+    """contracts.json's MaxContractYears, or None when it is missing or broken (its own checks
+    report that)."""
+    try:
+        tuning = json.loads((DATA_DIR / "contracts.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    years = tuning.get("MaxContractYears") if isinstance(tuning, dict) else None
+    return years if isinstance(years, int) and not isinstance(years, bool) else None
+
+
+def validate_draft(path, payload, max_contract_years):
+    """FPSDraftTuning (Data/draft.json, Epic 86); mirrors UPSDraft::ValidateTuning, and holds the
+    rookie deal to contracts.json's MaxContractYears."""
+    for field in DRAFT_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in DRAFT_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in DRAFT_FRACTIONS:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    if payload.get("CombineCertainty") == 0:
+        err(path, "CombineCertainty: must be above 0")
+    if is_number(payload.get("MaxFundingMultiplier")) and payload["MaxFundingMultiplier"] < 1:
+        err(path, "MaxFundingMultiplier: must be at least 1")
+    for field, floor in DRAFT_COUNTS.items():
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < floor:
+            err(path, f"{field}: '{value}' must be a whole number, {floor} or more")
+    years = payload.get("RookieYears")
+    if isinstance(years, int) and max_contract_years is not None and years > max_contract_years:
+        err(path, f"RookieYears: {years} is longer than contracts.json's MaxContractYears ({max_contract_years})")
+    known = set(DRAFT_POSITIVE) | set(DRAFT_NON_NEGATIVE) | set(DRAFT_FRACTIONS) | set(DRAFT_COUNTS) | {"CombineDrills"}
+    if set(payload) - known:
+        err(path, f"unknown field(s) {sorted(set(payload) - known)} - names must match FPSDraftTuning exactly")
+
+    drills = payload.get("CombineDrills")
+    if not isinstance(drills, list):
+        err(path, "'CombineDrills' must be an array")
+        return
+    seen = set()
+    for idx, drill in enumerate(drills):
+        where = f"CombineDrills[{idx}]"
+        if not isinstance(drill, dict):
+            err(path, f"{where}: not an object")
+            continue
+        drill_id = drill.get("DrillId")
+        if not isinstance(drill_id, str) or not drill_id or drill_id in seen:
+            err(path, f"{where}.DrillId: empty or duplicate '{drill_id}'")
+        seen.add(drill_id)
+        if drill.get("Attribute") not in DRAFT_DRILL_RATINGS:
+            err(path, f"{where}.Attribute: '{drill.get('Attribute')}' must be one of {sorted(DRAFT_DRILL_RATINGS)}")
+        for field in ("Base", "PerPoint", "Noise"):
+            if not is_number(drill.get(field)):
+                err(path, f"{where}.{field}: must be a number")
+        if is_number(drill.get("PerPoint")) and drill["PerPoint"] == 0:
+            err(path, f"{where}.PerPoint: must not be 0 (the drill would read nothing)")
+        if is_number(drill.get("Noise")) and drill["Noise"] < 0:
+            err(path, f"{where}.Noise: must be 0 or more")
+        if not isinstance(drill.get("Label", ""), str):
+            err(path, f"{where}.Label: must be a string")
+        if set(drill) - DRAFT_DRILL_FIELDS:
+            err(path, f"{where}: unknown field(s) {sorted(set(drill) - DRAFT_DRILL_FIELDS)} - names must match FPSCombineDrill exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -4735,6 +4817,8 @@ def main(root=None):
             validate_photo_mode(path, payload)
         if isinstance(payload, dict) and "ReadColors" in payload:
             validate_play_art(path, payload)
+        if isinstance(payload, dict) and "CombineDrills" in payload:
+            validate_draft(path, payload, load_contract_max_years())
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()

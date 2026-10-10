@@ -11,8 +11,10 @@
 #include "PSFranchiseFlow.generated.h"
 
 class UPSContractManager;
+class UPSDraft;
 class UPSFranchiseSeason;
 class UPSFreeAgency;
+class UPSLeagueGenerator;
 class UPSLockerRoom;
 class UPSOwnerEconomy;
 class UPSMatchSetup;
@@ -103,6 +105,28 @@ public:
      *  season's end heals everyone. */
     UFUNCTION(BlueprintCallable, Category = "Franchise")
     void SetPreparation(UPSWeeklyPreparation* InPreparation) { Preparation = InPreparation; }
+
+    /** The league's draft (Epic 86): PrepareDraft makes the coming class to scout through the
+     *  season; BeginDraft opens it once the season is over. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetDraft(UPSDraft* InDraft) { Draft = InDraft; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSDraft* GetDraft() const { return Draft; }
+
+    /** The coming draft's class from Generator's draft-class mode (Epic 122) with Seed: the next
+     *  league year's (this one's once the season is over), its names new to the league's rostered
+     *  players. Every team with a roster joins with its scouting funding (the owner economy's
+     *  index, Epic 95), the player's team as the player's. False without a draft, a generator or
+     *  rosters. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    bool PrepareDraft(UPSLeagueGenerator* Generator, int32 Seed);
+
+    /** Once the season is over, the draft opens: the final standings' worst team picks first, the
+     *  contract manager signs the rookies, free agency takes the undrafted. False before the
+     *  season's end or without a prepared class. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    bool BeginDraft();
 
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSWeeklyPreparation* GetPreparation() const { return Preparation; }
@@ -226,6 +250,9 @@ private:
 
     UPROPERTY(Transient)
     TArray<FPSTrainingEvent> TrainingEvents;
+
+    UPROPERTY(Transient)
+    UPSDraft* Draft = nullptr;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;

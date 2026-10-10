@@ -9,6 +9,7 @@
 #include "PSStatsData.h"
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
+#include "PSDraftData.h"
 #include "PSTrainingData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
@@ -74,4 +75,9 @@ public:
      *  UPSWeeklyPreparation). Empty in a save from before weekly preparation. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSTrainingState Training;
+
+    /** The coming (or last) draft: its class, every team's scouting and the picks (Epic 86;
+     *  UPSDraft). No prospects in a save from before the draft. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSDraftState Draft;
 };
