@@ -106,8 +106,9 @@ public:
     /** The route library plays resolve against. */
     const UDataTable* GetRouteLibrary();
 
-    /** Menu options for the play-call screens (Epic 101's screen stack): one per formation,
-     *  opening PlaysScreenId with the formation as payload ... */
+    /** Menu options for the play-call screens (Epic 101's screen stack), the suggested play and
+     *  its formation highlighted while that assist is on (Epic 84): one per formation, opening
+     *  PlaysScreenId with the formation as payload ... */
     TArray<FPSMenuOptionDef> BuildFormationOptions(bool bOffense, FName PlaysScreenId);
 
     /** ... and one per play in Formation, calling it. */
@@ -260,6 +261,10 @@ private:
     void SaveFavorites();
     UPSSaveSubsystem* GetSaveSubsystem() const;
     FPSMenuOptionDef MakePlayOption(const FPSPlayDefinition& Play, const FString& Label);
+
+    /** The suggested-play assist (Epic 84): while it is on, the coaching AI's top play for the
+     *  side, and its formation, get the highlight among Options. */
+    void HighlightSuggestion(bool bOffense, TArray<FPSMenuOptionDef>& Options);
     void CallForCpu(bool bOffense);
     /** A human offense in a rerun tempo calls its last play again; true when it did. */
     bool RerunLastHumanCall();

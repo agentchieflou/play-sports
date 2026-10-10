@@ -12,6 +12,7 @@
 class APSOffenseController;
 class APSPlayerPawn;
 class UDataTable;
+class UPSCoverageMatchupSubsystem;
 
 /**
  * UPSRouteRunnerComponent runs an AI receiver's route the way the route-running model
@@ -25,6 +26,11 @@ class UDataTable;
  *    Awareness against the receiver's Agility). A defender who bit freezes.
  *  - Option routes: at the read point he reads man or zone and runs the branch for it, away
  *    from a man defender's leverage.
+ *
+ * The coverage he runs against is the coverage matchup engine's (UPSCoverageMatchupSubsystem,
+ * Epic 69): the defender it lined up to press him contests his release, his leverage moves the
+ * bite chance and the option branch, and each break is announced (RouteRunning, Break) for the
+ * coverage to answer.
  *
  * UPSPlayOrchestrator hands him the plan (SetRoutePlan) with the route; the plan only applies
  * while the controller still runs those waypoints, so a route replaced mid-play (a scramble
@@ -52,14 +58,14 @@ public:
     /** Replaces the tuning (headless tests). */
     void SetTuning(const FRouteRunningTuningRow& InTuning);
 
-    /** Puts the receiver's style into this play's tuning (Epic 79): the tuning as loaded, scaled
-     *  by Data/player_dna.json's RouteRunning bindings for Receiver's DNA. SetRoutePlan applies
-     *  the controlled pawn's. */
-    void ApplyPlayerDNA(const FPlayerAttributes& Receiver);
+    /** This play's tuning for Receiver: the tuning as loaded, scaled by Data/player_dna.json's
+     *  RouteRunning bindings for his style (Epic 79), then by the difficulty tier when he plays
+     *  for the CPU (Epic 84). SetRoutePlan applies the controlled pawn's. */
+    void ApplyPlayTuning(const APSPlayerPawn* Receiver);
 
     /** This play's route: its definition, the world waypoints it resolved to (already the
      *  controller's), the side's mirror (+1 right of the ball), the library its option branches
-     *  come from, and the seed of this receiver's rolls. He runs it in his style (ApplyPlayerDNA). */
+     *  come from, and the seed of this receiver's rolls. He runs it in his style, at the CPU's difficulty (ApplyPlayTuning). */
     void SetRoutePlan(const FPSRoute& Route, const TArray<FVector>& WorldWaypoints, float InMirror, const UDataTable* RouteLibrary, int32 Seed);
 
     /** No pattern this play: a block, a spot, a scramble drill. */
@@ -98,9 +104,10 @@ public:
 private:
     bool IsPlanFor(const APSOffenseController* Controller) const;
     void ContestRelease(APSPlayerPawn* Self, APSOffenseController* Controller, const TArray<APSPlayerPawn*>& Pawns, float TimeSinceSnap);
-    void SellFake(APSPlayerPawn* Self, const TArray<APSPlayerPawn*>& Pawns, float TimeSinceSnap);
+    void SellFake(APSPlayerPawn* Self, const TArray<APSPlayerPawn*>& Pawns, float TimeSinceSnap, const FVector& FakeDirection);
     void ReadOption(APSPlayerPawn* Self, APSOffenseController* Controller, const TArray<APSPlayerPawn*>& Pawns);
-    void Publish(EPSRouteEventKind Kind, const APSPlayerPawn* Self, const APSPlayerPawn* Defender, FName Outcome, float Seconds);
+    void Publish(EPSRouteEventKind Kind, const APSPlayerPawn* Self, const APSPlayerPawn* Defender, FName Outcome, float Seconds, const FVector& Direction = FVector::ZeroVector);
+    UPSCoverageMatchupSubsystem* GetMatchups() const;
 
     UPROPERTY(Transient)
     FRouteRunningTuningRow Tuning;

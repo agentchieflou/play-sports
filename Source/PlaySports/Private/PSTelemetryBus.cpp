@@ -1,4 +1,5 @@
 #include "PSTelemetryBus.h"
+#include "PSPerfBudget.h"
 #include "JsonObjectConverter.h"
 #include "Engine/World.h"
 
@@ -50,6 +51,8 @@ bool UPSTelemetryBus::FindLatestEventOfType(EPSTelemetryEventType EventType, FPS
 
 void UPSTelemetryBus::RecordHistory(EPSTelemetryEventType EventType, const FString& Description, const FString& JsonPayload)
 {
+    PS_PERF_SCOPE(Telemetry);
+    PSPerf::AddCount(EPSPerfCounter::BusEvents);
     FPSTelemetryEvent Event;
     Event.EventType = EventType;
     Event.Timestamp = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
@@ -560,4 +563,50 @@ void UPSTelemetryBus::PublishRecordBroken(const FPSTelemetryRecordBrokenEvent& E
         OnRecordBroken.Broadcast(Event);
     }
     OnRecordBrokenMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishCoverage(const FPSTelemetryCoverageEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryCoverageEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Coverage: %s %s on %s: %s"),
+        *UEnum::GetValueAsString(Event.Kind), *Event.DefenderName, *Event.ReceiverName, *Event.Outcome.ToString());
+    RecordHistory(EPSTelemetryEventType::Coverage, Description, JsonPayload);
+
+    if (OnCoverage.IsBound())
+    {
+        OnCoverage.Broadcast(Event);
+    }
+    OnCoverageMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishLooseBall(const FPSTelemetryLooseBallEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryLooseBallEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("LooseBall: %s %s %s"), *UEnum::GetValueAsString(Event.Kind), *Event.KickType, *Event.PlayerName);
+    RecordHistory(EPSTelemetryEventType::LooseBall, Description, JsonPayload);
+
+    if (OnLooseBall.IsBound())
+    {
+        OnLooseBall.Broadcast(Event);
+    }
+    OnLooseBallMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishDeception(const FPSTelemetryDeceptionEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryDeceptionEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Deception: %s %s %s: %s"), *UEnum::GetValueAsString(Event.Kind), *Event.PlayerName, *Event.OtherName, *Event.Outcome.ToString());
+    RecordHistory(EPSTelemetryEventType::Deception, Description, JsonPayload);
+
+    if (OnDeception.IsBound())
+    {
+        OnDeception.Broadcast(Event);
+    }
+    OnDeceptionMC.Broadcast(Event);
 }

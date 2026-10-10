@@ -12,6 +12,9 @@ class APSDefenseController;
 class APSPlayerPawn;
 class UPSAIFieldSnapshot;
 class UPSAIDecisionLog;
+class UPSCoverageMatchupSubsystem;
+class UPSLooseBallSubsystem;
+class UPSDeceptionSubsystem;
 
 /** What a defensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -37,7 +40,9 @@ enum class EPSDefenderAction : uint8
     Return,
     /** Run fit on a run read: filling his gap (UPSDefenderGapSubsystem, Epic 81) until the
      *  carrier comes to it. */
-    Fit
+    Fit,
+    /** Going for a blocked kick's loose ball (UPSLooseBallSubsystem, Epic 17.4). */
+    LooseBall
 };
 
 /** Defensive AI tuning (Data/defense_ai_tuning.json; Architecture rule 4). Distances in cm. */
@@ -103,6 +108,14 @@ struct FDefenderAITuningRow : public FTableRowBase
  * stay in it -- and attacks when the carrier comes to it. Awareness sets how fast each read
  * happens, and how long a pump fake freezes coverage.
  *
+ * How coverage is played -- leverage, press, zone carries and hand-offs, safety help -- is the
+ * coverage matchup engine's (UPSCoverageMatchupSubsystem, Epic 69): once it has a matchup or a
+ * zone for this defender it gives the spot to play, and a contest it puts him out of phase in
+ * (a beaten jam, a break away from his leverage) freezes him like a bite. A blocked kick's loose
+ * ball near him (UPSLooseBallSubsystem, Epic 17.4) comes before all of it: he goes for the ball.
+ * Deception football (UPSDeceptionSubsystem, Epic 72): a play-action fake he bites on freezes
+ * him, and an option job, once the defense has seen the mesh, puts him on his man.
+ *
  * It is the defensive twin of UPSSkillPlayerAIComponent and works the same way: it moves the
  * pawn with AddMovementInput (so FMovementTuningRow applies), takes the assignment from
  * APSDefenseController (set by UPSPlayOrchestrator at the snap), hears the snap and the throw
@@ -122,15 +135,16 @@ public:
     static FString GetDefaultTuningPath();
 
     /** The tuning in use, loaded from the default path on first use: as loaded, with this play's
-     *  defender's style applied (ApplyPlayerDNA). */
+     *  defender's style and difficulty applied (ApplyPlayTuning). */
     const FDefenderAITuningRow& GetTuning();
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
 
-    /** Puts Self's style into this play's tuning (Epic 79): the tuning as loaded, scaled by
-     *  Data/player_dna.json's DefenderAI bindings for his DNA (UPSPlayerDNASubsystem). Called as
-     *  he takes up each play's assignment. */
-    void ApplyPlayerDNA(const APSPlayerPawn* Self);
+    /** This play's tuning for Self: the tuning as loaded, scaled by Data/player_dna.json's
+     *  DefenderAI bindings for his style (UPSPlayerDNASubsystem, Epic 79), then by the difficulty
+     *  tier when he plays for the CPU (UPSDifficultySubsystem, Epic 84). Called as he takes up
+     *  each play's assignment. */
+    void ApplyPlayTuning(const APSPlayerPawn* Self);
 
     /** Listens for the snap, throws, pump fakes and the end of the play. Idempotent. */
     void BindToBus();
@@ -185,6 +199,8 @@ private:
     void HandlePumpFake(const FPSTelemetryPumpFakeEvent& Event);
     void HandleRouteRunning(const FPSTelemetryRouteEvent& Event);
     void HandleBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event);
+    void HandleCoverage(const FPSTelemetryCoverageEvent& Event);
+    void HandleDeception(const FPSTelemetryDeceptionEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
     void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
 
@@ -214,6 +230,15 @@ private:
 
     /** The field as the AI reads it this frame, shared by every AI player (Epic 17.5). */
     UPSAIFieldSnapshot* GetFieldSnapshot() const;
+
+    /** How coverage is played (Epic 69). */
+    UPSCoverageMatchupSubsystem* GetMatchups() const;
+
+    /** A blocked kick's loose ball (Epic 17.4). */
+    UPSLooseBallSubsystem* GetLooseBall() const;
+
+    /** Play-action bites and option jobs (Epic 72). */
+    UPSDeceptionSubsystem* GetDeception() const;
 
     UPROPERTY(Transient)
     FDefenderAITuningRow Tuning;

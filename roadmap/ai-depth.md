@@ -136,9 +136,22 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** Skill levels and assist options make the game playable from novice to sicko without fake stat-cheating feel.
 **Depends on:** 78, 79
 
-- [ ] Difficulty tiers built from AI capability dials (recognition speed, adaptation, execution variance) — not stat inflation
-- [ ] Assist options: pass-lead help, auto-slide protection, suggested play highlighting
-- [ ] Rubber-band policy: explicitly none, or transparent and off-by-default
+- [x] Difficulty tiers built from AI capability dials (recognition speed, adaptation, execution variance) — not stat inflation
+  *As built: `Data/difficulty.json` holds four tiers (Rookie, Pro, All-Pro, Legend), the
+  `Difficulty` setting's choices. `UPSDifficultySubsystem` gives the CPU's players the tier as
+  each play starts, after their style (Epic 79): recognition (how fast defenders react, how far
+  the quarterback anticipates and how open he needs a man), the opponent model's adaptation dial
+  (Epic 78) and a passer's scatter. Ratings are never touched, and the human's own players play as
+  tuned. A world with no player settings has no tier, so every AI test runs the AI as tuned.*
+- [x] Assist options: pass-lead help, auto-slide protection, suggested play highlighting
+  *As built: three Gameplay settings. Pass lead (on by default): the human's throws lead the
+  receiver; off, they go at him and the stick does the leading. Auto-slide (off by default): his
+  quarterback slides when a tackler closes on him past the line, by the CPU quarterback's slide
+  read. Suggested play (on by default): the coaching AI's top play and its formation are
+  highlighted on the play-call screens, in the player's color vision setting.*
+- [x] Rubber-band policy: explicitly none, or transparent and off-by-default
+  *As built: none. Nothing in the difficulty or the opponent model reads the score; a test pins
+  it at every tier, leading or trailing by four scores.*
 
 ### Epic 85: AI Observability & Debug Tooling
 
