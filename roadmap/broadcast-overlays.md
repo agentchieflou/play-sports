@@ -43,10 +43,10 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Floating letter badges (X, Y, A, B, RB, …) track above assigned players in world space.
 **Depends on:** 26
 
-- [ ] Screen-space badge widget anchored to pawn head position with distance-based scaling
-- [ ] Badge assignment from play data (receiver designations) and role fallback (RB, QB)
-- [ ] Occlusion/overlap handling so badges never collide or block the ball
-- [ ] Color semantics (eligible receivers vs. backs vs. defense) as a data-driven style table
+- [x] Screen-space badge widget anchored to pawn head position with distance-based scaling *(`UPSOverlayBadgeWidget`, shown by `APSHUD`, draws what `UPSOverlayBadgeComponent` on the player controller lays out each frame for the player's camera: above each head, scaled by distance between `MinScale` and `MaxScale`. Look polish and glyph icons are an editor pass, `Specs/Position_Badges_Spec.md`)*
+- [x] Badge assignment from play data (receiver designations) and role fallback (RB, QB) *(the designations are the human QB's receiver slots, left to right as the play's formation lines them up (`UPSPassingComponent`); each wears its slot button's glyph on the device in use, "X", "Y", "B", "RB", "A" on a gamepad, so a remapped key shows. Everyone else wears his role's label. A per-play letter field is Epic 35's annotation schema)*
+- [x] Occlusion/overlap handling so badges never collide or block the ball *(pass buttons placed first, then nearer before farther; a badge in the way of another or of the ball moves up a step at a time, and one with no room isn't drawn)*
+- [x] Color semantics (eligible receivers vs. backs vs. defense) as a data-driven style table *(`Data/overlay_badges.json`: per group (receivers, backs, QB, line, defense) colors, when they show before the snap and in play, and whether a Minimal tier keeps them)*
 
 ### Epic 29: Personnel Package HUD Panels
 
@@ -132,9 +132,9 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Individual players can be visually emphasized — glow, outline, spotlight — for key-player callouts, mismatch alerts, and replay focus.
 **Depends on:** 26
 
-- [ ] Outline/glow post-process pass togglable per pawn
-- [ ] Emphasis API consumed by commentary (Track H), replay (Track B), and coaching tips
-- [ ] Spotlight/dim-others mode for isolation replays
+- [x] Outline/glow post-process pass togglable per pawn *(`UPSOverlayEmphasisSubsystem` marks a player's meshes for the custom-depth pass with his look's stencil value, and unmarks them, per pawn; `Config/DefaultEngine.ini` turns on the custom depth-stencil pass. The post-process material that draws outline and glow by stencil is the editor pass below, `Specs/Player_Emphasis_Spec.md`)*
+- [x] Emphasis API consumed by commentary (Track H), replay (Track B), and coaching tips *(`Emphasize(Pawn, Highlight / Mismatch / Focus, Source, Seconds)`, `ClearEmphasis`, `ClearSource`: the highest priority request on a player wins, timed ones run out, and at most `MaxEmphasized` are drawn. Commentary and a replay player don't exist yet; this is the door they call)*
+- [x] Spotlight/dim-others mode for isolation replays *(`Spotlight(Pawn, ...)`: a Focus that marks every other player with the dim stencil, unless he has a drawn look of his own; lifting it restores them)*
 - [ ] Editor pass: tune against night lighting so emphasis reads without blowing out
 
 ### Epic 37: Overlay Theming & Branding System

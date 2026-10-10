@@ -57,7 +57,7 @@ Also unblocked, not yet in a group (pick by the MVP tiers in `ROADMAP.md`):
   depth done).
 - **Tier 2:** done (89 coaching staffs, 19.5 personnel packages).
 - **Tier 3 / infra:** 24.1 gym map (editor; 24.2–24.5, 117 and 125 done).
-- **Overlay and camera code:** 30, 32, 33, 38, 39 and 40 are done.
+- **Overlay and camera code:** 28, 30, 32, 33, 38, 39 and 40 are done.
   With 26 done, its dependents open as their other dependencies land: 27, 28, 31, 32, 34, 36,
   38, 41, 49, 78, 82, 85, 92, 96, 115.
 - **Editor or mixed, waiting for an editor session:** 2.1–2.2, 22, 23.
@@ -127,7 +127,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "25":  {"track": "core", "mode": "code", "status": "partial", "depends_on": [], "scope": ["Plugins/Autonomix/**", "Plugins/AgenticLink/**", ".mcp.json", ".vscode/mcp.json"], "open_stories": ["25.1 Autonomix T3D injection", "25.2 Autonomix Python escape hatch", "25.4 register the server in .mcp.json and .vscode/mcp.json (documented in AGENTS.md; registration waits on the owner)", "25.6 agent smoke test over MCP"]},
     "26":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["C1", "3", "6"]},
     "27":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "16"]},
-    "28":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
+    "28":  {"track": "A", "mode": "mixed", "status": "done", "depends_on": ["26"]},
     "29":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["5", "19"]},
     "30":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["3"]},
     "31":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "27", "16"]},
@@ -135,7 +135,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "33":  {"track": "A", "mode": "code", "status": "done", "depends_on": ["5", "10", "12"]},
     "34":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26", "2", "10"]},
     "35":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["27", "31", "16"]},
-    "36":  {"track": "A", "mode": "mixed", "status": "open", "depends_on": ["26"]},
+    "36":  {"track": "A", "mode": "mixed", "status": "partial", "depends_on": ["26"], "open_stories": ["36.4 editor pass: tune against night lighting (needs an editor session)"]},
     "37":  {"track": "A", "mode": "code", "status": "open", "depends_on": ["28", "29", "33", "34"]},
     "38":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["4", "26"]},
     "39":  {"track": "B", "mode": "code", "status": "done", "depends_on": ["38"]},
@@ -178,7 +178,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "76":  {"track": "E", "mode": "code", "status": "done", "depends_on": ["12", "18"]},
     "77":  {"track": "E", "mode": "code", "status": "open", "depends_on": ["6", "49"]},
     "78":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["18", "26"]},
-    "79":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["14", "15", "19"]},
+    "79":  {"track": "F", "mode": "code", "status": "done", "depends_on": ["14", "15", "19"]},
     "80":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["15", "68", "72"]},
     "81":  {"track": "F", "mode": "code", "status": "partial", "depends_on": ["15", "9"], "open_stories": ["81.4 live gap-integrity visualization (needs Track A iconography and an editor session)"]},
     "82":  {"track": "F", "mode": "code", "status": "open", "depends_on": ["25", "26", "18"]},

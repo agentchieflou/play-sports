@@ -89,6 +89,8 @@ every CI build.
 | `control_handoff.json` | `FControlHandoffTuningRow` (single object) | `UPSDataIngestion::LoadControlHandoffTuningFromJson`, via `UPSControlHandoffComponent` |
 | `broadcast_overlay.json` | `FPSBroadcastOverlayTheme` (single object: colors, sizes, thresholds, `ChyronKinds`) | `UPSDataIngestion::LoadBroadcastOverlayThemeFromJson`, via `UPSOverlayBroadcastSubsystem` |
 | `ball_flight_overlay.json` | `FPSBallFlightStyle` (single object: colors, meshes, arc and ring sizes, goal posts, readout labels) | `UPSDataIngestion::LoadBallFlightStyleFromJson`, via `UPSOverlayBallFlightSubsystem` |
+| `overlay_badges.json` | `FPSOverlayBadgeStyle` (single object: `Groups`, `RoleLabels`, sizes and layout rules) | `UPSDataIngestion::LoadOverlayBadgeStyleFromJson`, via `UPSOverlayBadgeComponent` |
+| `player_emphasis.json` | `FPSEmphasisStyle` (single object: `Kinds`, `DimStencil`, `MaxEmphasized`) | `UPSDataIngestion::LoadEmphasisStyleFromJson`, via `UPSOverlayEmphasisSubsystem` |
 | `player_dna.json` | `FPSPlayerDNACatalog` (single object: `Axes`, `Bindings`, `RushMoveLeans`, `RushStyleWeight`, `TraitThreshold`) | `UPSDataIngestion::LoadPlayerDNACatalogFromJson`, via `UPSPlayerDNASubsystem` |
 | `opponent_model.json` | `FPSOpponentModelTuning` (single object: distance buckets, read and strength tuning, `Counters`) | `UPSDataIngestion::LoadOpponentModelTuningFromJson`, via `UPSOpponentModel` |
 
@@ -904,6 +906,49 @@ Track C's branding reskins the broadcast by swapping this file:
   (above 0).
 
 `UPSOverlayBroadcastSubsystem::ValidateTheme` and `tools/validate_data.py` check it.
+
+## Position badge schema (`FPSOverlayBadgeStyle`)
+
+Single object (Epic 28; the letters floating over players' heads, laid out by
+`UPSOverlayBadgeComponent` on the player controller and drawn by `UPSOverlayBadgeWidget`). While the
+human's quarterback can throw, his receiver slots wear the button that throws to them (the glyph of
+the slot's `PassTarget` action on the device in use, so a remapped key shows); everyone else wears
+his role's label.
+- `Groups[]`: exactly one each for `Receiver` (wide receivers, tight ends), `Back` (running backs),
+  `Quarterback`, `Line` (offensive line) and `Defense` (anyone on defense):
+  - `Color`, `TextColor` (`#RRGGBB`);
+  - `bPreSnap` (shown before the snap and after the whistle);
+  - `InPlay`: `Hidden`, `WhilePassing` (while the human's QB can still throw) or `Always`;
+  - `bEssential`: kept on a tier whose `OverlayDetail` is `Minimal` (the pass buttons).
+- `RoleLabels[]`: a `Label` for every `EPlayerRole` (`Role`), worn by players without a button.
+- `HeadClearance` (cm above the top of the capsule, 0 or more); `BadgeWidth`, `BadgeHeight` (pixels
+  at scale 1, above 0); `FontSize` (1 or more).
+- `ReferenceDistance` (cm from the camera drawn at scale 1, above 0), `MinScale` and `MaxScale`
+  (above 0, `MinScale` at most `MaxScale`).
+- Overlap rules: `BallClearance` (pixels kept clear around the ball each way, 0 or more),
+  `NudgeStep` (pixels a badge moves up per try, times its scale, above 0) and `MaxNudges` (tries
+  before a badge with no room isn't drawn, 0 or more). Pass buttons are placed first, then nearer
+  badges before farther.
+- `FadeInSeconds` (0 or more; a Full tier only) and `bBadgeControlledPlayer` (badge the human's own
+  player too; he already has the reticle).
+
+`UPSOverlayBadgeComponent::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Player emphasis schema (`FPSEmphasisStyle`)
+
+Single object (Epic 36; `UPSOverlayEmphasisSubsystem`, which commentary, replay and coaching tips
+ask to emphasize a player). It marks each emphasized player's meshes for the custom-depth pass with
+a stencil value; the emphasis post-process material draws the outline, glow or dimming for that
+value (`Specs/Player_Emphasis_Spec.md`).
+- `Kinds[]`: exactly one each for `Highlight` (a key-player callout), `Mismatch` (a mismatch alert)
+  and `Focus` (a replay's focus), with its `Stencil` (1-255) and `Priority` (of several requests on
+  one player the highest wins; under the budget the highest players are drawn first).
+- `DimStencil` (1-255): players dimmed by another's spotlight. All four stencils must differ.
+- `MaxEmphasized` (1 or more): players emphasized at once, since each costs custom-depth draws.
+  Dimmed players don't count.
+- `bSpotlightDimsEmphasized`: in a spotlight, dim the other emphasized players too.
+
+`UPSOverlayEmphasisSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Skycam schema (`FPSSkycamTuning`)
 

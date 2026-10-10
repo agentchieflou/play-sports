@@ -20,6 +20,9 @@
 #include "PSHealthComponent.h"
 #include "PSRulesConfig.h"
 #include "PSPlayerLeveling.h"
+#include "PSMatchSetup.h"
+#include "PSStaffManager.h"
+#include "PSUITeamCatalog.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
 
@@ -64,6 +67,8 @@ APSGameMode::APSGameMode()
     CurrentPlayIndex = 0;
     ExtraDefenderPawn = nullptr;
     PlayerLeveling = nullptr;
+    MatchSetup = nullptr;
+    StaffManager = nullptr;
 
     HUDClass = APSHUD::StaticClass();
     PlayerControllerClass = APSPlayerController::StaticClass();
@@ -78,6 +83,10 @@ APSGameMode::APSGameMode()
 void APSGameMode::StartPlay()
 {
     Super::StartPlay();
+
+    // Who plays: the travel options name the teams (UPSMatchSetup reads them).
+    MatchSetup = NewObject<UPSMatchSetup>(this);
+    MatchSetup->InitializeFromOptions(OptionsString, UPSMatchSetup::LoadLeagueTeamIds(UPSUITeamCatalog::GetDefaultTeamsPath()));
 
     // Load movement tuning from DataTable or JSON
     if (MovementTuningTable)
@@ -155,6 +164,13 @@ void APSGameMode::StartPlay()
                 TArray<FPlayerAttributes>& SideRoster = APSFieldGrid::GetSideForRole(Player->Role) == EPSTeamSide::Offense ? OffenseRoster : DefenseRoster;
                 SideRoster.Add(*Player);
             }
+
+            // Kickoff (Epic 89): both teams' staffs take over. Their plans go to the play-call
+            // authority and the simulation's players play at their scheme fit; the home team has
+            // the ball first. The pawns keep the roster's own ratings.
+            StaffManager = NewObject<UPSStaffManager>(this);
+            StaffManager->LoadFromJson(UPSStaffManager::GetDefaultDataPath());
+            MatchSetup->ApplyStaffs(StaffManager, GetWorld()->GetSubsystem<UPSPlayCallSubsystem>(), OffenseRoster, DefenseRoster);
 
             PlaySimulation = NewObject<UPSPlaySimulation>(this);
             if (PlaySimulation)

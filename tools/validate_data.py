@@ -44,11 +44,12 @@ with the control's value type, every action of a covered context is reachable by
 touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
 scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
 base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
-coaches of that role; "Axes" + "Bindings" files against FPSPlayerDNACatalog,
-each axis an FPSPlayerDNA field, each binding a numeric field of its target's tuning file and
-each rush move in pass_rush_moves.json, and every player's optional "DNA" against its axes and
-his role (Epic 79); "Counters" + "MinSamples" files against FPSOpponentModelTuning, each counter
-pairing a play category the human calls with one the CPU answers on the other side (Epic 78).
+coaches of that role; "RoleLabels" files against FPSOverlayBadgeStyle; "DimStencil" files against
+FPSEmphasisStyle (Epic 36); "Axes" + "Bindings" files against FPSPlayerDNACatalog, each axis an
+FPSPlayerDNA field, each binding a numeric field of its target's tuning file and each rush move in
+pass_rush_moves.json, and every player's optional "DNA" against its axes and his role (Epic 79);
+"Counters" + "MinSamples" files against FPSOpponentModelTuning, each counter pairing a play category
+the human calls with one the CPU answers on the other side (Epic 78).
 Teams, the league config, the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
@@ -2448,6 +2449,144 @@ def validate_coaching_staffs(path, payload, plays, team_ids):
         err(path, "Tuning.WorstFitMultiplier: must be above 0 and at most 1")
 
 
+BADGE_GROUPS = ("Receiver", "Back", "Quarterback", "Line", "Defense")
+BADGE_IN_PLAY = {"Hidden", "WhilePassing", "Always"}
+BADGE_POSITIVE = ("BadgeWidth", "BadgeHeight", "ReferenceDistance", "MinScale", "MaxScale", "NudgeStep")
+BADGE_NON_NEGATIVE = ("HeadClearance", "BallClearance", "FadeInSeconds")
+BADGE_FIELDS = {"Groups", "RoleLabels", "FontSize", "MaxNudges", "bBadgeControlledPlayer", *BADGE_POSITIVE,
+                *BADGE_NON_NEGATIVE}
+BADGE_GROUP_FIELDS = {"Group", "Color", "TextColor", "bPreSnap", "InPlay", "bEssential"}
+
+
+def validate_overlay_badges(path, payload):
+    """FPSOverlayBadgeStyle (Data/overlay_badges.json, Epic 28); mirrors
+    UPSOverlayBadgeComponent::ValidateStyle."""
+    groups = payload.get("Groups")
+    if not isinstance(groups, list):
+        err(path, "'Groups' must be an array")
+        groups = []
+    seen = {}
+    for idx, row in enumerate(groups):
+        where = f"Groups[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        group = row.get("Group")
+        if group not in BADGE_GROUPS:
+            err(path, f"{where}.Group: '{group}' must be one of {list(BADGE_GROUPS)}")
+        seen[group] = seen.get(group, 0) + 1
+        for field in ("Color", "TextColor"):
+            if not isinstance(row.get(field), str) or not HEX_COLOR.match(row[field]):
+                err(path, f"{where}.{field}: '{row.get(field)}' must be #RRGGBB")
+        for field in ("bPreSnap", "bEssential"):
+            if not isinstance(row.get(field), bool):
+                err(path, f"{where}.{field}: must be true or false")
+        in_play = row.get("InPlay")
+        if in_play not in BADGE_IN_PLAY:
+            err(path, f"{where}.InPlay: '{in_play}' must be one of {sorted(BADGE_IN_PLAY)}")
+        extra = set(row) - BADGE_GROUP_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for group in BADGE_GROUPS:
+        count = seen.get(group, 0)
+        if count != 1:
+            err(path, f"Groups: '{group}' is listed {count} times; it needs exactly one entry")
+    labels = payload.get("RoleLabels")
+    if not isinstance(labels, list):
+        err(path, "'RoleLabels' must be an array")
+        labels = []
+    labelled = set()
+    for idx, row in enumerate(labels):
+        where = f"RoleLabels[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        role = row.get("Role")
+        if role not in PLAYER_ROLES:
+            err(path, f"{where}.Role: '{role}' is not an EPlayerRole")
+        elif role in labelled:
+            err(path, f"{where}.Role: '{role}' is listed twice")
+        labelled.add(role)
+        if not isinstance(row.get("Label"), str) or not row["Label"]:
+            err(path, f"{where}.Label: must be a non-empty string")
+        extra = set(row) - {"Role", "Label"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for role in sorted(set(PLAYER_ROLES) - labelled):
+        err(path, f"RoleLabels: no label for '{role}'")
+    for field in BADGE_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in BADGE_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    low, high = payload.get("MinScale"), payload.get("MaxScale")
+    if is_number(low) and is_number(high) and high < low:
+        err(path, "MaxScale must not be below MinScale")
+    for field, floor in (("FontSize", 1), ("MaxNudges", 0)):
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < floor:
+            err(path, f"{field}: '{value}' must be a whole number, {floor} or more")
+    if not isinstance(payload.get("bBadgeControlledPlayer"), bool):
+        err(path, "bBadgeControlledPlayer: must be true or false")
+    extra = set(payload) - BADGE_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOverlayBadgeStyle exactly")
+
+
+EMPHASIS_KINDS = ("Highlight", "Mismatch", "Focus")
+
+
+def validate_player_emphasis(path, payload):
+    """FPSEmphasisStyle (Data/player_emphasis.json, Epic 36); mirrors
+    UPSOverlayEmphasisSubsystem::ValidateStyle."""
+    kinds = payload.get("Kinds")
+    if not isinstance(kinds, list):
+        err(path, "'Kinds' must be an array")
+        kinds = []
+    seen = {}
+    stencils = []
+    for idx, row in enumerate(kinds):
+        where = f"Kinds[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        kind = row.get("Kind")
+        if kind not in EMPHASIS_KINDS:
+            err(path, f"{where}.Kind: '{kind}' must be one of {list(EMPHASIS_KINDS)}")
+        seen[kind] = seen.get(kind, 0) + 1
+        stencil = row.get("Stencil")
+        if not isinstance(stencil, int) or isinstance(stencil, bool) or not 1 <= stencil <= 255:
+            err(path, f"{where}.Stencil: '{stencil}' must be a whole number from 1 to 255")
+        stencils.append(stencil)
+        priority = row.get("Priority")
+        if not isinstance(priority, int) or isinstance(priority, bool):
+            err(path, f"{where}.Priority: '{priority}' must be a whole number")
+        extra = set(row) - {"Kind", "Stencil", "Priority"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for kind in EMPHASIS_KINDS:
+        count = seen.get(kind, 0)
+        if count != 1:
+            err(path, f"Kinds: '{kind}' is listed {count} times; it needs exactly one entry")
+    dim = payload.get("DimStencil")
+    if not isinstance(dim, int) or isinstance(dim, bool) or not 1 <= dim <= 255:
+        err(path, f"DimStencil: '{dim}' must be a whole number from 1 to 255")
+    stencils.append(dim)
+    if len(set(map(str, stencils))) != len(stencils):
+        err(path, "Stencil values must differ: the emphasis material tells the looks apart by them")
+    most = payload.get("MaxEmphasized")
+    if not isinstance(most, int) or isinstance(most, bool) or most < 1:
+        err(path, f"MaxEmphasized: '{most}' must be a whole number, 1 or more")
+    if not isinstance(payload.get("bSpotlightDimsEmphasized"), bool):
+        err(path, "bSpotlightDimsEmphasized: must be true or false")
+    extra = set(payload) - {"Kinds", "DimStencil", "MaxEmphasized", "bSpotlightDimsEmphasized"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSEmphasisStyle exactly")
+
+
 PLAYER_ATTRIBUTES_HEADER = REPO / "Source" / "PlaySports" / "Public" / "PSPlayerAttributes.h"
 # What a DNA binding's Target names: its tuning file, whose numeric fields are the struct's.
 DNA_BINDING_TARGETS = {
@@ -2732,6 +2871,10 @@ def main():
             validate_broadcast_overlay(path, payload)
         if isinstance(payload, dict) and "UprightWidth" in payload:
             validate_ball_flight_overlay(path, payload)
+        if isinstance(payload, dict) and "RoleLabels" in payload:
+            validate_overlay_badges(path, payload)
+        if isinstance(payload, dict) and "DimStencil" in payload:
+            validate_player_emphasis(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
         if isinstance(payload, dict) and "KickoffTouchbackChance" in payload:
