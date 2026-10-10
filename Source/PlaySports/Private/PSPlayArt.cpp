@@ -1,5 +1,6 @@
 #include "PSPlayArt.h"
 #include "PSCoverageMatchupSubsystem.h"
+#include "PSPlayDiagram.h"
 #include "PSPlayerPawn.h"
 #include "PSRouteRunning.h"
 #include "PSUITeamCatalog.h"
@@ -45,18 +46,6 @@ namespace PSPlayArtPrivate
         return Parsed;
     }
 
-    /** The five-pointed star around Center, its points Radius out, the first one upfield (+X). */
-    TArray<FVector> StarOutline(const FVector& Center, float Radius)
-    {
-        TArray<FVector> Outline;
-        for (int32 Index = 0; Index < 10; ++Index)
-        {
-            const float Angle = PI * Index / 5.f;
-            const float Reach = (Index % 2 == 0) ? Radius : Radius * 0.4f;
-            Outline.Add(Center + FVector(FMath::Cos(Angle) * Reach, FMath::Sin(Angle) * Reach, 0.f));
-        }
-        return Outline;
-    }
 }
 
 FLinearColor PSPlayArt::ColorForRead(const FPSPlayArtStyle& Style, int32 ReadOrder)
@@ -69,6 +58,18 @@ FLinearColor PSPlayArt::ColorForRead(const FPSPlayArtStyle& Style, int32 ReadOrd
     FLinearColor Parsed = FLinearColor::White;
     UPSUITeamCatalog::ParseHexColor(*Hex, Parsed);
     return Parsed;
+}
+
+TArray<FVector> PSPlayArt::StarOutline(const FVector& Center, float Radius)
+{
+    TArray<FVector> Outline;
+    for (int32 Index = 0; Index < 10; ++Index)
+    {
+        const float Angle = PI * Index / 5.f;
+        const float Reach = (Index % 2 == 0) ? Radius : Radius * 0.4f;
+        Outline.Add(Center + FVector(FMath::Cos(Angle) * Reach, FMath::Sin(Angle) * Reach, 0.f));
+    }
+    return Outline;
 }
 
 TArray<FString> PSPlayArt::ValidateStyle(const FPSPlayArtStyle& Style)
@@ -146,6 +147,10 @@ TArray<FString> PSPlayArt::ValidateStyle(const FPSPlayArtStyle& Style)
         {
             Problems.Add(FString::Printf(TEXT("NoDefenseArtCategories[%d] is empty"), Index));
         }
+    }
+    for (const FString& Problem : PSPlayDiagram::ValidateStyle(Style.Diagram))
+    {
+        Problems.Add(TEXT("Diagram.") + Problem);
     }
     return Problems;
 }
@@ -580,7 +585,7 @@ void PSPlayArt::DrawDebug(const UWorld* World, const TArray<FPSPlayArtPrimitive>
             break;
         case EPSPlayArtShape::Star:
         {
-            const TArray<FVector> Outline = PSPlayArtPrivate::StarOutline(Points[0], Art.Size);
+            const TArray<FVector> Outline = PSPlayArt::StarOutline(Points[0], Art.Size);
             for (int32 Index = 0; Index < Outline.Num(); ++Index)
             {
                 DrawDebugLine(World, Outline[Index], Outline[(Index + 1) % Outline.Num()], Color, false, -1.f, 0, 3.f);
