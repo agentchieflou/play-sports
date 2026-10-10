@@ -51,7 +51,7 @@ AgenticLink's one MCP server (`FAgenticLinkToolProviders`), each opt-in by its o
 `-AgenticLinkMcp`: `import_t3d` (`FAutonomixT3D`, `-AutonomixT3D`) spawns actors from T3D text or
 changes the ones it names, as one undoable transaction; `run_python` (`FAutonomixPython`,
 `-AutonomixPython`) runs a script through the Python Editor Script Plugin and returns its result and
-log. Without the switches it only logs. Python runs only where the project enables that plugin.
+log. Without the switches it only logs. `run_python` needs the Python Editor Script Plugin, which the engine enables by default.
 Headless tests: `PlaySports.Autonomix.*`.
 
 ### `Plugins/AgenticLink`
