@@ -1,5 +1,6 @@
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraAll22Component.h"
+#include "PSCameraSkycamComponent.h"
 #include "PSDataIngestion.h"
 #include "PSPlayerPawn.h"
 #include "PSTelemetrySamplingSubsystem.h"
@@ -111,7 +112,7 @@ TArray<FString> UPSCameraDirectorComponent::ValidateTuning(const FPSCameraDirect
         }
     }
     const EPSDirectorShot AllShots[] = { EPSDirectorShot::LosWide, EPSDirectorShot::All22High, EPSDirectorShot::TightFollow,
-        EPSDirectorShot::EndZone, EPSDirectorShot::SidelineReaction };
+        EPSDirectorShot::EndZone, EPSDirectorShot::SidelineReaction, EPSDirectorShot::Skycam };
     for (const EPSDirectorShot Shot : AllShots)
     {
         if (!Defined.Contains(Shot))
@@ -335,7 +336,8 @@ void UPSCameraDirectorComponent::AdvanceTime(float DeltaSeconds)
         return;
     }
     FPSDirectorView View;
-    if (!BuildView(Frame, View))
+    bool bSubjectBreakaway = false;
+    if (!BuildView(Frame, View, bSubjectBreakaway))
     {
         return;
     }
@@ -355,11 +357,31 @@ void UPSCameraDirectorComponent::AdvanceTime(float DeltaSeconds)
         CutTo(PendingShot);
     }
 
+    // The subject breaking into the clear is a trigger of its own.
+    if (bSubjectBreakaway && !bSubjectWasBreakaway)
+    {
+        HandleTrigger(EPSDirectorTrigger::Breakaway);
+    }
+    bSubjectWasBreakaway = bSubjectBreakaway;
+
     const FPSDirectorShotDef* Def = FindShotDef(CurrentShot);
     if (!Def)
     {
         return;
     }
+
+    // The skycam (Epic 39) flies itself: its shot is handed over as it is, mass and all, and it
+    // is exempt from the camera side, flying over the line of action.
+    UPSCameraSkycamComponent* Skycam = GetSkycamComponent();
+    if (CurrentShot == EPSDirectorShot::Skycam && Skycam && Skycam->IsFlying())
+    {
+        TargetShot = Skycam->GetShot();
+        LineOfActionY = View.BallLocation.Y;
+        ApplyToCamera(true, DeltaSeconds);
+        bSnapNextStep = false;
+        return;
+    }
+
     UPSCameraAll22Component* All22 = GetAll22Component();
     FVector Target;
     TargetShot = ComputeShot(*Def, View, All22 ? &All22->GetTuning() : nullptr, Tuning.CameraSide, Target);
@@ -369,8 +391,9 @@ void UPSCameraDirectorComponent::AdvanceTime(float DeltaSeconds)
     bSnapNextStep = false;
 }
 
-bool UPSCameraDirectorComponent::BuildView(const FPSSnapshotFrame& Frame, FPSDirectorView& OutView)
+bool UPSCameraDirectorComponent::BuildView(const FPSSnapshotFrame& Frame, FPSDirectorView& OutView, bool& bOutSubjectBreakaway)
 {
+    bOutSubjectBreakaway = false;
     if (Frame.Pawns.Num() == 0)
     {
         return false;
@@ -397,7 +420,9 @@ bool UPSCameraDirectorComponent::BuildView(const FPSSnapshotFrame& Frame, FPSDir
 
     // Score everyone and keep or change the subject.
     TArray<float> Scores;
+    TArray<bool> Breakaways;
     Scores.Reserve(Frame.Pawns.Num());
+    Breakaways.Reserve(Frame.Pawns.Num());
     int32 CurrentIndex = INDEX_NONE;
     for (int32 Index = 0; Index < Frame.Pawns.Num(); ++Index)
     {
@@ -419,6 +444,7 @@ bool UPSCameraDirectorComponent::BuildView(const FPSSnapshotFrame& Frame, FPSDir
         const double* HitTime = Pawn ? BigHitTimes.Find(Pawn->GetAttributes().DisplayName) : nullptr;
         Input.SecondsSinceBigHit = HitTime ? static_cast<float>(Clock - *HitTime) : -1.f;
         Scores.Add(ScoreInterest(Input, Tuning.Interest));
+        Breakaways.Add(Input.SpeedCms >= Tuning.Interest.BreakawaySpeedCms && Input.NearestOpponentCm >= Tuning.Interest.BreakawayClearanceCm);
         if (Snapshot.PlayerId == SubjectId)
         {
             CurrentIndex = Index;
@@ -427,6 +453,7 @@ bool UPSCameraDirectorComponent::BuildView(const FPSSnapshotFrame& Frame, FPSDir
     const int32 SubjectIndex = PickSubject(Scores, CurrentIndex, Tuning.Interest.SwitchMargin);
     const FPSPawnSnapshot& Subject = Frame.Pawns[SubjectIndex];
     SubjectId = Subject.PlayerId;
+    bOutSubjectBreakaway = Breakaways[SubjectIndex];
     OutView.SubjectLocation = Subject.Location;
     OutView.SubjectVelocity = Subject.Velocity;
     return true;
@@ -560,6 +587,12 @@ UPSCameraAll22Component* UPSCameraDirectorComponent::GetAll22Component() const
 {
     const AActor* Owner = GetOwner();
     return Owner ? Owner->FindComponentByClass<UPSCameraAll22Component>() : nullptr;
+}
+
+UPSCameraSkycamComponent* UPSCameraDirectorComponent::GetSkycamComponent() const
+{
+    const AActor* Owner = GetOwner();
+    return Owner ? Owner->FindComponentByClass<UPSCameraSkycamComponent>() : nullptr;
 }
 
 const FPSDirectorShotDef* UPSCameraDirectorComponent::FindShotDef(EPSDirectorShot Shot) const

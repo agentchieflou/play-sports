@@ -5,7 +5,8 @@
         { "Shot": "All22High", "RigId": "Sideline", "HeightCm": 1000, "DistanceCm": 2000, "FieldOfView": 40, "AimHeightCm": 100, "LeadSeconds": 0 },
         { "Shot": "TightFollow", "RigId": "", "HeightCm": 900, "DistanceCm": 2400, "FieldOfView": 30, "AimHeightCm": 100, "LeadSeconds": 0.4 },
         { "Shot": "EndZone", "RigId": "EndZone", "HeightCm": 1000, "DistanceCm": 2000, "FieldOfView": 40, "AimHeightCm": 100, "LeadSeconds": 0 },
-        { "Shot": "SidelineReaction", "RigId": "", "HeightCm": 200, "DistanceCm": 1000, "FieldOfView": 35, "AimHeightCm": 120, "LeadSeconds": 0 }
+        { "Shot": "SidelineReaction", "RigId": "", "HeightCm": 200, "DistanceCm": 1000, "FieldOfView": 35, "AimHeightCm": 120, "LeadSeconds": 0 },
+        { "Shot": "Skycam", "RigId": "", "HeightCm": 1000, "DistanceCm": 1300, "FieldOfView": 60, "AimHeightCm": 100, "LeadSeconds": 0 }
     ],
     "CutRules": [
         { "Trigger": "PreSnap", "Shot": "LosWide" },
@@ -15,7 +16,8 @@
         { "Trigger": "Fumble", "Shot": "EndZone" },
         { "Trigger": "Tackle", "Shot": "SidelineReaction" },
         { "Trigger": "Score", "Shot": "SidelineReaction" },
-        { "Trigger": "PlayEnd", "Shot": "SidelineReaction" }
+        { "Trigger": "PlayEnd", "Shot": "SidelineReaction" },
+        { "Trigger": "Breakaway", "Shot": "Skycam" }
     ],
     "Interest": {
         "BallWeight": 10,

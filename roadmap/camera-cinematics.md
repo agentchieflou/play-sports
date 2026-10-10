@@ -27,9 +27,9 @@ camera behaviors are components/classes, each epic ships tests.
 **Goal:** A physically plausible suspended camera flies behind the offense — the modern broadcast signature angle.
 **Depends on:** 38
 
-- [ ] Catenary-constrained rig: camera moves within a simulated cable envelope above the field
-- [ ] Follow behaviors (behind-QB pre-snap, chase on breakaways) with mass/lag for realism
-- [ ] Handoff integration so the director (38) can cut to/from it
+- [x] Catenary-constrained rig: camera moves within a simulated cable envelope above the field *(`UPSCameraSkycamComponent` on `APSBroadcastCamera`, rig in `Data/camera_skycam.json`. The camera stays inside the four towers' rectangle, above its floor and below the cables. The cables hang in catenaries, so the ceiling is the anchor height less both cable families' sag: highest by the towers, lowest over midfield)*
+- [x] Follow behaviors (behind-QB pre-snap, chase on breakaways) with mass/lag for realism *(it parks behind the quarterback looking downfield until the snap, then chases the ball carrier from behind along his run (`Snap`/`PhaseChange` on the bus, field from Epic 26's snapshots). It flies as a critically damped spring within the winches' speed and acceleration, so it lags and settles rather than jumping)*
+- [x] Handoff integration so the director (38) can cut to/from it *(the director's vocabulary gains `Skycam` and its triggers `Breakaway`, which fires when the live subject breaks into the clear; the rule cuts to the skycam. The rig flies every tick on air or not, so it is in position when cut to; while it is live, the camera is the rig's own shot, exempt from the 180° rule as it flies over the line of action. Tests: `PlaySports.Camera.Skycam*`)*
 
 ### Epic 40: All-22 Coaches Film Camera
 
