@@ -1,9 +1,17 @@
 #include "PSPlaybookGenerator.h"
 #include "PSDataIngestion.h"
+#include "PSCoverageMatchupSubsystem.h"
+#include "PSFieldGrid.h"
 #include "PSJsonWriting.h"
+#include "PSOverlayPlayArtSubsystem.h"
 #include "PSPersonnelManager.h"
+#include "PSPlayArt.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSPlayResolution.h"
+#include "PSPlayerPawn.h"
 #include "PSPlaybookIngestion.h"
+#include "Engine/World.h"
+#include "GameFramework/Controller.h"
 #include "Misc/Crc.h"
 #include "Misc/Paths.h"
 
@@ -286,7 +294,9 @@ TArray<FPSPlayDefinition> PSPlaybookGenerator::BuildConceptPlays(const FPSPlaybo
                 {
                     if (SlotRoles[SlotIndex] == Role)
                     {
-                        Play.Assignments.Add(MakeAssignment(Role, EPSAssignmentKind::Route, Routes[SlotIndex]));
+                        // The slots are the quarterback's progression, so the art ranks them (Epic 27).
+                        FPSPlayAssignment& Slotted = Play.Assignments.Add_GetRef(MakeAssignment(Role, EPSAssignmentKind::Route, Routes[SlotIndex]));
+                        Slotted.ReadOrder = SlotIndex + 1;
                         ++Given;
                     }
                 }
@@ -406,6 +416,7 @@ TArray<FString> PSPlaybookGenerator::ValidatePlay(const FPSPlayDefinition& Play,
     }
 
     TMap<EPlayerRole, int32> Slots;
+    TArray<int32> Reads;
     for (int32 Index = 0; Index < Play.Assignments.Num(); ++Index)
     {
         const FPSPlayAssignment& Assignment = Play.Assignments[Index];
@@ -429,7 +440,24 @@ TArray<FString> PSPlaybookGenerator::ValidatePlay(const FPSPlayDefinition& Play,
                 Problems.Add(FString::Printf(TEXT("%s: route '%s' is not in the route library"), *Where, *Assignment.RouteId.ToString()));
             }
         }
+        if (Assignment.ReadOrder < 0 || (Assignment.ReadOrder > 0 && (Assignment.Kind != EPSAssignmentKind::Route || Assignment.RouteId.IsNone())))
+        {
+            Problems.Add(FString::Printf(TEXT("%s: only a route with a RouteId is read, from 1"), *Where));
+        }
+        else if (Assignment.ReadOrder > 0)
+        {
+            Reads.Add(Assignment.ReadOrder);
+        }
         Slots.FindOrAdd(Assignment.Role) += 1;
+    }
+    Reads.Sort();
+    for (int32 Index = 0; Index < Reads.Num(); ++Index)
+    {
+        if (Reads[Index] != Index + 1)
+        {
+            Problems.Add(TEXT("ReadOrder values must run 1, 2, 3, ... with no gap or repeat"));
+            break;
+        }
     }
 
     // Every player the formation puts on the field has exactly one job.
@@ -771,6 +799,10 @@ FString PSPlaybookGenerator::PlayJson(const FPSPlayDefinition& Play)
         {
             Row += FString::Printf(TEXT(", \"FormationOffset\": %s"), *PSJsonWriting::Vector(Assignment.FormationOffset));
         }
+        if (Assignment.ReadOrder > 0)
+        {
+            Row += FString::Printf(TEXT(", \"ReadOrder\": %d"), Assignment.ReadOrder);
+        }
         Assignments.Add(Row + TEXT(" }"));
     }
 
@@ -1034,6 +1066,121 @@ TArray<FString> UPSPlaybookGenerator::ValidatePlays(const TArray<FPSPlayDefiniti
         for (const FString& Problem : PSPlaybookGenerator::ValidatePlay(Play, RouteLibrary, Personnel))
         {
             Problems.Add(FString::Printf(TEXT("%s: %s"), *Play.PlayId.ToString(), *Problem));
+        }
+    }
+    return Problems;
+}
+
+TArray<FString> UPSPlaybookGenerator::ValidatePlayArt(UWorld* World, const TArray<FPSPlayDefinition>& Plays)
+{
+    TArray<FString> Problems;
+    UPSOverlayPlayArtSubsystem* Overlay = World ? World->GetSubsystem<UPSOverlayPlayArtSubsystem>() : nullptr;
+    if (!Overlay)
+    {
+        Problems.Add(TEXT("no play-art overlay in the world to check the art with"));
+        return Problems;
+    }
+    EnsureLoaded();
+    const UPSCoverageMatchupSubsystem* Matchups = World->GetSubsystem<UPSCoverageMatchupSubsystem>();
+    const FPSPlayArtStyle& Style = Overlay->GetStyle();
+    const float BreakAngle = Overlay->GetBreakMinAngleDegrees();
+    const FVector Line = FVector::ZeroVector;
+
+    // A defense lines up against the default offensive package's first formation.
+    UPSPersonnelManager* PersonnelLookup = NewObject<UPSPersonnelManager>(this);
+    PersonnelLookup->SetCatalog(Personnel);
+    const FPSPersonnelPackage* BaseOffense = PersonnelLookup->FindPackage(Personnel.DefaultOffensePackage);
+    const FString OpposingFormation = BaseOffense && BaseOffense->Formations.Num() > 0 ? BaseOffense->Formations[0] : FString();
+
+    // Each formation's players, lined up once (in role order, as the game mode lines them up).
+    TArray<APSPlayerPawn*> Spawned;
+    TMap<FString, TArray<APSPlayerPawn*>> Lineups;
+    auto LineUp = [this, World, &Spawned, &Lineups, &Line](const FString& Formation, bool bOffense)
+    {
+        const FString Key = FString::Printf(TEXT("%s/%s"), bOffense ? TEXT("O") : TEXT("D"), *Formation);
+        if (const TArray<APSPlayerPawn*>* Known = Lineups.Find(Key))
+        {
+            return *Known;
+        }
+        const TMap<EPlayerRole, int32> Counts = PSPlaybookGenerator::GetFormationRoles(Personnel, Formation, bOffense);
+        TArray<EPlayerRole> Roles;
+        const UEnum* RoleEnum = StaticEnum<EPlayerRole>();
+        for (int32 Index = 0; Index < RoleEnum->NumEnums() - 1; ++Index)
+        {
+            const EPlayerRole Role = static_cast<EPlayerRole>(RoleEnum->GetValueByIndex(Index));
+            for (int32 Count = 0; Count < Counts.FindRef(Role); ++Count)
+            {
+                Roles.Add(Role);
+            }
+        }
+        const TArray<FVector> Spots = APSFieldGrid::ComputeLineup(Roles, static_cast<float>(Line.X));
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        TArray<APSPlayerPawn*> Players;
+        for (int32 Index = 0; Index < Roles.Num() && Index < Spots.Num(); ++Index)
+        {
+            APSPlayerPawn* Pawn = World->SpawnActor<APSPlayerPawn>(APSPlayerPawn::StaticClass(), Spots[Index], FRotator::ZeroRotator, SpawnParams);
+            if (!Pawn)
+            {
+                continue;
+            }
+            FPlayerAttributes Attributes;
+            Attributes.PlayerId = FName(*FString::Printf(TEXT("ArtCheck_%s_%d"), *PSPlaybookGenerator::Code(Key), Index));
+            Attributes.DisplayName = Attributes.PlayerId.ToString();
+            Attributes.Role = Roles[Index];
+            Pawn->InitializePlayer(Attributes);
+            Players.Add(Pawn);
+            Spawned.Add(Pawn);
+        }
+        Lineups.Add(Key, Players);
+        return Players;
+    };
+
+    for (const FPSPlayDefinition& Play : Plays)
+    {
+        const FString Name = Play.PlayId.ToString();
+        TArray<APSPlayerPawn*> Field = LineUp(Play.Formation, Play.bIsOffensivePlay);
+        if (Field.Num() == 0)
+        {
+            Problems.Add(FString::Printf(TEXT("%s: formation '%s' lines nobody up"), *Name, *Play.Formation));
+            continue;
+        }
+        if (!Play.bIsOffensivePlay)
+        {
+            Field.Append(LineUp(OpposingFormation, true));
+        }
+        TArray<EPlayerRole> Roles;
+        for (const APSPlayerPawn* Pawn : Field)
+        {
+            Roles.Add(Pawn->GetAttributes().Role);
+        }
+
+        // Resolved and compiled as the snap and the overlay do.
+        TArray<FPSResolvedAssignment> Resolved = PSPlayResolution::ResolvePlay(Play, Field, RouteLibrary, Line, false);
+        if (!Play.bIsOffensivePlay)
+        {
+            PSPlayResolution::ResolveManMatchups(Resolved, Field, Roles, Matchups);
+        }
+        const TArray<FPSPlayArtPrimitive> Art = PSPlayArt::CompilePlayArt(Play, Resolved, RouteLibrary, Style, BreakAngle, Line, Matchups);
+        for (const FString& Problem : PSPlayArt::ValidatePlayArt(Play, Resolved, Art, RouteLibrary, Style))
+        {
+            Problems.Add(FString::Printf(TEXT("%s: %s"), *Name, *Problem));
+        }
+        if (Art.Num() == 0 && !PSPlayArt::DrawsNoArt(Play, Style))
+        {
+            Problems.Add(FString::Printf(TEXT("%s: a %s play draws no art"), *Name, *Play.PlayCategory));
+        }
+    }
+
+    for (APSPlayerPawn* Pawn : Spawned)
+    {
+        if (AController* Controller = Pawn ? Pawn->GetController() : nullptr)
+        {
+            Controller->Destroy();
+        }
+        if (Pawn)
+        {
+            Pawn->Destroy();
         }
     }
     return Problems;

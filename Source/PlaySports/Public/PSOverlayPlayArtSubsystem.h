@@ -81,6 +81,11 @@ public:
 
     const FPSPlayArtStyle& GetStyle() const { return Style; }
 
+    /** What counts as a cut in a ribbon: the route-running model's break angle
+     *  (FRouteRunningTuningRow::BreakMinAngleDegrees), loaded on first use -- one definition for
+     *  the art, the AI and the playbook generator's art check (Epic 121). */
+    float GetBreakMinAngleDegrees();
+
     /** Problems with a style, one line each (empty when sound): PSPlayArt::ValidateStyle. */
     static TArray<FString> ValidateStyle(const FPSPlayArtStyle& InStyle);
 
@@ -173,7 +178,6 @@ private:
     bool GetVersusVerdict(EPSVersusOverlay Overlay, const APlayerController* Viewer, bool& bOutShown) const;
 
     UPSSettingsSubsystem* GetSettings() const;
-    float GetBreakMinAngleDegrees();
     void Clear();
 
     FPSPlayArtStyle Style;
