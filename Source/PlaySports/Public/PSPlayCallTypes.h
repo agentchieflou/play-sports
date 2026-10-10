@@ -11,7 +11,9 @@ enum class EPSPlayCaller : uint8
 {
     None,
     Human,
-    CPU
+    CPU,
+    /** Called for a human who ran low on play clock: the top suggestion (Epic 102.5). */
+    QuickCall
 };
 
 /** One side's call for the coming snap. */
@@ -39,4 +41,29 @@ struct FPlayCallTuningRow : public FTableRowBase
      *  can be seen and the field settles. A human offense snaps when its player hikes. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
     float CpuSnapDelaySeconds = 2.f;
+
+    /** When the play clock reaches this with a human's side still uncalled, the top
+     *  suggestion is called for them (it then snaps like a CPU call, after the delay above). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
+    float QuickCallPlayClockSeconds = 5.f;
+
+    /** How many recent calls the Recent plays screen lists. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayCall")
+    int32 RecentPlaysShown = 5;
+};
+
+/** A play a human called and ran, kept for the recent list and the tendency readout. */
+USTRUCT(BlueprintType)
+struct FPSPlayCallRecord
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "PlayCall")
+    FName PlayId;
+
+    UPROPERTY(BlueprintReadOnly, Category = "PlayCall")
+    FString PlayCategory;
+
+    UPROPERTY(BlueprintReadOnly, Category = "PlayCall")
+    bool bOffense = true;
 };

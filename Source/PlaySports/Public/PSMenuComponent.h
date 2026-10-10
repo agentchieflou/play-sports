@@ -47,6 +47,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Menu")
     FName GetTopScreenId() const;
 
+    /** True while the top screen is one of the play-call screens (Epic 102). */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    bool IsPlayCallScreenOpen();
+
+    /** The play-call content kinds: formations, plays, recent plays. */
+    static bool IsPlayCallContent(EPSMenuScreenContent Content);
+
     /** ScreenId as it is shown: catalog text and options, plus generated content -- one
      *  option per team on a TeamSelect screen, the loading tip as a Loading screen's body,
      *  the player's formations and a formation's plays on the play-call screens (Epic 102). */

@@ -150,6 +150,17 @@ TArray<FString> UPSMenuComponent::ValidateCatalog(const FPSMenuCatalog& InCatalo
     return Errors;
 }
 
+bool UPSMenuComponent::IsPlayCallContent(EPSMenuScreenContent Content)
+{
+    return Content == EPSMenuScreenContent::PlayCallFormations || Content == EPSMenuScreenContent::PlayCallPlays || Content == EPSMenuScreenContent::PlayCallRecent;
+}
+
+bool UPSMenuComponent::IsPlayCallScreenOpen()
+{
+    const FPSMenuScreenDef* Top = IsMenuOpen() ? GetCatalog().FindScreen(GetTopScreenId()) : nullptr;
+    return Top && IsPlayCallContent(Top->Content);
+}
+
 bool UPSMenuComponent::IsMenuOpen() const
 {
     return Stack && !Stack->IsEmpty();
@@ -458,21 +469,38 @@ FPSMenuScreenDef UPSMenuComponent::GetPresentedScreen(FName ScreenId)
     {
         Presented.Body = PendingLoadingTip;
     }
-    else if (Presented.Content == EPSMenuScreenContent::PlayCallFormations || Presented.Content == EPSMenuScreenContent::PlayCallPlays)
+    else if (IsPlayCallContent(Presented.Content))
     {
         UPSPlayCallSubsystem* PlayCall = GetWorld() ? GetWorld()->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
         const APSPlayerController* Player = Cast<APSPlayerController>(GetOwner());
         const bool bOffense = !Player || !Player->GetPlayCallComponent() || Player->GetPlayCallComponent()->IsCallingForOffense();
         if (PlayCall && Presented.Content == EPSMenuScreenContent::PlayCallFormations)
         {
+            // The situation and the player's tendencies, then the suggestion, the recent
+            // plays (once there are any), then every formation.
+            Presented.Body = PlayCall->BuildCallScreenBody(bOffense);
+            Presented.Options.Append(PlayCall->BuildSuggestionOptions(bOffense));
+            const FPSMenuScreenDef* RecentScreen = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::PlayCallRecent);
+            if (RecentScreen && PlayCall->GetRecentCalls(bOffense, 1).Num() > 0)
+            {
+                FPSMenuOptionDef Recent;
+                Recent.OptionId = TEXT("Recent");
+                Recent.Label = RecentScreen->Title;
+                Recent.TargetScreen = RecentScreen->ScreenId;
+                Presented.Options.Add(Recent);
+            }
             const FPSMenuScreenDef* PlaysScreen = GetCatalog().FindScreenWithContent(EPSMenuScreenContent::PlayCallPlays);
             Presented.Options.Append(PlayCall->BuildFormationOptions(bOffense, PlaysScreen ? PlaysScreen->ScreenId : NAME_None));
         }
-        else if (PlayCall)
+        else if (PlayCall && Presented.Content == EPSMenuScreenContent::PlayCallPlays)
         {
             const FString Formation = ScreenPayloads.FindRef(ScreenId).ToString();
             Presented.Title = Formation;
             Presented.Options.Append(PlayCall->BuildPlayOptions(Formation, bOffense));
+        }
+        else if (PlayCall)
+        {
+            Presented.Options.Append(PlayCall->BuildRecentOptions(bOffense));
         }
     }
     return Presented;

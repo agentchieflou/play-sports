@@ -57,3 +57,27 @@ struct FPSSituationContext
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 TimeoutsRemaining = 3;
 };
+
+/** One play as the coaching AI rates it for a situation (Epic 102's suggestions): its
+ *  weight and the situational reasons behind it, e.g. "3rd down: the percentage play (+0.8)". */
+USTRUCT(BlueprintType)
+struct FPSPlaySuggestion
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    FName PlayId;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString DisplayName;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString Category;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Weight = 0.f;
+
+    UPROPERTY(BlueprintReadOnly)
+    TArray<FString> Reasons;
+};
+

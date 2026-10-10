@@ -331,7 +331,8 @@ bool FPSPlayCallMenuFlowTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("A new down opens the play-call screen"), Menu->GetTopScreenId(), CallScreen);
 
     const FPSMenuScreenDef Formations = Menu->GetPresentedScreen(CallScreen);
-    TestEqual(TEXT("One option per offensive formation"), Formations.Options.Num(), PlayCall->GetFormations(true).Num());
+    // The suggestion (part 2) comes first; no recent plays yet, then one per formation.
+    TestEqual(TEXT("The suggestion, then one option per offensive formation"), Formations.Options.Num(), 1 + PlayCall->GetFormations(true).Num());
 
     Menu->ChooseOption(TEXT("Trips Right"));
     const FName PlaysScreen = Menu->GetTopScreenId();
