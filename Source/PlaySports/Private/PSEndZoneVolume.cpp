@@ -1,9 +1,8 @@
 #include "PSEndZoneVolume.h"
 #include "Components/BoxComponent.h"
 #include "PSPlayerPawn.h"
-#include "PSGameMode.h"
-#include "PSPlaySimulation.h"
-#include "Kismet/GameplayStatics.h"
+#include "PSTelemetryBus.h"
+#include "Engine/World.h"
 
 APSEndZoneVolume::APSEndZoneVolume()
 {
@@ -29,21 +28,26 @@ void APSEndZoneVolume::BeginPlay()
 
 void APSEndZoneVolume::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-    if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(OtherActor))
-    {
-        if (Pawn->HasPossession())
-        {
-            APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
-            if (GM && GM->PlaySimulation)
-            {
-                bool bHomePossession = GM->PlaySimulation->GetPlayState().bHomeHasPossession;
-                bool bIsTargetEndZone = (bHomePossession && !bIsEndZoneA) || (!bHomePossession && bIsEndZoneA);
+    ReportCrossing(OtherActor);
+}
 
-                if (bIsTargetEndZone)
-                {
-                    GM->PlaySimulation->RecordTouchdown();
-                }
-            }
-        }
+bool APSEndZoneVolume::ReportCrossing(AActor* OtherActor)
+{
+    const APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(OtherActor);
+    UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Pawn || !Pawn->HasPossession() || !Bus)
+    {
+        return false;
     }
+
+    // Which goal line he crossed, in the offense's yard lines: the game mode places yard line N
+    // at X = N * 100 cm with the offense attacking +X, so the far end zone is its target (100)
+    // and the near one its own (0), whoever has the ball.
+    FPSTelemetryBoundaryCrossedEvent Crossing;
+    Crossing.CarrierName = Pawn->GetAttributes().DisplayName;
+    Crossing.YardLine = Pawn->GetActorLocation().X >= 5000.f ? 100 : 0;
+    Crossing.bEndZone = true;
+    Bus->PublishBoundaryCrossed(Crossing);
+    UE_LOG(LogTemp, Display, TEXT("PSEndZoneVolume: %s in the end zone at the %d."), *Crossing.CarrierName, Crossing.YardLine);
+    return true;
 }
