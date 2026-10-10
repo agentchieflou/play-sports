@@ -140,7 +140,7 @@ bool FPSDefenseKickDataTest::RunTest(const FString& Parameters)
         FName ContextId;
     };
     const FButtonCase Buttons[] = {
-        { Technique->GetTuning().JumpSnapAction, FName(TEXT("PreSnap")) },
+        { Technique->GetTuning().JumpSnapAction, FName(TEXT("DefensePreSnap")) },
         { Technique->GetTuning().StripAction, FName(TEXT("Defense")) },
         { Meter->GetTuning().KickAction, FName(TEXT("Kicking")) } };
     for (const FButtonCase& Button : Buttons)

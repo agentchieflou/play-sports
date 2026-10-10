@@ -13,11 +13,11 @@ class UPSDefenderTechniqueComponent;
 /**
  * UPSDefenseInputComponent turns the human defender's buttons into technique (Epic 104.5):
  *
- *   - JumpSnap (PreSnap context): the first press before the snap is when he moves. At the snap
- *     it is judged against JumpWindowSeconds: inside it, a clean jump, and the controlled
- *     defender bursts off the line (UPSDefenderTechniqueComponent::GetOff); earlier, he is
- *     offside. Either way the jump goes on the bus (JumpSnap), where UPSPlaySimulation flags
- *     an offside one.
+ *   - JumpSnap (DefensePreSnap context): the first press before the snap is when he moves. At
+ *     the snap it is judged against JumpWindowSeconds: inside it, a clean jump, and the
+ *     controlled defender bursts off the line (UPSDefenderTechniqueComponent::GetOff); earlier,
+ *     he is offside. Either way the jump goes on the bus (JumpSnap), where UPSPlaySimulation
+ *     flags an offside one.
  *   - Strip (Defense context): the controlled defender rips at the ball
  *     (UPSDefenderTechniqueComponent::TryStrip). A press while the last attempt cools down
  *     waits in the input buffer.

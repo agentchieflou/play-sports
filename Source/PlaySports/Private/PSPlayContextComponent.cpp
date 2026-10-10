@@ -13,6 +13,7 @@ UPSPlayContextComponent::UPSPlayContextComponent()
     BallCarrierContextId = TEXT("BallCarrier");
     DefenseContextId = TEXT("Defense");
     KickingContextId = TEXT("Kicking");
+    DefensePreSnapContextId = TEXT("DefensePreSnap");
 }
 
 void UPSPlayContextComponent::BeginPlay()
@@ -86,7 +87,7 @@ FName UPSPlayContextComponent::ComputeContext() const
     }
     if (!bPlayLive)
     {
-        return PreSnapContextId;
+        return Controlled->TeamSide == EPSTeamSide::Defense ? DefensePreSnapContextId : PreSnapContextId;
     }
     if (Controlled->HasPossession())
     {

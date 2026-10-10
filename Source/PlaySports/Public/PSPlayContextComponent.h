@@ -13,7 +13,8 @@ class APSPlayerController;
  * stack, above the gameplay (OnField) context, matching what the controlled player is doing
  * (Epic 104.1):
  *
- *   PreSnap      before the snap and once the play is over
+ *   PreSnap      before the snap and once the play is over, on offense
+ *   DefensePreSnap  the same, on defense (Epic 104.5)
  *   Passing      the controlled QB holds the ball behind the line of scrimmage
  *   BallCarrier  the controlled player holds the ball anywhere else
  *   Defense      the controlled player is on defense during the play
@@ -69,6 +70,9 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
     FName KickingContextId;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    FName DefensePreSnapContextId;
 
 protected:
     virtual void BeginPlay() override;

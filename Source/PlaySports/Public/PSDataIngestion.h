@@ -20,6 +20,7 @@
 #include "PSRushMoveComponent.h"
 #include "PSDefenderTechniqueComponent.h"
 #include "PSKickMeterComponent.h"
+#include "PSPreSnapTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -101,6 +102,11 @@ public:
      *  missing file, malformed JSON, or an unrecognized Move. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
+
+    /** Loads the offense's pre-snap tuning (Data/presnap_tuning.json, Epic 66). False on a
+     *  missing file, malformed JSON, or an unrecognized Alignment. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPreSnapTuningFromJson(const FString& JsonFilePath, FPreSnapTuningRow& OutTuning);
 
     /** Loads the input buffer windows (Data/input_buffer.json, Epic 104.4). */
     UFUNCTION(BlueprintCallable, Category = "Data")

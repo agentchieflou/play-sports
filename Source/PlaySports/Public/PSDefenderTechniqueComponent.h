@@ -14,7 +14,7 @@ struct FDefensiveTechniqueTuningRow : public FTableRowBase
 {
     GENERATED_BODY()
 
-    /** The catalog action (PreSnap context) a defender times his jump with. */
+    /** The catalog action (DefensePreSnap context) a defender times his jump with. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
     FName JumpSnapAction = TEXT("JumpSnap");
 

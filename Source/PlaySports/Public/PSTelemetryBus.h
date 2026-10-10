@@ -22,6 +22,7 @@ enum class EPSTelemetryEventType : uint8
     PlayCall,
     PumpFake,
     PassRushMove,
+    PreSnap,
     Kick,
     JumpSnap
 };
@@ -32,6 +33,16 @@ enum class EPSDeathCause : uint8
 {
     TackleDamage,
     InterceptionPunishment
+};
+
+/** What an offense changed before the snap (Epic 66). */
+UENUM(BlueprintType)
+enum class EPSPreSnapAction : uint8
+{
+    Audible,
+    HotRoute,
+    Motion,
+    Protection
 };
 
 /** Which kind of hardware the human player last used (Epic 127). */
@@ -342,6 +353,39 @@ struct FPSTelemetryPassRushEvent
     bool bDoubleTeamed = false;
 };
 
+/** The offense changed its call before the snap (Epic 66): an audible, a hot route, a man in
+ *  motion, or a protection call. UPSPreSnapSubsystem is the authority on these; this announces
+ *  them. A motion also says how the defense answered it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPreSnapEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    EPSPreSnapAction Action = EPSPreSnapAction::Audible;
+
+    /** The player changed; empty for an audible or a slide. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PlayerName;
+
+    /** What he changed to: the audible's PlayId, the hot route's RouteId, "Block", "Release"
+     *  or "AsCalled", "SlideLeft", "SlideRight" or "NoSlide"; "Motion" for a motion. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName Detail;
+
+    /** True when a person made the change; false for the CPU's. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bHumanCall = false;
+
+    /** A motion: the defender who travelled across with him, if one did. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString DefenderName;
+
+    /** A motion: a defender travelled with him, the tell of man coverage. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bManIndicator = false;
+};
+
 /** A human kicker lines up for a kick, or kicks (Epic 104.5). UPSKickMeterComponent publishes
  *  it; UPSPlaySimulation, the authority on the kick's result, waits for the kick while one is
  *  lined up and then takes its Roll in place of a random one. */
@@ -431,6 +475,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeSignature, 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallSignature, const FPSTelemetryPlayCallEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeSignature, const FPSTelemetryPumpFakeEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushSignature, const FPSTelemetryPassRushEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapSignature, const FPSTelemetryPreSnapEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryKickSignature, const FPSTelemetryKickEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryJumpSnapSignature, const FPSTelemetryJumpSnapEvent&, Event);
 
@@ -449,6 +494,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeMC, const FPSTeleme
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallMC, const FPSTelemetryPlayCallEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeMC, const FPSTelemetryPumpFakeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushMC, const FPSTelemetryPassRushEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPreSnapMC, const FPSTelemetryPreSnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryKickMC, const FPSTelemetryKickEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryJumpSnapMC, const FPSTelemetryJumpSnapEvent&);
 
@@ -504,6 +550,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishPassRushMove(const FPSTelemetryPassRushEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPreSnap(const FPSTelemetryPreSnapEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishKick(const FPSTelemetryKickEvent& Event);
@@ -563,6 +612,9 @@ public:
     FPSTelemetryPassRushSignature OnPassRushMove;
 
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPreSnapSignature OnPreSnap;
+
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryKickSignature OnKick;
 
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
@@ -583,6 +635,7 @@ public:
     FPSTelemetryPlayCallMC OnPlayCallMC;
     FPSTelemetryPumpFakeMC OnPumpFakeMC;
     FPSTelemetryPassRushMC OnPassRushMoveMC;
+    FPSTelemetryPreSnapMC OnPreSnapMC;
     FPSTelemetryKickMC OnKickMC;
     FPSTelemetryJumpSnapMC OnJumpSnapMC;
 

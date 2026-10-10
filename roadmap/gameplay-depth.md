@@ -18,11 +18,11 @@ functions this track then builds on. Tests per epic, tuning in DataTables.
 **Goal:** The user (or AI) can audible, hot-route, motion, and adjust protection before the snap.
 **Depends on:** Core 14, Core 16
 
-- [ ] Audible system: swap to a compatible play from the same formation
-- [ ] Hot-route individual receivers (route swap from an allowed set per alignment)
-- [ ] Pre-snap motion with defensive reaction (man-indicator when a DB travels)
-- [ ] Protection adjustments: slide protection, RB/TE block-or-release
-- [ ] Crowd-noise interference on road audibles (consumes Epic 49's coupling)
+- [x] Audible system: swap to a compatible play from the same formation *(`UPSPreSnapSubsystem::Audible`/`AudibleToNext`: another play of the call's formation, made at `UPSPlayCallSubsystem` as a new call; the old call's changes go with it. A CPU QB with `CpuReadMinAwareness` checks a run out of a blitz or heavy box and a pass out of a light one. Three plays added so formations share plays. Tuning: `Data/presnap_tuning.json`)*
+- [x] Hot-route individual receivers (route swap from an allowed set per alignment) *(`HotRoute`/`CycleHotRoute`: wide, slot, tight and backfield sets in `HotRouteSets`; `UPSPlayOrchestrator` applies them at the snap. The CPU beats a blitz look with its slot on `BlitzHotRoute`)*
+- [x] Pre-snap motion with defensive reaction (man-indicator when a DB travels) *(`StartMotion`: across the formation; in man coverage the AI defender over him travels with him and the `PreSnap` bus event carries `bManIndicator`; the route starts where the motion ends)*
+- [x] Protection adjustments: slide protection, RB/TE block-or-release *(`SetSlide`: the game mode's line pairing now goes through `ComputeBlockingPairs`, slide side first, leaving the backside rusher to a back or tight end kept in (`SetProtection` Block/Release). Human buttons: `UPSPreSnapInputComponent`, PreSnap context)*
+- [ ] Crowd-noise interference on road audibles (consumes Epic 49's coupling) *(waits for Epic 49: there is no crowd-noise model to consume yet)*
 
 ### Epic 67: Defensive Pre-Snap Interaction
 
