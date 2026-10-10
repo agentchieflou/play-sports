@@ -82,6 +82,7 @@
 #include "PSCommentaryTypes.h"
 #include "PSFieldDimensions.h"
 #include "PSFieldSurfaceTypes.h"
+#include "PSStadiumSetTypes.h"
 #include "PSFormations.h"
 #include "PSDataIngestion.generated.h"
 
@@ -503,6 +504,12 @@ public:
      *  APSFieldSurface::ValidateStyle checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadFieldMarkingsStyleFromJson(const FString& JsonFilePath, FPSFieldMarkingsStyle& OutStyle);
+
+    /** Loads the stadium set around the field (Data/stadium_set.json, Epic 147.1): APSStadiumSet's
+     *  goal posts, benches and stands. False on a missing file or malformed JSON;
+     *  APSStadiumSet::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadStadiumSetStyleFromJson(const FString& JsonFilePath, FPSStadiumSetStyle& OutStyle);
 
     /** Loads every formation, front and shell's alignment (Data/formations.json): where each
      *  player lines up for a call (PSFormations). False on a missing file or malformed JSON;

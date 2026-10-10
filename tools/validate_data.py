@@ -120,8 +120,10 @@ package placed, and each shell's deep safeties defensive_presnap.json's. "HashOf
 against FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): the field's meshes and
 material named, #RRGGBB colors, positive line sizes and spacings. "PressedOpacity" files against
 FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1, #RRGGBB
-colors, positive sizes. Teams, the league config, the playbook, player rating ranges and every
-reference between files are tools/content_contracts.py's (Epic 125), run from here.
+colors, positive sizes. "CrossbarHeightYards" files against FPSStadiumSetStyle
+(Data/stadium_set.json, Epic 147.1): meshes and material named, #RRGGBB colors, positive sizes,
+a bench span that runs forward. Teams, the league config, the playbook, player rating ranges and
+every reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -2193,6 +2195,49 @@ def validate_field_markings(path, payload):
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldMarkingsStyle exactly")
+
+
+STADIUM_SET_PATHS = ("BoxMeshPath", "CylinderMeshPath", "MaterialPath")
+STADIUM_SET_COLORS = ("GoalPostColor", "BenchColor", "StandColor", "StandAltColor")
+STADIUM_SET_POSITIVE = ("MeshSizeCm", "CrossbarHeightYards", "CrossbarWidthYards", "UprightHeightYards",
+                        "PostDiameterYards", "BasePostDiameterYards", "BaseSetbackYards", "BenchDepthYards",
+                        "BenchHeightYards", "StandTierDepthYards", "StandTierRiseYards")
+STADIUM_SET_NON_NEGATIVE = ("BenchDistanceYards", "StandGapYards", "BenchFromYardLine", "BenchToYardLine")
+
+
+def validate_stadium_set(path, payload):
+    """FPSStadiumSetStyle (Data/stadium_set.json, Epic 147.1): how APSStadiumSet builds the goal
+    posts, benches and stands; mirrors APSStadiumSet::ValidateStyle."""
+    for field in STADIUM_SET_PATHS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.startswith("/"):
+            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Cube.Cube")
+    if not isinstance(payload.get("ColorParameter"), str) or not payload["ColorParameter"]:
+        err(path, "ColorParameter must name the material's color parameter")
+    for field in STADIUM_SET_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in STADIUM_SET_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in STADIUM_SET_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    start, end = payload.get("BenchFromYardLine"), payload.get("BenchToYardLine")
+    if is_number(start) and is_number(end) and start >= end:
+        err(path, f"BenchFromYardLine ({start}) must be before BenchToYardLine ({end})")
+    tiers = payload.get("StandTiers")
+    if not isinstance(tiers, int) or isinstance(tiers, bool) or tiers < 0:
+        err(path, f"StandTiers: '{tiers}' must be a whole number, 0 or more")
+    if not isinstance(payload.get("bCastShadows"), bool):
+        err(path, "bCastShadows must be true or false")
+    known = set(STADIUM_SET_PATHS) | set(STADIUM_SET_COLORS) | set(STADIUM_SET_POSITIVE) \
+        | set(STADIUM_SET_NON_NEGATIVE) | {"ColorParameter", "StandTiers", "bCastShadows"}
+    extra = set(payload) - known
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSStadiumSetStyle exactly")
 
 
 PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
@@ -6082,6 +6127,8 @@ def main(root=None):
             validate_touch_hud(path, payload)
         if isinstance(payload, dict) and "HashOffsetYards" in payload:
             validate_field_markings(path, payload)
+        if isinstance(payload, dict) and "CrossbarHeightYards" in payload:
+            validate_stadium_set(path, payload)
         if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:

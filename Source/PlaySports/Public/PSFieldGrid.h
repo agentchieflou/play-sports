@@ -8,6 +8,7 @@
 #include "PSFieldGrid.generated.h"
 
 class APSFieldSurface;
+class APSStadiumSet;
 
 /**
  * The field in the level: its end zones and boundary volumes, and yard-line coordinates. Every
@@ -36,6 +37,11 @@ public:
     /** The field you see (APSFieldSurface, Epic 146.3): the level's own if it has one, else one
      *  spawned now. Either way it is built from data. BeginPlay calls it; headless tests call it. */
     APSFieldSurface* SpawnFieldSurface();
+
+    /** The stadium set around the field (APSStadiumSet, Epic 147.1): the goal posts, benches and
+     *  stands. The level's own if it has one, else one spawned now; built from data either way.
+     *  BeginPlay calls it; headless tests call it. */
+    APSStadiumSet* SpawnStadiumSet();
 
     // Converts a field coordinate (YardLine, LateralYard from the left sideline) to a world space position (FVector)
     UFUNCTION(BlueprintCallable, Category = "Field")
