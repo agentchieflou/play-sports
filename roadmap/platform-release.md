@@ -1,4 +1,4 @@
-# Track S — Three-Platform Release (Epics 145–153)
+# Track S — Three-Platform Release (Epics 145–154)
 
 The north star (re-pointed 2026-10-10): **one game, playable on iOS, Xbox and PC.** It is the same
 game on all three: one code base, one data set, one rule set. Only packaging, input defaults,
@@ -21,7 +21,8 @@ owner, not an agent):
   gates it but the work.
 - **iOS:** UE packages and signs iOS only on a Mac (`Specs/ADR_iOS_Build.md`, accepted
   2026-10-10: a Mac as a second CI runner; `Specs/iOS_Signing_Runbook.md`). The owner chose a free
-  Apple ID, which sideloads 7-day builds. TestFlight needs the Apple Developer Program, later.
+  Apple ID, which sideloads 7-day builds. The iOS goal is playing on the owner's iPhone; TestFlight
+  and the App Store (which need the Developer Program) come later, in Epic 154.
 - **Xbox Series X|S:** from UE 5.8 the Microsoft GDK plug-ins and Xbox platform extensions ship
   publicly with the engine, with no gated download. Deploying to a console (and possibly building
   for it; Epic 150 checks) still needs Xbox developer onboarding through ID@Xbox (NDA, concept
@@ -88,18 +89,17 @@ Rules for this track:
 - [ ] Shipping configuration: Shipping build with crash reporting (Epic 117), saves under the user profile, a version stamp on the title screen, a README for installing and running
 - [ ] Distribution, **owner decided 2026-10-10: a private zip first.** A versioned zip of the Shipping build for the owner and invited testers, produced by CI and kept as a release artifact. Steam comes later as its own Epic (the Steamworks app fee and its integration)
 
-### Epic 149: iOS Device Bring-Up
+### Epic 149: iOS — Playable on the Owner's iPhone
 
 **Size/Mode:** L / mixed
-**Goal:** The same game, signed and running on the owner's iPhone 17 Pro, played with touch at a steady frame rate.
+**Goal:** The same game, installed on the owner's iPhone 17 Pro from the Mac and played start to finish with touch. App Store readiness is not part of this Epic; it comes later (Epic 154).
 **Depends on:** 131, 145, 147
 
 - [ ] Owner gates, **decided 2026-10-10:** a Mac as a second self-hosted CI runner (`Specs/ADR_iOS_Build.md` Option B, accepted) and a free Apple ID (7-day sideloads). Left for the owner: the Mac itself (model, disk, always on), registered as the `mac` runner with `IOS_MAC_RUNNER=true`, and the iPhone paired with it once
-- [ ] Signed Development build installed on the iPhone through the chosen Mac path; `.github/workflows/ios-package.yml` made real on a `mac` runner or a documented manual route
-- [ ] Touch HUD assembled (`Specs/Touch_Controls_Spec.md` section 6, from 146) with safe areas and a landscape lock; every screen usable by touch
-- [ ] Mobile rendering and performance: the content set validated on the mobile renderer, 60 fps at `MobileBaseline` measured on the device with Epic 114's harness (closes 17.5 for iOS), and a 30-minute thermal session without throttling below 30 fps
-- [ ] App lifecycle through 152's iOS implementation (local storage and lifecycle events; Game Center later): backgrounding mid-play pauses the game and saves; audio interruptions and resume behave
-- [ ] TestFlight build (**deferred:** needs the $99/year Developer Program; the owner chose a free Apple ID for now)
+- [ ] A signed Development build installed on the iPhone from the Mac runner with the free Apple ID; `.github/workflows/ios-package.yml` made real, and the weekly reinstall (free-account builds stop launching after 7 days) a short documented routine in `Specs/iOS_Signing_Runbook.md`
+- [ ] Touch HUD assembled (`Specs/Touch_Controls_Spec.md` section 6, from 146) with safe areas and a landscape lock; every screen usable by touch, and a paired Xbox pad works too
+- [ ] Smooth enough to play: the content set on the mobile renderer, targeting 60 fps at `MobileBaseline` and never below 30 fps in play, measured on the device with Epic 114's harness (closes 17.5 for iOS), through a full game without thermal throttling below 30 fps
+- [ ] App lifecycle through 152's iOS implementation (local storage and lifecycle events only): backgrounding mid-play pauses the game and saves, and returning resumes it; audio interruptions behave
 
 ### Epic 150: Xbox Readiness Without a Console
 
@@ -149,3 +149,15 @@ Epic needs an NDA, a dev kit or Partner Center.
 - [ ] `Specs/Release_Checklist.md`: a per-platform smoke runbook (install, boot, full game, suspend/resume, save/load, controller or touch) run by a human before each tagged build
 - [ ] Same game everywhere: one data set and rule set on every platform, the determinism fingerprint from Epic 108's audit compared across Win64, iOS and Xbox builds, and saves portable between them
 - [ ] A per-platform performance budget table (one row per tier) tracked in CI's perf history (Epic 114), with regressions failing the build
+
+### Epic 154: iOS App Store Release (Later)
+
+**Size/Mode:** M / mixed
+**Goal:** The iOS build is ready for TestFlight and the App Store. **Deferred by the owner (2026-10-10):** the goal for now is playing on the owner's iPhone (149); this Epic waits until the owner chooses to start it.
+**Depends on:** 149
+
+- [ ] Owner gate (later): join the Apple Developer Program ($99/year), create the App Store Connect app record, and replace the placeholder bundle ID with the owner's own
+- [ ] Distribution signing on the Mac runner, and a Shipping build uploaded to TestFlight for testers
+- [ ] App Store technical requirements, checked against Apple's current rules at the time: app icons and launch screen, the privacy manifest and required-reason APIs, export compliance, supported devices and orientations
+- [ ] Game Center (sign-in, achievements) through 152's iOS implementation
+- [ ] Store submission: age rating, the listing (screenshots, description) and App Review against the current guidelines
