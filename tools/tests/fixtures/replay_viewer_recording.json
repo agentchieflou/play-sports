@@ -1,0 +1,234 @@
+{
+	"header":
+	{
+		"formatVersion": 2,
+		"gameBuildVersion": "test-build",
+		"recordedAtUtc": "2026.10.10-12.00.00",
+		"randomSeed": 1234,
+		"fixedDeltaSeconds": 0.033333
+	},
+	"initialState":
+	{
+		"playState":
+		{
+			"phase": "PreSnap",
+			"down": 3,
+			"distance": 7,
+			"yardLine": 45,
+			"yardLineToGain": 52,
+			"quarter": 2,
+			"gameClockSeconds": 425,
+			"playClockSeconds": 12,
+			"bHomeHasPossession": false,
+			"homeScore": 14,
+			"awayScore": 10,
+			"bIsClockRunning": true
+		},
+		"offenseRoster": [
+			{
+				"playerId": "QB_01",
+				"displayName": "Test Quarterback",
+				"role": "Quarterback",
+				"weightKg": 102,
+				"heightCm": 193,
+				"speed": 78,
+				"agility": 70,
+				"strength": 72,
+				"acceleration": 75,
+				"awareness": 91,
+				"stamina": 90,
+				"age": 27
+			}
+		],
+		"defenseRoster": [
+			{
+				"playerId": "DB_01",
+				"displayName": "Test Defensive Back",
+				"role": "DefensiveBack",
+				"weightKg": 88,
+				"heightCm": 183,
+				"speed": 93,
+				"agility": 90,
+				"strength": 65,
+				"acceleration": 92,
+				"awareness": 80,
+				"stamina": 88,
+				"age": 24
+			}
+		]
+	},
+	"events": [
+		{
+			"tickIndex": 0,
+			"timestampSeconds": 30.5,
+			"eventType": "Snap",
+			"payloadJson": "{\"yardLine\":45,\"down\":3,\"distance\":7,\"gameClockSeconds\":425,\"lineOfScrimmage\":{\"x\":4500,\"y\":0,\"z\":0}}"
+		},
+		{
+			"tickIndex": 1,
+			"timestampSeconds": 30.55,
+			"eventType": "Throw",
+			"payloadJson": "{\"passerName\":\"Test Quarterback\",\"targetReceiverName\":\"Test Receiver\",\"startLocation\":{\"x\":4200,\"y\":0,\"z\":200},\"targetLocation\":{\"x\":5200,\"y\":600,\"z\":0},\"landingLocation\":{\"x\":5240,\"y\":630,\"z\":0},\"launchSpeed\":2400}"
+		},
+		{
+			"tickIndex": 3,
+			"timestampSeconds": 30.6,
+			"eventType": "Tackle",
+			"payloadJson": "{\"tacklerName\":\"Test Defensive Back\",\"ballCarrierName\":\"Test Quarterback\",\"yardLine\":44,\"bIsSack\":true}"
+		},
+		{
+			"tickIndex": 3,
+			"timestampSeconds": 30.6,
+			"eventType": "PhaseChange",
+			"payloadJson": "{\"oldPhase\":\"PassRush\",\"newPhase\":\"Scoring\",\"gameClockSeconds\":420,\"playClockSeconds\":0}"
+		},
+		{
+			"tickIndex": 3,
+			"timestampSeconds": 30.6,
+			"eventType": "PlayResult",
+			"payloadJson": "{\"playNumber\":12,\"bHomeOffense\":false,\"quarter\":2,\"gameClockSeconds\":425,\"down\":3,\"distance\":7,\"yardLine\":45,\"result\":\"Tackle\",\"yardsGained\":-1,\"bPass\":true,\"bComplete\":false,\"bInterception\":false,\"bSack\":true,\"bFirstDown\":false,\"bTurnoverOnDowns\":false,\"homePoints\":0,\"awayPoints\":0,\"passerId\":\"QB_01\",\"receiverId\":\"None\",\"rusherId\":\"None\",\"tacklerId\":\"DB_01\"}"
+		}
+	],
+	"frames": [
+		{
+			"frameIndex": 0,
+			"time": 30.5,
+			"eventSequence": 41,
+			"bKeyframe": true,
+			"keyframeEventType": "Snap",
+			"bInterpolated": false,
+			"bBallSampled": true,
+			"ballLocation": { "x": 4500, "y": 0, "z": 15 },
+			"ballVelocity": { "x": 0, "y": 0, "z": 0 },
+			"pawns": [
+				{
+					"playerId": "QB_01",
+					"teamSide": "Offense",
+					"role": "Quarterback",
+					"location": { "x": 4300, "y": 0, "z": 88 },
+					"velocity": { "x": 0, "y": 0, "z": 0 },
+					"acceleration": { "x": 0, "y": 0, "z": 0 },
+					"facingYaw": 0,
+					"bHasBall": false,
+					"bUserControlled": false
+				},
+				{
+					"playerId": "DB_01",
+					"teamSide": "Defense",
+					"role": "DefensiveBack",
+					"location": { "x": 4800, "y": 200, "z": 88 },
+					"velocity": { "x": 0, "y": 0, "z": 0 },
+					"acceleration": { "x": 0, "y": 0, "z": 0 },
+					"facingYaw": 180,
+					"bHasBall": false,
+					"bUserControlled": false
+				}
+			]
+		},
+		{
+			"frameIndex": 1,
+			"time": 30.533333,
+			"eventSequence": 41,
+			"bKeyframe": false,
+			"keyframeEventType": "Snap",
+			"bInterpolated": false,
+			"bBallSampled": true,
+			"ballLocation": { "x": 4300, "y": 0, "z": 88 },
+			"ballVelocity": { "x": -150, "y": 0, "z": 0 },
+			"pawns": [
+				{
+					"playerId": "QB_01",
+					"teamSide": "Offense",
+					"role": "Quarterback",
+					"location": { "x": 4295, "y": 0, "z": 88 },
+					"velocity": { "x": -150, "y": 0, "z": 0 },
+					"acceleration": { "x": -4500, "y": 0, "z": 0 },
+					"facingYaw": 0,
+					"bHasBall": true,
+					"bUserControlled": false
+				},
+				{
+					"playerId": "DB_01",
+					"teamSide": "Defense",
+					"role": "DefensiveBack",
+					"location": { "x": 4780, "y": 190, "z": 88 },
+					"velocity": { "x": -600, "y": -300, "z": 0 },
+					"acceleration": { "x": -18000, "y": -9000, "z": 0 },
+					"facingYaw": -153.43,
+					"bHasBall": false,
+					"bUserControlled": false
+				}
+			]
+		},
+		{
+			"frameIndex": 2,
+			"time": 30.566667,
+			"eventSequence": 42,
+			"bKeyframe": false,
+			"keyframeEventType": "Snap",
+			"bInterpolated": false,
+			"bBallSampled": true,
+			"ballLocation": { "x": 4290, "y": 0, "z": 88 },
+			"ballVelocity": { "x": -150, "y": 0, "z": 0 },
+			"pawns": [
+				{
+					"playerId": "QB_01",
+					"teamSide": "Offense",
+					"role": "Quarterback",
+					"location": { "x": 4290, "y": 0, "z": 88 },
+					"velocity": { "x": -150, "y": 0, "z": 0 },
+					"acceleration": { "x": 0, "y": 0, "z": 0 },
+					"facingYaw": 0,
+					"bHasBall": true,
+					"bUserControlled": false
+				},
+				{
+					"playerId": "DB_01",
+					"teamSide": "Defense",
+					"role": "DefensiveBack",
+					"location": { "x": 4400, "y": 60, "z": 88 },
+					"velocity": { "x": -800, "y": -400, "z": 0 },
+					"acceleration": { "x": -6000, "y": -3000, "z": 0 },
+					"facingYaw": -153.43,
+					"bHasBall": false,
+					"bUserControlled": false
+				}
+			]
+		},
+		{
+			"frameIndex": 3,
+			"time": 30.6,
+			"eventSequence": 43,
+			"bKeyframe": true,
+			"keyframeEventType": "Tackle",
+			"bInterpolated": false,
+			"bBallSampled": true,
+			"ballLocation": { "x": 4285, "y": 0, "z": 88 },
+			"ballVelocity": { "x": -150, "y": 0, "z": 0 },
+			"pawns": [
+				{
+					"playerId": "QB_01",
+					"teamSide": "Offense",
+					"role": "Quarterback",
+					"location": { "x": 4285, "y": 0, "z": 88 },
+					"velocity": { "x": -150, "y": 0, "z": 0 },
+					"acceleration": { "x": 0, "y": 0, "z": 0 },
+					"facingYaw": 0,
+					"bHasBall": true,
+					"bUserControlled": false
+				},
+				{
+					"playerId": "DB_01",
+					"teamSide": "Defense",
+					"role": "DefensiveBack",
+					"location": { "x": 4330, "y": 20, "z": 88 },
+					"velocity": { "x": -900, "y": -450, "z": 0 },
+					"acceleration": { "x": -3000, "y": -1500, "z": 0 },
+					"facingYaw": -153.43,
+					"bHasBall": false,
+					"bUserControlled": false
+				}
+			]
+		}
+	]
+}

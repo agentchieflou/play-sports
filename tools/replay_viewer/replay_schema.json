@@ -1,0 +1,224 @@
+{
+    "about": "What the replay viewer reads from a recording that UPSReplayFormat::SerializeToJson writes, and from the demo index beside it. The page's loader (loader.js) and the Python check (stage.py, tools/tests/test_replay_viewer.py) both read this file, so they cannot drift apart. Field names are the C++ UPROPERTY names: FJsonObjectConverter writes them with the first letter lower-cased and 'ID' as 'Id' (FormatVersion -> formatVersion), and both readers match keys in any case. Enum values are written by name ('Offense'); a 'Type::Name' form is read too.",
+    "knownFormatVersion": 2,
+    "structs": {
+        "FPSReplayRecording": {
+            "header": "Source/PlaySports/Public/PSReplayFormat.h",
+            "fields": {
+                "Header": { "type": "struct:FPSReplayHeader", "required": true },
+                "InitialState": { "type": "struct:FPSReplayInitialState" },
+                "Events": { "type": "array:FPSReplayEventRecord" },
+                "Frames": { "type": "array:FPSSnapshotFrame", "required": true, "nonEmpty": true }
+            }
+        },
+        "FPSReplayHeader": {
+            "header": "Source/PlaySports/Public/PSReplayFormat.h",
+            "fields": {
+                "FormatVersion": { "type": "int", "required": true, "min": 1 },
+                "GameBuildVersion": { "type": "string" },
+                "RecordedAtUtc": { "type": "string" },
+                "RandomSeed": { "type": "int" },
+                "FixedDeltaSeconds": { "type": "number" }
+            }
+        },
+        "FPSReplayInitialState": {
+            "header": "Source/PlaySports/Public/PSReplayFormat.h",
+            "fields": {
+                "PlayState": { "type": "struct:FPlayState" },
+                "OffenseRoster": { "type": "array:FPlayerAttributes" },
+                "DefenseRoster": { "type": "array:FPlayerAttributes" }
+            }
+        },
+        "FPlayState": {
+            "header": "Source/PlaySports/Public/PSPlaySimulation.h",
+            "fields": {
+                "Down": { "type": "int" },
+                "Distance": { "type": "int" },
+                "YardLine": { "type": "int" },
+                "Quarter": { "type": "int" },
+                "bHomeHasPossession": { "type": "bool" },
+                "HomeScore": { "type": "int" },
+                "AwayScore": { "type": "int" }
+            }
+        },
+        "FPlayerAttributes": {
+            "header": "Source/PlaySports/Public/PSPlayerAttributes.h",
+            "fields": {
+                "PlayerId": { "type": "string", "required": true },
+                "DisplayName": { "type": "string" },
+                "Role": { "type": "enum:EPlayerRole" },
+                "WeightKg": { "type": "number" },
+                "HeightCm": { "type": "number" }
+            }
+        },
+        "FPSReplayEventRecord": {
+            "header": "Source/PlaySports/Public/PSReplayFormat.h",
+            "fields": {
+                "TickIndex": { "type": "int" },
+                "TimestampSeconds": { "type": "number", "required": true },
+                "EventType": { "type": "string", "required": true },
+                "PayloadJson": { "type": "string" }
+            }
+        },
+        "FPSSnapshotFrame": {
+            "header": "Source/PlaySports/Public/PSTelemetrySamplingTypes.h",
+            "fields": {
+                "FrameIndex": { "type": "int" },
+                "Time": { "type": "number", "required": true },
+                "EventSequence": { "type": "int" },
+                "bKeyframe": { "type": "bool" },
+                "KeyframeEventType": { "type": "enum:EPSTelemetryEventType" },
+                "bInterpolated": { "type": "bool" },
+                "bBallSampled": { "type": "bool" },
+                "BallLocation": { "type": "vector" },
+                "BallVelocity": { "type": "vector" },
+                "Pawns": { "type": "array:FPSPawnSnapshot", "required": true }
+            }
+        },
+        "FPSPawnSnapshot": {
+            "header": "Source/PlaySports/Public/PSTelemetrySamplingTypes.h",
+            "fields": {
+                "PlayerId": { "type": "string", "required": true },
+                "TeamSide": { "type": "enum:EPSTeamSide" },
+                "Role": { "type": "enum:EPlayerRole" },
+                "Location": { "type": "vector", "required": true },
+                "Velocity": { "type": "vector" },
+                "Acceleration": { "type": "vector" },
+                "FacingYaw": { "type": "number" },
+                "bHasBall": { "type": "bool" },
+                "bUserControlled": { "type": "bool" }
+            }
+        }
+    },
+    "enums": {
+        "EPSTeamSide": { "header": "Source/PlaySports/Public/PSPlayerPawn.h", "values": ["Offense", "Defense"] },
+        "EPlayerRole": {
+            "header": "Source/PlaySports/Public/PSPlayerAttributes.h",
+            "values": ["Quarterback", "RunningBack", "WideReceiver", "TightEnd", "OffensiveLineman", "DefensiveLineman", "Linebacker", "DefensiveBack"]
+        },
+        "EPSTelemetryEventType": {
+            "header": "Source/PlaySports/Public/PSTelemetryBus.h",
+            "values": ["Snap", "Throw", "Catch", "Tackle", "Fumble", "Score", "PhaseChange", "Damage", "PlayCall", "PumpFake", "PassRushMove", "Kick", "GameState", "PlayResult", "LooseBall", "BoundaryCrossed", "BallGrounded", "Penalty"]
+        }
+    },
+    "payloads": {
+        "Snap": { "struct": "FPSTelemetrySnapEvent", "fields": ["YardLine", "Down", "Distance", "LineOfScrimmage"] },
+        "Throw": { "struct": "FPSTelemetryThrowEvent", "fields": ["PasserName", "TargetReceiverName", "StartLocation", "TargetLocation", "LandingLocation", "LaunchSpeed"] },
+        "Catch": { "struct": "FPSTelemetryCatchEvent", "fields": ["ReceiverName", "CatchLocation", "YardsGained", "bIsInterception"] },
+        "Tackle": { "struct": "FPSTelemetryTackleEvent", "fields": ["TacklerName", "BallCarrierName", "YardLine", "bIsSack"] },
+        "Fumble": { "struct": "FPSTelemetryFumbleEvent", "fields": ["FumblerName", "RecoveryName", "bIsTurnover"] },
+        "Score": { "struct": "FPSTelemetryScoreEvent", "fields": ["ScoreType", "Points"] },
+        "PhaseChange": { "struct": "FPSTelemetryPhaseChangeEvent", "fields": ["OldPhase", "NewPhase"] },
+        "Damage": { "struct": "FPSTelemetryDamageEvent", "fields": ["TargetName", "Amount"] },
+        "PlayCall": { "struct": "FPSTelemetryPlayCallEvent", "fields": ["PlayId", "DisplayName", "Formation", "PlayCategory", "Front", "CoverageShell", "bOffense"] },
+        "PassRushMove": { "struct": "FPSTelemetryPassRushEvent", "fields": ["RusherName", "BlockerName", "Move", "bWon"] },
+        "Kick": { "struct": "FPSTelemetryKickEvent", "fields": ["KickerName", "KickType"] },
+        "GameState": { "struct": "FPSTelemetryGameStateEvent", "fields": ["Phase"] },
+        "PlayResult": { "struct": "FPSTelemetryPlayResultEvent", "fields": ["Result", "YardsGained", "bPass", "bComplete", "bInterception", "bSack", "bFirstDown", "PasserId", "ReceiverId", "RusherId", "TacklerId"] },
+        "LooseBall": { "struct": "FPSTelemetryLooseBallEvent", "fields": ["Kind", "PlayerName", "Location"] },
+        "BoundaryCrossed": { "struct": "FPSTelemetryBoundaryCrossedEvent", "fields": ["CarrierName", "YardLine", "bEndZone"] },
+        "BallGrounded": { "struct": "FPSTelemetryBallGroundedEvent", "fields": ["Location"] },
+        "Penalty": { "struct": "FPSTelemetryPenaltyEvent", "fields": ["Kind", "Penalty", "bOnDefense", "Yards"] },
+        "_header": "Source/PlaySports/Public/PSTelemetryBus.h"
+    },
+    "playerInfo": {
+        "about": "Who each pawn is, found by PlayerId in the recording's optional top-level Participants (lane S4's additive extension, PR #205: { playerId, displayName, teamId, teamSide, role, jerseyNumber (1-99, 0 none) }, everyone the frames name), in any other array of objects with a PlayerId at the top of the recording or its InitialState, in the rosters (FPlayerAttributes) and in the pawn snapshots. The first non-empty value wins, in that order. Aliases are matched in any case. Without a jersey number a player is labelled by role and index (WR2).",
+        "lists": ["Participants"],
+        "id": ["PlayerId", "Id"],
+        "displayName": ["DisplayName", "Name", "PlayerName"],
+        "jerseyNumber": ["JerseyNumber", "Jersey", "UniformNumber", "Number"],
+        "teamId": ["TeamId", "Team", "TeamName", "TeamAbbreviation", "Abbreviation"],
+        "teamSide": ["TeamSide", "Side"],
+        "role": ["Role", "Position"],
+        "heightCm": ["HeightCm"],
+        "weightKg": ["WeightKg"]
+    },
+    "teamInfo": {
+        "about": "The recording's optional top-level Teams (lane S4's additive extension, PR #205: { teamId, displayName, abbreviation, primaryColor, secondaryColor, bHome }, home first). A team's side comes from its own field when it has one, else from the participants who play for it. Colours fall back to Data/sample_teams.json by TeamId, name or abbreviation, then to the viewer's offense blue and defense red.",
+        "lists": ["Teams"],
+        "teamId": ["TeamId", "Id"],
+        "displayName": ["DisplayName", "Name", "TeamName"],
+        "abbreviation": ["Abbreviation", "ShortName"],
+        "primaryColor": ["PrimaryColor", "PrimaryColour", "Color", "Colour"],
+        "secondaryColor": ["SecondaryColor", "SecondaryColour"],
+        "side": ["TeamSide", "Side"],
+        "offense": ["bOffense", "bIsOffense"],
+        "home": ["bHome"]
+    },
+    "extensions": {
+        "about": "Top-level recording fields lane S4 adds (PR #205) that the C++ on main may not have yet. The test checks them against C++ once they are UPROPERTYs of FPSReplayRecording.",
+        "recording": ["Teams", "Participants"]
+    },
+    "index": {
+        "about": "The demo index (index.json) beside the recordings, as lane S4 writes it (PR #205): { generatedAtUtc, gameBuildVersion, frameRateHz, method, plays[] }. Plays may also be the whole document or under another of listKeys. Only 'file' is needed; anything missing is read from the recording itself (its PlayCall and PlayResult events, its frames and its header). Times (snapTime, whistleTime) are on the frames' clock; problems[] empty means the recorder's sanity checks passed.",
+        "listKeys": ["Plays", "Demos", "Entries", "Items", "Recordings"],
+        "meta": {
+            "generatedAtUtc": ["GeneratedAtUtc"],
+            "gameBuildVersion": ["GameBuildVersion"],
+            "frameRateHz": ["FrameRateHz"],
+            "method": ["Method"]
+        },
+        "fields": {
+            "file": ["File", "FileName", "Path", "Recording"],
+            "name": ["Title", "Name", "DisplayName", "Label"],
+            "demoId": ["DemoId"],
+            "intent": ["Intent"],
+            "wantedOutcome": ["WantedOutcome"],
+            "calledBy": ["CalledBy"],
+            "offenseCall": ["OffensePlayName", "OffenseCall", "OffensiveCall", "OffensePlay", "OffenseCallName", "Offense"],
+            "defenseCall": ["DefensePlayName", "DefenseCall", "DefensiveCall", "DefensePlay", "DefenseCallName", "Defense"],
+            "offenseFormation": ["OffenseFormation"],
+            "defenseFormation": ["DefenseFormation"],
+            "outcome": ["Outcome"],
+            "result": ["Result"],
+            "yards": ["YardsGained", "Yards"],
+            "firstDown": ["bFirstDown"],
+            "endedBy": ["EndedBy"],
+            "down": ["Down"],
+            "distance": ["Distance"],
+            "yardLine": ["YardLine"],
+            "durationSeconds": ["DurationSeconds", "Duration"],
+            "playSeconds": ["PlaySeconds"],
+            "snapTime": ["SnapTime"],
+            "whistleTime": ["WhistleTime"],
+            "seed": ["Seed", "RandomSeed"],
+            "seedsTried": ["SeedsTried"],
+            "offenseTeam": ["OffenseTeamId", "OffenseTeam"],
+            "defenseTeam": ["DefenseTeamId", "DefenseTeam"],
+            "homeTeam": ["HomeTeamId"],
+            "groundZ": ["GroundZ"],
+            "pawnHalfHeightCm": ["PawnHalfHeightCm"],
+            "playerSpeedLimitCmPerSec": ["PlayerSpeedLimitCmPerSec"],
+            "ballSpeedLimitCmPerSec": ["BallSpeedLimitCmPerSec"],
+            "maxPlayerSpeedCmPerSec": ["MaxPlayerSpeedCmPerSec"],
+            "fastestPlayerId": ["FastestPlayerId"],
+            "maxBallSpeedCmPerSec": ["MaxBallSpeedCmPerSec"],
+            "ballTravelCm": ["BallTravelCm"],
+            "frameCount": ["FrameCount"],
+            "problems": ["Problems"],
+            "synthetic": ["Synthetic"]
+        },
+        "numbers": ["yards", "down", "distance", "yardLine", "durationSeconds", "playSeconds", "snapTime", "whistleTime", "seed", "seedsTried", "groundZ", "pawnHalfHeightCm", "playerSpeedLimitCmPerSec", "ballSpeedLimitCmPerSec", "maxPlayerSpeedCmPerSec", "maxBallSpeedCmPerSec", "ballTravelCm", "frameCount"],
+        "flags": ["firstDown", "synthetic"]
+    },
+    "units": {
+        "about": "The engine's sizes the viewer draws with, from the code that sets them. tools/tests/test_replay_viewer.py checks each against its source.",
+        "capsuleRadiusCm": 44.0,
+        "capsuleHalfHeightCm": 88.0,
+        "ballRadiusCm": 15.0
+    },
+    "fieldDefaults": {
+        "about": "Used only when Data/field_dimensions.json can't be fetched; equal to that file (checked by the test).",
+        "CentimetresPerYard": 100.0,
+        "FieldLengthYards": 100.0,
+        "EndZoneDepthYards": 10.0,
+        "FieldWidthYards": 53.3333,
+        "OutOfBoundsDepthYards": 14.0,
+        "BoundaryHeightCm": 500.0
+    },
+    "synthetic": {
+        "about": "How a recording that is not the game is recognised: a file name starting with the prefix, a GameBuildVersion containing the marker, or an index entry with Synthetic true. The viewer then shows a banner on every frame and never calls it the game.",
+        "filePrefix": "SYNTHETIC_",
+        "buildMarker": "SYNTHETIC"
+    }
+}
