@@ -6,6 +6,7 @@
 #include "PSDefenderGapSubsystem.h"
 #include "PSDefenseController.h"
 #include "PSFieldGrid.h"
+#include "PSGameStateEvents.h"
 #include "PSOffenseController.h"
 #include "PSOverlayBallFlightSubsystem.h"
 #include "PSOverlayBroadcastSubsystem.h"
@@ -286,8 +287,10 @@ FPSPerfReport UPSPerfHarness::RunStandardPlay(UWorld* World, const FPSPlatformTi
         return Empty;
     }
 
-    // Two elevens, lined up from the 20-yard line, and the ball in the center's hands.
-    const float ScrimmageX = 2000.f;
+    // Two elevens, lined up from the 20-yard line (on the field's frame, as the game mode lines
+    // up), and the ball in the center's hands.
+    const int32 ScrimmageYardLine = 20;
+    const float ScrimmageX = PSGameStateEvents::LineOfScrimmageFor(ScrimmageYardLine).X;
     const TArray<EPlayerRole> Roles = PSPerfHarnessPrivate::StandardRoles();
     const TArray<FVector> Lineup = APSFieldGrid::ComputeLineup(Roles, ScrimmageX);
     TArray<APSPlayerPawn*> Players;
@@ -334,8 +337,8 @@ FPSPerfReport UPSPerfHarness::RunStandardPlay(UWorld* World, const FPSPlatformTi
     FPSTelemetrySnapEvent Snap;
     Snap.Down = 1;
     Snap.Distance = 10;
-    Snap.YardLine = 20;
-    Snap.LineOfScrimmage = FVector(ScrimmageX, 0.f, 0.f);
+    Snap.YardLine = ScrimmageYardLine;
+    Snap.LineOfScrimmage = PSGameStateEvents::LineOfScrimmageFor(ScrimmageYardLine);
     Bus->PublishSnap(Snap);
     Simulation->TriggerSnap();
 

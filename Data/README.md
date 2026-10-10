@@ -121,6 +121,7 @@ every CI build.
 | `play_art.json` | `FPSPlayArtStyle` (single object) | `UPSDataIngestion::LoadPlayArtStyleFromJson`, via `UPSOverlayPlayArtSubsystem` |
 | `game_intelligence.json` | `FPSGameIntelligenceTuning` (single object) | `UPSDataIngestion::LoadGameIntelligenceTuningFromJson`, via `UPSGameIntelligenceSubsystem`; its tasks are checked against `tools/orchestrator/routing.json` |
 | `league_narrative.json` | `FPSNarrativeTuning` (single object: storyline rules and `StorylineKinds`, award scoring, the vote, the digest's model task) | `UPSDataIngestion::LoadNarrativeTuningFromJson`, via `UPSLeagueNarrative` |
+| `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1828,3 +1829,21 @@ Single object (Epic 93; `UPSLeagueNarrative`, driven by `UPSFranchiseFlow`):
 
 The news text itself is the string table's `Narrative.*` rows (`Data/ui_text.csv`).
 `UPSLeagueNarrative::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Field schema (`FPSFieldDimensions`)
+
+Single object: the field's one frame (`PSField`). Yard line N, counted from the offense's own goal
+line, is at world X = N * `CentimetresPerYard`; the offense always attacks +X, and Y = 0 is the
+middle of the field. The game mode lines up and snaps on it, `APSFieldGrid` lays the end zones and
+boundary volumes out on it, and every yard read from a world location (a tackle's spot, a boundary
+crossing, an interception, a loose ball, the broadcast camera's scrimmage shot) goes through it.
+Every value is a number above 0.
+
+- `CentimetresPerYard`: world units in a yard. The game's yard is a metre (100): every distance
+  tuned in cm elsewhere (lineups, routes, coverage depths) is read against it.
+- `FieldLengthYards` (goal line to goal line), `EndZoneDepthYards`, `FieldWidthYards` (sideline to
+  sideline).
+- `OutOfBoundsDepthYards`: how far past the sidelines and end lines the out-of-bounds volumes
+  reach. `BoundaryHeightCm`: the boundary volumes' height.
+
+`PSField::Validate` and `tools/validate_data.py` check it.

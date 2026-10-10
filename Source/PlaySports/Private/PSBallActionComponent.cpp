@@ -9,6 +9,7 @@
 #include "PSCarrierMoveComponent.h"
 #include "PSDefenderTechniqueComponent.h"
 #include "PSDifficultySubsystem.h"
+#include "PSFieldDimensions.h"
 #include "PSTelemetryBus.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
@@ -456,13 +457,13 @@ bool UPSBallActionComponent::ResolveTackle(APSPlayerPawn* Defender)
             // records it from there (one path, rule 6) and measures the play's yards from the
             // line of scrimmage; the stats, cameras, rumble, overlays and controllers hear the
             // same event, and the play's yards with its result. The spot is the yard line he went
-            // down on (the game mode places the line of scrimmage at YardLine * 100 cm).
+            // down on, on the field's one frame (PSField), where the game mode lines up.
             if (UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr)
             {
                 FPSTelemetryTackleEvent TackleEvt;
                 TackleEvt.TacklerName = DefenderAttr.DisplayName;
                 TackleEvt.BallCarrierName = CarrierAttr.DisplayName;
-                TackleEvt.YardLine = FMath::Clamp(FMath::RoundToInt(OwnerPawn->GetActorLocation().X / 100.f), 0, 100);
+                TackleEvt.YardLine = PSField::WorldToSpot(OwnerPawn->GetActorLocation());
                 // A quarterback still holding the ball, brought down behind the snap's line of
                 // scrimmage, was sacked.
                 TackleEvt.bIsSack = CarrierAttr.Role == EPlayerRole::Quarterback && bHasLineOfScrimmage

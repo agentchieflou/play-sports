@@ -90,7 +90,8 @@ FPSGameIntelligenceTuning (Epic 82), each task one of tools/orchestrator/routing
 threshold and archived leader a player stat category, listed once, each role's age curve and the
 retirement chances; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one weight per
 EPSStorylineKind, award scoring by EPSStatCategory, a falling ballot, the digest's task one of
-routing.json's. Teams, the league config, the playbook, player rating ranges and every reference
+routing.json's. "CentimetresPerYard" files against FPSFieldDimensions (Data/field_dimensions.json,
+the field's one frame): every dimension a positive number. Teams, the league config, the playbook, player rating ranges and every reference
 between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -1625,6 +1626,22 @@ def validate_overlay_reticle(path, payload):
     for state in RETICLE_STATES:
         if state not in seen:
             err(path, f"ReticleStates: no '{state}' entry")
+
+
+FIELD_DIMENSION_FIELDS = ("CentimetresPerYard", "FieldLengthYards", "EndZoneDepthYards", "FieldWidthYards",
+                          "OutOfBoundsDepthYards", "BoundaryHeightCm")
+
+
+def validate_field_dimensions(path, payload):
+    """FPSFieldDimensions (Data/field_dimensions.json): the field's one frame, which PSField maps
+    yards to world space with; mirrors PSField::Validate."""
+    for field in FIELD_DIMENSION_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    extra = set(payload) - set(FIELD_DIMENSION_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldDimensions exactly")
 
 
 def validate_control_handoff(path, payload, catalog):
@@ -5075,6 +5092,8 @@ def main(root=None):
             validate_legacy(path, payload)
         if isinstance(payload, dict) and "StorylineKinds" in payload:
             validate_narrative(path, payload)
+        if isinstance(payload, dict) and "CentimetresPerYard" in payload:
+            validate_field_dimensions(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()

@@ -2,6 +2,7 @@
 #include "PSCameraAll22Component.h"
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
+#include "PSFieldDimensions.h"
 #include "PSPhotoModeSubsystem.h"
 #include "PSPlayerController.h"
 #include "PSUIAccessibilitySubsystem.h"
@@ -16,14 +17,18 @@ APSBroadcastCamera::APSBroadcastCamera()
     SkycamComponent = CreateDefaultSubobject<UPSCameraSkycamComponent>(TEXT("SkycamComp"));
 
     TargetActor = nullptr;
-    SidelineY = -2800.0f; // Standard sideline placement (field width is Y = +/- 2438.4 cm)
+    // Just outside the near sideline of the default field (FPSFieldDimensions: Y = +/- 2666.7 cm).
+    SidelineY = -2800.0f;
     CameraHeight = 600.0f;  // Elevated to look down on the play
     TrackingSpeed = 5.0f;
     bIsFollowing = true;
 
-    // Field bounds: Endlines are at +/- 5486.4 cm. Expand slightly for padding.
-    MinX = -6000.0f;
-    MaxX = 6000.0f;
+    // The default field's end lines, on the field's one frame (PSField): the end zones behind
+    // the goal lines at X = 0 and X = FieldLengthYards. The constructor reads the struct's
+    // defaults (which equal Data/field_dimensions.json) rather than loading the file.
+    const FPSFieldDimensions Field;
+    MinX = -Field.EndZoneDepthYards * Field.CentimetresPerYard;
+    MaxX = (Field.FieldLengthYards + Field.EndZoneDepthYards) * Field.CentimetresPerYard;
 
     // Sideline limits to keep within the stadium structure
     MinY = -4000.0f;
@@ -92,8 +97,8 @@ void APSBroadcastCamera::Tick(float DeltaTime)
 
 void APSBroadcastCamera::SnapToScrimmage(float ScrimmageYardLine)
 {
-    // Convert yard line to world X coordinate
-    float TargetWorldX = (ScrimmageYardLine - 50.0f) * 91.44f;
+    // The yard line on the field's one frame (PSField), where the game mode lines up.
+    float TargetWorldX = PSField::YardLineToWorld(ScrimmageYardLine).X;
     TargetWorldX = FMath::Clamp(TargetWorldX, MinX, MaxX);
 
     float ClampedY = FMath::Clamp(SidelineY, MinY, MaxY);

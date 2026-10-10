@@ -1,6 +1,7 @@
 #include "PSPlaySimulation.h"
 #include "PSPerfBudget.h"
 #include "PSGameStateEvents.h"
+#include "PSFieldDimensions.h"
 #include "PSRulesConfig.h"
 #include "PSSpecialTeamsModel.h"
 #include "PSGameMode.h"
@@ -753,7 +754,7 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
             PlayLog.bPass = true;
             CurrentPlayResult.ResultType = EPlayResultType::Interception;
             CurrentPlayResult.YardsGained = 0;
-            InterceptionSpot = FMath::Clamp(FMath::RoundToInt(Event.CatchLocation.X / 100.f), 0, 100);
+            InterceptionSpot = PSField::WorldToSpot(Event.CatchLocation);
         }
         else
         {
