@@ -20,7 +20,8 @@ catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each mov
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
 DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
 "MaxQueued" files against FInputBufferTuningRow, each buffered action a Boolean catalog action;
-"RushMoves" files against FPSRushMoveCatalog;
+"RushMoves" files against FPSRushMoveCatalog; "HotRouteSets" files against FPreSnapTuningRow, each
+route in the route library and each action a Boolean in the PreSnap context;
 "FrameTimeBucketMs" files against FPSSessionTelemetryTuning (Epic 117). Teams, the league
 config, the playbook, the route library, player rating ranges and every reference between
 files are tools/content_contracts.py's (Epic 125), run from here.
@@ -802,6 +803,101 @@ def validate_rush_moves(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
 
 
+RECEIVER_ALIGNMENTS = {"Wide", "Slot", "Tight", "Backfield"}
+PRESNAP_NUMBERS = ("SlotMaxSplit", "MotionEndSplit", "MotionArrivalRadius", "ManTravelLateralRadius", "SlideAimOffset",
+                   "BoxWidth", "BoxDepth", "CpuReadMinAwareness")
+PRESNAP_COUNTS = ("HeavyBoxCount", "LightBoxCount")
+PRESNAP_FLAGS = ("bCpuKeepsBackInVsBlitz", "bCpuMotionOnPass")
+PRESNAP_ACTIONS = ("AudibleAction", "SelectAction", "HotRouteAction", "MotionAction", "SlideAction", "ProtectionAction")
+
+
+def load_route_ids():
+    """Route IDs in Data/sample_routes.json, or None when it is missing or broken."""
+    try:
+        routes = json.loads((DATA_DIR / "sample_routes.json").read_text(encoding="utf-8")).get("Routes")
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return None
+    if not isinstance(routes, list):
+        return None
+    return {r.get("RouteId") for r in routes if isinstance(r, dict)}
+
+
+def validate_presnap_tuning(path, payload, catalog, route_ids):
+    """FPreSnapTuningRow (Data/presnap_tuning.json, Epic 66)."""
+    sets = payload.get("HotRouteSets")
+    if not isinstance(sets, list):
+        err(path, "'HotRouteSets' must be an array")
+        sets = []
+    seen = set()
+    for idx, row in enumerate(sets):
+        where = f"HotRouteSets[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        alignment = row.get("Alignment")
+        if alignment not in RECEIVER_ALIGNMENTS:
+            err(path, f"{where}.Alignment: '{alignment}' is not an EPSReceiverAlignment ({sorted(RECEIVER_ALIGNMENTS)})")
+        elif alignment in seen:
+            err(path, f"{where}.Alignment: '{alignment}' has two sets")
+        seen.add(alignment)
+        routes = row.get("Routes")
+        if not isinstance(routes, list) or not routes or not all(isinstance(r, str) and r for r in routes):
+            err(path, f"{where}.Routes: must be a non-empty array of route IDs")
+            routes = []
+        elif len(set(routes)) != len(routes):
+            err(path, f"{where}.Routes: repeats a route")
+        named = list(routes) + [row.get("ReleaseRoute")]
+        if not isinstance(row.get("ReleaseRoute"), str) or not row.get("ReleaseRoute"):
+            err(path, f"{where}.ReleaseRoute: must name a route")
+        elif route_ids is not None:
+            for route in named:
+                if route not in route_ids:
+                    err(path, f"{where}: '{route}' is not a route in sample_routes.json")
+        extra = set(row) - {"Alignment", "Routes", "ReleaseRoute"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    missing = RECEIVER_ALIGNMENTS - seen
+    if missing:
+        err(path, f"HotRouteSets: no set for {sorted(missing)}")
+    for field in PRESNAP_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in PRESNAP_COUNTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    if isinstance(payload.get("LightBoxCount"), int) and isinstance(payload.get("HeavyBoxCount"), int) \
+            and payload["LightBoxCount"] >= payload["HeavyBoxCount"]:
+        err(path, "LightBoxCount must be below HeavyBoxCount")
+    if is_number(payload.get("CpuReadMinAwareness")) and payload["CpuReadMinAwareness"] > 100:
+        err(path, "CpuReadMinAwareness: ratings run 0-100")
+    for field in PRESNAP_FLAGS:
+        if not isinstance(payload.get(field), bool):
+            err(path, f"{field}: must be true or false")
+    blitz_route = payload.get("BlitzHotRoute")
+    if not isinstance(blitz_route, str) or (route_ids is not None and blitz_route and blitz_route not in route_ids):
+        err(path, f"BlitzHotRoute: '{blitz_route}' is not a route in sample_routes.json")
+    actions = {a.get("ActionId"): a for a in (catalog or {}).get("Actions", []) if isinstance(a, dict)}
+    named_actions = [payload.get(field) for field in PRESNAP_ACTIONS]
+    if len(set(named_actions)) != len(named_actions):
+        err(path, "the pre-snap actions must all differ")
+    for field in PRESNAP_ACTIONS:
+        action_id = payload.get(field)
+        if not isinstance(action_id, str) or not action_id:
+            err(path, f"{field}: must name an action")
+        elif catalog is not None:
+            action = actions.get(action_id)
+            if action is None:
+                err(path, f"{field}: '{action_id}' is not an action in input_actions.json")
+            elif action.get("ValueType") != "Boolean" or "PreSnap" not in (action.get("Contexts") or []):
+                err(path, f"{field}: '{action_id}' must be a Boolean action in the PreSnap context")
+    extra = set(payload) - set(PRESNAP_NUMBERS) - set(PRESNAP_COUNTS) - set(PRESNAP_FLAGS) - set(PRESNAP_ACTIONS) \
+        - {"HotRouteSets", "BlitzHotRoute"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPreSnapTuningRow exactly")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -861,6 +957,8 @@ def main():
             validate_session_telemetry(path, payload)
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "HotRouteSets" in payload:
+            validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
         if isinstance(payload, dict) and "MaxQueued" in payload:
             validate_input_buffer(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "RushMoves" in payload:
