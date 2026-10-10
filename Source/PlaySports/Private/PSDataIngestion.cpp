@@ -1166,6 +1166,25 @@ bool UPSDataIngestion::LoadCommentaryLibraryFromJson(const FString& JsonFilePath
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutLibrary, 0, 0);
 }
 
+bool UPSDataIngestion::LoadPlayDemoCatalogFromJson(const FString& JsonFilePath, FPSPlayDemoCatalog& OutCatalog)
+{
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *JsonFilePath))
+    {
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> ParsedJson;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    if (!FJsonSerializer::Deserialize(Reader, ParsedJson) || !ParsedJson.IsValid())
+    {
+        return false;
+    }
+
+    OutCatalog.PlayDemos.Reset();
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutCatalog, 0, 0);
+}
+
 bool UPSDataIngestion::LoadTelestratorTuningFromJson(const FString& JsonFilePath, FPSTelestratorTuning& OutTuning)
 {
     FString JsonString;
@@ -1612,6 +1631,7 @@ bool UPSDataIngestion::ValidatePlayersJson(const FString& JsonFilePath, TArray<F
         return false;
     }
 
+    TSet<int32> SeenJerseyNumbers;
     for (int32 RowIndex = 0; RowIndex < Rows->Num(); ++RowIndex)
     {
         const TSharedPtr<FJsonObject>* RowObject;
@@ -1644,6 +1664,25 @@ bool UPSDataIngestion::ValidatePlayersJson(const FString& JsonFilePath, TArray<F
             if ((*RowObject)->TryGetNumberField(Field, Value) && Value < 0.0)
             {
                 OutErrors.Add(FString::Printf(TEXT("Row %d: \"%s\" is negative (%f)."), RowIndex, *Field, Value));
+            }
+        }
+
+        // The jersey number is optional: 0 for none, else 1-99 and his team's alone.
+        double Jersey = 0.0;
+        if ((*RowObject)->TryGetNumberField(TEXT("JerseyNumber"), Jersey) && Jersey != 0.0)
+        {
+            const int32 Number = static_cast<int32>(FMath::RoundToInt(Jersey));
+            if (Number < 1 || Number > 99 || static_cast<double>(Number) != Jersey)
+            {
+                OutErrors.Add(FString::Printf(TEXT("Row %d: \"JerseyNumber\" %f is not a whole number from 1 to 99."), RowIndex, Jersey));
+            }
+            else if (SeenJerseyNumbers.Contains(Number))
+            {
+                OutErrors.Add(FString::Printf(TEXT("Row %d: \"JerseyNumber\" %d is already worn on this roster."), RowIndex, Number));
+            }
+            else
+            {
+                SeenJerseyNumbers.Add(Number);
             }
         }
     }

@@ -118,7 +118,11 @@ players and the QBAlignment, Backfield and Strength play_recognition.json reads 
 front and shell the plays, run_fits.json and coverage_matchups.json name, each defensive call's
 package placed, and each shell's deep safeties defensive_presnap.json's. "HashOffsetYards" files
 against FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): the field's meshes and
-material named, #RRGGBB colors, positive line sizes and spacings. Teams, the league config, the
+material named, #RRGGBB colors, positive line sizes and spacings. A player's optional
+"JerseyNumber" is 1-99 and unique on his roster. "PlayDemos" files against FPSPlayDemoCatalog
+(Data/play_demos.json, the live-play demos): a positive frame rate and limits, unique demo IDs,
+two different league teams per demo, and each call an offensive or defensive play the playbook has
+and its team's scheme keeps. Teams, the league config, the
 playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
@@ -160,8 +164,9 @@ PLAYER_FIELDS = {
     "Awareness": (int, float),
     "Stamina": (int, float),
 }
-# Optional FPlayerAttributes fields: Age (Epic 122), 0 or missing meaning unknown.
-PLAYER_OPTIONAL_FIELDS = {"Age": int}
+# Optional FPlayerAttributes fields: Age (Epic 122), 0 or missing meaning unknown; JerseyNumber,
+# 0 or missing meaning none, else 1-99 and unique on its roster.
+PLAYER_OPTIONAL_FIELDS = {"Age": int, "JerseyNumber": int}
 
 INPUT_VALUE_TYPES = {"Boolean", "Axis1D", "Axis2D", "Axis3D"}
 INPUT_CONTEXT_FIELDS = {"ContextId": str, "Priority": int, "Description": str, "bRemappable": bool}
@@ -183,6 +188,7 @@ def err(path, message):
 
 def validate_players(path, players, dna_catalog=None):
     seen_ids = set()
+    seen_numbers = {}
     for idx, row in enumerate(players):
         where = f"Players[{idx}]"
         if not isinstance(row, dict):
@@ -204,6 +210,14 @@ def validate_players(path, players, dna_catalog=None):
             err(path, f"{where}.Role: '{role}' is not a valid EPlayerRole")
         if "DNA" in row:
             validate_player_dna(path, where, row, dna_catalog)
+        number = row.get("JerseyNumber")
+        if isinstance(number, int) and not isinstance(number, bool) and number != 0:
+            if not 1 <= number <= 99:
+                err(path, f"{where}.JerseyNumber: {number} is not 1-99 (0 or missing means none)")
+            elif number in seen_numbers:
+                err(path, f"{where}.JerseyNumber: {number} is already worn by {seen_numbers[number]}")
+            else:
+                seen_numbers[number] = row.get("PlayerId")
         pid = row.get("PlayerId")
         if isinstance(pid, str):
             if not pid:
@@ -2155,6 +2169,100 @@ def validate_field_markings(path, payload):
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldMarkingsStyle exactly")
+
+
+PLAY_DEMO_POSITIVE = ("FrameRateHz", "MaxPreSnapSeconds", "MaxPlaySeconds", "MaxResultWaitSeconds")
+PLAY_DEMO_NON_NEGATIVE = ("PostWhistleSeconds", "MinPlayerMoveCm", "SpeedAllowanceCmPerSec", "GroundToleranceCm")
+PLAY_DEMO_FIELDS = {"DemoId", "Intent", "HomeTeamId", "AwayTeamId", "OffensePlayId", "DefensePlayId", "Seed", "SeedTries",
+                    "WantedOutcome"}
+PLAY_DEMO_OUTCOMES = {"Run", "Completion", "Incompletion", "Sack", "Interception", "Touchdown"}
+# Play categories every team keeps whatever its scheme (UPSStaffManager::BuildPlaybook): kicks,
+# returns and clock plays.
+EVERY_TEAM_CATEGORIES = {"Punt", "FakePunt", "FieldGoal", "FakeFieldGoal", "Kickoff", "OnsideKick", "KickReturn",
+                         "KickBlock", "HandsTeam", "ReturnLaterals", "Spike", "Kneel"}
+
+
+def team_scheme_formations(staffs, team_id, offense):
+    """The formations team_id's coordinator's scheme keeps on a side (UPSStaffManager::GetTeamScheme
+    and BuildPlaybook), or None when the team has no staff or scheme: then it keeps every play."""
+    staff = next((s for s in staffs.get("Staffs", []) if isinstance(s, dict) and s.get("TeamId") == team_id), None)
+    if staff is None:
+        return None
+    coach_id = staff.get("OffensiveCoordinatorId" if offense else "DefensiveCoordinatorId")
+    coach = next((c for c in staffs.get("Coaches", []) if isinstance(c, dict) and c.get("CoachId") == coach_id), None)
+    scheme = next((s for s in staffs.get("Schemes", []) if isinstance(s, dict) and coach and s.get("SchemeId") == coach.get("SchemeId")), None)
+    return None if scheme is None else set(scheme.get("Formations") or [])
+
+
+def validate_play_demos(path, payload):
+    """FPSPlayDemoCatalog (Data/play_demos.json, the live-play demos); mirrors
+    UPSPlayDemoRunner::ValidateCatalog, and checks each call against the playbook and its team's
+    scheme, as UPSPlayCallSubsystem::CallPlay will."""
+    for field in PLAY_DEMO_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in PLAY_DEMO_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if is_number(payload.get("PostWhistleSeconds")) and is_number(payload.get("MaxResultWaitSeconds")) \
+            and payload["PostWhistleSeconds"] >= payload["MaxResultWaitSeconds"]:
+        err(path, "PostWhistleSeconds must be shorter than MaxResultWaitSeconds")
+    extra = set(payload) - set(PLAY_DEMO_POSITIVE) - set(PLAY_DEMO_NON_NEGATIVE) - {"PlayDemos"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPlayDemoCatalog exactly")
+
+    demos = payload.get("PlayDemos")
+    if not isinstance(demos, list) or not demos:
+        err(path, "PlayDemos must list at least one demo")
+        return
+    teams = {t.get("TeamId") for t in (load_json("sample_teams.json") or {}).get("Teams", []) if isinstance(t, dict)}
+    plays = {p.get("PlayId"): p for p in (load_json("sample_playbook.json") or {}).get("Plays", []) if isinstance(p, dict)}
+    staffs = load_json("coaching_staffs.json") or {}
+    seen = set()
+    for idx, demo in enumerate(demos):
+        where = f"PlayDemos[{idx}]"
+        if not isinstance(demo, dict):
+            err(path, f"{where}: not an object")
+            continue
+        unknown = set(demo) - PLAY_DEMO_FIELDS
+        if unknown:
+            err(path, f"{where}: unknown field(s) {sorted(unknown)} - names must match FPSPlayDemoDef exactly")
+        demo_id = demo.get("DemoId")
+        if not isinstance(demo_id, str) or not demo_id:
+            err(path, f"{where}.DemoId: must be a non-empty string")
+        elif demo_id in seen:
+            err(path, f"{where}.DemoId: '{demo_id}' is used twice")
+        seen.add(demo_id)
+        if not isinstance(demo.get("Intent"), str) or not demo["Intent"]:
+            err(path, f"{where}.Intent: must say what the demo sets out to show")
+        home, away = demo.get("HomeTeamId"), demo.get("AwayTeamId")
+        for field, team in (("HomeTeamId", home), ("AwayTeamId", away)):
+            if team not in teams:
+                err(path, f"{where}.{field}: '{team}' is not a team in sample_teams.json")
+        if home == away:
+            err(path, f"{where}: HomeTeamId and AwayTeamId must be two different teams")
+        for field, offense, team in (("OffensePlayId", True, home), ("DefensePlayId", False, away)):
+            play = plays.get(demo.get(field))
+            if play is None:
+                err(path, f"{where}.{field}: '{demo.get(field)}' is not a play in sample_playbook.json")
+                continue
+            if bool(play.get("bIsOffensivePlay", True)) != offense:
+                err(path, f"{where}.{field}: '{demo.get(field)}' is not a{'n offensive' if offense else ' defensive'} play")
+            kept = team_scheme_formations(staffs, team, offense)
+            if kept is not None and play.get("PlayCategory") not in EVERY_TEAM_CATEGORIES and play.get("Formation") not in kept:
+                err(path, f"{where}.{field}: {team}'s scheme doesn't keep the '{play.get('Formation')}' formation, "
+                          f"so the play-call subsystem would refuse '{demo.get(field)}'")
+        seed = demo.get("Seed")
+        if not isinstance(seed, int) or isinstance(seed, bool):
+            err(path, f"{where}.Seed: '{seed}' must be a whole number")
+        tries = demo.get("SeedTries", 1)
+        if not isinstance(tries, int) or isinstance(tries, bool) or tries < 1:
+            err(path, f"{where}.SeedTries: '{tries}' must be a whole number, 1 or more")
+        wanted = demo.get("WantedOutcome", "")
+        if not isinstance(wanted, str) or (wanted and wanted not in PLAY_DEMO_OUTCOMES):
+            err(path, f"{where}.WantedOutcome: '{wanted}' must be empty or one of {sorted(PLAY_DEMO_OUTCOMES)}")
 
 
 PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
@@ -6042,6 +6150,8 @@ def main(root=None):
             validate_field_dimensions(path, payload)
         if isinstance(payload, dict) and "HashOffsetYards" in payload:
             validate_field_markings(path, payload)
+        if isinstance(payload, dict) and "PlayDemos" in payload:
+            validate_play_demos(path, payload)
         if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:

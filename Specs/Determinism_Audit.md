@@ -163,6 +163,11 @@ changes what `RandomSeed` means: it seeds the simulation's own stream, not the e
 one. A version 1 seed can't be reproduced by a version 2 build (finding E4), so the v1 → v2
 step sets it to 0. The recording keeps its events for playback.
 
+Optional fields added under rule 1, with no bump: `Frames` (Epic 41, state playback), and `Teams`
+and `Participants` (the live-play demos): the teams on the field and every player the frames name,
+with his name, team, side, role and jersey number, so a viewer can label him. A recording without
+them loads with them empty.
+
 ## Record/playback round trip (story 4)
 
 `UPSReplayRecorder` is the recorder D1 asks for: it copies every event off a `UPSTelemetryBus`

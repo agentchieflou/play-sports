@@ -544,6 +544,12 @@ void UPSTelemetrySamplingSubsystem::HandleEventRecorded(const FPSTelemetryEvent&
     }
 
     PruneToBus(*Bus);
+    // A substitution points a pawn at another player's roster row (UPSPersonnelManager): who
+    // each pawn is gets read again before the next frame, or frames would name the player who left.
+    if (Event.EventType == EPSTelemetryEventType::Personnel)
+    {
+        bRosterDirty = true;
+    }
     if (!bSamplingEnabled || bShowingReplay)
     {
         return;

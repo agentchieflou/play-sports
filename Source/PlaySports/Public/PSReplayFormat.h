@@ -74,6 +74,63 @@ struct FPSReplayEventRecord
     FString PayloadJson;
 };
 
+/** A team in a recording, as a viewer labels and colours it (from Data/sample_teams.json). */
+USTRUCT(BlueprintType)
+struct FPSReplayTeam
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    FName TeamId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    FString DisplayName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    FString Abbreviation;
+
+    /** #RRGGBB. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    FString PrimaryColor;
+
+    /** #RRGGBB. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    FString SecondaryColor;
+
+    /** The home team; the other is away. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    bool bHome = false;
+};
+
+/** A player who appears in a recording's frames, by the PlayerId the frames name him with: who
+ *  he is, so a viewer can label him. */
+USTRUCT(BlueprintType)
+struct FPSReplayParticipant
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    FName PlayerId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    FString DisplayName;
+
+    /** His team, one of the recording's Teams. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    FName TeamId;
+
+    /** The side he played on in the recording. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    EPSTeamSide TeamSide = EPSTeamSide::Offense;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    EPlayerRole Role = EPlayerRole::Quarterback;
+
+    /** 1-99; 0 when his roster gives him none (FPlayerAttributes::JerseyNumber). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    int32 JerseyNumber = 0;
+};
+
 USTRUCT(BlueprintType)
 struct FPSReplayRecording
 {
@@ -95,6 +152,16 @@ struct FPSReplayRecording
      *  without a version bump: an optional field (policy rule 1). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
     TArray<FPSSnapshotFrame> Frames;
+
+    /** For viewers: the teams on the field, home first. Optional, added without a version bump
+     *  (policy rule 1); empty in recordings that don't name them. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    TArray<FPSReplayTeam> Teams;
+
+    /** For viewers: everyone the Frames name, once each, in the order they first appear.
+     *  Optional, added without a version bump (policy rule 1). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    TArray<FPSReplayParticipant> Participants;
 };
 
 UCLASS()

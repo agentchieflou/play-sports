@@ -129,3 +129,14 @@ jobs:
           name: perf-report
           path: Saved/Profiling/
           if-no-files-found: ignore
+
+      - name: Upload live-play demos
+        # PlaySports.Demo.LivePlays runs Data/play_demos.json's plays end to end under APSGameMode
+        # in a ticking world and records each to Saved/PlayDemos: one replay-format JSON per play
+        # (frames at 30 Hz, every bus event, the teams and players) and index.json.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: play-demos
+          path: Saved/PlayDemos/
+          if-no-files-found: ignore

@@ -69,9 +69,11 @@ public:
     FCatchTuningRow CatchTuningSettings;
 
     /**
-     * A player reached the ball while it was loose or in the air (the overlap calls this): a
-     * fumble's recovery roll, else a pass's catch roll for the offense or interception roll for
-     * the defense. True when he took the ball. Each outcome goes out on the bus (Fumble, Catch;
+     * A player reached the ball while it was loose or in the air (the overlap calls this; the
+     * ball overlaps players and blocks the world): a fumble's recovery roll, else a pass's catch
+     * roll for an eligible receiver of the offense (a receiver, tight end or back; it flies on
+     * past linemen and the passer) or interception roll for the defense. True when he took the
+     * ball. Each outcome goes out on the bus (Fumble, Catch;
      * an interception also downs the pass's intended receiver, Epic 140) and the play
      * simulation, the outcome authority, moves the play on from there (rules 5 and 6): the ball
      * never reaches into the game mode or the simulation. A ball held, or at rest and not

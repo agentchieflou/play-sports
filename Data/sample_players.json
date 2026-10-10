@@ -3,6 +3,7 @@
     {
       "PlayerId": "QB_001",
       "DisplayName": "A. Signal",
+      "JerseyNumber": 12,
       "Role": "Quarterback",
       "WeightKg": 102.5,
       "HeightCm": 193.0,
@@ -20,6 +21,7 @@
     {
       "PlayerId": "RB_001",
       "DisplayName": "D. Speedster",
+      "JerseyNumber": 28,
       "Role": "RunningBack",
       "WeightKg": 97.5,
       "HeightCm": 180.0,
@@ -36,6 +38,7 @@
     {
       "PlayerId": "WR_001",
       "DisplayName": "C. Catch",
+      "JerseyNumber": 11,
       "Role": "WideReceiver",
       "WeightKg": 91.0,
       "HeightCm": 190.5,
@@ -52,6 +55,7 @@
     {
       "PlayerId": "WR_002",
       "DisplayName": "J. Route",
+      "JerseyNumber": 81,
       "Role": "WideReceiver",
       "WeightKg": 88.5,
       "HeightCm": 185.0,
@@ -68,6 +72,7 @@
     {
       "PlayerId": "WR_003",
       "DisplayName": "M. Deep",
+      "JerseyNumber": 17,
       "Role": "WideReceiver",
       "WeightKg": 93.0,
       "HeightCm": 195.0,
@@ -84,6 +89,7 @@
     {
       "PlayerId": "TE_001",
       "DisplayName": "T. Seam",
+      "JerseyNumber": 87,
       "Role": "TightEnd",
       "WeightKg": 113.4,
       "HeightCm": 198.0,
@@ -100,6 +106,7 @@
     {
       "PlayerId": "OL_001",
       "DisplayName": "G. Blocker",
+      "JerseyNumber": 72,
       "Role": "OffensiveLineman",
       "WeightKg": 145.0,
       "HeightCm": 198.0,
@@ -113,6 +120,7 @@
     {
       "PlayerId": "OL_002",
       "DisplayName": "B. Anchor",
+      "JerseyNumber": 66,
       "Role": "OffensiveLineman",
       "WeightKg": 147.5,
       "HeightCm": 195.5,
@@ -126,6 +134,7 @@
     {
       "PlayerId": "OL_003",
       "DisplayName": "M. Guard",
+      "JerseyNumber": 61,
       "Role": "OffensiveLineman",
       "WeightKg": 142.0,
       "HeightCm": 193.0,
@@ -139,6 +148,7 @@
     {
       "PlayerId": "OL_004",
       "DisplayName": "K. Shield",
+      "JerseyNumber": 75,
       "Role": "OffensiveLineman",
       "WeightKg": 141.0,
       "HeightCm": 196.0,
@@ -152,6 +162,7 @@
     {
       "PlayerId": "OL_005",
       "DisplayName": "P. Protector",
+      "JerseyNumber": 68,
       "Role": "OffensiveLineman",
       "WeightKg": 146.0,
       "HeightCm": 194.0,
@@ -165,6 +176,7 @@
     {
       "PlayerId": "DL_001",
       "DisplayName": "J. Rusher",
+      "JerseyNumber": 93,
       "Role": "DefensiveLineman",
       "WeightKg": 122.5,
       "HeightCm": 193.0,
@@ -181,6 +193,7 @@
     {
       "PlayerId": "DL_002",
       "DisplayName": "W. Wall",
+      "JerseyNumber": 97,
       "Role": "DefensiveLineman",
       "WeightKg": 140.5,
       "HeightCm": 195.0,
@@ -197,6 +210,7 @@
     {
       "PlayerId": "DL_003",
       "DisplayName": "D. Gap",
+      "JerseyNumber": 91,
       "Role": "DefensiveLineman",
       "WeightKg": 138.0,
       "HeightCm": 190.5,
@@ -213,6 +227,7 @@
     {
       "PlayerId": "DL_004",
       "DisplayName": "C. Edge",
+      "JerseyNumber": 95,
       "Role": "DefensiveLineman",
       "WeightKg": 118.0,
       "HeightCm": 196.0,
@@ -229,6 +244,7 @@
     {
       "PlayerId": "LB_001",
       "DisplayName": "L. Tackler",
+      "JerseyNumber": 54,
       "Role": "Linebacker",
       "WeightKg": 108.9,
       "HeightCm": 188.0,
@@ -246,6 +262,7 @@
     {
       "PlayerId": "LB_002",
       "DisplayName": "S. Chaser",
+      "JerseyNumber": 52,
       "Role": "Linebacker",
       "WeightKg": 104.3,
       "HeightCm": 185.5,
@@ -263,6 +280,7 @@
     {
       "PlayerId": "LB_003",
       "DisplayName": "H. Hitter",
+      "JerseyNumber": 56,
       "Role": "Linebacker",
       "WeightKg": 111.0,
       "HeightCm": 190.5,
@@ -280,6 +298,7 @@
     {
       "PlayerId": "DB_001",
       "DisplayName": "C. Cover",
+      "JerseyNumber": 24,
       "Role": "DefensiveBack",
       "WeightKg": 86.2,
       "HeightCm": 183.0,
@@ -296,6 +315,7 @@
     {
       "PlayerId": "DB_002",
       "DisplayName": "S. Hawk",
+      "JerseyNumber": 21,
       "Role": "DefensiveBack",
       "WeightKg": 88.5,
       "HeightCm": 185.0,
@@ -312,6 +332,7 @@
     {
       "PlayerId": "DB_003",
       "DisplayName": "Z. Island",
+      "JerseyNumber": 31,
       "Role": "DefensiveBack",
       "WeightKg": 85.0,
       "HeightCm": 180.5,
@@ -328,6 +349,7 @@
     {
       "PlayerId": "DB_004",
       "DisplayName": "M. Enforcer",
+      "JerseyNumber": 29,
       "Role": "DefensiveBack",
       "WeightKg": 95.0,
       "HeightCm": 188.0,
@@ -344,6 +366,7 @@
     {
       "PlayerId": "QB_002",
       "DisplayName": "R. Backup",
+      "JerseyNumber": 7,
       "Role": "Quarterback",
       "WeightKg": 99.0,
       "HeightCm": 191.0,
@@ -361,6 +384,7 @@
     {
       "PlayerId": "RB_002",
       "DisplayName": "F. Lead",
+      "JerseyNumber": 22,
       "Role": "RunningBack",
       "WeightKg": 111.0,
       "HeightCm": 183.0,
@@ -377,6 +401,7 @@
     {
       "PlayerId": "WR_004",
       "DisplayName": "S. Slot",
+      "JerseyNumber": 84,
       "Role": "WideReceiver",
       "WeightKg": 84.0,
       "HeightCm": 178.0,
@@ -393,6 +418,7 @@
     {
       "PlayerId": "TE_002",
       "DisplayName": "H. Inline",
+      "JerseyNumber": 85,
       "Role": "TightEnd",
       "WeightKg": 118.0,
       "HeightCm": 196.0,
@@ -409,6 +435,7 @@
     {
       "PlayerId": "DL_005",
       "DisplayName": "N. Plug",
+      "JerseyNumber": 99,
       "Role": "DefensiveLineman",
       "WeightKg": 148.0,
       "HeightCm": 191.0,
@@ -425,6 +452,7 @@
     {
       "PlayerId": "DL_006",
       "DisplayName": "R. Surge",
+      "JerseyNumber": 94,
       "Role": "DefensiveLineman",
       "WeightKg": 125.0,
       "HeightCm": 193.0,
@@ -441,6 +469,7 @@
     {
       "PlayerId": "LB_004",
       "DisplayName": "B. Thumper",
+      "JerseyNumber": 51,
       "Role": "Linebacker",
       "WeightKg": 113.0,
       "HeightCm": 189.0,
@@ -458,6 +487,7 @@
     {
       "PlayerId": "DB_005",
       "DisplayName": "K. Nickel",
+      "JerseyNumber": 20,
       "Role": "DefensiveBack",
       "WeightKg": 84.0,
       "HeightCm": 178.0,
@@ -474,6 +504,7 @@
     {
       "PlayerId": "DB_006",
       "DisplayName": "D. Dime",
+      "JerseyNumber": 27,
       "Role": "DefensiveBack",
       "WeightKg": 87.0,
       "HeightCm": 183.0,

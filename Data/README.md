@@ -132,6 +132,7 @@ every CI build.
 | `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
+| `play_demos.json` | `FPSPlayDemoCatalog` (single object: the recording's rate and limits, `PlayDemos`) | `UPSDataIngestion::LoadPlayDemoCatalogFromJson`, via `UPSPlayDemoRunner` (`PlaySports.Demo.LivePlays`) |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -143,6 +144,11 @@ Field names must match exactly (case-sensitive): `PlayerId`, `DisplayName`, `Rol
 unknown. The contract manager prices a player at his age, and at `contracts.json`'s
 `DefaultPlayerAge` when it is unknown. The shipped hand-written rosters give none; generated ones
 (`UPSLeagueGenerator`) always do.
+
+`JerseyNumber` is optional: the number on his jersey, a whole number from 1 to 99 that no one else
+on his roster wears, or 0 (the same as leaving it out) for none yet. Viewers and overlays label him
+with it; the live-play demos' recordings carry it (`FPSReplayParticipant`). Every shipped roster
+numbers every player, by position convention.
 
 `DisplayName` must not be a real person's (the no-real-person policy, Epic 122): no name on
 `league_generator.json`'s `NameBlocklist`, in full or initial form ("J. Allen"), ignoring case and
@@ -2214,3 +2220,29 @@ Every moment has at least one `PlayByPlay` line. A line's text is `Data/ui_text.
 names are `Commentary.Voice.PlayByPlay` and `Commentary.Voice.Color`. The update rate is the
 platform tier's `AudioUpdateHz`. `UPSCommentaryEngine::ValidateLibrary` and `tools/validate_data.py`
 check it.
+
+## Live-play demo schema (`FPSPlayDemoCatalog`)
+
+`play_demos.json` is the set of real plays `UPSPlayDemoRunner` runs end to end and records
+(`PlaySports.Demo.LivePlays` in CI writes them to `Saved/PlayDemos`, one replay-format JSON per play
+plus `index.json`; CI uploads the folder as the `play-demos` artifact). Each play runs in a world of
+its own with `APSGameMode` as its game mode, ticked at a fixed step; the demo only names the calls.
+
+- `FrameRateHz` (above 0): the world steps at this rate and every step's frame is recorded.
+- `MaxPreSnapSeconds`, `MaxPlaySeconds`, `MaxResultWaitSeconds` (above 0): a play that hasn't
+  snapped this long after kickoff, has no whistle this long after the snap, or has no `PlayResult`
+  on the bus this long after the whistle has failed.
+- `PostWhistleSeconds` (0 or more, shorter than `MaxResultWaitSeconds`): frames are recorded until
+  this long after the whistle.
+- The sanity checks: every player moves at least `MinPlayerMoveCm` from his spot at the snap; no
+  player is faster than `movement_tuning.json`'s `BaseMaxSpeedMax` plus `SpeedAllowanceCmPerSec`
+  (designed bursts: a carrier's truck, a blocker's push); no capsule or ball dips more than
+  `GroundToleranceCm` below the ground (all 0 or more).
+- `PlayDemos[]`, each with a unique `DemoId`, an `Intent` (what it sets out to show; the recorded
+  title says what actually happened), a `HomeTeamId` (on offense, first and ten at its own 20) and
+  a different `AwayTeamId` from `sample_teams.json`, an `OffensePlayId` and a `DefensePlayId` from
+  `sample_playbook.json` that each team's coordinator's scheme keeps (`coaching_staffs.json`), and a
+  `Seed` (the match seed, `UPSNetRandomStreams::SetMatchSeed`). Optionally a `WantedOutcome` (`Run`,
+  `Completion`, `Incompletion`, `Sack`, `Interception` or `Touchdown`) with `SeedTries` (1 or more):
+  the seeds from `Seed` up are played until one ends that way; the first that does is kept, else
+  the last. `UPSPlayDemoRunner::ValidateCatalog` and `tools/validate_data.py` check it.

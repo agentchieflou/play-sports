@@ -70,6 +70,7 @@ void APSPlayerPawn::BeginPlay()
     if (CapsuleComponent)
     {
         CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &APSPlayerPawn::OnPawnOverlap);
+        CapsuleComponent->OnComponentHit.AddDynamic(this, &APSPlayerPawn::OnPawnHit);
     }
 
     if (GetWorld())
@@ -468,10 +469,32 @@ void APSPlayerPawn::OnPawnOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 {
     if (APSPlayerPawn* OtherPawn = Cast<APSPlayerPawn>(OtherActor))
     {
-        if (HasPossession() && OtherPawn->TeamSide != TeamSide)
-        {
-            UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Contact detected! Ball carrier %s contacted by defender %s."), *GetAttributes().DisplayName, *OtherPawn->GetAttributes().DisplayName);
-            ResolveTackle(OtherPawn);
-        }
+        HandleContact(OtherPawn);
+    }
+}
+
+void APSPlayerPawn::OnPawnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+    APSPlayerPawn* OtherPawn = Cast<APSPlayerPawn>(OtherActor);
+    if (!OtherPawn)
+    {
+        return;
+    }
+    const uint64 Frame = GFrameCounter;
+    const uint64* LastTouched = ContactFrames.Find(OtherPawn);
+    const bool bStillTouching = LastTouched && *LastTouched + 1 >= Frame;
+    ContactFrames.Add(OtherPawn, Frame);
+    if (!bStillTouching)
+    {
+        HandleContact(OtherPawn);
+    }
+}
+
+void APSPlayerPawn::HandleContact(APSPlayerPawn* OtherPawn)
+{
+    if (OtherPawn && HasPossession() && OtherPawn->TeamSide != TeamSide)
+    {
+        UE_LOG(LogTemp, Display, TEXT("APSPlayerPawn: Contact detected! Ball carrier %s contacted by defender %s."), *GetAttributes().DisplayName, *OtherPawn->GetAttributes().DisplayName);
+        ResolveTackle(OtherPawn);
     }
 }

@@ -107,8 +107,9 @@ public:
      *  can drive the budget with chosen costs. */
     void RecordSampleCost(float CostMs);
 
-    /** Re-reads which pawns and ball are in the world. Happens by itself before the next
-     *  frame after one is spawned or destroyed. */
+    /** Re-reads which pawns and ball are in the world, and who each pawn is. Happens by itself
+     *  before the next frame after one is spawned or destroyed, or after a substitution (a
+     *  Personnel event) points a pawn at another player. */
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void RefreshRoster();
 
