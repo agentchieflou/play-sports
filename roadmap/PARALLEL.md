@@ -214,7 +214,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "112": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "113": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "114": {"track": "K", "mode": "code", "status": "open", "depends_on": ["17"]},
-    "115": {"track": "K", "mode": "code", "status": "partial", "depends_on": ["17", "26"], "open_stories": ["115.4 record/playback round-trip test"]},
+    "115": {"track": "K", "mode": "code", "status": "done", "depends_on": ["17", "26"]},
     "116": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "117": {"track": "K", "mode": "code", "status": "done", "depends_on": []},
     "118": {"track": "K", "mode": "code", "status": "open", "depends_on": ["25"]},
