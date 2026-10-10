@@ -130,6 +130,13 @@ jobs:
           path: Saved/Profiling/
           if-no-files-found: ignore
 
+      - name: Summarize live-play demos
+        # What each recorded play was, how it ended and what its sanity checks found, in the log
+        # and the run's summary. Informational: it always exits 0.
+        if: ${{ !cancelled() }}
+        shell: powershell
+        run: python tools/play_demos.py summary Saved/PlayDemos --summary "$env:GITHUB_STEP_SUMMARY"
+
       - name: Upload live-play demos
         # PlaySports.Demo.LivePlays runs Data/play_demos.json's plays end to end under APSGameMode
         # in a ticking world and records each to Saved/PlayDemos: one replay-format JSON per play

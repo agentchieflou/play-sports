@@ -46,8 +46,9 @@ namespace PSPlayDemoRunnerPrivate
         bool bResult = false;
         float ResultTime = 0.f;
         FPSTelemetryPlayResultEvent Result;
-        /** The last event between the snap and the whistle that ends a play. */
+        /** The last event between the snap and the whistle that ends a play, and when. */
         FString LastEnding;
+        float LastEndingTime = 0.f;
 
         float Now() const
         {
@@ -59,6 +60,7 @@ namespace PSPlayDemoRunnerPrivate
             if (bSnapped && !bWhistle)
             {
                 LastEnding = EventName;
+                LastEndingTime = Now();
             }
         }
     };
@@ -710,7 +712,10 @@ FPSPlayDemoRun UPSPlayDemoRunner::RunPlay(const FPSPlayDemoDef& Demo, int32 Seed
     {
         Summary.WhistleTime = Watch.WhistleTime;
         Summary.PlaySeconds = Watch.WhistleTime - Watch.SnapTime;
-        Summary.EndedBy = Watch.LastEnding.IsEmpty() ? FString(TEXT("PhaseClock")) : Watch.LastEnding;
+        // The game mode announces the whistle on the step after the event that ended the play; an
+        // ending event further back was one the simulation didn't end the play on.
+        const bool bEndedByEvent = !Watch.LastEnding.IsEmpty() && Watch.WhistleTime - Watch.LastEndingTime <= Step * 2.5f;
+        Summary.EndedBy = bEndedByEvent ? Watch.LastEnding : FString(TEXT("PhaseClock"));
     }
     if (Watch.bResult)
     {

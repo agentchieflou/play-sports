@@ -187,8 +187,9 @@ struct FPSPlayDemoSummary
     UPROPERTY(BlueprintReadOnly, Category = "Demo")
     bool bFirstDown = false;
 
-    /** What blew the whistle: the last of Tackle, BallGrounded, BoundaryCrossed or LooseBall
-     *  before it, or PhaseClock when none came (the simulation's phase timer ended the play). */
+    /** What blew the whistle: Tackle, BallGrounded, BoundaryCrossed or LooseBall when that event
+     *  came in the steps just before it, else PhaseClock (the simulation's phase timer ended the
+     *  play, not the football). */
     UPROPERTY(BlueprintReadOnly, Category = "Demo")
     FString EndedBy;
 
