@@ -52,7 +52,8 @@ struct FPSPlayerLiveState
 
 /** Personnel package: how many of each role take the field for a formation grouping,
  *  e.g. "11 Personnel" (1 RB, 1 TE, 3 WR), "Nickel" (5 DB). Tuning lives in data,
- *  not code (Architecture rule 4). */
+ *  not code (Architecture rule 4): Data/personnel_packages.json, read by
+ *  UPSPersonnelManager (Epic 19.5). */
 USTRUCT(BlueprintType)
 struct FPSPersonnelPackage : public FTableRowBase
 {
@@ -61,6 +62,42 @@ struct FPSPersonnelPackage : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FName PackageId;
 
+    /** What a broadcast or a play-call screen calls it, e.g. "12 Personnel". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString DisplayName;
+
+    /** True for an offensive grouping; its roles must all be on that side. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bOffense = true;
+
+    /** EPlayerRole name -> how many of that role take the field; 11 in all. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TMap<FString, int32> RoleCounts;
+
+    /** Play formations (FPSPlayDefinition::Formation) that bring this package on. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<FString> Formations;
+};
+
+/** Every personnel package and how they rotate (Data/personnel_packages.json, Epic 19.5). */
+USTRUCT(BlueprintType)
+struct FPSPersonnelCatalog
+{
+    GENERATED_BODY()
+
+    /** The offense's grouping at kickoff and for a formation no package lists. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName DefaultOffensePackage = TEXT("P11");
+
+    /** The defense's grouping at kickoff and for a formation no package lists. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName DefaultDefensePackage = TEXT("Base43");
+
+    /** A player whose stamina has fallen below this fraction of his maximum sits the next
+     *  play when the depth chart has someone behind him (UPSRoster::EvaluateFatigueSubstitutions). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float FatigueSubstitutionThreshold = 0.3f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<FPSPersonnelPackage> Packages;
 };

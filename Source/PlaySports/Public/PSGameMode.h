@@ -13,6 +13,7 @@ class UPSPlaySimulation;
 class APSBroadcastCamera;
 class APSPlayerPawn;
 class UPSRoster;
+class UPSPersonnelManager;
 class UPSPlayerLeveling;
 
 /**
@@ -80,14 +81,17 @@ public:
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
     TArray<APSPlayerPawn*> CachedPawns;
 
-    /** Authoritative combat/leveling live-state for the active roster (Epic 139/141):
-     *  who's downed, sitting out, or leveled up. Initialized from the same roster
-     *  split used to build OffenseRoster/DefenseRoster. Full personnel substitution
-     *  (benching an unavailable player's pawn) is Epic 19's still-open "personnel
-     *  packages tied into formations" work -- this tracks the authoritative state
-     *  that substitution will consume once it exists, it does not yet bench pawns. */
+    /** The whole roster loaded from RosterJsonPath, with its depth chart and the
+     *  combat/leveling live-state (Epic 139/141): who's downed, sitting out, or leveled
+     *  up. The on-field pawns point at its rows. */
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay|Combat")
     UPSRoster* ActiveRoster;
+
+    /** Picks who is on the field from ActiveRoster (Epic 19.5): the default personnel
+     *  packages at kickoff, each play call's package, and the next man up for a sit-out
+     *  or a tired player. */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Gameplay")
+    UPSPersonnelManager* PersonnelManager;
 
     /** Increments once per play in ResetPawnPositions; the play index a downed ball
      *  carrier's sit-out is measured against (Epic 139). */

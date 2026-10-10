@@ -34,6 +34,7 @@
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
 #include "PSBlownCoverageSubsystem.h"
+#include "PSRosterData.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -199,6 +200,11 @@ public:
     /** Loads the skycam's cable rig and flying (Data/camera_skycam.json, Epic 39). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSkycamTuningFromJson(const FString& JsonFilePath, FPSSkycamTuning& OutTuning);
+
+    /** Loads the personnel packages (Data/personnel_packages.json, Epic 19.5). False on a
+     *  missing file or malformed JSON; UPSPersonnelManager::ValidateCatalog checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPersonnelCatalogFromJson(const FString& JsonFilePath, FPSPersonnelCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

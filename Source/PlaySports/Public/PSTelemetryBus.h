@@ -30,7 +30,8 @@ enum class EPSTelemetryEventType : uint8
     Kick,
     JumpSnap,
     GameState,
-    BlownCoverage
+    BlownCoverage,
+    Personnel
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -657,6 +658,32 @@ struct FPSTelemetryBlownCoverageEvent
     FVector Location = FVector::ZeroVector;
 };
 
+/** A side's personnel changed (Epic 19.5): a new package came on, or players were
+ *  substituted within one (a sit-out, a tired player). UPSPersonnelManager publishes it; a
+ *  personnel panel (Track A, Epic 29) reads it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryPersonnelEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bOffense = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName PackageId;
+
+    /** The package's display name, e.g. "12 Personnel". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString PackageName;
+
+    /** PlayerIds who came on, in the same order as the PlayersOut they replaced. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    TArray<FName> PlayersIn;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    TArray<FName> PlayersOut;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -705,6 +732,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryKickSignature, const FPS
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryJumpSnapSignature, const FPSTelemetryJumpSnapEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryGameStateSignature, const FPSTelemetryGameStateEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageSignature, const FPSTelemetryBlownCoverageEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelSignature, const FPSTelemetryPersonnelEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -732,6 +760,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryEventRecordedMC, const FPSTeleme
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegrityMC, const FPSTelemetryGapIntegrityEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRouteMC, const FPSTelemetryRouteEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryBlownCoverageMC, const FPSTelemetryBlownCoverageEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPersonnelMC, const FPSTelemetryPersonnelEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -809,6 +838,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishPersonnel(const FPSTelemetryPersonnelEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
@@ -905,6 +937,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryBlownCoverageSignature OnBlownCoverage;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryPersonnelSignature OnPersonnel;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -932,6 +967,7 @@ public:
     FPSTelemetryGapIntegrityMC OnGapIntegrityMC;
     FPSTelemetryRouteMC OnRouteRunningMC;
     FPSTelemetryBlownCoverageMC OnBlownCoverageMC;
+    FPSTelemetryPersonnelMC OnPersonnelMC;
 
 private:
     UPROPERTY(Transient)

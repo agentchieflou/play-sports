@@ -70,6 +70,11 @@ bool UPSRoster::FindPlayerById(FName PlayerId, FPlayerAttributes& OutAttributes)
     return false;
 }
 
+const FPlayerAttributes* UPSRoster::FindPlayerPtr(FName PlayerId) const
+{
+    return FullRoster.FindByPredicate([PlayerId](const FPlayerAttributes& Player) { return Player.PlayerId == PlayerId; });
+}
+
 TMap<FName, FName> UPSRoster::EvaluateFatigueSubstitutions(const TMap<FName, float>& OnFieldStaminaRatioByPlayerId, float FatigueThreshold) const
 {
     TMap<FName, FName> Substitutions;
