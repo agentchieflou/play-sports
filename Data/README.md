@@ -1542,6 +1542,16 @@ view):
 - `PlayerPickRadius` (above 0, a fraction of the screen): a player tap picks the player within
   this of it.
 - `MaxMarks` (1 or more): the most marks on one frame.
+- The drawing layer (`UPSTelestratorWidget`, `PSTelestratorLayer`). Sizes are shares of the
+  screen's shorter side, so a phone and a monitor show the same drawing:
+  - `MarkColor`, `AutoMarkColor` (`#RRGGBB`): hand-drawn marks and the auto-annotation's.
+  - `MarkWidth` (above 0) and `MinStrokeWidth` (above 0, Slate units): a mark's width, and the
+    thinnest any line is drawn.
+  - `ArrowheadLength` (above 0) and `ArrowheadAngleDegrees` (above 0, below 90): an arrow's head.
+  - `PlayerRingRadius` (above 0): the ring round a highlighted player. `CircleSegments` (8 or
+    more): segments in a circle or ring.
+  - `CursorSpeed` (above 0, shorter sides a second at full tilt), `CursorDeadZone` (0 to below
+    1) and `CursorRadius` (above 0): the cursor a gamepad or the keys draw with.
 
 `UPSTelestratorSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 

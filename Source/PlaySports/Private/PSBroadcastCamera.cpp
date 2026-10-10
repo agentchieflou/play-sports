@@ -4,6 +4,7 @@
 #include "PSCameraSkycamComponent.h"
 #include "PSPhotoModeSubsystem.h"
 #include "PSPlayerController.h"
+#include "PSTelestratorSubsystem.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "Engine/World.h"
 
@@ -149,11 +150,16 @@ void APSBroadcastCamera::BecomeViewTarget(APlayerController* PC)
     {
         All22Component->BindToController(Cast<APSPlayerController>(PC));
     }
-    // Whoever looks through this camera can stop the game to photograph it (Epic 45).
+    // Whoever looks through this camera can stop the game to photograph it (Epic 45), and draw
+    // on its replay or film view (Epic 44).
     UWorld* World = GetWorld();
     if (UPSPhotoModeSubsystem* PhotoMode = World ? World->GetSubsystem<UPSPhotoModeSubsystem>() : nullptr)
     {
         PhotoMode->BindController(Cast<APSPlayerController>(PC));
+    }
+    if (UPSTelestratorSubsystem* Telestrator = World ? World->GetSubsystem<UPSTelestratorSubsystem>() : nullptr)
+    {
+        Telestrator->BindController(Cast<APSPlayerController>(PC));
     }
 }
 
@@ -167,6 +173,10 @@ void APSBroadcastCamera::EndViewTarget(APlayerController* PC)
     if (UPSPhotoModeSubsystem* PhotoMode = World ? World->GetSubsystem<UPSPhotoModeSubsystem>() : nullptr)
     {
         PhotoMode->UnbindController(Cast<APSPlayerController>(PC));
+    }
+    if (UPSTelestratorSubsystem* Telestrator = World ? World->GetSubsystem<UPSTelestratorSubsystem>() : nullptr)
+    {
+        Telestrator->UnbindController(Cast<APSPlayerController>(PC));
     }
     Super::EndViewTarget(PC);
 }

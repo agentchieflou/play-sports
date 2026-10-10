@@ -56,3 +56,39 @@ Create a User Widget asset named `WBP_PlayResult` in `/Game/UI/WBP_PlayResult`.
   - If `ResultType` is `Tackle`: Set banner text to `+ [YardsGained] Yards`.
   - If `ResultType` is `Incomplete`: Set banner text to "INCOMPLETE PASS".
 - Display the banner on viewport, play fade-in/fade-out animation, and remove from parent after a delay.
+
+---
+
+## Telestrator Drawing Layer (`UPSTelestratorWidget`, Epic 44)
+
+`APSHUD` makes it on every tier. It is idle, letting every click and finger through, until the
+`Telestrator` action turns on analysis mode over a replay or the film view. All of it is code:
+the toolbar, the input and the painting. A Widget Blueprint subclass (`TelestratorWidgetClass`
+on the HUD) can restyle the toolbar; `OnAnalysisChanged` tells it when the layer comes and
+goes.
+
+### 1. What runs in code
+- While analysis is on, the layer covers the screen and the player is in UI input mode, so
+  nothing reaches the camera, the replay or the pawn. The touch layer stands down too.
+- A toolbar sits at the top centre: Draw, Arrow, Circle, Player, Undo, Clear, Save and Done.
+  The tool in hand is lit in `MarkColor`.
+- A mouse drag or a finger draws with the current tool. A gamepad's left stick, WASD or the
+  arrows move a cursor, and A or Space draws at it. X, Y, LB, RB and B (Tab, Backspace, Delete,
+  Enter and Esc) are next tool, undo, clear, save and leave, read from the input catalog's
+  `Telestrator` context.
+- Marks and the stroke in progress are painted with anti-aliased Slate lines. Their sizes are
+  shares of the screen's shorter side (`Data/telestrator.json`), so a phone and a monitor show
+  the same drawing.
+
+### 2. Editor / PIE check (not done yet)
+1. In PIE, start a replay (or switch to the film view with F / R3), press Y or D-pad Up:
+   - the replay holds and the toolbar appears; freehand, arrow, circle and a player tap draw
+     where the pointer goes, the tapped player lights up;
+   - with a pad, the cursor moves with the left stick and A draws; X cycles the tools;
+   - Done or B leaves, the marks go, a held replay plays on, and game input comes back.
+2. On an iPhone (or the mobile preview at a phone's DPI): enter with the on-screen D-pad Up in a
+   replay, draw with a finger, use the toolbar. Check the toolbar fits the screen's width in
+   portrait and landscape, and that the on-screen controls are gone while drawing.
+3. Look: line weight (`MarkWidth`, `MinStrokeWidth`), colors, the ring and cursor sizes.
+   Restyle the toolbar in a Widget Blueprint if the code-built one reads poorly. Check that a
+   saved still (RB / Enter, `Saved/Telestrator`) shows the drawing in its screenshot.

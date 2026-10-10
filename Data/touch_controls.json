@@ -40,7 +40,8 @@
                 { "ControlId": "ButtonUpperRight", "ActionId": "ReplayScrubForward" },
                 { "ControlId": "ButtonTop", "ActionId": "ReplayCamera" },
                 { "ControlId": "ButtonRight", "ActionId": "ReplayExit" },
-                { "ControlId": "ButtonView", "ActionId": "PhotoMode" }
+                { "ControlId": "ButtonView", "ActionId": "PhotoMode" },
+                { "ControlId": "DPadUp", "ActionId": "Telestrator" }
             ]
         },
         {
@@ -79,7 +80,9 @@
                 { "ControlId": "Pause", "ActionId": "Pause" },
                 { "ControlId": "ButtonRightStick", "ActionId": "FilmView" },
                 { "ControlId": "ButtonView", "ActionId": "PhotoMode" },
-                { "ControlId": "SwipeDown", "ActionId": "PhotoMode" }
+                { "ControlId": "SwipeDown", "ActionId": "PhotoMode" },
+                { "ControlId": "DPadUp", "ActionId": "Telestrator" },
+                { "ControlId": "SwipeUp", "ActionId": "Telestrator" }
             ]
         },
         {
@@ -151,5 +154,5 @@
             ]
         }
     ],
-    "ContextsWithoutTouch": ["World", "Menu"]
+    "ContextsWithoutTouch": ["World", "Menu", "Telestrator"]
 }
