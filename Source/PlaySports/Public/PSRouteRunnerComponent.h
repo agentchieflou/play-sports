@@ -58,14 +58,14 @@ public:
     /** Replaces the tuning (headless tests). */
     void SetTuning(const FRouteRunningTuningRow& InTuning);
 
-    /** Puts the receiver's style into this play's tuning (Epic 79): the tuning as loaded, scaled
-     *  by Data/player_dna.json's RouteRunning bindings for Receiver's DNA. SetRoutePlan applies
-     *  the controlled pawn's. */
-    void ApplyPlayerDNA(const FPlayerAttributes& Receiver);
+    /** This play's tuning for Receiver: the tuning as loaded, scaled by Data/player_dna.json's
+     *  RouteRunning bindings for his style (Epic 79), then by the difficulty tier when he plays
+     *  for the CPU (Epic 84). SetRoutePlan applies the controlled pawn's. */
+    void ApplyPlayTuning(const APSPlayerPawn* Receiver);
 
     /** This play's route: its definition, the world waypoints it resolved to (already the
      *  controller's), the side's mirror (+1 right of the ball), the library its option branches
-     *  come from, and the seed of this receiver's rolls. He runs it in his style (ApplyPlayerDNA). */
+     *  come from, and the seed of this receiver's rolls. He runs it in his style, at the CPU's difficulty (ApplyPlayTuning). */
     void SetRoutePlan(const FPSRoute& Route, const TArray<FVector>& WorldWaypoints, float InMirror, const UDataTable* RouteLibrary, int32 Seed);
 
     /** No pattern this play: a block, a spot, a scramble drill. */

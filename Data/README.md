@@ -108,6 +108,7 @@ every CI build.
 | `ai_debug.json` | `FPSAIDebugTuning` (single object: switches, post-mortem folder and limits, overlay placement) | `UPSDataIngestion::LoadAIDebugTuningFromJson`, via `UPSAIDecisionLog` |
 | `ai_scenarios.json` | `FPSAIScenarioCatalog` (single object: `Scenarios`) | `UPSDataIngestion::LoadAIScenariosFromJson`, via `UPSAIScenarioRunner` |
 | `gap_overlay.json` | `FPSGapOverlayStyle` (single object) | `UPSDataIngestion::LoadGapOverlayStyleFromJson`, via `UPSDefenderGapOverlaySubsystem` |
+| `difficulty.json` | `FPSDifficultyCatalog` (single object: `DifficultyTiers`, the assists' setting IDs, `SuggestedPlayAccent`) | `UPSDataIngestion::LoadDifficultyCatalogFromJson`, via `UPSDifficultySubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -221,6 +222,31 @@ Single object (Epic 85; scripted scenarios for `UPSAIScenarioRunner`, run by the
   `MaxAngleDegrees` (default 45) of.
 
 `UPSAIScenarioRunner::ValidateScenario` and `tools/validate_data.py` check them.
+
+## Difficulty schema (`FPSDifficultyCatalog`)
+
+Single object (Epic 84; how hard the CPU plays and how much the game helps, `UPSDifficultySubsystem`):
+- `DifficultyTiers[]`, easiest first: a unique `TierId`, a `Label` (the tiers' labels are the
+  `Difficulty` setting's `Choices` in `ui_settings.json`, in the same order), and the CPU's
+  capability dials, never a rating:
+  - `AdaptationDial` (0-1): how far the CPU counters the human's play-calling (the opponent
+    model's dial; 0 never adapts).
+  - `ThrowScatterScale` (above 0): execution variance, how many times as far a CPU passer's throws
+    scatter as his Awareness alone makes them.
+  - `Scales[]`: recognition and execution dials. `Dial` names the capability, `Target` the AI
+    tuning (`SkillAI`, `Pocket`, `DefenderAI` or `RouteRunning`, as in `player_dna.json`), `Field`
+    one of its numbers and `Scale` (above 0) what it is multiplied by for the CPU's players, after
+    their style. Each field once per tier.
+- `DifficultySetting`, `PassLeadSetting`, `AutoSlideSetting`, `SuggestedPlaySetting`: the settings
+  that pick the tier and switch each assist (a `Choice`, then three `Toggle`s, in
+  `ui_settings.json`'s Gameplay category).
+- `SuggestedPlayAccent` (`#RRGGBB`): the suggested play's highlight on the play-call screens,
+  drawn in the player's color vision setting.
+
+Only the CPU's players get a tier: those on a side no human controls. A world without player
+settings (a headless test, the scenario gym) has no tier and plays the AI as tuned. There is no
+rubber band: nothing reads the score. `PSDifficulty::ValidateCatalog` and
+`tools/validate_data.py` check it.
 
 ## Personnel package schema (`FPSPersonnelCatalog`)
 

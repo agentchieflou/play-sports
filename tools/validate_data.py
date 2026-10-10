@@ -65,9 +65,11 @@ FPSMoraleTuning (Epic 91): 0-1 thresholds, each chemistry unit's role, games and
 files against FPSHighlightTuning (Epic 42); "PlayerPickRadius" files against FPSTelestratorTuning
 (Epic 44); "LeverageShade" files against FPSCoverageMatchupTuning (Epic 69): its shell rules (each
 coverage shell the playbook calls has one) and a press spot inside the route-running PressRadius;
-"ScoopClearRadius" files against FPSLooseBallTuning (Epic 17.4). Teams, the league config, the
-playbook, player rating ranges and every reference between files are tools/content_contracts.py's
-(Epic 125), run from here.
+"ScoopClearRadius" files against FPSLooseBallTuning (Epic 17.4); "DifficultyTiers" files against
+FPSDifficultyCatalog, each scale a numeric field of its AI tuning file, the tiers the Difficulty
+setting's choices in order and each assist a toggle in ui_settings.json (Epic 84). Teams, the league
+config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -3666,6 +3668,94 @@ def load_input_catalog():
     return catalog if isinstance(catalog, dict) else None
 
 
+DIFFICULTY_FIELDS = ("DifficultyTiers", "DifficultySetting", "PassLeadSetting", "AutoSlideSetting",
+                     "SuggestedPlaySetting", "SuggestedPlayAccent")
+DIFFICULTY_TIER_FIELDS = {"TierId", "Label", "AdaptationDial", "ThrowScatterScale", "Scales"}
+DIFFICULTY_SCALE_FIELDS = {"Dial", "Target", "Field", "Scale"}
+
+
+def validate_difficulty(path, payload):
+    """FPSDifficultyCatalog (Data/difficulty.json, Epic 84); mirrors PSDifficulty::ValidateCatalog,
+    plus the settings it names in ui_settings.json."""
+    extra = set(payload) - set(DIFFICULTY_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSDifficultyCatalog exactly")
+    target_fields = {}
+    for target, filename in DNA_BINDING_TARGETS.items():
+        try:
+            tuning = json.loads((DATA_DIR / filename).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        if isinstance(tuning, dict):
+            target_fields[target] = {k for k, v in tuning.items() if is_number(v)}
+    tiers = payload.get("DifficultyTiers")
+    if not isinstance(tiers, list) or not tiers:
+        err(path, "'DifficultyTiers' must be a non-empty array")
+        tiers = []
+    ids, labels = set(), []
+    for idx, tier in enumerate(tiers):
+        where = f"DifficultyTiers[{idx}]"
+        if not isinstance(tier, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        tier_id, label = tier.get("TierId"), tier.get("Label")
+        if not isinstance(tier_id, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*", tier_id) or tier_id in ids:
+            err(path, f"{where}.TierId: '{tier_id}' must be an identifier used once")
+        ids.add(tier_id)
+        if not isinstance(label, str) or not label.strip():
+            err(path, f"{where}.Label: must be a non-empty string")
+        labels.append(label)
+        dial = tier.get("AdaptationDial")
+        if not is_number(dial) or not 0 <= dial <= 1:
+            err(path, f"{where}.AdaptationDial: '{dial}' must be a number from 0 to 1")
+        scatter = tier.get("ThrowScatterScale")
+        if not is_number(scatter) or scatter <= 0:
+            err(path, f"{where}.ThrowScatterScale: '{scatter}' must be a multiplier above 0")
+        scaled = set()
+        scales = tier.get("Scales")
+        if not isinstance(scales, list):
+            err(path, f"{where}.Scales: must be an array")
+            scales = []
+        for sidx, scale in enumerate(scales):
+            swhere = f"{where}.Scales[{sidx}]"
+            if not isinstance(scale, dict):
+                err(path, f"{swhere}: must be an object")
+                continue
+            target, field = scale.get("Target"), scale.get("Field")
+            if not isinstance(scale.get("Dial"), str) or not scale["Dial"].strip():
+                err(path, f"{swhere}.Dial: must name the capability it turns")
+            if target not in DNA_BINDING_TARGETS:
+                err(path, f"{swhere}.Target: '{target}' must be one of {sorted(DNA_BINDING_TARGETS)} (an AI tuning, never a rating)")
+            elif target in target_fields and field not in target_fields[target]:
+                err(path, f"{swhere}.Field: '{field}' is not a number in {DNA_BINDING_TARGETS[target]}")
+            if (target, field) in scaled:
+                err(path, f"{swhere}: {target}.{field} is scaled twice")
+            scaled.add((target, field))
+            if not is_number(scale.get("Scale")) or scale["Scale"] <= 0:
+                err(path, f"{swhere}.Scale: '{scale.get('Scale')}' must be a multiplier above 0")
+            if set(scale) - DIFFICULTY_SCALE_FIELDS:
+                err(path, f"{swhere}: unknown field(s) {sorted(set(scale) - DIFFICULTY_SCALE_FIELDS)}")
+        if set(tier) - DIFFICULTY_TIER_FIELDS:
+            err(path, f"{where}: unknown field(s) {sorted(set(tier) - DIFFICULTY_TIER_FIELDS)}")
+    accent = payload.get("SuggestedPlayAccent")
+    if not isinstance(accent, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", accent):
+        err(path, f"SuggestedPlayAccent: '{accent}' must be \"#RRGGBB\"")
+    try:
+        settings = json.loads((DATA_DIR / "ui_settings.json").read_text(encoding="utf-8"))
+        rows = {s.get("SettingId"): s for s in settings.get("Settings", []) if isinstance(s, dict)}
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return
+    difficulty = rows.get(payload.get("DifficultySetting"))
+    if not difficulty or difficulty.get("Kind") != "Choice":
+        err(path, f"DifficultySetting: '{payload.get('DifficultySetting')}' must be a Choice setting in ui_settings.json")
+    elif difficulty.get("Choices") != labels:
+        err(path, f"DifficultySetting: ui_settings.json's choices {difficulty.get('Choices')} must be the tiers' labels in order {labels}")
+    for field in ("PassLeadSetting", "AutoSlideSetting", "SuggestedPlaySetting"):
+        row = rows.get(payload.get(field))
+        if not row or row.get("Kind", "Toggle") != "Toggle":
+            err(path, f"{field}: '{payload.get(field)}' must be a Toggle setting in ui_settings.json")
+
+
 def main():
     if not DATA_DIR.is_dir():
         print("validate_data: no Data/ directory - nothing to check")
@@ -3803,6 +3893,8 @@ def main():
             validate_highlights(path, payload)
         if isinstance(payload, dict) and "PlayerPickRadius" in payload:
             validate_telestrator(path, payload)
+        if isinstance(payload, dict) and "DifficultyTiers" in payload:
+            validate_difficulty(path, payload)
     content_contracts.check_references(REPO, parsed, err)
     validate_ui_text()
     if errors:

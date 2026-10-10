@@ -59,6 +59,7 @@
 #include "PSDefenderGapOverlayTypes.h"
 #include "PSCoverageMatchupTypes.h"
 #include "PSLooseBallSubsystem.h"
+#include "PSDifficultyTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -354,6 +355,11 @@ public:
      *  file or malformed JSON; UPSTelestratorSubsystem::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadTelestratorTuningFromJson(const FString& JsonFilePath, FPSTelestratorTuning& OutTuning);
+
+    /** Loads the difficulty tiers and the assists' settings (Data/difficulty.json, Epic 84).
+     *  False on a missing file or malformed JSON; PSDifficulty::ValidateCatalog checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadDifficultyCatalogFromJson(const FString& JsonFilePath, FPSDifficultyCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

@@ -157,15 +157,16 @@ public:
     static FString GetDefaultTuningPath();
 
     /** The tuning in use, loaded from the default path on first use: as loaded, with this play's
-     *  player's style applied (ApplyPlayerDNA). */
+     *  player's style and difficulty applied (ApplyPlayTuning). */
     const FSkillPlayerAITuningRow& GetTuning();
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
 
-    /** Puts Self's style into this play's tuning (Epic 79): the tuning as loaded, scaled by
-     *  Data/player_dna.json's SkillAI bindings for his DNA (UPSPlayerDNASubsystem), and the same
-     *  for his pocket's. Called as each play starts. */
-    void ApplyPlayerDNA(const APSPlayerPawn* Self);
+    /** This play's tuning for Self: the tuning as loaded, scaled by Data/player_dna.json's SkillAI
+     *  bindings for his style (UPSPlayerDNASubsystem, Epic 79), then by the difficulty tier when
+     *  he plays for the CPU (UPSDifficultySubsystem, Epic 84); and the same for his pocket's.
+     *  Called as each play starts. */
+    void ApplyPlayTuning(const APSPlayerPawn* Self);
 
     /** Listens for the call, the snap, throws, the end of the play and control handoffs.
      *  Idempotent. */
