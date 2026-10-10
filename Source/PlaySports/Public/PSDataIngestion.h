@@ -41,6 +41,7 @@
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
 #include "PSPocketComponent.h"
+#include "PSPlayerDNA.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -239,6 +240,11 @@ public:
      *  missing file or malformed JSON; UPSPersonnelManager::ValidateCatalog checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPersonnelCatalogFromJson(const FString& JsonFilePath, FPSPersonnelCatalog& OutCatalog);
+
+    /** Loads the player style axes and their AI bindings (Data/player_dna.json, Epic 79). False
+     *  on a missing file or malformed JSON; PSPlayerDNA::ValidateCatalog checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPlayerDNACatalogFromJson(const FString& JsonFilePath, FPSPlayerDNACatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
