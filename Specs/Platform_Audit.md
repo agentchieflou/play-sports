@@ -95,6 +95,7 @@ Landed so far:
 | Ball-flight indicators (Epic 32), on the same field | `OverlayDetail` | Arc that shortens behind the ball, landing spot, receiver lead, kick readout | Whole arc, static; landing spot, lead, readout | Landing spot and kick readout only |
 | Position badges (Epic 28), on the same field | `OverlayDetail` | Every group, fading in | Every group, no fade | The pass buttons only |
 | Player emphasis (Epic 36): custom-depth marks for outline, glow and dimming | `OverlayDetail` | Drawn, up to `MaxEmphasized` players | Drawn, up to `MaxEmphasized` players | Not drawn (requests kept) |
+| Replay playback (Epic 41): posing every pawn and the ball at the playhead | `ReplayPoseRateHz` | Every frame (0) | 30 a second | 15 a second |
 
 The sampler also halves its own rate when its frames run over the tier's budget
 (`PlaySports.TelemetrySampling.BudgetDegradesAndRecovers`); `stat PSTelemetrySampling` shows its

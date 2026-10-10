@@ -4,11 +4,13 @@ Deepens core Epic 4's basic broadcast camera into a full presentation layer: an 
 camera brain, physical rig simulations, replay, auto-highlights, and analysis tooling.
 Sizing/mode legend: see `ROADMAP.md`.
 
-**Reality note (2026-07-19 review):** `APSBroadcastCamera` exists on `main` (follow/bounds/
-framing/free-cam from Epic 4) but its `TargetActor` is never assigned — **Phase 1.5 C3 wires it
-via possession events**; Epic 38 starts from that wired camera, not from scratch. Epic 41's
-ring buffer is C1's event history (don't build a second one). Architecture rules apply: new
-camera behaviors are components/classes, each epic ships tests.
+**Reality note (2026-07-19 review, updated 2026-10-10):** `APSBroadcastCamera` (follow/bounds/
+framing/free-cam from Epic 4) is wired: Phase 1.5 C3 made `SetTargetActor` the way in, and the
+game mode points `TargetActor` at the receiver on each catch on the bus. Since Epic 38 the camera
+director picks its own subject from Epic 26's snapshots, so the plain follow of `TargetActor` is
+the fallback while the director is off. Epic 41's ring buffer is C1's event history (don't build a
+second one). Architecture rules apply: new camera behaviors are components/classes, each epic
+ships tests.
 
 ### Epic 38: Camera Director AI
 
@@ -47,12 +49,18 @@ camera behaviors are components/classes, each epic ships tests.
 **Goal:** Any recent play can be re-rendered from any camera with scrubbing and slow motion.
 **Depends on:** C1, 26, 38, Core 17 (determinism hooks)
 
-- [ ] Replay recording joins C1's event ring buffer with Epic 26's snapshot history (no third buffer)
-- [ ] Deterministic re-simulation or state-playback of the buffered play
-- [ ] Scrub/pause/slow-mo/frame-step transport controls
-- [ ] Free camera + all rig cameras available inside replay
-- [ ] Auto-replay trigger after scores/turnovers with director-chosen angle
-- [ ] Persistence: save a play's replay data to disk for later viewing
+- [x] Replay recording joins C1's event ring buffer with Epic 26's snapshot history (no third buffer) *(as built: `UPSReplaySubsystem::CaptureClip` / `CaptureLastPlay` cut a clip when one is wanted. It takes the sampler's frames from `PreRollSeconds` before the snap to `PostRollSeconds` after the whistle, and the bus's events in that span, timed and ticked on those frames. The clip is Epic 115's `FPSReplayRecording`, which gains `Frames`. The replay keeps no buffer of its own: a clip is a one-off copy, so the history rolls on while it plays. It opens on the last `GameState` announced before the snap (`PSGameStateEvents::ToPlayState`). Tuning: `Data/replay.json`)*
+- [x] Deterministic re-simulation or state-playback of the buffered play *(as built: state playback, since the physical game isn't re-simulable (`Specs/Determinism_Audit.md`). At the playhead, the frame blended from the clip's frames either side poses every pawn (by `PlayerId`) and the ball, with their collision off.
+  - The sampler shows that frame as the present (`SetReplayFrame`), so the director, the skycam and the overlays follow the replay and record none of it.
+  - The game is paused under the replay, and re-paused if something else unpauses it. The broadcast camera ticks through the pause.
+  - `StopReplay` puts every pawn and the ball back, with their velocity and collision.
+  - The tier's `ReplayPoseRateHz` (`Data/platform_tiers.json`) caps how often the field is re-posed.
+  - Tests: `PlaySports.Replay.System.*`.
+  - Not seen yet: the replay on screen, and whether the players' animation runs while the game is paused. That is an editor check.)*
+- [x] Scrub/pause/slow-mo/frame-step transport controls *(as built: pause, slow motion through `PlaybackRates`, steps between captured frames, held scrubbing at `ScrubSecondsPerSecond`, and the playhead's limits. The buttons are a new `Replay` input context (priority 4) that the replay pushes on every player controller (`APSPlayerController::SetModeContextActive`): A play/pause, X slow motion, D-pad left/right frame steps, LB/RB scrub, Y camera, B exit, with keys, glyphs, text rows and touch twins. Pause still opens the pause menu, and the replay holds while it is open. Tests: `PlaySports.Replay.System.TransportControls`, `PlaySports.Replay.Controls.*`)*
+- [x] Free camera + all rig cameras available inside replay *(as built: Y steps through `Cameras` in `Data/replay.json`. The order is the camera director (which follows the replay through the sampler's replay frame), the all-22 sideline and end-zone rigs, the skycam (cut to at once with the director's new `CutNow`), and a free camera that circles the ball and closes in on the Move stick. The broadcast camera ticks through the pause. When the replay ends it gets back its transform, field of view, film view and director state. Not seen yet: how the angles look on screen)*
+- [x] Auto-replay trigger after scores/turnovers with director-chosen angle *(as built: the replay system watches the bus. A score is the game state's score going up (the play simulation is the authority) or a `Score` event. A turnover is an interception, a lost fumble, or the ball changing hands on a play that wasn't a kick. Either one replays the play `AutoReplayDelaySeconds` after its whistle, at its rule's speed, opening on its rule's director shot: the end-zone rig for a score, the skycam for a turnover. `AutoReplayHoldSeconds` after the clip's end the replay gives the game back, unless the viewer took the controls. The next snap cancels a replay that hasn't started. With Reduced motion on (Epic 103.5), every replay opens on `ReducedMotionCamera`, the still sideline rig)*
+- [x] Persistence: save a play's replay data to disk for later viewing *(as built: `SaveClip` writes a clip as Epic 115's JSON to `Saved/Replays`. Its scheduled frames are thinned to `SaveFrameRateHz`, and its keyframes, first frame and last frame are kept. A snapshot's live pawn is `Transient` and isn't written; a loaded clip finds its pawns by `PlayerId`. `LoadClip` goes through the format's version gate. `ListSavedClips` lists what is saved)*
 
 ### Epic 42: Auto-Highlight Generation
 

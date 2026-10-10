@@ -75,7 +75,9 @@ struct FPSPawnSnapshot
 {
     GENERATED_BODY()
 
-    UPROPERTY()
+    /** The pawn itself, while the run that captured the snapshot lasts. Transient: a saved
+     *  replay (Epic 41) finds its pawns by PlayerId. */
+    UPROPERTY(Transient)
     TWeakObjectPtr<APSPlayerPawn> Pawn;
 
     UPROPERTY(BlueprintReadOnly, Category = "Telemetry")

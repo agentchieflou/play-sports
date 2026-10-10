@@ -434,6 +434,22 @@ void APSPlayerController::SetDepthContext(FName ContextId)
     }
 }
 
+void APSPlayerController::SetModeContextActive(FName ContextId, bool bActive)
+{
+    if (ContextId.IsNone())
+    {
+        return;
+    }
+    if (bActive)
+    {
+        PushInputContext(ContextId);
+    }
+    else
+    {
+        PopInputContext(ContextId);
+    }
+}
+
 void APSPlayerController::PublishControlChange(const APSPlayerPawn* PlayerPawn, bool bHumanControlled)
 {
     UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr;

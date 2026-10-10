@@ -14,6 +14,7 @@
             "AIDecisionInterval": 0,
             "TelemetrySampleRateHz": 30,
             "TelemetrySampleBudgetMs": 0.25,
+            "ReplayPoseRateHz": 0,
             "OverlayDetail": "Full"
         },
         {
@@ -23,6 +24,7 @@
             "AIDecisionInterval": 0.033,
             "TelemetrySampleRateHz": 15,
             "TelemetrySampleBudgetMs": 0.15,
+            "ReplayPoseRateHz": 30,
             "OverlayDetail": "Simplified"
         },
         {
@@ -32,6 +34,7 @@
             "AIDecisionInterval": 0.066,
             "TelemetrySampleRateHz": 10,
             "TelemetrySampleBudgetMs": 0.1,
+            "ReplayPoseRateHz": 15,
             "OverlayDetail": "Minimal"
         }
     ]

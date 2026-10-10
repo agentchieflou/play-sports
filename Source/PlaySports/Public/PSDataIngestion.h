@@ -41,6 +41,7 @@
 #include "PSCameraFraming.h"
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
+#include "PSReplayTypes.h"
 #include "PSBlownCoverageSubsystem.h"
 #include "PSRosterData.h"
 #include "PSContractData.h"
@@ -275,6 +276,11 @@ public:
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadDefensivePreSnapTuningFromJson(const FString& JsonFilePath, FPSDefensivePreSnapTuning& OutTuning);
+
+    /** Loads how replays are cut, played and saved (Data/replay.json, Epic 41). False on a
+     *  missing file or malformed JSON; UPSReplaySubsystem::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadReplayTuningFromJson(const FString& JsonFilePath, FPSReplayTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

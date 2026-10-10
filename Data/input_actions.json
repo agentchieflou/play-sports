@@ -42,6 +42,11 @@
             "Description": "The human's side kicks: a kickoff, punt or field goal (Epic 104.5). Kick works UPSKickMeterComponent's meter: hold to fill the power, release to lock it, press again to stop the accuracy needle. Outranks OnField, so A kicks instead of confirming."
         },
         {
+            "ContextId": "Replay",
+            "Priority": 4,
+            "Description": "A replay is playing (Epic 41): UPSReplaySubsystem pushes it on every player controller for the replay's length, over whatever the field had. Its transport and camera buttons win over the field's while it is on; Start still pauses, and the Move stick steers the free camera."
+        },
+        {
             "ContextId": "DefensePreSnap",
             "Priority": 3,
             "Description": "Before the snap while the human plays defense (Epic 104.5): PreSnap's offensive calls mean nothing to a defender, so he has his own buttons. JumpSnap binds here; X and LB still switch player from OnField."
@@ -496,6 +501,86 @@
             "Bindings": [
                 { "Key": "K" },
                 { "Key": "Gamepad_DPad_Down" }
+            ]
+        },
+        {
+            "ActionId": "ReplayPlayPause",
+            "ValueType": "Boolean",
+            "Description": "Pause the replay, or play it on (from its end, from the start). A, as A confirms everywhere.",
+            "Contexts": ["Replay"],
+            "Bindings": [
+                { "Key": "SpaceBar" },
+                { "Key": "Gamepad_FaceButton_Bottom" }
+            ]
+        },
+        {
+            "ActionId": "ReplaySlowMotion",
+            "ValueType": "Boolean",
+            "Description": "Step the replay's speed through Data/replay.json's PlaybackRates: real time, half, quarter.",
+            "Contexts": ["Replay"],
+            "Bindings": [
+                { "Key": "Z" },
+                { "Key": "Gamepad_FaceButton_Left" }
+            ]
+        },
+        {
+            "ActionId": "ReplayStepBack",
+            "ValueType": "Boolean",
+            "Description": "Hold the replay and step back one captured frame.",
+            "Contexts": ["Replay"],
+            "Bindings": [
+                { "Key": "Comma" },
+                { "Key": "Gamepad_DPad_Left" }
+            ]
+        },
+        {
+            "ActionId": "ReplayStepForward",
+            "ValueType": "Boolean",
+            "Description": "Hold the replay and step on one captured frame.",
+            "Contexts": ["Replay"],
+            "Bindings": [
+                { "Key": "Period" },
+                { "Key": "Gamepad_DPad_Right" }
+            ]
+        },
+        {
+            "ActionId": "ReplayScrubBack",
+            "ValueType": "Boolean",
+            "Description": "While held, scrub the replay backward at ScrubSecondsPerSecond.",
+            "Contexts": ["Replay"],
+            "Bindings": [
+                { "Key": "Q" },
+                { "Key": "Gamepad_LeftShoulder" }
+            ]
+        },
+        {
+            "ActionId": "ReplayScrubForward",
+            "ValueType": "Boolean",
+            "Description": "While held, scrub the replay forward at ScrubSecondsPerSecond.",
+            "Contexts": ["Replay"],
+            "Bindings": [
+                { "Key": "E" },
+                { "Key": "Gamepad_RightShoulder" }
+            ]
+        },
+        {
+            "ActionId": "ReplayCamera",
+            "ValueType": "Boolean",
+            "Description": "Step the replay's camera through Data/replay.json's Cameras: the director, the all-22 rigs, the skycam, the free camera (which circles the ball on the Move stick). Y, as Y toggles the camera off the field.",
+            "Contexts": ["Replay"],
+            "Bindings": [
+                { "Key": "C" },
+                { "Key": "Gamepad_FaceButton_Top" }
+            ]
+        },
+        {
+            "ActionId": "ReplayExit",
+            "ValueType": "Boolean",
+            "Description": "Leave the replay and go back to the game. B, as B cancels everywhere.",
+            "Contexts": ["Replay"],
+            "Bindings": [
+                { "Key": "Escape" },
+                { "Key": "Gamepad_FaceButton_Right" }
             ]
         }
     ]

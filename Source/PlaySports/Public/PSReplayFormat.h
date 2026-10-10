@@ -4,6 +4,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "PSPlayerAttributes.h"
 #include "PSPlaySimulation.h"
+#include "PSTelemetrySamplingTypes.h"
 #include "PSReplayFormat.generated.h"
 
 USTRUCT(BlueprintType)
@@ -83,6 +84,14 @@ struct FPSReplayRecording
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
     TArray<FPSReplayEventRecord> Events;
+
+    /** For state playback (Epic 41): Epic 26's snapshots of the recorded span, in time order,
+     *  so a replay shows what happened rather than re-simulating it. A replay clip's event
+     *  times (TimestampSeconds) are on these frames' clock, and each event's TickIndex is the
+     *  index of the last frame at or before it. Empty in a recording of events alone. Added
+     *  without a version bump: an optional field (policy rule 1). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Replay")
+    TArray<FPSSnapshotFrame> Frames;
 };
 
 UCLASS()
@@ -96,6 +105,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Replay")
     static FPSReplayRecording MakeRecording(const FPlayState& InitialPlayState, const TArray<FPlayerAttributes>& OffenseRoster, const TArray<FPlayerAttributes>& DefenseRoster);
 
+    /** The recording as JSON. Transient fields (a snapshot's live pawn) are left out. */
     UFUNCTION(BlueprintCallable, Category = "Replay")
     static FString SerializeToJson(const FPSReplayRecording& Recording);
 

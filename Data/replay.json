@@ -1,0 +1,22 @@
+{
+    "PreRollSeconds": 1.0,
+    "PostRollSeconds": 1.5,
+    "PlaybackRates": [1.0, 0.5, 0.25],
+    "ScrubSecondsPerSecond": 1.0,
+    "SaveFrameRateHz": 15,
+    "Cameras": ["Director", "Sideline", "EndZone", "Skycam", "Free"],
+    "FreeCamDistanceCm": 1500,
+    "FreeCamMinDistanceCm": 500,
+    "FreeCamMaxDistanceCm": 4000,
+    "FreeCamPitchDegrees": 25,
+    "FreeCamOrbitDegreesPerSecond": 90,
+    "FreeCamZoomCmPerSecond": 1500,
+    "bAutoReplay": true,
+    "AutoReplayDelaySeconds": 1.5,
+    "AutoReplayHoldSeconds": 1.0,
+    "AutoReplays": [
+        { "Trigger": "Score", "Shot": "EndZone", "PlaybackRate": 0.5 },
+        { "Trigger": "Turnover", "Shot": "Skycam", "PlaybackRate": 0.5 }
+    ],
+    "ReducedMotionCamera": "Sideline"
+}

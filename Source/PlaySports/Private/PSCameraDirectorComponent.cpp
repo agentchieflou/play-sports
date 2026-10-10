@@ -310,6 +310,17 @@ bool UPSCameraDirectorComponent::RequestCut(EPSDirectorShot Shot)
     return true;
 }
 
+bool UPSCameraDirectorComponent::CutNow(EPSDirectorShot Shot)
+{
+    GetTuning();
+    if (Shot == EPSDirectorShot::None || !FindShotDef(Shot))
+    {
+        return false;
+    }
+    CutTo(Shot);
+    return true;
+}
+
 void UPSCameraDirectorComponent::CutTo(EPSDirectorShot Shot)
 {
     CurrentShot = Shot;

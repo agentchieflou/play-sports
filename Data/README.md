@@ -80,6 +80,7 @@ every CI build.
 | `camera_all22.json` | `FPSAll22CameraTuning` (single object: `All22Rigs`, framing tuning) | `UPSDataIngestion::LoadAll22CameraTuningFromJson`, via `UPSCameraAll22Component` |
 | `camera_director.json` | `FPSCameraDirectorTuning` (single object: `Shots`, `CutRules`, `Interest`, constraints) | `UPSDataIngestion::LoadCameraDirectorTuningFromJson`, via `UPSCameraDirectorComponent` |
 | `camera_skycam.json` | `FPSSkycamTuning` (single object) | `UPSDataIngestion::LoadSkycamTuningFromJson`, via `UPSCameraSkycamComponent` |
+| `replay.json` | `FPSReplayTuning` (single object) | `UPSDataIngestion::LoadReplayTuningFromJson`, via `UPSReplaySubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 | `touch_controls.json` | `FPSTouchLayout` (single object: `SafeZone`, `TouchControls`, `TouchContexts`, ...) | `UPSDataIngestion::LoadTouchLayoutFromJson`, via `UPSTouchInputComponent` |
 | `situational_tuning.json` | `FPSSituationalTuning` (single object: `Tempos`, `SituationTempos`, `CategoryWeights`, ...) | `UPSDataIngestion::LoadSituationalTuningFromJson`, via `UPSSituationAI` (owned by `UPSCoachingAI`) |
@@ -399,6 +400,8 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
   - `TelemetrySampleRateHz`, `TelemetrySampleBudgetMs` (above 0): how often the telemetry
     sampler (Epic 26) records every pawn, and what one recording may cost in ms before the
     sampler halves its rate.
+  - `ReplayPoseRateHz` (0 or more): how often a replay (Epic 41) re-poses the players and the
+    ball, per second; 0 is every frame.
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -993,6 +996,33 @@ Single object (Epic 39; `UPSCameraSkycamComponent`, a camera hung from four cabl
 - `LookAheadCm`: how far ahead of whoever it follows it looks. `FieldOfView` (0-170 degrees).
 
 `UPSCameraSkycamComponent::ValidateTuning` and `tools/validate_data.py` check it.
+
+## Replay schema (`FPSReplayTuning`)
+
+Single object (Epic 41; how `UPSReplaySubsystem` cuts, plays, shows and saves replays). How often a
+replay re-poses the field is per platform tier (`ReplayPoseRateHz` in `platform_tiers.json`):
+- `PreRollSeconds`, `PostRollSeconds` (0 or more): how long before a clip's first event (a play's
+  snap) and after its last (the whistle) the clip runs.
+- `PlaybackRates` (each above 0 and at most 1, the first exactly 1, no repeats): the speeds the
+  slow-motion control steps through; a replay starts at the first.
+- `ScrubSecondsPerSecond` (above 0): how fast a held scrub button moves the playhead.
+- `SaveFrameRateHz` (above 0): a saved replay keeps a scheduled frame at most this often;
+  keyframes and the clip's first and last frames are always kept.
+- `Cameras` (no repeats): the cameras the camera button steps through, the first being the one a
+  replay opens on. `Director` (the camera director, Epic 38), `Skycam` (Epic 39), `Free` (circles
+  the ball on the Move stick), or a `RigId` of `camera_all22.json` (Epic 40).
+- `FreeCamMinDistanceCm` <= `FreeCamDistanceCm` (the start) <= `FreeCamMaxDistanceCm`,
+  `FreeCamPitchDegrees` (above 0, below 90), `FreeCamOrbitDegreesPerSecond`,
+  `FreeCamZoomCmPerSecond` (above 0): the free camera.
+- `bAutoReplay`; `AutoReplayDelaySeconds`, `AutoReplayHoldSeconds` (0 or more): a play with a score
+  or a turnover replays itself this long after it ends, and gives the game back this long after
+  the replay's end (unless the viewer took the controls).
+- `AutoReplays[]`: one rule per `Trigger` (`Score`, `Turnover`): the `Shot` (an `EPSDirectorShot`)
+  the replay opens on and its `PlaybackRate` (above 0, at most 1).
+- `ReducedMotionCamera`: a rig in `Cameras`. With Reduced motion on (Epic 103.5) every replay opens
+  on it, the automatic ones included.
+
+`UPSReplaySubsystem::ValidateTuning` and `tools/validate_data.py` check it.
 
 ## Ball-flight overlay schema (`FPSBallFlightStyle`)
 

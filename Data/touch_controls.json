@@ -30,6 +30,19 @@
     ],
     "TouchContexts": [
         {
+            "ContextId": "Replay",
+            "Bindings": [
+                { "ControlId": "ButtonBottom", "ActionId": "ReplayPlayPause" },
+                { "ControlId": "ButtonLeft", "ActionId": "ReplaySlowMotion" },
+                { "ControlId": "DPadLeft", "ActionId": "ReplayStepBack" },
+                { "ControlId": "DPadRight", "ActionId": "ReplayStepForward" },
+                { "ControlId": "ButtonUpperLeft", "ActionId": "ReplayScrubBack" },
+                { "ControlId": "ButtonUpperRight", "ActionId": "ReplayScrubForward" },
+                { "ControlId": "ButtonTop", "ActionId": "ReplayCamera" },
+                { "ControlId": "ButtonRight", "ActionId": "ReplayExit" }
+            ]
+        },
+        {
             "ContextId": "OnField",
             "Bindings": [
                 { "ControlId": "Stick", "ActionId": "Move" },

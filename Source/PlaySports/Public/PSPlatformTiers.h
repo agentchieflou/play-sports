@@ -50,6 +50,12 @@ struct FPSPlatformTier
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     float TelemetrySampleBudgetMs = 0.25f;
 
+    /** How often a replay re-poses the players and the ball, per second (UPSReplaySubsystem,
+     *  Epic 41); 0 re-poses every frame. Each pose moves every pawn and the ball. A scrub or a
+     *  frame step always shows at once. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float ReplayPoseRateHz = 0.f;
+
     /** How much broadcast overlay this tier draws (Track A). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     EPSOverlayDetail OverlayDetail = EPSOverlayDetail::Full;
