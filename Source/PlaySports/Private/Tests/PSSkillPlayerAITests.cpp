@@ -24,6 +24,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "EngineUtils.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -97,17 +98,27 @@ namespace PSSkillPlayerAITests
         return Ball;
     }
 
-    /** The offense's call and the snap, as the play-call subsystem and game mode publish them. */
-    static void StartPlay(UPSTelemetryBus* Bus, const TCHAR* Category, const FVector& LineOfScrimmage)
+    /**
+     * The snap, then the offense's call. On a snap outside a call window the play-call
+     * subsystem calls a CPU play and hands out its routes, so each test clears those and
+     * announces its own call, then sets exactly the routes its scenario needs before the
+     * first tick (when the AI takes up its assignment).
+     */
+    static void StartPlay(UWorld* World, UPSTelemetryBus* Bus, const TCHAR* Category, const FVector& LineOfScrimmage)
     {
+        FPSTelemetrySnapEvent Snap;
+        Snap.LineOfScrimmage = LineOfScrimmage;
+        Bus->PublishSnap(Snap);
+
+        for (TActorIterator<APSOffenseController> It(World); It; ++It)
+        {
+            It->SetAssignedRoute(TArray<FVector>());
+        }
+
         FPSTelemetryPlayCallEvent Call;
         Call.bOffense = true;
         Call.PlayCategory = Category;
         Bus->PublishPlayCall(Call);
-
-        FPSTelemetrySnapEvent Snap;
-        Snap.LineOfScrimmage = LineOfScrimmage;
-        Bus->PublishSnap(Snap);
     }
 
     static bool PointsToward(const FVector& Direction, const FVector& From, const FVector& To)
@@ -154,9 +165,8 @@ bool FPSRouteRunningTest::RunTest(const FString& Parameters)
 
     const FVector FirstCut(300.f, 900.f, 100.f);
     const FVector Break(500.f, 500.f, 100.f);
+    StartPlay(World, Bus, TEXT("ShortPass"), FVector::ZeroVector);
     Cast<APSOffenseController>(WR->GetController())->SetAssignedRoute({ FirstCut, Break });
-
-    StartPlay(Bus, TEXT("ShortPass"), FVector::ZeroVector);
     UPSSkillPlayerAIComponent* Receiver = AIOf(WR);
     Receiver->TickAI(0.1f);
     TestTrue(TEXT("The receiver runs his route"), Receiver->GetAction() == EPSSkillPlayerAction::RunRoute);
@@ -226,7 +236,7 @@ bool FPSQuarterbackThrowTest::RunTest(const FString& Parameters)
     TArray<FPSTelemetryThrowEvent> Throws;
     const FDelegateHandle Handle = Bus->OnThrowMC.AddLambda([&Throws](const FPSTelemetryThrowEvent& Event) { Throws.Add(Event); });
 
-    StartPlay(Bus, TEXT("ShortPass"), FVector::ZeroVector);
+    StartPlay(World, Bus, TEXT("ShortPass"), FVector::ZeroVector);
     UPSSkillPlayerAIComponent* Passer = AIOf(QB);
     const float MinRead = Passer->GetTuning().MinReadSeconds;
 
@@ -311,7 +321,7 @@ bool FPSScrambleTest::RunTest(const FString& Parameters)
         return false;
     }
 
-    StartPlay(Bus, TEXT("DeepPass"), FVector::ZeroVector);
+    StartPlay(World, Bus, TEXT("DeepPass"), FVector::ZeroVector);
     UPSSkillPlayerAIComponent* Passer = AIOf(QB);
     Passer->TickAI(0.05f);
     TestTrue(TEXT("Pressured with nobody open, the QB scrambles"), Passer->GetAction() == EPSSkillPlayerAction::CarryBall);
@@ -362,7 +372,7 @@ bool FPSHandoffTest::RunTest(const FString& Parameters)
         return false;
     }
 
-    StartPlay(Bus, TEXT("Run"), FVector::ZeroVector);
+    StartPlay(World, Bus, TEXT("Run"), FVector::ZeroVector);
     UPSSkillPlayerAIComponent* Passer = AIOf(QB);
     TestTrue(TEXT("The offense knows it's a run"), Passer->IsRunPlay());
 
