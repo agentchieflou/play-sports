@@ -101,8 +101,9 @@ EPSCrowdLevel once with rising thresholds from Hush's 0, every EPSCrowdStimulus 
 deltas; "ModelMoments" files against FPSCommentaryHookTuning (Epic 23.5), each moment an
 EPSCommentaryMoment and the task one of routing.json's; "CentimetresPerYard" files against
 FPSFieldDimensions (Data/field_dimensions.json, the field's one frame): every dimension a positive
-number. Teams, the league config, the playbook, player rating ranges and every reference between
-files are tools/content_contracts.py's (Epic 125), run from here.
+number; "HoldingChancePerPlay" files against FPSPenaltyTuning (Data/penalties.json): each flag's
+chance from 0 to 1. Teams, the league config, the playbook, player rating ranges and every reference
+between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1906,6 +1907,21 @@ def validate_field_dimensions(path, payload):
     extra = set(payload) - set(FIELD_DIMENSION_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldDimensions exactly")
+
+
+PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
+
+
+def validate_penalties(path, payload):
+    """FPSPenaltyTuning (Data/penalties.json): how often the simulation's own flags fly; mirrors
+    UPSPenaltyModel::ValidateTuning."""
+    for field in PENALTY_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0 or value > 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    extra = set(payload) - set(PENALTY_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPenaltyTuning exactly")
 
 
 def validate_control_handoff(path, payload, catalog):
@@ -5467,6 +5483,8 @@ def main(root=None):
             validate_narrative(path, payload)
         if isinstance(payload, dict) and "FormationClasses" in payload:
             validate_play_recognition(path, payload)
+        if isinstance(payload, dict) and "HoldingChancePerPlay" in payload:
+            validate_penalties(path, payload)
         if isinstance(payload, dict) and "EventCues" in payload:
             validate_audio_cues(path, payload)
         if isinstance(payload, dict) and "CrowdReactions" in payload:

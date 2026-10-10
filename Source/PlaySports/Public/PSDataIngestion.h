@@ -73,6 +73,7 @@
 #include "PSPlayArtTypes.h"
 #include "PSGameIntelligenceTypes.h"
 #include "PSNarrativeTypes.h"
+#include "PSPenaltyModel.h"
 #include "PSAudioTypes.h"
 #include "PSCrowdTypes.h"
 #include "PSCommentaryTypes.h"
@@ -451,6 +452,12 @@ public:
      *  checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadNarrativeTuningFromJson(const FString& JsonFilePath, FPSNarrativeTuning& OutTuning);
+
+    /** Loads how often the simulation's own flags fly (Data/penalties.json): holding per
+     *  scrimmage play, offside per snap. False on a missing file or malformed JSON;
+     *  UPSPenaltyModel::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPenaltyTuningFromJson(const FString& JsonFilePath, FPSPenaltyTuning& OutTuning);
 
     /** Loads the audio's cue catalog and its mapping from gameplay moments (Data/audio_cues.json,
      *  Epic 23.1). False on a missing file or malformed JSON; UPSAudioSubsystem::ValidateTuning

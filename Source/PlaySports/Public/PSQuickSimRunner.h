@@ -78,6 +78,10 @@ public:
      *  (UPSPlaySimulation::OnPlayResolved; Epic 92's statistics record from it). */
     FPSTelemetryPlayResultMC OnPlayResolved;
 
+    /** Every flag's ruling in every game this runner simulates (UPSPlaySimulation::OnPenaltyRuled):
+     *  a quick-sim game's penalties for Epic 92's statistics, which a live game's hear on the bus. */
+    FPSTelemetryPenaltyMC OnPenaltyRuled;
+
 private:
     /** A quick-sim simulation set up for a game between the two rosters, not yet on a bus. */
     UPSPlaySimulation* MakeGameSimulation(const TArray<FPlayerAttributes>& HomeRoster, const TArray<FPlayerAttributes>& AwayRoster);
