@@ -59,6 +59,7 @@
 #include "PSDefenderPreSnapTypes.h"
 #include "PSOpponentModelTypes.h"
 #include "PSVersusTypes.h"
+#include "PSSessionServiceTypes.h"
 #include "PSAIDecisionTypes.h"
 #include "PSDefenderGapOverlayTypes.h"
 #include "PSLeagueGeneratorData.h"
@@ -466,6 +467,12 @@ public:
      *  or malformed JSON; UPSCommentaryEventModel::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCommentaryHookTuningFromJson(const FString& JsonFilePath, FPSCommentaryHookTuning& OutTuning);
+
+    /** Loads the online matchmaking rules (Data/session_matchmaking.json, Epic 108.5). False on
+     *  a missing file, malformed JSON or an unrecognized cross-play policy;
+     *  UPSSessionService::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSessionMatchmakingFromJson(const FString& JsonFilePath, FPSSessionMatchmakingTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

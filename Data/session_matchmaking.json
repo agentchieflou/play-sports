@@ -1,0 +1,13 @@
+{
+    "ProtocolVersion": 1,
+    "InitialSkillWindow": 100.0,
+    "SkillWindowGrowthPerSecond": 10.0,
+    "MaxSkillWindow": 600.0,
+    "RegionRelaxSeconds": 30.0,
+    "MaxWaitSeconds": 120.0,
+    "HostScoreDesktop": 4.0,
+    "HostScoreOnPower": 2.0,
+    "HostScoreUnmetered": 1.0,
+    "DefaultCrossPlay": "Anyone",
+    "TouchDefaultCrossPlay": "SameInput"
+}
