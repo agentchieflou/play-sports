@@ -82,3 +82,6 @@ DerivedDataCache/*
 .worktrees/
 eval/transcripts/
 __pycache__/
+
+# Claude Code agent worktrees (local only)
+.claude/worktrees/

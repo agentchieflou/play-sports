@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/DataTable.h"
+#include "PSPlayerAttributes.h"
 #include "PSTelemetryBus.h"
 #include "PSDefenderAIComponent.generated.h"
 
