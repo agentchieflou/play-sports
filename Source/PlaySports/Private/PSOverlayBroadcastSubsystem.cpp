@@ -254,7 +254,7 @@ void UPSOverlayBroadcastSubsystem::RefreshDerived()
     ScoreBug.PlayClockText = ScoreBug.bPlayClockRunning ? FString::FromInt(FMath::Max(0, FMath::CeilToInt(ScoreBug.PlayClockSeconds))) : FString();
     ScoreBug.bTwoMinute = (ScoreBug.Quarter == 2 || ScoreBug.Quarter == 4) && ScoreBug.GameClockSeconds <= Theme.TwoMinuteSeconds;
 
-    const bool bKickoff = ScoreBug.Phase == TEXT("Kickoff");
+    const bool bKickoff = ScoreBug.Phase == TEXT("Kickoff") || LastGameState.bKickoff;
     ScoreBug.bRedZone = !bKickoff && LastGameState.YardLine >= Theme.RedZoneYardLine;
     if (bKickoff)
     {

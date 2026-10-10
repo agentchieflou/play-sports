@@ -211,6 +211,90 @@
             ]
         },
         {
+            "PlayId": "Offense_Punt",
+            "DisplayName": "Punt",
+            "Formation": "Punt",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Punt",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -1300, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" },
+                { "Role": "TightEnd", "Kind": "PassBlock" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" }
+            ]
+        },
+        {
+            "PlayId": "Offense_FakePunt",
+            "DisplayName": "Fake Punt",
+            "Formation": "Punt",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "FakePunt",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -1300, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "RunBlock" },
+                { "Role": "TightEnd", "Kind": "RunBlock" },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" }
+            ]
+        },
+        {
+            "PlayId": "Offense_FieldGoal",
+            "DisplayName": "Field Goal",
+            "Formation": "Field Goal",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "FieldGoal",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -700, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" },
+                { "Role": "TightEnd", "Kind": "PassBlock" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "WideReceiver", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Offense_FakeFieldGoal",
+            "DisplayName": "Fake Field Goal",
+            "Formation": "Field Goal",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "FakeFieldGoal",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -700, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Flat" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "WideReceiver", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Offense_Kickoff",
+            "DisplayName": "Kickoff",
+            "Formation": "Kickoff",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Kickoff",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -500, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "Route", "RouteId": "Go" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Go" },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Go" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Go" }
+            ]
+        },
+        {
+            "PlayId": "Offense_OnsideKick",
+            "DisplayName": "Onside Kick",
+            "Formation": "Kickoff",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "OnsideKick",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -500, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "Route", "RouteId": "Curl" },
+                { "Role": "TightEnd", "Kind": "Route", "RouteId": "Curl" },
+                { "Role": "RunningBack", "Kind": "Route", "RouteId": "Curl" },
+                { "Role": "WideReceiver", "Kind": "Route", "RouteId": "Curl" }
+            ]
+        },
+        {
             "PlayId": "Defense_43Cover2",
             "DisplayName": "4-3 Cover 2",
             "Formation": "Base 4-3",
@@ -292,6 +376,76 @@
                 { "Role": "DefensiveLineman", "Kind": "PassRush" },
                 { "Role": "Linebacker", "Kind": "Blitz" },
                 { "Role": "DefensiveBack", "Kind": "ManCoverage" }
+            ]
+        },
+        {
+            "PlayId": "Defense_ReturnWall",
+            "DisplayName": "Return Wall",
+            "Formation": "Return Wall",
+            "bIsOffensivePlay": false,
+            "PlayCategory": "KickReturn",
+            "Front": "Return",
+            "CoverageShell": "Wall",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "RunFit" },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 1500, "Y": 900, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 3500, "Y": 0, "Z": 0 } }
+            ]
+        },
+        {
+            "PlayId": "Defense_ReturnWedge",
+            "DisplayName": "Return Wedge",
+            "Formation": "Return Wedge",
+            "bIsOffensivePlay": false,
+            "PlayCategory": "KickReturn",
+            "Front": "Return",
+            "CoverageShell": "Wedge",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "RunFit" },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 1500, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 3500, "Y": 0, "Z": 0 } }
+            ]
+        },
+        {
+            "PlayId": "Defense_KickBlock",
+            "DisplayName": "Kick Block",
+            "Formation": "Kick Block",
+            "bIsOffensivePlay": false,
+            "PlayCategory": "KickBlock",
+            "Front": "Block",
+            "CoverageShell": "None",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "PassRush" },
+                { "Role": "Linebacker", "Kind": "Blitz" },
+                { "Role": "DefensiveBack", "Kind": "Blitz" }
+            ]
+        },
+        {
+            "PlayId": "Defense_HandsTeam",
+            "DisplayName": "Hands Team",
+            "Formation": "Hands Team",
+            "bIsOffensivePlay": false,
+            "PlayCategory": "HandsTeam",
+            "Front": "Hands",
+            "CoverageShell": "None",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "RunFit" },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 1000, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 1200, "Y": 0, "Z": 0 } }
+            ]
+        },
+        {
+            "PlayId": "Defense_ReturnLaterals",
+            "DisplayName": "Desperation Laterals",
+            "Formation": "Desperation",
+            "bIsOffensivePlay": false,
+            "PlayCategory": "ReturnLaterals",
+            "Front": "Return",
+            "CoverageShell": "None",
+            "Assignments": [
+                { "Role": "DefensiveLineman", "Kind": "RunFit" },
+                { "Role": "Linebacker", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 2500, "Y": 0, "Z": 0 } },
+                { "Role": "DefensiveBack", "Kind": "ZoneCoverage", "ZoneOffset": { "X": 3500, "Y": 0, "Z": 0 } }
             ]
         }
     ]

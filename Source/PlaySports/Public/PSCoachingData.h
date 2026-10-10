@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "PSSpecialTeamsData.h"
 #include "PSCoachingData.generated.h"
 
 /** Per-opponent tendency profile (Architecture rule 4: tuning lives in DataTables,
@@ -64,6 +65,15 @@ struct FPSSituationContext
     /** True while the game clock runs before the snap (after a tackle in bounds). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bClockRunning = false;
+
+    /** The down is a kickoff (Epic 75): the possessing team kicks, the other returns. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bKickoff = false;
+
+    /** The kick the offense's call shows the defense (Punt or FieldGoal; a fake shows the same),
+     *  once the offense has called. The defense picks its return or block against it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EPSSpecialTeamsPlay OffenseKick = EPSSpecialTeamsPlay::None;
 };
 
 /** One play as the coaching AI rates it for a situation (Epic 102's suggestions): its

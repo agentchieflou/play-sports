@@ -8,6 +8,7 @@
 #include "PSProfileSaveGame.h"
 #include "PSSaveSubsystem.h"
 #include "PSSituationAI.h"
+#include "PSSpecialTeamsData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/DataTable.h"
 #include "Engine/World.h"
@@ -203,7 +204,12 @@ const FPlayCallTuningRow& UPSPlayCallSubsystem::GetTuning()
 TArray<FPSPlayDefinition> UPSPlayCallSubsystem::GetPlays(bool bOffense)
 {
     EnsurePlaybookLoaded();
-    return Plays.FilterByPredicate([bOffense](const FPSPlayDefinition& Play) { return Play.bIsOffensivePlay == bOffense; });
+    // A kickoff runs kickoff calls and returns; a scrimmage down everything else (Epic 75).
+    const bool bKickoff = Situation.bKickoff;
+    return Plays.FilterByPredicate([bOffense, bKickoff](const FPSPlayDefinition& Play)
+    {
+        return Play.bIsOffensivePlay == bOffense && PSSpecialTeams::IsCallableAt(PSSpecialTeams::FromCategory(Play.PlayCategory), bKickoff);
+    });
 }
 
 TArray<FString> UPSPlayCallSubsystem::GetFormations(bool bOffense)
@@ -573,6 +579,10 @@ FString UPSPlayCallSubsystem::BuildCallScreenBody(bool bOffense) const
 FString UPSPlayCallSubsystem::DescribeSituation(const FPSSituationContext& InSituation)
 {
     // YardLine counts from the offense's own goal line (0) to the opponent's (100).
+    if (InSituation.bKickoff)
+    {
+        return FString::Printf(TEXT("Kickoff from own %d"), InSituation.YardLine);
+    }
     FString Spot;
     if (InSituation.YardLine == 50)
     {
@@ -665,6 +675,7 @@ FPSSituationContext UPSPlayCallSubsystem::MakeSituation(const FPlayState& State)
     Context.TimeoutsRemaining = State.bHomeHasPossession ? State.HomeTimeoutsRemaining : State.AwayTimeoutsRemaining;
     Context.OpponentTimeoutsRemaining = State.bHomeHasPossession ? State.AwayTimeoutsRemaining : State.HomeTimeoutsRemaining;
     Context.bClockRunning = State.bIsClockRunning;
+    Context.bKickoff = State.bKickoff;
     return Context;
 }
 
@@ -807,6 +818,18 @@ void UPSPlayCallSubsystem::SetCall(const FPSPlayDefinition& Play, EPSPlayCaller 
         }
         Bus->PublishPlayCall(Event);
     }
+
+    // The defense sees the offense line up to kick (Epic 75): a CPU defense calls its return or
+    // block against it, or its regular defense again when the offense comes out of the kick.
+    const EPSSpecialTeamsPlay ShownKick = PSSpecialTeams::GetShownKick(PSSpecialTeams::FromCategory(Play.PlayCategory));
+    if (Play.bIsOffensivePlay && ShownKick != Situation.OffenseKick)
+    {
+        Situation.OffenseKick = ShownKick;
+        if (DefenseCall.Caller == EPSPlayCaller::CPU)
+        {
+            CallForCpu(false);
+        }
+    }
 }
 
 void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
@@ -912,6 +935,8 @@ void UPSPlayCallSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
         Situation.Distance = Event.Distance;
         Situation.YardLine = Event.YardLine;
         Situation.GameClockSeconds = Event.GameClockSeconds;
+        Situation.bKickoff = false;
+        Situation.OffenseKick = EPSSpecialTeamsPlay::None;
     }
     for (const bool bOffense : { true, false })
     {

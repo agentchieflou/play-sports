@@ -12,8 +12,9 @@
 //      ball.
 //   4. The kick meter: a kick phase lines the human kicker up (the Kicking context comes on and
 //      the play simulation waits), the meter's hold-release-press makes the kick, and the
-//      simulation takes its roll: a perfect field goal is good, a botched one misses, a punt and
-//      a kickoff follow the roll; without a human the CPU kicks on time.
+//      simulation takes its roll into the special-teams model (Epic 75): a perfect field goal is
+//      good, a botched one misses, a perfect punt goes the model's longest and a shank its
+//      shortest, a perfect kickoff is a touchback; without a human the CPU kicks on time.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -29,6 +30,7 @@
 #include "PSPlayerController.h"
 #include "PSPlayerPawn.h"
 #include "PSPlaySimulation.h"
+#include "PSSpecialTeamsModel.h"
 #include "PSTelemetryBus.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "Engine/World.h"
@@ -382,9 +384,19 @@ bool FPSKickMeterTest::RunTest(const FString& Parameters)
         return false;
     }
 
-    // The play simulation starts at its own 20: a 97-yard field goal, its longest band.
+    // The play simulation starts at its own 20: a 97-yard field goal. Its kicks resolve through
+    // the special-teams model (Epic 75), here with no blocks and a make chance out to 100 yards,
+    // so the kicker's roll alone decides the kick.
     UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>(World);
     Sim->InitializeWithWorld(World);
+    FPSSpecialTeamsTuning KickTuning = Sim->GetSpecialTeams()->GetTuning();
+    KickTuning.PuntBlockChance = 0.f;
+    KickTuning.FieldGoalBlockChance = 0.f;
+    FPSFieldGoalRangeDef LongRange;
+    LongRange.MaxYards = 100.f;
+    LongRange.MakeChance = 0.3f;
+    KickTuning.FieldGoalRanges = { LongRange };
+    Sim->GetSpecialTeams()->SetTuning(KickTuning);
     TArray<FPSTelemetryKickEvent> Kicks;
     const FDelegateHandle Handle = Bus->OnKickMC.AddLambda([&Kicks](const FPSTelemetryKickEvent& Event) { Kicks.Add(Event); });
 
@@ -434,7 +446,7 @@ bool FPSKickMeterTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("The meter is done"), Meter->GetStage(), EPSKickMeterStage::Idle);
     Sim->AdvancePlay(0.1f);
     TestEqual(TEXT("The play takes the kick at once"), Sim->GetPlayState().Phase, EPlayPhase::Scoring);
-    TestEqual(TEXT("...and even from 97 yards a perfect kick is good"), Sim->GetPlayResult().ResultType, EPlayResultType::FieldGoalGood);
+    TestEqual(TEXT("...and even from 97 yards, with a 0.3 make chance, a perfect kick is good"), Sim->GetPlayResult().ResultType, EPlayResultType::FieldGoalGood);
 
     // Held twice as long the bar comes back down; left alone the needle ends pushed right.
     Sim->SetPlayPhase(EPlayPhase::FieldGoal);
@@ -451,7 +463,7 @@ bool FPSKickMeterTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("...the worst roll"), FMath::IsNearlyEqual(Kicks[3].Roll, WorstRoll, 0.01f));
     }
     Sim->AdvancePlay(0.1f);
-    if (WorstRoll >= 0.3f)
+    if (WorstRoll >= LongRange.MakeChance)
     {
         TestEqual(TEXT("A botched 97-yarder misses"), Sim->GetPlayResult().ResultType, EPlayResultType::FieldGoalMissed);
     }
@@ -464,19 +476,19 @@ bool FPSKickMeterTest::RunTest(const FString& Parameters)
     Sim->OnBusKickEvent(Perfect);
     Sim->AdvancePlay(0.1f);
     TestEqual(TEXT("A perfect punt"), Sim->GetPlayResult().ResultType, EPlayResultType::PuntResult);
-    TestEqual(TEXT("...goes the longest, 45 yards"), Sim->GetPlayResult().YardsGained, 45);
+    TestEqual(TEXT("...goes the longest"), Sim->GetLastSpecialTeamsOutcome().Yards, KickTuning.PuntGrossYardsMax);
     FPSTelemetryKickEvent Shank = Perfect;
     Shank.Roll = 1.f;
     Sim->SetPlayPhase(EPlayPhase::Punt);
     Sim->OnBusKickEvent(Shank);
     Sim->AdvancePlay(0.1f);
-    TestEqual(TEXT("A shanked punt goes the shortest, 35 yards"), Sim->GetPlayResult().YardsGained, 35);
+    TestEqual(TEXT("A shanked punt goes the shortest"), Sim->GetLastSpecialTeamsOutcome().Yards, KickTuning.PuntGrossYardsMin);
     Perfect.KickType = TEXT("Kickoff");
     Sim->SetPlayPhase(EPlayPhase::Kickoff);
     Sim->OnBusKickEvent(Perfect);
     Sim->AdvancePlay(0.1f);
     TestEqual(TEXT("A perfect kickoff"), Sim->GetPlayResult().ResultType, EPlayResultType::KickoffResult);
-    TestEqual(TEXT("...is a touchback"), Sim->GetPlayResult().YardsGained, 25);
+    TestEqual(TEXT("...is a touchback"), Sim->GetLastSpecialTeamsOutcome().Result, EPSSpecialTeamsResult::Touchback);
 
     // Without a human the CPU kicks on time; a lined-up human who never kicks is waited for, then
     // kicked for.

@@ -28,6 +28,7 @@
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
+#include "PSSpecialTeamsData.h"
 #include "PSSessionTelemetryTypes.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSRouteRunning.h"
@@ -182,6 +183,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSituationalTuningFromJson(const FString& JsonFilePath, FPSSituationalTuning& OutTuning);
 
+    /** Loads the special-teams tuning (Data/special_teams.json, Epic 75). False on a missing
+     *  file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSpecialTeamsTuningFromJson(const FString& JsonFilePath, FPSSpecialTeamsTuning& OutTuning);
     /** Loads the session telemetry tuning (Data/session_telemetry.json, Epic 117). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSessionTelemetryTuningFromJson(const FString& JsonFilePath, FPSSessionTelemetryTuning& OutTuning);

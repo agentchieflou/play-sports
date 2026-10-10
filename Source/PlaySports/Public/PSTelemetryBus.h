@@ -592,6 +592,10 @@ struct FPSTelemetryGameStateEvent
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bHomeHasPossession = true;
 
+    /** The next snap is a kickoff (Epic 75): the possessing team kicks, from before its call. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bKickoff = false;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     int32 HomeScore = 0;
 
@@ -629,7 +633,7 @@ struct FPSTelemetryGameStateEvent
         return Phase == Other.Phase && Quarter == Other.Quarter
             && bGameClockRunning == Other.bGameClockRunning && bPlayClockRunning == Other.bPlayClockRunning
             && Down == Other.Down && Distance == Other.Distance && YardLine == Other.YardLine && YardLineToGain == Other.YardLineToGain
-            && bHomeHasPossession == Other.bHomeHasPossession && HomeScore == Other.HomeScore && AwayScore == Other.AwayScore
+            && bHomeHasPossession == Other.bHomeHasPossession && bKickoff == Other.bKickoff && HomeScore == Other.HomeScore && AwayScore == Other.AwayScore
             && HomeTimeoutsRemaining == Other.HomeTimeoutsRemaining && AwayTimeoutsRemaining == Other.AwayTimeoutsRemaining
             && MaxTimeouts == Other.MaxTimeouts && CompletedDrives == Other.CompletedDrives;
     }
