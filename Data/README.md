@@ -102,6 +102,7 @@ every CI build.
 | `versus_rules.json` | `FPSVersusRules` (single object) | `UPSDataIngestion::LoadVersusRulesFromJson`, via `UPSVersusSubsystem` |
 | `ai_debug.json` | `FPSAIDebugTuning` (single object: switches, post-mortem folder and limits, overlay placement) | `UPSDataIngestion::LoadAIDebugTuningFromJson`, via `UPSAIDecisionLog` |
 | `ai_scenarios.json` | `FPSAIScenarioCatalog` (single object: `Scenarios`) | `UPSDataIngestion::LoadAIScenariosFromJson`, via `UPSAIScenarioRunner` |
+| `gap_overlay.json` | `FPSGapOverlayStyle` (single object) | `UPSDataIngestion::LoadGapOverlayStyleFromJson`, via `UPSDefenderGapOverlaySubsystem` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -1267,3 +1268,21 @@ one machine:
   until it is back. `bQuitForfeits`: quitting forfeits the game to the other player.
 
 `UPSVersusSubsystem::ValidateRules` and `tools/validate_data.py` check it.
+
+## Gap integrity overlay schema (`FPSGapOverlayStyle`)
+
+Single object (Epic 81; the run defense's gap integrity shown live,
+`UPSDefenderGapOverlaySubsystem`):
+- `bEnabledByDefault`: shown from the start. Otherwise `ps.Overlay.GapIntegrity 1` at the console
+  (or `SetEnabled`) shows it.
+- `RefreshSeconds` (above 0): how often the markers follow the line as it moves. Their states
+  change with each `GapIntegrity` bus event.
+- `MarkerHeight` (cm, 0 or more) above the gap's spot, `MarkerRadius` (cm, above 0).
+- `FilledColor`, `BlockedColor`, `OpenColor`, `UnownedColor` (`#RRGGBB`): a gap whose owner is in
+  it; in it but engaged with a blocker; somewhere else; and one nobody owns.
+- `bEmphasizeOpenOwners`, `OpenOwnerEmphasis` (`Highlight`, `Mismatch` or `Focus`): the owner of
+  an open gap is emphasized with this look (`UPSOverlayEmphasisSubsystem`).
+- `bDrawDebug`: development builds draw the markers as debug rings until the editor-made marker
+  exists (`Specs/Gap_Integrity_Overlay_Spec.md`).
+
+`UPSDefenderGapOverlaySubsystem::ValidateStyle` and `tools/validate_data.py` check it.

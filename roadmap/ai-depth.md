@@ -100,9 +100,12 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
   free linebacker scrapes into it and the two swap gaps (once per gap per play).*
 - [ ] Integrity telemetry: visualize gap coverage live (consumes Track A iconography for debug)
   *Telemetry half built: `GetIntegrity()` gives every gap's owner and whether it is filled, and a
-  `GapIntegrity` bus event fires whenever the open gaps change or an exchange happens. The live
-  visualization is still to do: it needs Track A's iconography and an editor session to
-  verify.*
+  `GapIntegrity` bus event fires whenever the open gaps change or an exchange happens. Overlay
+  code built: `UPSDefenderGapOverlaySubsystem` keeps a marker per gap on its spot (filled,
+  blocked, open or unowned; colors in `Data/gap_overlay.json`). It emphasizes the owner of an
+  open gap through Epic 36's `UPSOverlayEmphasisSubsystem`. Development builds draw the markers
+  as debug rings; `ps.Overlay.GapIntegrity 1` turns it on. Still open, so unticked: the
+  editor-made marker and a PIE check (`Specs/Gap_Integrity_Overlay_Spec.md`).*
 
 ### Epic 82: LLM Game-Intelligence Hooks
 

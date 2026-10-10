@@ -12,19 +12,26 @@
 //      once the carrier comes to his gap or crosses the line.
 //   4. Scrape exchange: when the gap the carrier heads for belongs to a blocked lineman, the
 //      nearest free linebacker scrapes into it and the two swap gaps -- once.
+//   5. The integrity overlay: hidden by default; shown, a marker per gap on its spot that says
+//      filled, blocked, open or unowned, the open gap's owner emphasized; it follows the line,
+//      the console toggles it, and the whistle clears it.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "PSBall.h"
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
+#include "PSDefenderGapOverlaySubsystem.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSDefenseController.h"
 #include "PSOffenseController.h"
+#include "PSOverlayEmphasisSubsystem.h"
 #include "PSPlayerPawn.h"
 #include "PSTelemetryBus.h"
+#include "PSUITeamCatalog.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -493,6 +500,156 @@ bool FPSDefenderScrapeExchangeTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("The scraping linebacker fits his new gap"), MikeAI->GetAction(), EPSDefenderAction::Fit);
     FVector Target;
     TestTrue(TEXT("...A right"), Gaps->GetFitTarget(Mike, RunningBack, Target) && FMath::Abs(Target.Y - FMath::Lerp(75.f - Gaps->GetCatalog().LeverageOffset, 300.f, Gaps->GetCatalog().FlowWeight)) < 1.f);
+
+    DestroyTestWorld(World);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 5 -- The integrity overlay
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSDefenderGapOverlayTest,
+    "PlaySports.AI.RunFit.IntegrityOverlay",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSDefenderGapOverlayTest::RunTest(const FString& Parameters)
+{
+    using namespace PSDefenderGapTests;
+
+    UWorld* World = CreateTestWorld();
+    UPSTelemetryBus* Bus = World ? World->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    UPSDefenderGapSubsystem* Gaps = World ? World->GetSubsystem<UPSDefenderGapSubsystem>() : nullptr;
+    UPSDefenderGapOverlaySubsystem* Overlay = World ? World->GetSubsystem<UPSDefenderGapOverlaySubsystem>() : nullptr;
+    UPSOverlayEmphasisSubsystem* Emphasis = World ? World->GetSubsystem<UPSOverlayEmphasisSubsystem>() : nullptr;
+    if (!TestNotNull(TEXT("Bus"), Bus) || !TestNotNull(TEXT("Gap subsystem"), Gaps) || !TestNotNull(TEXT("Gap overlay"), Overlay)
+        || !TestNotNull(TEXT("Player emphasis"), Emphasis))
+    {
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return false;
+    }
+
+    // The style.
+    TestTrue(TEXT("Data/gap_overlay.json loads"), Overlay->LoadStyleFromJson(UPSDefenderGapOverlaySubsystem::GetDefaultStylePath()));
+    FPSGapOverlayStyle Style = Overlay->GetStyle();
+    for (const FString& Problem : UPSDefenderGapOverlaySubsystem::ValidateStyle(Style))
+    {
+        AddError(FString::Printf(TEXT("gap_overlay.json: %s"), *Problem));
+    }
+    FPSGapOverlayStyle Broken = Style;
+    Broken.RefreshSeconds = 0.f;
+    Broken.OpenColor = TEXT("red");
+    TestEqual(TEXT("Validation catches a zero refresh and a color that isn't #RRGGBB"), UPSDefenderGapOverlaySubsystem::ValidateStyle(Broken).Num(), 2);
+    TestFalse(TEXT("The overlay starts hidden"), Overlay->IsEnabled());
+    // A headless world draws nothing.
+    Style.bDrawDebug = false;
+    Overlay->SetStyle(Style);
+    auto ColorOf = [](const FString& Hex)
+    {
+        FLinearColor Parsed = FLinearColor::Black;
+        UPSUITeamCatalog::ParseHexColor(Hex, Parsed);
+        return Parsed;
+    };
+    const FVector Raise(0.f, 0.f, Style.MarkerHeight);
+
+    TArray<APSPlayerPawn*> Line = SpawnLine(World);
+    TArray<APSPlayerPawn*> Front = SpawnFront(World);
+    if (!TestTrue(TEXT("Everyone spawned"), AllSpawned(Line) && AllSpawned(Front)))
+    {
+        DestroyTestWorld(World);
+        return false;
+    }
+
+    // The call drops the middle linebacker into a zone, so nobody owns B right.
+    SnapAndAssign(Bus, Front);
+    Assign(Front[5], EPSDefensiveAssignmentType::ZoneCoverage);
+    Gaps->AssignGaps(TEXT("4-3"));
+    Gaps->UpdateFits(0.1f);
+    TestEqual(TEXT("Hidden, it shows no markers"), Overlay->GetMarkers().Num(), 0);
+    TestEqual(TEXT("...and emphasizes nobody"), Emphasis->GetEmphasis(Front[4]).Look, EPSEmphasisLook::None);
+
+    // Shown: a marker per gap, on its spot.
+    Overlay->SetEnabled(true);
+    const TArray<FPSGapMarker> Markers = Overlay->GetMarkers();
+    TestTrue(TEXT("Shown, a marker per gap, D left to D right"), Markers.Num() == 8 && Markers[0].Gap == EPSRunGap::DLeft && Markers[7].Gap == EPSRunGap::DRight);
+    const FPSGapMarker* BRight = Overlay->FindMarker(EPSRunGap::BRight);
+    TestTrue(TEXT("B right, its linebacker in coverage: unowned"),
+        BRight && BRight->State == EPSGapMarkerState::Unowned && BRight->OwnerName.IsEmpty() && BRight->Color.Equals(ColorOf(Style.UnownedColor)));
+    const FPSGapMarker* CLeft = Overlay->FindMarker(EPSRunGap::CLeft);
+    TestTrue(TEXT("C left: its end is in it"),
+        CLeft && CLeft->State == EPSGapMarkerState::Filled && CLeft->OwnerName == TEXT("DL_0") && CLeft->Color.Equals(ColorOf(Style.FilledColor)));
+    const FPSGapMarker* BLeft = Overlay->FindMarker(EPSRunGap::BLeft);
+    TestTrue(TEXT("B left: its linebacker stands outside it"),
+        BLeft && BLeft->State == EPSGapMarkerState::Open && BLeft->OwnerName == TEXT("LB_0") && BLeft->Color.Equals(ColorOf(Style.OpenColor)));
+    TestTrue(TEXT("...its marker on the gap's spot"), BLeft && BLeft->Location.Equals(Gaps->GetGapSpot(EPSRunGap::BLeft) + Raise, 1.f));
+    TestEqual(TEXT("The open gap's owner is emphasized"), Emphasis->GetEmphasis(Front[4]).Look, EPSEmphasisLook::Mismatch);
+    TestEqual(TEXT("...by the overlay"), Emphasis->GetEmphasis(Front[4]).Source, UPSDefenderGapOverlaySubsystem::EmphasisSource);
+    TestEqual(TEXT("A filled gap's owner isn't"), Emphasis->GetEmphasis(Front[0]).Look, EPSEmphasisLook::None);
+
+    // Engaged in his gap, the end is blocked: no integrity event, so the next refresh shows it.
+    Front[0]->bIsEngaged = true;
+    Gaps->UpdateFits(0.1f);
+    Overlay->AdvanceTime(Style.RefreshSeconds * 0.5f);
+    CLeft = Overlay->FindMarker(EPSRunGap::CLeft);
+    TestTrue(TEXT("Before the refresh C left still reads filled"), CLeft && CLeft->State == EPSGapMarkerState::Filled);
+    Overlay->AdvanceTime(Style.RefreshSeconds);
+    CLeft = Overlay->FindMarker(EPSRunGap::CLeft);
+    TestTrue(TEXT("...after it, blocked"), CLeft && CLeft->State == EPSGapMarkerState::Blocked && CLeft->Color.Equals(ColorOf(Style.BlockedColor)));
+    Front[0]->bIsEngaged = false;
+
+    // The linebacker steps into B left: the integrity event fills it and takes his emphasis back.
+    Front[4]->SetActorLocation(FVector(450.f, -225.f, 100.f));
+    Gaps->UpdateFits(0.1f);
+    BLeft = Overlay->FindMarker(EPSRunGap::BLeft);
+    TestTrue(TEXT("Its linebacker steps into B left: filled"), BLeft && BLeft->State == EPSGapMarkerState::Filled);
+    TestEqual(TEXT("...and he is no longer emphasized"), Emphasis->GetEmphasis(Front[4]).Look, EPSEmphasisLook::None);
+
+    // The line shifts: the markers follow it on the next refresh.
+    const FPSGapMarker* ALeft = Overlay->FindMarker(EPSRunGap::ALeft);
+    const FVector ALeftBefore = ALeft ? ALeft->Location : FVector::ZeroVector;
+    for (APSPlayerPawn* Lineman : Line)
+    {
+        Lineman->SetActorLocation(Lineman->GetActorLocation() + FVector(0.f, 60.f, 0.f));
+    }
+    Overlay->AdvanceTime(Style.RefreshSeconds);
+    ALeft = Overlay->FindMarker(EPSRunGap::ALeft);
+    TestTrue(TEXT("The line shifts: the markers follow it"),
+        ALeft && !ALeft->Location.Equals(ALeftBefore, 1.f) && ALeft->Location.Equals(Gaps->GetGapSpot(EPSRunGap::ALeft) + Raise, 1.f));
+
+    // Out of his gap again, he is emphasized again; hidden, nothing is.
+    Front[4]->SetActorLocation(FVector(450.f, -400.f, 100.f));
+    Gaps->UpdateFits(0.1f);
+    TestEqual(TEXT("Out of his gap again, he is emphasized again"), Emphasis->GetEmphasis(Front[4]).Look, EPSEmphasisLook::Mismatch);
+    Overlay->SetEnabled(false);
+    TestEqual(TEXT("Hidden: no markers"), Overlay->GetMarkers().Num(), 0);
+    TestEqual(TEXT("...and the emphasis taken back"), Emphasis->GetEmphasis(Front[4]).Look, EPSEmphasisLook::None);
+
+    // The console toggles it.
+    IConsoleVariable* Toggle = IConsoleManager::Get().FindConsoleVariable(TEXT("ps.Overlay.GapIntegrity"));
+    if (TestNotNull(TEXT("ps.Overlay.GapIntegrity exists"), Toggle))
+    {
+        Toggle->Set(1, ECVF_SetByCode);
+        Overlay->Tick(0.f);
+        TestTrue(TEXT("ps.Overlay.GapIntegrity 1 shows it"), Overlay->IsEnabled() && Overlay->GetMarkers().Num() == 8);
+        Toggle->Set(0, ECVF_SetByCode);
+        Overlay->Tick(0.f);
+        TestFalse(TEXT("...and 0 hides it"), Overlay->IsEnabled());
+    }
+
+    // The whistle clears it until the next play.
+    Overlay->SetEnabled(true);
+    TestEqual(TEXT("Shown again"), Overlay->GetMarkers().Num(), 8);
+    FPSTelemetryPhaseChangeEvent Whistle;
+    Whistle.NewPhase = TEXT("Scoring");
+    Bus->PublishPhaseChange(Whistle);
+    TestEqual(TEXT("The whistle clears the markers"), Overlay->GetMarkers().Num(), 0);
+    TestEqual(TEXT("...and the emphasis"), Emphasis->GetEmphasis(Front[4]).Look, EPSEmphasisLook::None);
+    Overlay->SetEnabled(true);
+    TestEqual(TEXT("Between plays there is nothing to show"), Overlay->GetMarkers().Num(), 0);
+    Overlay->SetEnabled(false);
 
     DestroyTestWorld(World);
     return true;
