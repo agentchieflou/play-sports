@@ -343,6 +343,27 @@ bool FPSPlayDemoSanityChecksTest::RunTest(const FString& Parameters)
     }
     TestTrue(TEXT("A player who never moves is caught"), HasProblem(UPSPlayDemoRunner::CheckRun(Still, Catalog), TEXT("P05")));
 
+    // A lineman held up in his block need only move MinLinemanMoveCm; a quarterback who moves as
+    // little has neither dropped nor handed off.
+    FPSPlayDemoRun Blocked = Sound;
+    for (int32 Index = 0; Index < Blocked.Recording.Frames.Num(); ++Index)
+    {
+        for (const int32 Lineman : { 4, 15 })
+        {
+            FPSPawnSnapshot& Snapshot = Blocked.Recording.Frames[Index].Pawns[Lineman];
+            Snapshot.Role = Lineman < 11 ? EPlayerRole::OffensiveLineman : EPlayerRole::DefensiveLineman;
+            Snapshot.Location = Sound.Recording.Frames[10].Pawns[Lineman].Location + FVector(Index > 10 ? 20.f : 0.f, 0.f, 0.f);
+        }
+    }
+    const TArray<FString> HeldUp = UPSPlayDemoRunner::CheckRun(Blocked, Catalog);
+    TestEqual(*FString::Printf(TEXT("Linemen held up 20 cm from their spots pass (%s)"), *FString::Join(HeldUp, TEXT(" | "))), HeldUp.Num(), 0);
+    FPSPlayDemoRun StaticPasser = Blocked;
+    for (FPSSnapshotFrame& Frame : StaticPasser.Recording.Frames)
+    {
+        Frame.Pawns[4].Role = EPlayerRole::Quarterback;
+    }
+    TestTrue(TEXT("...a quarterback who moves as little is caught"), HasProblem(UPSPlayDemoRunner::CheckRun(StaticPasser, Catalog), TEXT("P04")));
+
     FPSPlayDemoRun NoResult = Sound;
     NoResult.Recording.Events.Reset();
     TestTrue(TEXT("A play with no result on the bus is caught"), HasProblem(UPSPlayDemoRunner::CheckRun(NoResult, Catalog), TEXT("PlayResult")));

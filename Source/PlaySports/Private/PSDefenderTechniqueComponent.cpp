@@ -51,9 +51,10 @@ TArray<FString> UPSDefenderTechniqueComponent::ValidateTuning(const FDefensiveTe
     {
         Problems.Add(TEXT("JumpSnapAction and StripAction must name two different actions"));
     }
-    if (InTuning.JumpWindowSeconds < 0.f || InTuning.GetOffSpeed < 0.f || InTuning.StripWindowSeconds < 0.f || InTuning.StripCooldownSeconds < 0.f)
+    if (InTuning.JumpWindowSeconds < 0.f || InTuning.GetOffSpeed < 0.f || InTuning.StripWindowSeconds < 0.f || InTuning.StripCooldownSeconds < 0.f
+        || InTuning.WrapRetrySeconds < 0.f)
     {
-        Problems.Add(TEXT("JumpWindowSeconds, GetOffSpeed, StripWindowSeconds and StripCooldownSeconds must be 0 or more"));
+        Problems.Add(TEXT("JumpWindowSeconds, GetOffSpeed, StripWindowSeconds, StripCooldownSeconds and WrapRetrySeconds must be 0 or more"));
     }
     if (InTuning.StripTackleScale < 0.f || InTuning.StripTackleScale > 1.f || InTuning.StripFumbleChance < 0.f || InTuning.StripFumbleChance > 1.f)
     {

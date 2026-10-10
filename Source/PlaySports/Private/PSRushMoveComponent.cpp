@@ -5,6 +5,7 @@
 #include "PSDataIngestion.h"
 #include "PSDefenderAIComponent.h"
 #include "PSDefenseController.h"
+#include "PSNetRandomStreams.h"
 #include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
 #include "PSTelemetryBus.h"
@@ -205,7 +206,11 @@ void UPSRushMoveComponent::TickRush(float DeltaSeconds)
     {
         if (Clock >= ResolveAt)
         {
-            ResolveActiveMove(RollStream.FRand());
+            // A stream nobody seeds starts at 0 and gives every rusher the same first roll, which
+            // beat every move above a 0.2 chance on every play (Specs/Determinism_Audit.md E5).
+            const APSPlayerPawn* Self = GetSelf();
+            ResolveActiveMove(bRollsSeeded ? RollStream.FRand()
+                : UPSNetRandomStreams::RollFor(this, TEXT("RushMove"), Self ? Self->GetAttributes().PlayerId : NAME_None));
         }
         return;
     }

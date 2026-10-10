@@ -47,6 +47,11 @@ struct FDefensiveTechniqueTuningRow : public FTableRowBase
      *  100; a weaker one adds proportionally less. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
     float StripFumbleChance = 0.3f;
+
+    /** A tackler who stays on the carrier tries the tackle again this often (a hit that doesn't
+     *  down him is one of several, Epic 139); 0 tries once per contact. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
+    float WrapRetrySeconds = 0.5f;
 };
 
 /**

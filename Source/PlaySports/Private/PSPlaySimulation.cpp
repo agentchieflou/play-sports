@@ -105,6 +105,8 @@ void UPSPlaySimulation::TriggerSnap()
         CurrentState.Phase = SnapPhase;
         CurrentState.bIsClockRunning = true;
         PhaseTimer = 0.f;
+        LiveSeconds = 0.f;
+        bPassInAir = false;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Snap triggered. Phase transitioned to Snap."));
     }
     PublishGameStateIfChanged();
@@ -114,6 +116,11 @@ void UPSPlaySimulation::SetPlayPhase(EPlayPhase NewPhase)
 {
     CurrentState.Phase = NewPhase;
     PhaseTimer = 0.f;
+    if (NewPhase == EPlayPhase::PreSnap || NewPhase == EPlayPhase::Snap)
+    {
+        LiveSeconds = 0.f;
+        bPassInAir = false;
+    }
     bHumanKickLinedUp = false;
     HumanKickRoll = -1.f;
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Play phase overridden. Transited to: %s"), *UEnum::GetValueAsString(NewPhase));
@@ -203,6 +210,11 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         }
     }
 
+    if (CurrentState.Phase == EPlayPhase::Snap || CurrentState.Phase == EPlayPhase::PassRush || CurrentState.Phase == EPlayPhase::BallCarrierMovement)
+    {
+        LiveSeconds += DeltaSeconds;
+    }
+
     switch (CurrentState.Phase)
     {
     case EPlayPhase::PreSnap:
@@ -234,14 +246,25 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
         break;
     case EPlayPhase::BallCarrierMovement:
         // A blocked kick's loose ball ends when it is blown dead (Epic 17.4).
-        if (PhaseTimer >= 3.0f && !bLooseBallLive)
+        if (bLooseBallLive)
         {
-            // In quick-sim mode the statistical resolver drives the outcome;
-            // in physical-play mode outcomes arrive via bus events (OnBusCatch/OnBusTackle).
-            if (bQuickSimMode)
+            break;
+        }
+        if (bQuickSimMode)
+        {
+            // In quick-sim mode the statistical resolver drives the outcome.
+            if (PhaseTimer >= 3.0f)
             {
                 ResolvePlayResult();
+                CurrentState.Phase = EPlayPhase::Scoring;
+                PhaseTimer = 0.f;
             }
+        }
+        else if (LiveSeconds >= (RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>())->MaxLivePlaySeconds)
+        {
+            // In physical-play mode the play ends on the field (OnBusTackle, OnBusBallGrounded,
+            // OnBusBoundaryCrossed, a score); this is only the backstop for a play nothing ended.
+            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: %.1f s after the snap and nothing has ended the play: whistle."), LiveSeconds);
             CurrentState.Phase = EPlayPhase::Scoring;
             PhaseTimer = 0.f;
         }
@@ -745,6 +768,7 @@ void UPSPlaySimulation::OnBusCatchEvent(const FPSTelemetryCatchEvent& Event)
         return;
     }
 
+    bPassInAir = false;
     if (!IsBallDead())
     {
         const FName CatcherId = FindPlayerIdByName(Event.ReceiverName);
@@ -834,6 +858,7 @@ void UPSPlaySimulation::OnBusThrowEvent(const FPSTelemetryThrowEvent& Event)
     PlayLog.bPass = true;
     PlayLog.PasserId = FindPlayerIdByName(Event.PasserName);
     PlayLog.ReceiverId = FindPlayerIdByName(Event.TargetReceiverName);
+    bPassInAir = true;
 }
 
 void UPSPlaySimulation::OpenPlayLog()
@@ -978,9 +1003,11 @@ void UPSPlaySimulation::OnBusBallGroundedEvent(const FPSTelemetryBallGroundedEve
     {
         return;
     }
-    if (CurrentState.Phase == EPlayPhase::Snap || CurrentState.Phase == EPlayPhase::PassRush)
+    // A pass that lands before anyone catches it is incomplete (the play's default result),
+    // however long it was in the air; before the catch phase any ball that comes down is.
+    if (bPassInAir || CurrentState.Phase == EPlayPhase::Snap || CurrentState.Phase == EPlayPhase::PassRush)
     {
-        // A pass that lands before anyone catches it: incomplete (the play's default result).
+        bPassInAir = false;
         CurrentPlayResult.ResultType = EPlayResultType::Incomplete;
         CurrentPlayResult.YardsGained = 0;
         SetPlayPhase(EPlayPhase::Scoring);

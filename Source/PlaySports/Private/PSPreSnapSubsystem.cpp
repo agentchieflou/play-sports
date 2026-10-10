@@ -705,8 +705,8 @@ void UPSPreSnapSubsystem::RunCpuRead()
     const FPSDefensiveLook Look = GetDefensiveLook();
 
     // 1. Check out of a bad call: a run into a blitz or a heavy box goes to a pass, quickest
-    //    first; a pass against a light box with no blitz goes to a run.
-    const TArray<FPSPlayDefinition> Audibles = GetAudibles();
+    //    first; a pass against a light box with no blitz goes to a run. Unless he is kept to it.
+    const TArray<FPSPlayDefinition> Audibles = bCpuAudiblesAllowed ? GetAudibles() : TArray<FPSPlayDefinition>();
     const FPSPlayDefinition* CheckTo = nullptr;
     if (PSPreSnapPrivate::IsRun(Play) && (Look.bShowsBlitz || Look.BoxCount >= Settings.HeavyBoxCount))
     {

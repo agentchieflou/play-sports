@@ -54,9 +54,11 @@ class PlayDemoCatalogTest(unittest.TestCase):
         bad["PlayDemos"][3]["DemoId"] = bad["PlayDemos"][0]["DemoId"]
         bad["PlayDemos"][4]["AwayTeamId"] = bad["PlayDemos"][4]["HomeTeamId"]
         bad["PlayDemos"][5]["SeedTries"] = 0
+        bad["PlayDemos"][6]["bAllowAudibles"] = "no"
+        bad["MinLinemanMoveCm"] = -1
         errors = " | ".join(checked(validate_data.validate_play_demos, "play_demos.json", bad))
         for needle in ("FrameRateHz", "PostWhistleSeconds must be shorter", "is not a defensive play", "WantedOutcome",
-                       "used twice", "two different teams", "SeedTries"):
+                       "used twice", "two different teams", "SeedTries", "bAllowAudibles", "MinLinemanMoveCm"):
             self.assertIn(needle, errors)
 
 

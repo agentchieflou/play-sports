@@ -2005,7 +2005,7 @@ def validate_rush_moves(path, payload):
 
 
 DEFENSIVE_TECHNIQUE_NUMBERS = ("JumpWindowSeconds", "GetOffSpeed", "StripWindowSeconds", "StripCooldownSeconds",
-                               "StripTackleScale", "StripFumbleChance")
+                               "StripTackleScale", "StripFumbleChance", "WrapRetrySeconds")
 
 
 def check_named_action(path, field, action_id, context, catalog):
@@ -2140,9 +2140,10 @@ def validate_field_dimensions(path, payload):
 
 
 PLAY_DEMO_POSITIVE = ("FrameRateHz", "MaxPreSnapSeconds", "MaxPlaySeconds", "MaxResultWaitSeconds")
-PLAY_DEMO_NON_NEGATIVE = ("PostWhistleSeconds", "MinPlayerMoveCm", "SpeedAllowanceCmPerSec", "GroundToleranceCm")
+PLAY_DEMO_NON_NEGATIVE = ("PostWhistleSeconds", "MinPlayerMoveCm", "MinLinemanMoveCm", "SpeedAllowanceCmPerSec",
+                          "GroundToleranceCm")
 PLAY_DEMO_FIELDS = {"DemoId", "Intent", "HomeTeamId", "AwayTeamId", "OffensePlayId", "DefensePlayId", "Seed", "SeedTries",
-                    "WantedOutcome"}
+                    "WantedOutcome", "bAllowAudibles"}
 PLAY_DEMO_OUTCOMES = {"Run", "Completion", "Incompletion", "Sack", "Interception", "Touchdown"}
 # Play categories every team keeps whatever its scheme (UPSStaffManager::BuildPlaybook): kicks,
 # returns and clock plays.
@@ -2231,6 +2232,8 @@ def validate_play_demos(path, payload):
         wanted = demo.get("WantedOutcome", "")
         if not isinstance(wanted, str) or (wanted and wanted not in PLAY_DEMO_OUTCOMES):
             err(path, f"{where}.WantedOutcome: '{wanted}' must be empty or one of {sorted(PLAY_DEMO_OUTCOMES)}")
+        if not isinstance(demo.get("bAllowAudibles", True), bool):
+            err(path, f"{where}.bAllowAudibles: must be true or false")
 
 
 TOUCH_HUD_SHARES = ("RestOpacity", "PressedOpacity", "StickIdleFade")

@@ -47,6 +47,11 @@ struct FPSPlayDemoDef
      *  Sack, Interception, Touchdown); empty takes whatever the first seed gives. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
     FString WantedOutcome;
+
+    /** Whether the CPU quarterback may check out of the offense's call at the line, as he does
+     *  in a game (UPSPreSnapSubsystem). Off, the demo shows its call. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
+    bool bAllowAudibles = true;
 };
 
 /** The demo set and how it is recorded (Data/play_demos.json). Defaults equal the file. */
@@ -75,9 +80,14 @@ struct FPSPlayDemoCatalog
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
     float MaxResultWaitSeconds = 10.f;
 
-    /** Every player must move at least this far from where he stood at the snap. */
+    /** Every player must move at least this far from where he stood at the snap: the
+     *  quarterback's drop or hand-off, a receiver's route, a defender's read. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
     float MinPlayerMoveCm = 50.f;
+
+    /** ...except a lineman, on either side, held up in his block: at least this far. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
+    float MinLinemanMoveCm = 10.f;
 
     /** Above the movement data's top speed (FMovementTuningRow::BaseMaxSpeedMax), what a player
      *  may reach in a designed burst (a carrier's truck, a blocker's push). */
@@ -137,11 +147,33 @@ struct FPSPlayDemoSummary
     UPROPERTY(BlueprintReadOnly, Category = "Demo")
     FName DefenseTeamId;
 
+    /** The offense's call, as the demo made it. */
     UPROPERTY(BlueprintReadOnly, Category = "Demo")
     FName OffensePlayId;
 
     UPROPERTY(BlueprintReadOnly, Category = "Demo")
     FString OffensePlayName;
+
+    /** The play the offense ran: its call, or what the quarterback audibled to at the line (the
+     *  last offensive PlayCall before the snap). */
+    UPROPERTY(BlueprintReadOnly, Category = "Demo")
+    FName RunPlayId;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Demo")
+    FString RunPlayName;
+
+    /** The quarterback checked out of the call: the play run isn't the one called. */
+    UPROPERTY(BlueprintReadOnly, Category = "Demo")
+    bool bAudible = false;
+
+    /** Whether the demo let him (FPSPlayDemoDef::bAllowAudibles). */
+    UPROPERTY(BlueprintReadOnly, Category = "Demo")
+    bool bAudiblesAllowed = true;
+
+    /** Every flag on the play and how it was settled, in words ("Offsides on the defense:
+     *  accepted, 5 yards"); a penalty's yards are in the result's. */
+    UPROPERTY(BlueprintReadOnly, Category = "Demo")
+    TArray<FString> Penalties;
 
     UPROPERTY(BlueprintReadOnly, Category = "Demo")
     FString OffenseFormation;
@@ -187,9 +219,9 @@ struct FPSPlayDemoSummary
     UPROPERTY(BlueprintReadOnly, Category = "Demo")
     bool bFirstDown = false;
 
-    /** What blew the whistle: Tackle, BallGrounded, BoundaryCrossed or LooseBall when that event
-     *  came in the steps just before it, else PhaseClock (the simulation's phase timer ended the
-     *  play, not the football). */
+    /** What blew the whistle: Tackle, BallGrounded, BoundaryCrossed, Score or LooseBall when that
+     *  event came in the steps just before it, else PhaseClock (the simulation's backstop ended
+     *  the play, not the football). */
     UPROPERTY(BlueprintReadOnly, Category = "Demo")
     FString EndedBy;
 

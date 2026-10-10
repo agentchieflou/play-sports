@@ -484,8 +484,22 @@ void APSPlayerPawn::OnPawnHit(UPrimitiveComponent* HitComponent, AActor* OtherAc
     const uint64* LastTouched = ContactFrames.Find(OtherPawn);
     const bool bStillTouching = LastTouched && *LastTouched + 1 >= Frame;
     ContactFrames.Add(OtherPawn, Frame);
-    if (!bStillTouching)
+
+    // A new contact is handled at once; a tackler who stays on the carrier wraps him up again
+    // every WrapRetrySeconds, each try a tackle of its own (Epic 139: a hit that doesn't down
+    // him is one of several).
+    const float Now = GetWorld() ? static_cast<float>(GetWorld()->GetTimeSeconds()) : 0.f;
+    bool bHandle = !bStillTouching;
+    if (bStillTouching && HasPossession() && OtherPawn->TeamSide != TeamSide)
     {
+        UPSDefenderTechniqueComponent* Technique = OtherPawn->GetDefenderTechniqueComponent();
+        const float Retry = Technique ? Technique->GetTuning().WrapRetrySeconds : 0.f;
+        const float* HandledAt = ContactHandledAt.Find(OtherPawn);
+        bHandle = Retry > 0.f && HandledAt && Now - *HandledAt >= Retry - KINDA_SMALL_NUMBER;
+    }
+    if (bHandle)
+    {
+        ContactHandledAt.Add(OtherPawn, Now);
         HandleContact(OtherPawn);
     }
 }

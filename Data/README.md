@@ -2262,7 +2262,9 @@ its own with `APSGameMode` as its game mode, ticked at a fixed step; the demo on
   on the bus this long after the whistle has failed.
 - `PostWhistleSeconds` (0 or more, shorter than `MaxResultWaitSeconds`): frames are recorded until
   this long after the whistle.
-- The sanity checks: every player moves at least `MinPlayerMoveCm` from his spot at the snap; no
+- The sanity checks: every player moves at least `MinPlayerMoveCm` from his spot at the snap (a
+  lineman on either side, held up in his block, at least `MinLinemanMoveCm`; the quarterback is held
+  to the full distance, his drop or hand-off); no
   player is faster than `movement_tuning.json`'s `BaseMaxSpeedMax` plus `SpeedAllowanceCmPerSec`
   (designed bursts: a carrier's truck, a blocker's push); no capsule or ball dips more than
   `GroundToleranceCm` below the ground (all 0 or more).
@@ -2272,5 +2274,7 @@ its own with `APSGameMode` as its game mode, ticked at a fixed step; the demo on
   `sample_playbook.json` that each team's coordinator's scheme keeps (`coaching_staffs.json`), and a
   `Seed` (the match seed, `UPSNetRandomStreams::SetMatchSeed`). Optionally a `WantedOutcome` (`Run`,
   `Completion`, `Incompletion`, `Sack`, `Interception` or `Touchdown`) with `SeedTries` (1 or more):
-  the seeds from `Seed` up are played until one ends that way; the first that does is kept, else
-  the last. `UPSPlayDemoRunner::ValidateCatalog` and `tools/validate_data.py` check it.
+  the seeds from `Seed` up are played until one ends that way, by an event on the field rather than
+  the simulation's backstop; the first that does is kept, else the last. `bAllowAudibles` (default
+  true) lets the CPU quarterback check out of the call at the line as in a game; false keeps him to
+  it. The index records the play run (`RunPlayId`, `bAudible`) and every flag (`Penalties`). `UPSPlayDemoRunner::ValidateCatalog` and `tools/validate_data.py` check it.

@@ -273,7 +273,9 @@ decisions (`UPSDefenderPreSnapSubsystem`). Each starts at seed 0 when its object
 is deterministic, and the checks below depend on it, but it has two costs. Every match calls the
 same CPU plays in the same situations. And a play can only be re-simulated by replaying the
 match from its start, not from its snap. This isn't fixed here because the files belong to other
-tracks. When their owners next touch them, they should seed each stream from
+tracks. (The pass-rush moves are now fixed: the live-play demos showed every rusher's first
+roll was the same 0.198, which beat every move above that chance on every play. Unless a test
+seeds them, `UPSRushMoveComponent`'s rolls now come from the rusher's `RushMove` stream.) When their owners next touch them, they should seed each stream from
 `UPSNetRandomStreams`: `MakeMatchSeed` for match-long streams, and the snap's streams for
 per-play ones.
 

@@ -11,6 +11,7 @@
 #include "PSPlaybookData.h"
 #include "PSPlaySimulation.h"
 #include "PSPlayerPawn.h"
+#include "PSPreSnapSubsystem.h"
 #include "PSReplayRecorder.h"
 #include "PSReplaySubsystem.h"
 #include "PSTelemetryBus.h"
@@ -49,6 +50,12 @@ namespace PSPlayDemoRunnerPrivate
         /** The last event between the snap and the whistle that ends a play, and when. */
         FString LastEnding;
         float LastEndingTime = 0.f;
+        /** Once the demo has called its plays: the offense's last call before the snap (its own,
+         *  or the quarterback's audible), and every flag until the result. */
+        bool bCalled = false;
+        FName RunPlayId;
+        FString RunPlayName;
+        TArray<FString> Penalties;
 
         float Now() const
         {
@@ -157,7 +164,9 @@ namespace PSPlayDemoRunnerPrivate
     /** What happened, in words, from the result and who took part. */
     FString MakeTitle(const FPSPlayDemoSummary& Summary, const TArray<FPSReplayParticipant>& Participants)
     {
-        const FString Play = Summary.OffensePlayName.IsEmpty() ? Summary.OffensePlayId.ToString() : Summary.OffensePlayName;
+        const FString Called = Summary.OffensePlayName.IsEmpty() ? Summary.OffensePlayId.ToString() : Summary.OffensePlayName;
+        const FString Ran = Summary.RunPlayName.IsEmpty() ? Summary.RunPlayId.ToString() : Summary.RunPlayName;
+        const FString Play = Summary.bAudible ? FString::Printf(TEXT("%s, audibled to %s"), *Called, *Ran) : Called;
         const FName CarrierId = !Summary.RusherId.IsNone() ? Summary.RusherId : Summary.BallCarrierId;
         const FString Passer = NameOf(Participants, Summary.PasserId);
         const FString Receiver = NameOf(Participants, Summary.ReceiverId);
@@ -316,7 +325,8 @@ namespace PSPlayDemoRunnerPrivate
         TEXT("InitializeActorsForPlay, BeginPlay), ticked with UWorld::Tick at a fixed step. The demo names both calls ")
         TEXT("through UPSPlayCallSubsystem::CallPlay; everything after that is the game's own systems: the snap, the ")
         TEXT("orchestrator's assignments, the AI, movement, the ball's flight, contact, catches and tackles from the physics ")
-        TEXT("scene, and the play simulation's whistle and result. Frames are the telemetry sampler's, one per step; events ")
+        TEXT("scene, and the play simulation's whistle and result (a tackle, the ball grounded or out of bounds, a score; ")
+        TEXT("its backstop only if none comes). Frames are the telemetry sampler's, one per step; events ")
         TEXT("are every bus event (UPSReplayRecorder). Nothing is scripted, teleported or interpolated.");
 }
 
@@ -379,6 +389,7 @@ TArray<FString> UPSPlayDemoRunner::ValidateCatalog(const FPSPlayDemoCatalog& InC
     for (const TPair<const TCHAR*, float>& NotNegative : {
         TPair<const TCHAR*, float>(TEXT("PostWhistleSeconds"), InCatalog.PostWhistleSeconds),
         TPair<const TCHAR*, float>(TEXT("MinPlayerMoveCm"), InCatalog.MinPlayerMoveCm),
+        TPair<const TCHAR*, float>(TEXT("MinLinemanMoveCm"), InCatalog.MinLinemanMoveCm),
         TPair<const TCHAR*, float>(TEXT("SpeedAllowanceCmPerSec"), InCatalog.SpeedAllowanceCmPerSec),
         TPair<const TCHAR*, float>(TEXT("GroundToleranceCm"), InCatalog.GroundToleranceCm) })
     {
@@ -437,7 +448,8 @@ FPSPlayDemoRun UPSPlayDemoRunner::RunDemo(const FPSPlayDemoDef& Demo)
     {
         Run = RunPlay(Demo, Demo.Seed + Try);
         Run.Summary.SeedsTried = Try + 1;
-        if (Demo.WantedOutcome.IsEmpty() || Run.Summary.Outcome == Demo.WantedOutcome)
+        // Ended that way on the field, not by the simulation's backstop.
+        if (Demo.WantedOutcome.IsEmpty() || (Run.Summary.Outcome == Demo.WantedOutcome && Run.Summary.EndedBy != TEXT("PhaseClock")))
         {
             break;
         }
@@ -549,7 +561,29 @@ FPSPlayDemoRun UPSPlayDemoRunner::RunPlay(const FPSPlayDemoDef& Demo, int32 Seed
     const FDelegateHandle GroundedHandle = Bus->OnBallGroundedMC.AddLambda([&Watch](const FPSTelemetryBallGroundedEvent&) { Watch.NoteEnding(TEXT("BallGrounded")); });
     const FDelegateHandle BoundaryHandle = Bus->OnBoundaryCrossedMC.AddLambda([&Watch](const FPSTelemetryBoundaryCrossedEvent&) { Watch.NoteEnding(TEXT("BoundaryCrossed")); });
     const FDelegateHandle LooseHandle = Bus->OnLooseBallMC.AddLambda([&Watch](const FPSTelemetryLooseBallEvent&) { Watch.NoteEnding(TEXT("LooseBall")); });
-    const auto Unwatch = [Bus, SnapHandle, PhaseHandle, ResultHandle, TackleHandle, GroundedHandle, BoundaryHandle, LooseHandle]()
+    const FDelegateHandle ScoreHandle = Bus->OnScoreMC.AddLambda([&Watch](const FPSTelemetryScoreEvent&) { Watch.NoteEnding(TEXT("Score")); });
+    const FDelegateHandle CallHandle = Bus->OnPlayCallMC.AddLambda([&Watch](const FPSTelemetryPlayCallEvent& Event)
+    {
+        if (Watch.bCalled && !Watch.bSnapped && Event.bOffense)
+        {
+            Watch.RunPlayId = Event.PlayId;
+            Watch.RunPlayName = Event.DisplayName;
+        }
+    });
+    const FDelegateHandle PenaltyHandle = Bus->OnPenaltyMC.AddLambda([&Watch](const FPSTelemetryPenaltyEvent& Event)
+    {
+        if (Watch.bCalled && !Watch.bResult)
+        {
+            const FString Kind = StaticEnum<EPSPenaltyEventKind>()->GetNameStringByValue(static_cast<int64>(Event.Kind));
+            FString Line = FString::Printf(TEXT("%s: %s on the %s"), *Kind, *Event.Penalty, Event.bOnDefense ? TEXT("defense") : TEXT("offense"));
+            if (Event.Kind == EPSPenaltyEventKind::Accepted)
+            {
+                Line += FString::Printf(TEXT(", %d yards"), Event.Yards);
+            }
+            Watch.Penalties.Add(Line);
+        }
+    });
+    const auto Unwatch = [Bus, SnapHandle, PhaseHandle, ResultHandle, TackleHandle, GroundedHandle, BoundaryHandle, LooseHandle, ScoreHandle, CallHandle, PenaltyHandle]()
     {
         Bus->OnSnapMC.Remove(SnapHandle);
         Bus->OnPhaseChangeMC.Remove(PhaseHandle);
@@ -558,6 +592,9 @@ FPSPlayDemoRun UPSPlayDemoRunner::RunPlay(const FPSPlayDemoDef& Demo, int32 Seed
         Bus->OnBallGroundedMC.Remove(GroundedHandle);
         Bus->OnBoundaryCrossedMC.Remove(BoundaryHandle);
         Bus->OnLooseBallMC.Remove(LooseHandle);
+        Bus->OnScoreMC.Remove(ScoreHandle);
+        Bus->OnPlayCallMC.Remove(CallHandle);
+        Bus->OnPenaltyMC.Remove(PenaltyHandle);
     };
 
     // Every bus event from kickoff on: the call window, the calls, the snap, the play, the result.
@@ -618,6 +655,14 @@ FPSPlayDemoRun UPSPlayDemoRunner::RunPlay(const FPSPlayDemoDef& Demo, int32 Seed
         Summary.DefensePlayName = DefensePlay.DisplayName;
         Summary.DefenseFormation = DefensePlay.Formation;
     }
+    // The CPU quarterback reads the defense at the line as in any game; a demo that must show its
+    // call keeps him to it.
+    if (UPSPreSnapSubsystem* PreSnap = World->GetSubsystem<UPSPreSnapSubsystem>())
+    {
+        PreSnap->SetCpuAudiblesAllowed(Demo.bAllowAudibles);
+    }
+    Summary.bAudiblesAllowed = Demo.bAllowAudibles;
+    Watch.bCalled = true;
     const bool bOffenseCalled = PlayCall->CallPlay(Demo.OffensePlayId, EPSPlayCaller::CPU);
     const bool bDefenseCalled = PlayCall->CallPlay(Demo.DefensePlayId, EPSPlayCaller::CPU);
     if (!bOffenseCalled || !bDefenseCalled)
@@ -701,6 +746,10 @@ FPSPlayDemoRun UPSPlayDemoRunner::RunPlay(const FPSPlayDemoDef& Demo, int32 Seed
 
     Summary.EventCount = Recording.Events.Num();
     Summary.FrameCount = Recording.Frames.Num();
+    Summary.RunPlayId = Watch.RunPlayId.IsNone() ? Demo.OffensePlayId : Watch.RunPlayId;
+    Summary.RunPlayName = Watch.RunPlayId.IsNone() ? Summary.OffensePlayName : Watch.RunPlayName;
+    Summary.bAudible = Summary.RunPlayId != Demo.OffensePlayId;
+    Summary.Penalties = Watch.Penalties;
     if (Watch.bSnapped)
     {
         Summary.SnapTime = Watch.SnapTime;
@@ -792,12 +841,17 @@ TArray<FString> UPSPlayDemoRunner::CheckRun(const FPSPlayDemoRun& Run, const FPS
             Problems.Add(FString::Printf(TEXT("%d frame(s) from the snap don't have 22 players (the snap's has %d)."), ShortFrames, Frames[SnapFrame].Pawns.Num()));
         }
 
+        // A lineman held up in his block moves little; everyone else has somewhere to go: the
+        // quarterback his drop or hand-off, the others their routes, blocks and reads.
         TMap<FName, FVector> SnapSpots;
         TMap<FName, float> Moved;
+        TMap<FName, float> MustMove;
         for (const FPSPawnSnapshot& Snapshot : Frames[SnapFrame].Pawns)
         {
             SnapSpots.Add(Snapshot.PlayerId, Snapshot.Location);
             Moved.Add(Snapshot.PlayerId, 0.f);
+            const bool bLineman = Snapshot.Role == EPlayerRole::OffensiveLineman || Snapshot.Role == EPlayerRole::DefensiveLineman;
+            MustMove.Add(Snapshot.PlayerId, bLineman ? InCatalog.MinLinemanMoveCm : InCatalog.MinPlayerMoveCm);
         }
         float BallTravel = 0.f;
         for (int32 Index = SnapFrame + 1; Index < Frames.Num(); ++Index)
@@ -818,14 +872,16 @@ TArray<FString> UPSPlayDemoRunner::CheckRun(const FPSPlayDemoRun& Run, const FPS
         TArray<FString> Still;
         for (const TPair<FName, float>& Entry : Moved)
         {
-            if (Entry.Value < InCatalog.MinPlayerMoveCm)
+            const float Needed = MustMove.FindChecked(Entry.Key);
+            if (Entry.Value < Needed)
             {
-                Still.Add(FString::Printf(TEXT("%s (%.0f cm)"), *Entry.Key.ToString(), Entry.Value));
+                Still.Add(FString::Printf(TEXT("%s (%.0f of %.0f cm)"), *Entry.Key.ToString(), Entry.Value, Needed));
             }
         }
         if (Still.Num() > 0)
         {
-            Problems.Add(FString::Printf(TEXT("%d player(s) moved less than %.0f cm from their spot at the snap: %s."), Still.Num(), InCatalog.MinPlayerMoveCm, *FString::Join(Still, TEXT(", "))));
+            Problems.Add(FString::Printf(TEXT("%d player(s) moved less than they must from their spot at the snap (%.0f cm, a lineman %.0f): %s."),
+                Still.Num(), InCatalog.MinPlayerMoveCm, InCatalog.MinLinemanMoveCm, *FString::Join(Still, TEXT(", "))));
         }
         if (!Frames[SnapFrame].bBallSampled)
         {

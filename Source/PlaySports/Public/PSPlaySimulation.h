@@ -384,6 +384,13 @@ private:
     /** A blocked kick's loose ball is being played out on the field (Epic 17.4). */
     bool bLooseBallLive = false;
 
+    /** A pass is in the air: thrown, not yet caught, fumbled or grounded. Grounded, it is
+     *  incomplete whatever the phase. */
+    bool bPassInAir = false;
+
+    /** Seconds since the snap, while the ball is live (MaxLivePlaySeconds' backstop). */
+    float LiveSeconds = 0.f;
+
     void ResolvePlayResult();
 
     /** The play in progress (Epic 92): opened at the snap, filled in as players throw, catch and

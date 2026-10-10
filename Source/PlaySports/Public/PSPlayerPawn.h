@@ -237,4 +237,8 @@ private:
      *  Hits on consecutive frames are one contact: it begins (HandleContact) only when the two
      *  touched on neither this frame nor the one before, as an overlap begins once. */
     TMap<TWeakObjectPtr<APSPlayerPawn>, uint64> ContactFrames;
+
+    /** When each player touching this pawn last had his contact handled: a tackler who stays on
+     *  the carrier tries again every WrapRetrySeconds (his FDefensiveTechniqueTuningRow). */
+    TMap<TWeakObjectPtr<APSPlayerPawn>, float> ContactHandledAt;
 };
