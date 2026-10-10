@@ -66,6 +66,30 @@ struct FPSInputContextDef
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
     FString Description;
+
+    /** False for a context whose actions keep their authored keys: the menus read theirs
+     *  through Slate, so remapping them could lock a player out (Epic 103.4). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    bool bRemappable = true;
+};
+
+/** The player's own key for an action on one kind of device (Epic 103.4). It replaces every
+ *  key the catalog gives the action for that kind of device. */
+USTRUCT(BlueprintType)
+struct FPSInputRemap
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    FName ActionId;
+
+    /** True for the gamepad's key, false for the keyboard and mouse's. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    bool bGamepad = false;
+
+    /** Engine key name (EKeys). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+    FName Key;
 };
 
 /** Top-level shape of Data/input_actions.json. Loaded as a single JSON object by

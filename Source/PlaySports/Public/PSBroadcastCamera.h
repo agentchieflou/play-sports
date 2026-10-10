@@ -4,8 +4,16 @@
 #include "Camera/CameraActor.h"
 #include "PSBroadcastCamera.generated.h"
 
+class UPSCameraAll22Component;
+class UPSCameraDirectorComponent;
+class UPSCameraSkycamComponent;
+
 /**
- * APSBroadcastCamera tracks the play from a sideline perspective.
+ * APSBroadcastCamera is the game's one view: the player controller looks through it. Each tick
+ * one thing drives it, first match wins: the debug free cam; the coaches film view (Epic 40,
+ * its all-22 component, on the FilmView action); the camera director (Epic 38), which cuts
+ * between its shots by itself; and otherwise the plain sideline follow of TargetActor. The
+ * skycam (Epic 39) flies every tick whichever drives, so it is in position when cut to.
  */
 UCLASS(Blueprintable)
 class PLAYSPORTS_API APSBroadcastCamera : public ACameraActor
@@ -16,6 +24,25 @@ public:
     APSBroadcastCamera();
 
     virtual void Tick(float DeltaTime) override;
+
+    /** Listens to the viewing APSPlayerController for the film view toggle (Epic 40). */
+    virtual void BecomeViewTarget(APlayerController* PC) override;
+
+    virtual void EndViewTarget(APlayerController* PC) override;
+
+    /** The all-22 coaches film view (Epic 40). While it is on, it drives the camera and the
+     *  broadcast follow waits. */
+    UFUNCTION(BlueprintPure, Category = "Broadcast Camera")
+    UPSCameraAll22Component* GetAll22Component() const { return All22Component; }
+
+    /** The camera director (Epic 38). While it is enabled (and the film view is off), it drives
+     *  the camera and the plain follow waits. */
+    UFUNCTION(BlueprintPure, Category = "Broadcast Camera")
+    UPSCameraDirectorComponent* GetDirectorComponent() const { return DirectorComponent; }
+
+    /** The skycam (Epic 39), flying over the field for the director to cut to. */
+    UFUNCTION(BlueprintPure, Category = "Broadcast Camera")
+    UPSCameraSkycamComponent* GetSkycamComponent() const { return SkycamComponent; }
 
     // Target actor to track (e.g. the ball or the current ball carrier pawn)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Broadcast Camera")
@@ -80,4 +107,14 @@ public:
     // Toggle free cam mode on or off
     UFUNCTION(BlueprintCallable, Category = "Broadcast Camera")
     void ToggleFreeCam(bool bEnabled);
+
+private:
+    UPROPERTY(VisibleAnywhere, Category = "Broadcast Camera")
+    UPSCameraAll22Component* All22Component;
+
+    UPROPERTY(VisibleAnywhere, Category = "Broadcast Camera")
+    UPSCameraDirectorComponent* DirectorComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Broadcast Camera")
+    UPSCameraSkycamComponent* SkycamComponent;
 };

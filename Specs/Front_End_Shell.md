@@ -38,12 +38,32 @@ editor handoff: what exists in code, and what an editor session adds.
 - **Play calling (Epic 102).** Every scrimmage down opens the `PlayCall` screen for a human's
   side: formations, then that formation's plays; choosing one calls it. `UPSPlayCallSubsystem`
   owns the calls and the snap; see `Specs/Play_Call_Interface.md`.
+- **Settings (Epic 103).** The `Settings` screen (main menu and pause menu) lists the
+  categories of `Data/ui_settings.json`: Video, Audio, Gameplay, Controls, Accessibility.
+  - A category opens the `SettingsCategory` screen. It shows each setting as "Label: value"
+    with its description under it, then "Reset to defaults".
+  - Choosing a setting steps it: a toggle flips, a choice moves to the next (wrapping), a slider
+    goes up a step (wrapping to its minimum). The screen redraws with the focus kept.
+  - `UPSSettingsSubsystem` (game instance) owns the values, saves them in the profile
+    (`UPSProfileSaveGame::Settings`) as they change, and applies video (outside the editor)
+    and the master volume to the engine.
+  - `UPSSettingsComponent` on each player controller applies vibration, its strength, the
+    stick dead zone and input buffering to that player.
+  - Settings → Keys and buttons opens the `InputRemap` screen (Epic 103.4): each action a
+    player may remap with its key on the active device. Choose one, then press the new key or
+    button; Back cancels, and the screen says what happened ("Juke is now B", or why the key
+    was refused). See `Specs/Input_Architecture.md` section 6.
+  - The other audio volumes and the accessibility settings (reduced motion, camera shake,
+    flashes and pyro) are stored for the systems they concern, which don't exist yet: sound
+    classes, camera shake and pyro. They read the values with `GetNumber`/`GetBool` and hear
+    changes on `OnSettingChanged`.
 
 ## 2. Not yet (other epics)
 
 - `?mode=` and `?team=` are passed but nothing reads them yet: the match still loads
   `RosterJsonPath`, Franchise needs its hub (Track G) and Practice the gym map (Core 24).
-- The Settings screen is a placeholder until Epic 103.
+- Settings a slider would suit are stepped by choosing them until a designer widget gives
+  them a slider (left/right on a focused option).
 - Logos: `LogoPath` is empty for every team until an editor session imports logo textures; the
   abbreviation stands in.
 

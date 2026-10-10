@@ -10,6 +10,7 @@
 
 class APSDefenseController;
 class APSPlayerPawn;
+class UPSAIFieldSnapshot;
 
 /** What a defensive AI player is doing this moment of the play. */
 UENUM(BlueprintType)
@@ -137,6 +138,11 @@ public:
      *  interval (Epic 129); headless tests pass their own. */
     void UpdateAI(float DeltaSeconds, float DecisionInterval);
 
+    /** Picks the pawn back up from a human mid-play without a pop (Epic 30): carries on in the
+     *  direction the pawn is moving until the next decision. Called when the bus says a human
+     *  released this pawn. */
+    void ResumeFromHuman();
+
     UFUNCTION(BlueprintPure, Category = "AI")
     EPSDefenderAction GetAction() const { return Action; }
 
@@ -172,6 +178,7 @@ private:
     void HandlePumpFake(const FPSTelemetryPumpFakeEvent& Event);
     void HandleRouteRunning(const FPSTelemetryRouteEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
+    void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
 
     void StartAssignment(APSPlayerPawn* Self);
     APSPlayerPawn* PickReceiverToCover(const APSPlayerPawn* Self) const;
@@ -192,7 +199,9 @@ private:
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindCarrier() const;
     APSPlayerPawn* FindOpponent(EPlayerRole Role) const;
-    TArray<APSPlayerPawn*> GetFieldPawns() const;
+
+    /** The field as the AI reads it this frame, shared by every AI player (Epic 17.5). */
+    UPSAIFieldSnapshot* GetFieldSnapshot() const;
 
     UPROPERTY(Transient)
     FDefenderAITuningRow Tuning;

@@ -19,6 +19,12 @@
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
 #include "PSTelemetrySamplingTypes.h"
+#include "PSDefenderTechniqueComponent.h"
+#include "PSKickMeterComponent.h"
+#include "PSSettingsTypes.h"
+#include "PSOverlayReticle.h"
+#include "PSControlHandoffComponent.h"
+#include "PSOverlayBroadcastTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSSpecialTeamsData.h"
@@ -26,6 +32,9 @@
 #include "PSSessionTelemetryTypes.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSRouteRunning.h"
+#include "PSCameraFraming.h"
+#include "PSCameraDirectorComponent.h"
+#include "PSCameraSkycamComponent.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -121,6 +130,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadInputBufferTuningFromJson(const FString& JsonFilePath, FInputBufferTuningRow& OutTuning);
 
+    /** Loads a defender's jump-snap and strip tuning (Data/defensive_techniques.json, Epic 104.5). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadDefensiveTechniquesFromJson(const FString& JsonFilePath, FDefensiveTechniqueTuningRow& OutTuning);
+
+    /** Loads the kick meter (Data/kick_meter.json, Epic 104.5). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadKickMeterTuningFromJson(const FString& JsonFilePath, FKickMeterTuningRow& OutTuning);
+
+    /** Loads the settings catalog (Data/ui_settings.json, Epic 103). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSettingsCatalogFromJson(const FString& JsonFilePath, FPSSettingsCatalog& OutCatalog);
+
     /** Loads the pass-rush move library (Data/pass_rush_moves.json, Epic 70). False on a
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
@@ -130,6 +151,21 @@ public:
      *  Epic 26). False on a missing file, malformed JSON, or an unrecognized event type. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadTelemetrySamplingTuningFromJson(const FString& JsonFilePath, FPSTelemetrySamplingTuning& OutTuning);
+
+    /** Loads the selected-player reticle's look (Data/overlay_reticle.json, Epic 30). False on
+     *  a missing file, malformed JSON, or an unrecognized State. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadOverlayReticleStyleFromJson(const FString& JsonFilePath, FPSOverlayReticleStyle& OutStyle);
+
+    /** Loads the player-switch tuning (Data/control_handoff.json, Epic 30). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadControlHandoffTuningFromJson(const FString& JsonFilePath, FControlHandoffTuningRow& OutTuning);
+
+    /** Loads the broadcast package: score bug and chyron theme and rules
+     *  (Data/broadcast_overlay.json, Epic 33). False on a missing file, malformed JSON, or an
+     *  unrecognized Anchor or Kind. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadBroadcastOverlayThemeFromJson(const FString& JsonFilePath, FPSBroadcastOverlayTheme& OutTheme);
 
     /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
@@ -145,6 +181,7 @@ public:
      *  Epic 89). False on a missing file, malformed JSON, or an unrecognized Role string. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCoachingLeagueFromJson(const FString& JsonFilePath, FPSCoachingLeague& OutLeague);
+
     /** Loads the session telemetry tuning (Data/session_telemetry.json, Epic 117). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSessionTelemetryTuningFromJson(const FString& JsonFilePath, FPSSessionTelemetryTuning& OutTuning);
@@ -153,6 +190,21 @@ public:
      *  file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRunFitsFromJson(const FString& JsonFilePath, FPSRunFitCatalog& OutCatalog);
+
+    /** Loads the all-22 film camera rigs (Data/camera_all22.json, Epic 40). False on a
+     *  missing file, malformed JSON, or an unrecognized Placement. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadAll22CameraTuningFromJson(const FString& JsonFilePath, FPSAll22CameraTuning& OutTuning);
+
+    /** Loads the camera director's shots, cut rules and interest scoring
+     *  (Data/camera_director.json, Epic 38). False on a missing file, malformed JSON, or an
+     *  unrecognized Shot or Trigger. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCameraDirectorTuningFromJson(const FString& JsonFilePath, FPSCameraDirectorTuning& OutTuning);
+
+    /** Loads the skycam's cable rig and flying (Data/camera_skycam.json, Epic 39). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSkycamTuningFromJson(const FString& JsonFilePath, FPSSkycamTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

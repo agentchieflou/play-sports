@@ -150,7 +150,8 @@ public:
 
     bool LoadTuningFromJson(const FString& JsonFilePath);
 
-    /** Listens for the call, the snap, throws and the end of the play. Idempotent. */
+    /** Listens for the call, the snap, throws, the end of the play and control handoffs.
+     *  Idempotent. */
     void BindToBus();
 
     void UnbindFromBus();
@@ -162,6 +163,12 @@ public:
      *  otherwise the last direction steered again. The tick passes the platform tier's
      *  interval (Epic 129); headless tests pass their own. */
     void UpdateAI(float DeltaSeconds, float DecisionInterval);
+
+    /** Picks the pawn back up from a human mid-play without a pop (Epic 30): carries on in the
+     *  direction the pawn is moving until the next decision, takes up the opening action if
+     *  the human had him from before the snap, and skips route waypoints he is already past.
+     *  Called when the bus says a human released this pawn. */
+    void ResumeFromHuman();
 
     UFUNCTION(BlueprintPure, Category = "AI")
     EPSSkillPlayerAction GetAction() const { return Action; }
@@ -189,6 +196,10 @@ private:
     void HandleSnap(const FPSTelemetrySnapEvent& Event);
     void HandleThrow(const FPSTelemetryThrowEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
+    void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
+
+    /** The first action of the play: the route if he has one, else the QB's read or a block. */
+    void StartOpeningAction(const APSPlayerPawn* Self);
 
     void TickQuarterback(APSPlayerPawn* Self);
     void ThrowTo(APSPlayerPawn* Self, APSPlayerPawn* Receiver);
@@ -200,7 +211,7 @@ private:
     UPSRouteRunnerComponent* GetRouteRunner() const;
     APSPlayerPawn* GetSelf() const;
     APSPlayerPawn* FindTeammate(EPlayerRole Role) const;
-    TArray<APSPlayerPawn*> GetFieldPawns() const;
+    const TArray<APSPlayerPawn*>& GetFieldPawns() const;
 
     UPROPERTY(Transient)
     FSkillPlayerAITuningRow Tuning;

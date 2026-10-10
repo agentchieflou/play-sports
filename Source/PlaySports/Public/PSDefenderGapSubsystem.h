@@ -165,8 +165,10 @@ namespace PSDefenderGaps
 
     /** The eight gaps' spots from the offensive line where it stands: OutSpots is indexed by
      *  EPSRunGap (None unused). The center is the lineman nearest BallY; an inline tight end
-     *  extends the line; past the last man each gap is GapWidth wide. False with no linemen. */
-    PLAYSPORTS_API bool ComputeGapSpots(const TArray<APSPlayerPawn*>& Pawns, float BallY, const FPSRunFitCatalog& Catalog, TArray<FVector>& OutSpots);
+     *  extends the line; past the last man each gap is GapWidth wide. False with no linemen.
+     *  Roles, when given, are the pawns' roles in the same order (UPSAIFieldSnapshot's). */
+    PLAYSPORTS_API bool ComputeGapSpots(const TArray<APSPlayerPawn*>& Pawns, float BallY, const FPSRunFitCatalog& Catalog, TArray<FVector>& OutSpots,
+        const TArray<EPlayerRole>* Roles = nullptr);
 
     /** Front's gaps for Defenders: each role's defenders, left to right, take that role's gaps
      *  in order; the rest get None. OutGaps parallels Defenders. */
@@ -191,7 +193,8 @@ namespace PSDefenderGaps
  * filled and which are open -- is published on UPSTelemetryBus (GapIntegrity) whenever it
  * changes, or an exchange happens.
  *
- * It ticks with the world; headless tests call AssignGaps and UpdateFits.
+ * It ticks with the world at the platform tier's AI decision rate, reading the field through
+ * UPSAIFieldSnapshot; headless tests call AssignGaps and UpdateFits.
  */
 UCLASS()
 class PLAYSPORTS_API UPSDefenderGapSubsystem : public UTickableWorldSubsystem
@@ -250,7 +253,7 @@ private:
     void EnsureAssigned();
     void AssignTechniques();
     void TryScrapeExchange(const APSPlayerPawn* Carrier, const TArray<FVector>& Spots);
-    TArray<APSPlayerPawn*> GetFieldPawns() const;
+    const TArray<APSPlayerPawn*>& GetFieldPawns() const;
     APSPlayerPawn* FindRunCarrier(const TArray<APSPlayerPawn*>& Pawns) const;
     bool ReadGapSpots(TArray<FVector>& OutSpots);
 
@@ -267,6 +270,8 @@ private:
     int32 PublishedOpenMask = -1;
     int32 PublishedExchangeCount = 0;
     int32 ExchangeCount = 0;
+    /** Time since the last update; updates come at the platform tier's AI decision rate. */
+    float UpdateClock = 0.f;
     bool bAssignPending = false;
     bool bPlayLive = false;
     bool bCatalogLoaded = false;
