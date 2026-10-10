@@ -99,11 +99,16 @@ struct FPSPersonnelRoleCount
     UPROPERTY(BlueprintReadOnly, Category = "Overlay")
     EPlayerRole Role = EPlayerRole::RunningBack;
 
+    /** The role as the panel writes it, localized ("RB"). */
     UPROPERTY(BlueprintReadOnly, Category = "Overlay")
     FString Label;
 
     UPROPERTY(BlueprintReadOnly, Category = "Overlay")
     int32 Count = 0;
+
+    /** The count as the panel writes it, localized ("RB 1"). */
+    UPROPERTY(BlueprintReadOnly, Category = "Overlay")
+    FString Text;
 
     /** Changed by the latest substitution; flashes with the panel. */
     UPROPERTY(BlueprintReadOnly, Category = "Overlay")

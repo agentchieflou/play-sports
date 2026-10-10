@@ -37,8 +37,8 @@ enum class EPSUnitSystem : uint8
  * Presenters (UPSMenuComponent::GetPresentedScreen) localize as they build a screen, so
  * widgets receive localized strings and show them with FromLocalized. tools/validate_data.py
  * rejects FText built from raw strings in UI code (PSUI*, PSMenu*, PSHUD*, PSLoading*,
- * PSSettings*, PSPlayCall*), and the review-verify skill asks the same of every other
- * user-facing file.
+ * PSSettings*, PSPlayCall*, and the broadcast overlays' PSOverlay* and PSGameStateEvents*),
+ * and the review-verify skill asks the same of every other user-facing file.
  *
  * Pseudo-localization (ps.Loc.Pseudo 1, or SetPseudoLocalization) swaps every letter of the
  * text that came through the tables for an accented one, pads it by a third and brackets it,

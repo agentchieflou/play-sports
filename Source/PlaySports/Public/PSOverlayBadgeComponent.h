@@ -59,6 +59,9 @@ public:
     /** The group a player of Role on Side belongs to. */
     static EPSBadgeGroup GroupFor(EPlayerRole Role, EPSTeamSide Side);
 
+    /** Role's label for a player without a pass button, localized (Epic 106). */
+    static FString LocalizedRoleLabel(const FPSOverlayBadgeStyle& InStyle, EPlayerRole Role);
+
     /** Lays out at this level of detail; BeginPlay takes the platform tier's. */
     UFUNCTION(BlueprintCallable, Category = "Overlay")
     void SetOverlayDetail(EPSOverlayDetail InDetail);

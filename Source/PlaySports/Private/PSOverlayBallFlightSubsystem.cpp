@@ -2,6 +2,7 @@
 #include "PSBall.h"
 #include "PSDataIngestion.h"
 #include "PSKickMeterComponent.h"
+#include "PSLocalization.h"
 #include "PSOverlayBallFlight.h"
 #include "PSOverlayBallFlightActor.h"
 #include "PSPlayerPawn.h"
@@ -184,6 +185,22 @@ TArray<FString> UPSOverlayBallFlightSubsystem::ValidateStyle(const FPSBallFlight
     return Problems;
 }
 
+FString UPSOverlayBallFlightSubsystem::LocalizedKickLabel(const FPSBallFlightStyle& InStyle, EPSKickVerdict Verdict)
+{
+    // The readout's words are the style's (Data/ball_flight_overlay.json), through the generated
+    // data table (Epic 106).
+    const TCHAR* Field = nullptr;
+    switch (Verdict)
+    {
+    case EPSKickVerdict::Good:      Field = TEXT("GoodLabel"); break;
+    case EPSKickVerdict::WideLeft:  Field = TEXT("WideLeftLabel"); break;
+    case EPSKickVerdict::WideRight: Field = TEXT("WideRightLabel"); break;
+    case EPSKickVerdict::Short:     Field = TEXT("ShortLabel"); break;
+    default:                        return FString();
+    }
+    return UPSLocalization::GetDataText(FString::Printf(TEXT("BallFlight.%s"), Field), InStyle.LabelFor(Verdict)).ToString();
+}
+
 void UPSOverlayBallFlightSubsystem::SetOverlayDetail(EPSOverlayDetail InDetail)
 {
     OverlayDetail = InDetail;
@@ -227,6 +244,7 @@ bool UPSOverlayBallFlightSubsystem::TrackFlight(APSBall* Ball, EPSBallFlightKind
     if (Kind == EPSBallFlightKind::Kick)
     {
         Flight.Kick = PSOverlayBallFlight::JudgeKick(Flight.Prediction, Style);
+        Flight.Kick.Label = LocalizedKickLabel(Style, Flight.Kick.Verdict);
     }
     FlightClock = 0.f;
     LingerRemaining = 0.f;

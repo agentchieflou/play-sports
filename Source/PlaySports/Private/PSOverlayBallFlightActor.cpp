@@ -1,4 +1,5 @@
 #include "PSOverlayBallFlightActor.h"
+#include "PSLocalization.h"
 #include "PSUITeamCatalog.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -229,7 +230,7 @@ void APSOverlayBallFlight::ShowFlight(const FPSBallFlightState& State, EPSOverla
     if (bReadout)
     {
         ReadoutLabel = State.Kick.Label;
-        ReadoutText->SetText(FText::FromString(ReadoutLabel));
+        ReadoutText->SetText(UPSLocalization::FromLocalized(ReadoutLabel));
         ReadoutText->SetTextRenderColor((State.Kick.Verdict == EPSKickVerdict::Good ? GoodColor : NoGoodColor).ToFColor(true));
         const float FacingYaw = Prediction.ReleaseVelocity.X >= 0.0 ? 180.f : 0.f;
         ReadoutText->SetWorldLocationAndRotation(
