@@ -62,6 +62,7 @@
 "Input.Action.Secondary","Take over","Input action: take over what you face"
 "Input.Action.ViewToggle","Change view","Input action: first or third person"
 "Input.Action.Picker","Character picker","Input action"
+"Input.Action.FilmView","Film view","Input action: step the camera through the all-22 coaches film views"
 "Input.Action.PassTarget1","Throw to receiver 1","Input action: receivers are numbered left to right"
 "Input.Action.PassTarget2","Throw to receiver 2","Input action"
 "Input.Action.PassTarget3","Throw to receiver 3","Input action"
