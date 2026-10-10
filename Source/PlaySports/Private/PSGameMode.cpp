@@ -2,6 +2,7 @@
 #include "PSPlayCallSubsystem.h"
 #include "PSPreSnapSubsystem.h"
 #include "PSFieldReads.h"
+#include "PSGameStateEvents.h"
 #include "PSDataIngestion.h"
 #include "PSPlaySimulation.h"
 #include "Misc/Paths.h"
@@ -17,6 +18,7 @@
 #include "PSBroadcastCamera.h"
 #include "PSRoster.h"
 #include "PSPersonnelManager.h"
+#include "PSFieldSides.h"
 #include "PSHealthComponent.h"
 #include "PSRulesConfig.h"
 #include "PSPlayerLeveling.h"
@@ -25,8 +27,10 @@
 #include "PSStatsEngine.h"
 #include "PSGameIntelligenceSubsystem.h"
 #include "PSUITeamCatalog.h"
+#include "PSVersusSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/FloatingPawnMovement.h"
+#include "Algo/Transform.h"
 
 static bool LoadMovementTuningFromJson(const FString& JsonFilePath, FMovementTuningRow& OutTuning)
 {
@@ -66,6 +70,7 @@ APSGameMode::APSGameMode()
     BroadcastCamera = nullptr;
     ActiveRoster = nullptr;
     PersonnelManager = nullptr;
+    FieldSides = nullptr;
     CurrentPlayIndex = 0;
     ExtraDefenderPawn = nullptr;
     PlayerLeveling = nullptr;
@@ -90,6 +95,11 @@ void APSGameMode::StartPlay()
     // Who plays: the travel options name the teams (UPSMatchSetup reads them).
     MatchSetup = NewObject<UPSMatchSetup>(this);
     MatchSetup->InitializeFromOptions(OptionsString, UPSMatchSetup::LoadLeagueTeamIds(UPSUITeamCatalog::GetDefaultTeamsPath()));
+    // A head-to-head game's seats play these teams (Epic 107): the versus subsystem reads them here.
+    if (UPSVersusSubsystem* Versus = GetWorld()->GetSubsystem<UPSVersusSubsystem>())
+    {
+        Versus->SetMatchSetup(MatchSetup);
+    }
 
     // Load movement tuning from DataTable or JSON
     if (MovementTuningTable)
@@ -152,28 +162,55 @@ void APSGameMode::StartPlay()
                     RosterRows.Add(*Player);
                 }
             }
+            // The match's teams take the field (UPSMatchSetup): both teams' players, each from
+            // its own team's roster, are on the roster for the whole game; RosterJsonPath's
+            // players only without them. Kickoff (Epic 89): both staffs' plans go to the
+            // play-call authority and every player plays at his team's scheme fit, in the rows
+            // the pawns point at -- the simulation's copies below are the same players at the
+            // same ratings.
+            StaffManager = NewObject<UPSStaffManager>(this);
+            StaffManager->LoadFromJson(UPSStaffManager::GetDefaultDataPath());
+            UPSPlayCallSubsystem* PlayCallSubsystem = GetWorld()->GetSubsystem<UPSPlayCallSubsystem>();
+            TArray<FPlayerAttributes> HomePlayers;
+            TArray<FPlayerAttributes> AwayPlayers;
+            TArray<FName> HomePlayerIds;
+            const bool bTeamsOnField = MatchSetup->LoadFieldPlayers(UPSUITeamCatalog::GetDefaultTeamsPath(), HomePlayers, AwayPlayers);
+            if (bTeamsOnField)
+            {
+                MatchSetup->ApplyStaffs(StaffManager, PlayCallSubsystem, HomePlayers, AwayPlayers);
+                RosterRows = HomePlayers;
+                RosterRows.Append(AwayPlayers);
+                Algo::Transform(HomePlayers, HomePlayerIds, [](const FPlayerAttributes& Player) { return Player.PlayerId; });
+            }
+            else
+            {
+                MatchSetup->ApplyStaffsToField(StaffManager, PlayCallSubsystem, RosterRows);
+            }
             ActiveRoster = NewObject<UPSRoster>(this);
             ActiveRoster->InitializeRoster(RosterRows);
             ActiveRoster->BuildDefaultDepthChart();
+            // The team with the ball lines up on offense, at kickoff and after every change of
+            // possession (UPSFieldSides, following the simulation's GameState).
+            FieldSides = NewObject<UPSFieldSides>(this);
+            FieldSides->Initialize(ActiveRoster, HomePlayerIds);
+            FieldSides->BindToBus(GetWorld()->GetSubsystem<UPSTelemetryBus>());
             PersonnelManager = NewObject<UPSPersonnelManager>(this);
             PersonnelManager->Initialize(ActiveRoster);
             PersonnelManager->LoadCatalogFromJson(UPSPersonnelManager::GetDefaultCatalogPath());
             const TArray<const FPlayerAttributes*> Starters = PersonnelManager->GetStartingLineup();
 
-            TArray<FPlayerAttributes> OffenseRoster;
-            TArray<FPlayerAttributes> DefenseRoster;
-            for (const FPlayerAttributes* Player : Starters)
+            // The simulation holds each team's players and swaps them when the ball changes hands,
+            // as in a quick sim; without teams, the one roster's offense and defense starters.
+            TArray<FPlayerAttributes> OffenseRoster = HomePlayers;
+            TArray<FPlayerAttributes> DefenseRoster = AwayPlayers;
+            if (!bTeamsOnField)
             {
-                TArray<FPlayerAttributes>& SideRoster = APSFieldGrid::GetSideForRole(Player->Role) == EPSTeamSide::Offense ? OffenseRoster : DefenseRoster;
-                SideRoster.Add(*Player);
+                for (const FPlayerAttributes* Player : Starters)
+                {
+                    TArray<FPlayerAttributes>& SideRoster = APSFieldGrid::GetSideForRole(Player->Role) == EPSTeamSide::Offense ? OffenseRoster : DefenseRoster;
+                    SideRoster.Add(*Player);
+                }
             }
-
-            // Kickoff (Epic 89): both teams' staffs take over. Their plans go to the play-call
-            // authority and the simulation's players play at their scheme fit; the home team has
-            // the ball first. The pawns keep the roster's own ratings.
-            StaffManager = NewObject<UPSStaffManager>(this);
-            StaffManager->LoadFromJson(UPSStaffManager::GetDefaultDataPath());
-            MatchSetup->ApplyStaffs(StaffManager, GetWorld()->GetSubsystem<UPSPlayCallSubsystem>(), OffenseRoster, DefenseRoster);
 
             PlaySimulation = NewObject<UPSPlaySimulation>(this);
             if (PlaySimulation)
@@ -223,7 +260,7 @@ void APSGameMode::StartPlay()
             if (ExistingPawns.Num() == 0)
             {
                 // The pawns point at the roster's own rows (one authority, Epic C3/19.5).
-                const float ScrimmageX = PlaySimulation ? PlaySimulation->GetPlayState().YardLine * 100.f : 2000.f;
+                const float ScrimmageX = PSGameStateEvents::LineOfScrimmageFor(PlaySimulation ? PlaySimulation->GetPlayState().YardLine : 20).X;
                 CachedPawns = APSFieldGrid::SpawnPlayersFromRoster(Starters, ScrimmageX, GetWorld());
                 PersonnelManager->BindPawns(CachedPawns);
                 PersonnelManager->BindToBus(GetWorld()->GetSubsystem<UPSTelemetryBus>());
@@ -370,8 +407,9 @@ void APSGameMode::ExecuteSnap()
         SnapEvt.Down              = PlaySimulation->GetPlayState().Down;
         SnapEvt.Distance          = PlaySimulation->GetPlayState().Distance;
         SnapEvt.GameClockSeconds  = PlaySimulation->GetPlayState().GameClockSeconds;
-        // The same yard-line-to-world mapping ResetPawnPositions places the pawns with.
-        SnapEvt.LineOfScrimmage   = FVector(PlaySimulation->GetPlayState().YardLine * 100.f, 0.f, 0.f);
+        // The same yard-line-to-world mapping ResetPawnPositions places the pawns with, and the
+        // GameState event announces before the snap.
+        SnapEvt.LineOfScrimmage   = PSGameStateEvents::LineOfScrimmageFor(PlaySimulation->GetPlayState().YardLine);
         Bus->PublishSnap(SnapEvt);
     }
 
@@ -450,7 +488,7 @@ void APSGameMode::ResetPawnPositions()
     CurrentPlayIndex++;
 
     int32 YardLine = PlaySimulation->GetPlayState().YardLine;
-    float ScrimmageX = YardLine * 100.f;
+    float ScrimmageX = PSGameStateEvents::LineOfScrimmageFor(YardLine).X;
 
     // Epic 140: no punting means no safety valve to discourage 4th-down attempts, so
     // the defense fields extra defenders on 4th down instead.

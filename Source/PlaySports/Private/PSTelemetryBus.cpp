@@ -610,3 +610,19 @@ void UPSTelemetryBus::PublishDeception(const FPSTelemetryDeceptionEvent& Event)
     }
     OnDeceptionMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishBoundaryCrossed(const FPSTelemetryBoundaryCrossedEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryBoundaryCrossedEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("BoundaryCrossed: %s %s at the %d"), Event.CarrierName.IsEmpty() ? TEXT("the ball") : *Event.CarrierName,
+        Event.bEndZone ? TEXT("into the end zone") : TEXT("out of bounds"), Event.YardLine);
+    RecordHistory(EPSTelemetryEventType::BoundaryCrossed, Description, JsonPayload);
+
+    if (OnBoundaryCrossed.IsBound())
+    {
+        OnBoundaryCrossed.Broadcast(Event);
+    }
+    OnBoundaryCrossedMC.Broadcast(Event);
+}

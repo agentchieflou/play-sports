@@ -95,6 +95,66 @@ float PSPlayerDNA::RushMoveScale(const FPSPlayerDNACatalog& Catalog, const FPlay
     return FMath::Max(0.f, 1.f + Catalog.RushStyleWeight * Style * FMath::Clamp(Lean->Lean, -1.f, 1.f));
 }
 
+float PSPlayerDNA::GetGeneratorGap(const FPSDNAAxisDef& Def, const FPlayerAttributes& Player)
+{
+    auto Rating = [&Player](FName Attribute)
+    {
+        const FFloatProperty* Property = Attribute.IsNone() ? nullptr : FindFProperty<FFloatProperty>(FPlayerAttributes::StaticStruct(), Attribute);
+        return Property ? Property->GetPropertyValue_InContainer(&Player) : 0.f;
+    };
+    return Rating(Def.Generator.HighAttribute) - Rating(Def.Generator.LowAttribute);
+}
+
+TMap<FName, float> PSPlayerDNA::GetGeneratorCenters(const FPSPlayerDNACatalog& Catalog, const TArray<FPlayerAttributes>& Players, EPlayerRole Role)
+{
+    TMap<FName, float> Centers;
+    for (const FPSDNAAxisDef& Def : Catalog.Axes)
+    {
+        if (!Def.Roles.Contains(Role))
+        {
+            continue;
+        }
+        float Sum = 0.f;
+        int32 Count = 0;
+        for (const FPlayerAttributes& Player : Players)
+        {
+            if (Player.Role == Role)
+            {
+                Sum += GetGeneratorGap(Def, Player);
+                ++Count;
+            }
+        }
+        if (Count > 0)
+        {
+            Centers.Add(Def.Axis, Sum / Count);
+        }
+    }
+    return Centers;
+}
+
+FPSPlayerDNA PSPlayerDNA::GenerateProfile(const FPSPlayerDNACatalog& Catalog, const FPlayerAttributes& Player, const TMap<FName, float>& Centers, TFunctionRef<float()> NextStandardNormal)
+{
+    FPSPlayerDNA DNA;
+    for (const FPSDNAAxisDef& Def : Catalog.Axes)
+    {
+        FFloatProperty* Property = Def.Roles.Contains(Player.Role) ? FindFProperty<FFloatProperty>(FPSPlayerDNA::StaticStruct(), Def.Axis) : nullptr;
+        if (!Property)
+        {
+            continue;
+        }
+        const float* Center = Centers.Find(Def.Axis);
+        const float Lean = Def.Generator.RatingLean * (GetGeneratorGap(Def, Player) - (Center ? *Center : 0.f));
+        const float Variation = Def.Generator.Spread > 0.f ? Def.Generator.Spread * NextStandardNormal() : 0.f;
+        float Value = FMath::RoundToFloat(FMath::Clamp(Lean + Variation, -1.f, 1.f) * 100.f) / 100.f;
+        if (Value == 0.f)
+        {
+            Value = 0.f; // no negative zero in a written roster
+        }
+        Property->SetPropertyValue_InContainer(&DNA, Value);
+    }
+    return DNA;
+}
+
 FString PSPlayerDNA::TraitKey(FName TraitId, const FString& Field)
 {
     return FString::Printf(TEXT("Trait.%s.%s"), *TraitId.ToString(), *Field);

@@ -65,6 +65,27 @@ jobs:
           $Json = Get-Content $Index -Raw
           if ($Json -match '"failed"\s*:\s*[1-9]' -or $Json -match '"state"\s*:\s*"fail') { throw "Automation report contains failed test(s)" }
 
+      - name: Validate the generated league
+        # Epic 122: PlaySports.Content.LeagueGenerator.WritesValidContent writes a generated
+        # 32-team league to Saved/GeneratedLeague. It must pass every content contract, and the
+        # content report must find nothing to warn about (no league of 99s, no repeated names).
+        shell: powershell
+        run: |
+          if (-not (Test-Path "Saved/GeneratedLeague/Data/sample_league_config.json")) { throw "The league generator's test wrote no league" }
+          python tools/content.py check --root Saved/GeneratedLeague --strict
+          if ($LASTEXITCODE -ne 0) { throw "The generated league fails the content contracts or the content report" }
+
+      - name: Validate the generated playbooks
+        # Epic 121: PlaySports.Content.PlaybookGenerator.WritesValidContent writes each coaching
+        # identity's generated playbook to Saved/GeneratedPlaybooks, beside the route library. Every
+        # play must pass the playbook contract, and every route must resolve; between them the books
+        # must leave no category the coaching AI calls empty.
+        shell: powershell
+        run: |
+          if (-not (Test-Path "Saved/GeneratedPlaybooks/Data/playbooks")) { throw "The playbook generator's test wrote no playbooks" }
+          python tools/content.py check --root Saved/GeneratedPlaybooks --strict
+          if ($LASTEXITCODE -ne 0) { throw "A generated playbook fails the content contracts or the content report" }
+
       - name: Performance budgets
         # Epic 114: PlaySports.Perf.StandardPlayProfile wrote Saved/Profiling/StandardPlay_<tier>.json.
         # A system over its budget warns; over HardFailMultiplier times it (Data/perf_harness.json)

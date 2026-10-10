@@ -112,6 +112,7 @@ void UPSInputConfig::BuildRuntimeObjects()
             Action = NewObject<UInputAction>(this, ObjectName, RF_Transient);
             Action->ValueType = ActionDef.ValueType;
         }
+        Action->bTriggerWhenPaused = ActionDef.bTriggerWhenPaused;
         RuntimeActions.Add(ActionDef.ActionId, Action);
 
         for (const FName& ContextId : ActionDef.Contexts)

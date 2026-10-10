@@ -15,8 +15,9 @@
 //      holder; each announced on the bus and the engine's delegate.
 //   5. Derived metrics: the passer rating and the per-attempt rates, and a team's third-down,
 //      red-zone, field-goal and turnover numbers from its splits.
-//   6. The franchise: a season simulated through UPSFranchiseFlow fills the stat book, which agrees
-//      with the standings, is archived at season end and round-trips through the franchise save.
+//   6. The franchise: a season simulated through UPSFranchiseFlow (seeded) fills the stat book,
+//      which agrees with the standings, is archived at season end and round-trips through the
+//      franchise save.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -360,6 +361,7 @@ bool FPSStatsAttributionTest::RunTest(const FString& Parameters)
     FPSTelemetryTackleEvent Tackle;
     Tackle.TacklerName = Defense[9].DisplayName;
     Tackle.BallCarrierName = Offense[2].DisplayName;
+    Tackle.YardLine = 32;
     Tackle.YardsGained = 12;
     Bus->PublishTackle(Tackle);
     for (int32 Tick = 0; Tick < 20 && Announced.Num() == 0; ++Tick)
@@ -633,6 +635,9 @@ bool FPSStatsFranchiseTest::RunTest(const FString& Parameters)
     Flow->SetStats(Stats);
     TestEqual(TEXT("Without contracts the book starts at season 1"), Stats->GetSeason(), 1);
 
+    // The quick sims roll on the global stream: seeded, the test plays the same season every run.
+    FMath::RandInit(92);
+
     // Two weeks, every game simulated: each box score agrees with the season's result.
     for (int32 Week = 1; Week <= 2; ++Week)
     {
@@ -648,6 +653,7 @@ bool FPSStatsFranchiseTest::RunTest(const FString& Parameters)
         }
         Flow->AdvanceWeek();
     }
+    FMath::RandInit(static_cast<int32>(FPlatformTime::Cycles()));
     TestTrue(TEXT("The season ended"), Flow->HasSeasonEnded());
     TestEqual(TEXT("...and the book moved on to season 2"), Stats->GetSeason(), 2);
     TestEqual(TEXT("Season 1 is in the history"), Stats->GetStatBook().History.Num(), 1);

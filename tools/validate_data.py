@@ -71,14 +71,35 @@ setting's choices in order and each assist a toggle in ui_settings.json (Epic 84
 "MeshRecognizeRadius" files against FPSDeceptionTuning (Epic 72): bite chances 0-1 with the floor
 under the ceiling, a discipline rating 0-100; "HardFailMultiplier" files against
 FPSPerfHarnessTuning (Epic 114), and every platform tier's SystemBudgets: one per system, within its
-frame; "PlayCallTimeoutSeconds" files against FPSGameIntelligenceTuning (Epic 82), each task one of
-tools/orchestrator/routing.json's. Teams, the league config, the playbook, player rating ranges and
-every reference between files are tools/content_contracts.py's (Epic 125), run from here.
+frame; "FocusAreas" files against FPSTrainingTuning (Epic 90): 0-1 fatigue, recovery and AI fields,
+the practice injury tuning, each focus area's roles, rating weights and play categories (each one
+opponent_model.json tracks on its side); "CaptureResolutionMultiplier" files against
+FPSPhotoModeTuning (Epic 45); "RoleProfiles" + "NameCultures" files against FPSLeagueGeneratorTuning
+(Epic 122): a profile per EPlayerRole with a curve for every float field of FPlayerAttributes, name
+pools and the real-person NameBlocklist, which every roster's DisplayNames are checked against;
+"PeakAgeStart" files against FPSProgressionTuning (the age curve; Epic 122); a player's optional
+"Age" is a whole number; "ReadColors" files against FPSPlayArtStyle (Epics 27 and 31), each no-art
+category one of its side's play categories; "Concepts" + "Coverages" files against
+FPSPlaybookGeneratorTuning (Epic 121): its concepts' routes in the route library and formations in
+personnel packages, each front in run_fits.json, each coverage shell in coverage_matchups.json and
+each flavor's scheme in coaching_staffs.json; "CombineDrills" files against FPSDraftTuning (Epic
+86): positive uncertainties and costs, 0-1 shares and guarantees, each drill reading a rating, a
+rookie deal no longer than contracts.json's MaxContractYears; "PlayCallTimeoutSeconds" files against
+FPSGameIntelligenceTuning (Epic 82), each task one of tools/orchestrator/routing.json's;
+"HallOfFame" files against FPSLegacyTuning (Epic 94): the hall of fame's waits and score, each
+threshold and archived leader a player stat category, listed once, each role's age curve and the
+retirement chances; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one weight per
+EPSStorylineKind, award scoring by EPSStatCategory, a falling ballot, the digest's task one of
+routing.json's. Teams, the league config, the playbook, player rating ranges and every reference
+between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
+With --root DIR, checks DIR/Data instead (a generated league laid out like the repo, e.g. the one
+the league generator's automation test writes); the catalogs it is checked against stay the repo's.
 """
 
+import argparse
 import json
 import math
 import re
@@ -110,10 +131,13 @@ PLAYER_FIELDS = {
     "Awareness": (int, float),
     "Stamina": (int, float),
 }
+# Optional FPlayerAttributes fields: Age (Epic 122), 0 or missing meaning unknown.
+PLAYER_OPTIONAL_FIELDS = {"Age": int}
 
 INPUT_VALUE_TYPES = {"Boolean", "Axis1D", "Axis2D", "Axis3D"}
 INPUT_CONTEXT_FIELDS = {"ContextId": str, "Priority": int, "Description": str, "bRemappable": bool}
-INPUT_ACTION_FIELDS = {"ActionId": str, "ValueType": str, "Description": str, "Contexts": list, "Bindings": list}
+INPUT_ACTION_FIELDS = {"ActionId": str, "ValueType": str, "Description": str, "Contexts": list, "Bindings": list,
+                       "bTriggerWhenPaused": bool}
 INPUT_BINDING_FIELDS = {"Key": str, "bSwizzleYX": bool, "bNegate": bool}
 INPUT_REQUIRED = {"ContextId", "ActionId", "ValueType", "Contexts", "Bindings", "Key"}
 
@@ -121,7 +145,11 @@ errors = []
 
 
 def err(path, message):
-    errors.append(f"{path.relative_to(REPO)}: {message}")
+    try:
+        shown = Path(path).resolve().relative_to(REPO)
+    except ValueError:
+        shown = path
+    errors.append(f"{shown}: {message}")
 
 
 def validate_players(path, players, dna_catalog=None):
@@ -136,7 +164,10 @@ def validate_players(path, players, dna_catalog=None):
                 err(path, f"{where}: missing field '{field}'")
             elif not isinstance(row[field], ftype):
                 err(path, f"{where}.{field}: expected {ftype}, got {type(row[field]).__name__}")
-        extra = set(row) - set(PLAYER_FIELDS) - {"DNA"}
+        for field, ftype in PLAYER_OPTIONAL_FIELDS.items():
+            if field in row and (isinstance(row[field], bool) or not isinstance(row[field], ftype)):
+                err(path, f"{where}.{field}: expected a whole number, got {type(row[field]).__name__}")
+        extra = set(row) - set(PLAYER_FIELDS) - set(PLAYER_OPTIONAL_FIELDS) - {"DNA"}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPlayerAttributes exactly")
         role = row.get("Role")
@@ -705,11 +736,15 @@ def validate_platform_tiers(path, payload):
         pose_rate = tier.get("ReplayPoseRateHz")
         if not is_number(pose_rate) or pose_rate < 0:
             err(path, f"{where}.ReplayPoseRateHz: '{pose_rate}' must be a number, 0 (every frame) or more")
+        art_rate = tier.get("PlayArtRefreshHz")
+        if not is_number(art_rate) or art_rate < 0:
+            err(path, f"{where}.PlayArtRefreshHz: '{art_rate}' must be a number, 0 (only on events) or more")
         if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
             err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
         validate_system_budgets(path, where, tier)
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
-                             "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", *TIER_TELEMETRY_NUMBERS}
+                             "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", "PlayArtRefreshHz",
+                             *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -1177,6 +1212,85 @@ def validate_game_intelligence(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSGameIntelligenceTuning exactly")
 
 
+
+STORYLINE_KINDS = ("WinStreak", "LosingStreak", "RookieSurge", "RevengeGame", "RecordBroken", "AwardRace")
+STAT_CATEGORIES = ("PassingYards", "PassingTouchdowns", "Completions", "InterceptionsThrown", "RushingYards",
+                   "RushingTouchdowns", "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks",
+                   "Interceptions", "TeamPoints", "TeamTotalYards")
+NARRATIVE_COUNTS = ("RookieSurgeTopN", "AwardRaceFromWeek", "MaxDigestItems", "DigestsKept", "VoterCount")
+
+
+def validate_narrative(path, payload):
+    """FPSNarrativeTuning (Data/league_narrative.json, Epic 93); mirrors UPSLeagueNarrative::ValidateTuning."""
+    def whole(value):
+        return isinstance(value, int) and not isinstance(value, bool)
+
+    if not whole(payload.get("StreakMin")) or payload.get("StreakMin") < 2:
+        err(path, f"StreakMin: '{payload.get('StreakMin')}' must be a whole number, 2 or more")
+    for field in NARRATIVE_COUNTS:
+        if not whole(payload.get(field)) or payload.get(field) < 1:
+            err(path, f"{field}: '{payload.get(field)}' must be a whole number, 1 or more")
+    if not whole(payload.get("MaxBroadcastStorylines")) or payload.get("MaxBroadcastStorylines") < 0:
+        err(path, f"MaxBroadcastStorylines: '{payload.get('MaxBroadcastStorylines')}' must be a whole number, 0 or more")
+    margin = payload.get("AwardRaceMargin")
+    if not is_number(margin) or not 0 <= margin <= 1:
+        err(path, f"AwardRaceMargin: '{margin}' must be 0 to 1")
+    noise = payload.get("VoterNoise")
+    if not is_number(noise) or not 0 <= noise < 1:
+        err(path, f"VoterNoise: '{noise}' must be 0 or more, under 1")
+    if not is_number(payload.get("MvpWinWeight")) or payload.get("MvpWinWeight") < 0:
+        err(path, f"MvpWinWeight: '{payload.get('MvpWinWeight')}' must be a number, 0 or more")
+    if not whole(payload.get("VotingSeed")):
+        err(path, "VotingSeed must be a whole number")
+    kinds = payload.get("StorylineKinds")
+    if not isinstance(kinds, list):
+        err(path, "'StorylineKinds' must be an array")
+        kinds = []
+    for idx, entry in enumerate(kinds):
+        if not isinstance(entry, dict) or entry.get("Kind") not in STORYLINE_KINDS:
+            err(path, f"StorylineKinds[{idx}].Kind must be one of {list(STORYLINE_KINDS)}")
+        elif not is_number(entry.get("Weight")) or entry.get("Weight") < 0:
+            err(path, f"StorylineKinds[{idx}].Weight: '{entry.get('Weight')}' must be a number, 0 or more")
+    named = [entry.get("Kind") for entry in kinds if isinstance(entry, dict)]
+    for kind in STORYLINE_KINDS:
+        if named.count(kind) != 1:
+            err(path, f"StorylineKinds: '{kind}' must have exactly one entry")
+    for field in ("OffenseScoring", "DefenseScoring"):
+        weights = payload.get(field)
+        if not isinstance(weights, list) or not weights:
+            err(path, f"'{field}' must be a non-empty array")
+            continue
+        for idx, entry in enumerate(weights):
+            if not isinstance(entry, dict) or entry.get("Category") not in STAT_CATEGORIES:
+                err(path, f"{field}[{idx}].Category must be an EPSStatCategory ({list(STAT_CATEGORIES)})")
+            elif not is_number(entry.get("Weight")):
+                err(path, f"{field}[{idx}].Weight must be a number")
+    ballot = payload.get("BallotPoints")
+    if not isinstance(ballot, list) or not ballot or not all(whole(p) and p > 0 for p in ballot):
+        err(path, "BallotPoints must be a non-empty array of whole numbers above 0")
+    elif any(later > earlier for earlier, later in zip(ballot, ballot[1:])):
+        err(path, f"BallotPoints {ballot}: a lower place can't be worth more")
+    if not isinstance(payload.get("DigestInstructions"), str) or not payload.get("DigestInstructions").strip():
+        err(path, "DigestInstructions must be a non-empty string")
+    if not whole(payload.get("DigestContextChars")) or payload.get("DigestContextChars") < 512:
+        err(path, f"DigestContextChars: '{payload.get('DigestContextChars')}' must be a whole number, 512 or more")
+    task = payload.get("DigestTask")
+    try:
+        routes = json.loads(ROUTING_TABLE.read_text(encoding="utf-8")).get("tasks", {})
+    except (OSError, ValueError):
+        routes = None
+    if not isinstance(task, str) or not task:
+        err(path, "DigestTask must name a model-router task")
+    elif routes is not None and task not in routes:
+        err(path, f"DigestTask: '{task}' is not a task in tools/orchestrator/routing.json ({sorted(routes)})")
+    known = {"StreakMin", "AwardRaceMargin", "StorylineKinds", "MaxBroadcastStorylines", "OffenseScoring", "DefenseScoring",
+             "MvpWinWeight", "BallotPoints", "VoterNoise", "VotingSeed", "DigestTask", "DigestInstructions",
+             "DigestContextChars"} | set(NARRATIVE_COUNTS)
+    extra = set(payload) - known
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSNarrativeTuning exactly")
+
+
 TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks")
 
 
@@ -1197,6 +1311,94 @@ def validate_telestrator(path, payload):
     extra = set(payload) - set(TELESTRATOR_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTelestratorTuning exactly")
+
+
+PHOTO_MODE_NUMBERS = ("MoveCmPerSecond", "RiseCmPerSecond", "TurnDegreesPerSecond", "TurnStepDegrees", "MaxPitchDegrees",
+                      "MaxDistanceCm", "MinHeightCm", "MinFieldOfView", "MaxFieldOfView", "ZoomDegreesPerSecond",
+                      "MaxRollDegrees", "RollDegreesPerSecond", "MinFocusCm", "MaxFocusCm", "FocusDoublingsPerSecond",
+                      "DefaultFocusCm", "CaptureResolutionMultiplier")
+PHOTO_MODE_FIELDS = PHOTO_MODE_NUMBERS + ("Apertures", "Filters", "Presets", "MaxCaptureDimension")
+PHOTO_FILTER_FIELDS = ("FilterId", "Saturation", "Contrast", "Tint", "WhiteTemp", "Vignette")
+
+
+def validate_photo_mode(path, payload):
+    """FPSPhotoModeTuning (Data/photo_mode.json, Epic 45); mirrors UPSPhotoModeSubsystem::ValidateTuning."""
+    for field in PHOTO_MODE_NUMBERS:
+        if not is_number(payload.get(field)):
+            err(path, f"{field}: '{payload.get(field)}' must be a number")
+    num = {f: payload[f] for f in PHOTO_MODE_NUMBERS if is_number(payload.get(f))}
+    for field in ("MoveCmPerSecond", "RiseCmPerSecond", "TurnDegreesPerSecond", "MaxPitchDegrees", "MaxDistanceCm",
+                  "ZoomDegreesPerSecond", "MaxRollDegrees", "RollDegreesPerSecond", "FocusDoublingsPerSecond"):
+        if field in num and num[field] <= 0:
+            err(path, f"{field}: must be above 0")
+    if num.get("TurnStepDegrees", 0) < 0:
+        err(path, "TurnStepDegrees: must be 0 or more")
+    if num.get("MaxPitchDegrees", 0) >= 90:
+        err(path, "MaxPitchDegrees: must be below 90")
+    lo, hi = num.get("MinFieldOfView"), num.get("MaxFieldOfView")
+    if lo is not None and hi is not None and not (0 < lo < hi < 180):
+        err(path, "the field of view needs 0 < MinFieldOfView < MaxFieldOfView < 180")
+    lo, hi, start = num.get("MinFocusCm"), num.get("MaxFocusCm"), num.get("DefaultFocusCm")
+    if None not in (lo, hi, start) and not (0 < lo < hi and lo <= start <= hi):
+        err(path, "the focus needs 0 < MinFocusCm < MaxFocusCm, with DefaultFocusCm between them")
+    if num.get("CaptureResolutionMultiplier", 1) < 1:
+        err(path, "CaptureResolutionMultiplier: must be 1 or more")
+    biggest = payload.get("MaxCaptureDimension")
+    if not isinstance(biggest, int) or isinstance(biggest, bool) or biggest < 1:
+        err(path, f"MaxCaptureDimension: '{biggest}' must be a whole number, 1 or more")
+
+    apertures = payload.get("Apertures")
+    if not isinstance(apertures, list) or not apertures or not all(is_number(a) for a in apertures):
+        err(path, "Apertures: must be a non-empty array of f-stops")
+    else:
+        for i, fstop in enumerate(apertures):
+            if fstop < 0 or (i > 0 and fstop <= apertures[i - 1]):
+                err(path, f"Apertures[{i}]: {fstop} must be 0 or more and above the one before")
+
+    filter_ids = set()
+    for i, row in enumerate(payload.get("Filters") or []):
+        where = f"Filters[{i}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        fid = row.get("FilterId")
+        if not isinstance(fid, str) or not fid or fid in filter_ids:
+            err(path, f"{where}: FilterId '{fid}' is empty or listed twice")
+        filter_ids.add(fid)
+        extra = set(row) - set(PHOTO_FILTER_FIELDS)
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSPhotoFilter exactly")
+        for field in ("Saturation", "Contrast"):
+            if field in row and (not is_number(row[field]) or row[field] < 0):
+                err(path, f"{where}.{field}: must be a number, 0 or more")
+        if "WhiteTemp" in row and (not is_number(row["WhiteTemp"]) or row["WhiteTemp"] <= 0):
+            err(path, f"{where}.WhiteTemp: must be a number above 0")
+        if "Vignette" in row and (not is_number(row["Vignette"]) or not 0 <= row["Vignette"] <= 1):
+            err(path, f"{where}.Vignette: must be a number from 0 to 1")
+        if "Tint" in row and not (isinstance(row["Tint"], str) and HEX_COLOR.match(row["Tint"])):
+            err(path, f"{where}.Tint: '{row['Tint']}' must be #RRGGBB")
+
+    presets = payload.get("Presets")
+    if not isinstance(presets, list) or not presets:
+        err(path, "Presets: must be a non-empty array")
+        presets = []
+    preset_ids = set()
+    for i, row in enumerate(presets):
+        where = f"Presets[{i}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        pid = row.get("PresetId")
+        if not isinstance(pid, str) or not pid or pid in preset_ids:
+            err(path, f"{where}: PresetId '{pid}' is empty or listed twice")
+        preset_ids.add(pid)
+        for fid in row.get("Filters") or []:
+            if fid not in filter_ids:
+                err(path, f"{where}: filter '{fid}' isn't in Filters")
+
+    extra = set(payload) - set(PHOTO_MODE_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPhotoModeTuning exactly")
 
 
 def validate_input_buffer(path, payload, catalog):
@@ -3783,6 +3985,406 @@ def validate_morale(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSChemistryUnit exactly")
 
 
+LEAGUE_GENERATOR_FIELDS = {
+    "LeagueName": str, "NumTeams": int, "NumWeeks": int, "ByeWeekNumbers": list, "NumPlayoffTeams": int,
+    "Divisions": list, "PlaceholderTeamName": str, "PlaceholderColors": list, "TeamTalentSpread": (int, float),
+    "TalentPerExperienceYear": (int, float), "MaxExperienceTalent": (int, float), "EntryAgeMin": int,
+    "EntryAgeMax": int, "RoleProfiles": list, "NameCultures": list, "NameBlocklist": list, "MaxNameAttempts": int,
+    "DraftClass": dict,
+}
+ROLE_PROFILE_FIELDS = {"Role": str, "RosterCount": int, "IdCode": str, "Attrition": (int, float), "MaxAge": int,
+                       "Attributes": list}
+ATTRIBUTE_CURVE_FIELDS = {"Attribute": str, "Mean": (int, float), "StdDev": (int, float), "Min": (int, float),
+                          "Max": (int, float), "TalentWeight": (int, float)}
+NAME_CULTURE_FIELDS = {"Culture": str, "Weight": (int, float), "FirstNames": list, "LastNames": list}
+DRAFT_CLASS_FIELDS = {"ProspectsPerTeam": int, "TalentShift": (int, float), "TalentSpread": (int, float)}
+PROGRESSION_FIELDS = {"PeakAgeStart": int, "PeakAgeEnd": int, "GrowthPerYear": (int, float),
+                      "DeclinePerYear": (int, float), "LowSnapShareThreshold": (int, float)}
+
+
+def check_typed(path, where, row, fields, struct):
+    """Every field present with its type, and no unknown names: a generator's tuning has no
+    defaults to fall back on, so a missing field is a mistake. False when row is not an object."""
+    if not isinstance(row, dict):
+        err(path, f"{where}: not an object")
+        return False
+    for field, ftype in fields.items():
+        if field not in row:
+            err(path, f"{where}: missing field '{field}'")
+        elif isinstance(row[field], bool) or not isinstance(row[field], ftype):
+            err(path, f"{where}.{field}: expected {getattr(ftype, '__name__', 'number')}, got {type(row[field]).__name__}")
+    extra = set(row) - set(fields)
+    if extra:
+        err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match {struct} exactly")
+    return True
+
+
+def validate_league_generator(path, payload):
+    """FPSLeagueGeneratorTuning (Data/league_generator.json, Epic 122); mirrors
+    PSLeagueGenerator::ValidateTuning, and also rejects a name listed twice in one pool."""
+    if not check_typed(path, "generator tuning", payload, LEAGUE_GENERATOR_FIELDS, "FPSLeagueGeneratorTuning"):
+        return
+
+    def num(field):
+        value = payload.get(field)
+        return value if is_number(value) else None
+
+    teams, weeks, playoff = num("NumTeams"), num("NumWeeks"), num("NumPlayoffTeams")
+    if teams is not None and teams < 2:
+        err(path, "NumTeams: a league needs 2 or more")
+    if weeks is not None and weeks < 1:
+        err(path, "NumWeeks: 1 or more")
+    byes = payload.get("ByeWeekNumbers") if isinstance(payload.get("ByeWeekNumbers"), list) else []
+    for week in byes:
+        whole = isinstance(week, int) and not isinstance(week, bool)
+        if not whole or (weeks is not None and not 1 <= week <= weeks) or byes.count(week) > 1:
+            err(path, f"ByeWeekNumbers: week {week!r} is outside the season or listed twice")
+    if playoff is not None and teams is not None and not 2 <= playoff <= teams:
+        err(path, f"NumPlayoffTeams: {playoff} must be from 2 to NumTeams ({teams})")
+    divisions = payload.get("Divisions") if isinstance(payload.get("Divisions"), list) else []
+    if not divisions:
+        err(path, "Divisions: a league needs at least one")
+    for division in divisions:
+        if not isinstance(division, str) or not division.strip() or divisions.count(division) > 1:
+            err(path, f"Divisions: {division!r} is empty or listed twice")
+    if isinstance(payload.get("PlaceholderTeamName"), str) and not payload["PlaceholderTeamName"].strip():
+        err(path, "PlaceholderTeamName: empty")
+    for color in payload.get("PlaceholderColors") or []:
+        if not (isinstance(color, str) and HEX_COLOR.match(color)):
+            err(path, f"PlaceholderColors: {color!r} is not #RRGGBB")
+    for field in ("TeamTalentSpread", "TalentPerExperienceYear", "MaxExperienceTalent"):
+        if num(field) is not None and num(field) < 0:
+            err(path, f"{field}: 0 or more")
+    entry_min, entry_max = num("EntryAgeMin"), num("EntryAgeMax")
+    if entry_min is not None and entry_max is not None and (entry_min < 18 or entry_max < entry_min):
+        err(path, "EntryAgeMin, EntryAgeMax: 18 or more, the minimum first")
+    if num("MaxNameAttempts") is not None and num("MaxNameAttempts") < 1:
+        err(path, "MaxNameAttempts: 1 or more")
+
+    attributes = set(content_contracts.RATING_FIELDS) | set(content_contracts.BODY_FIELDS)
+    roles_seen = set()
+    for idx, profile in enumerate(payload.get("RoleProfiles") or []):
+        where = f"RoleProfiles[{idx}]"
+        if not check_typed(path, where, profile, ROLE_PROFILE_FIELDS, "FPSRoleProfile"):
+            continue
+        role = profile.get("Role")
+        where = f"RoleProfiles[{idx}] '{role}'"
+        if role not in PLAYER_ROLES:
+            err(path, f"{where}.Role: not an EPlayerRole")
+        elif role in roles_seen:
+            err(path, f"{where}: listed twice")
+        roles_seen.add(role)
+        if isinstance(profile.get("RosterCount"), int) and profile["RosterCount"] < 1:
+            err(path, f"{where}.RosterCount: 1 or more")
+        code = profile.get("IdCode")
+        if isinstance(code, str) and not (code and code.isascii() and code.isalnum()):
+            err(path, f"{where}.IdCode: '{code}' must be letters and digits")
+        if is_number(profile.get("Attrition")) and not 0 < profile["Attrition"] < 1:
+            err(path, f"{where}.Attrition: above 0, below 1")
+        if isinstance(profile.get("MaxAge"), int) and entry_max is not None and not entry_max <= profile["MaxAge"] <= 50:
+            err(path, f"{where}.MaxAge: from EntryAgeMax to 50")
+        curves = set()
+        for cidx, curve in enumerate(profile.get("Attributes") or []):
+            cwhere = f"{where}.Attributes[{cidx}]"
+            if not check_typed(path, cwhere, curve, ATTRIBUTE_CURVE_FIELDS, "FPSAttributeCurve"):
+                continue
+            name = curve.get("Attribute")
+            cwhere = f"{where}.Attributes '{name}'"
+            if name not in attributes:
+                err(path, f"{cwhere}: not a float field of FPlayerAttributes ({sorted(attributes)})")
+            elif name in curves:
+                err(path, f"{cwhere}: listed twice")
+            curves.add(name)
+            low, mean, high, spread, weight = (curve.get(f) for f in ("Min", "Mean", "Max", "StdDev", "TalentWeight"))
+            if all(is_number(v) for v in (low, mean, high, spread)) and (spread < 0 or not low <= mean <= high):
+                err(path, f"{cwhere}: StdDev 0 or more, and Min <= Mean <= Max")
+            if is_number(low) and is_number(high):
+                if name in content_contracts.BODY_FIELDS and low <= 0:
+                    err(path, f"{cwhere}: a body measure is above 0")
+                if name in content_contracts.RATING_FIELDS and (low < 0 or high > 100):
+                    err(path, f"{cwhere}: a rating runs 0-100")
+            if is_number(weight) and not 0 <= weight <= 1:
+                err(path, f"{cwhere}.TalentWeight: 0 to 1")
+        for name in sorted(attributes - curves):
+            err(path, f"{where}: no curve for {name}")
+    for role in sorted(PLAYER_ROLES - roles_seen):
+        err(path, f"RoleProfiles: no profile for {role}, so rosters would have none")
+
+    cultures = payload.get("NameCultures") or []
+    if not cultures:
+        err(path, "NameCultures: at least one")
+    for idx, culture in enumerate(cultures):
+        where = f"NameCultures[{idx}]"
+        if not check_typed(path, where, culture, NAME_CULTURE_FIELDS, "FPSNameCulture"):
+            continue
+        where = f"NameCultures[{idx}] '{culture.get('Culture')}'"
+        if is_number(culture.get("Weight")) and culture["Weight"] <= 0:
+            err(path, f"{where}.Weight: above 0")
+        for field in ("FirstNames", "LastNames"):
+            names = culture.get(field) if isinstance(culture.get(field), list) else []
+            if not names:
+                err(path, f"{where}.{field}: empty")
+            for name in names:
+                if not isinstance(name, str) or not content_contracts.normalize_name(name):
+                    err(path, f"{where}.{field}: {name!r} has no letters")
+                elif names.count(name) > 1:
+                    err(path, f"{where}.{field}: '{name}' is listed twice")
+    for entry in payload.get("NameBlocklist") or []:
+        if not isinstance(entry, str) or not content_contracts.normalize_name(entry):
+            err(path, f"NameBlocklist: {entry!r} has no letters")
+    draft = payload.get("DraftClass")
+    if check_typed(path, "DraftClass", draft, DRAFT_CLASS_FIELDS, "FPSDraftClassTuning"):
+        if isinstance(draft.get("ProspectsPerTeam"), int) and draft["ProspectsPerTeam"] < 1:
+            err(path, "DraftClass.ProspectsPerTeam: 1 or more")
+        if is_number(draft.get("TalentSpread")) and draft["TalentSpread"] <= 0:
+            err(path, "DraftClass.TalentSpread: above 0")
+
+
+def validate_progression(path, payload):
+    """FPSProgressionTuning (Data/player_progression.json): the age curve players grow and decline
+    along (UPSPlayerProgression), which the league generator walks generated players along."""
+    if not check_typed(path, "progression tuning", payload, PROGRESSION_FIELDS, "FPSProgressionTuning"):
+        return
+    start, end = payload.get("PeakAgeStart"), payload.get("PeakAgeEnd")
+    if isinstance(start, int) and isinstance(end, int) and not 18 <= start <= end <= 50:
+        err(path, "PeakAgeStart, PeakAgeEnd: 18 to 50, the start first")
+    for field in ("GrowthPerYear", "DeclinePerYear"):
+        if is_number(payload.get(field)) and payload[field] < 0:
+            err(path, f"{field}: 0 or more")
+    threshold = payload.get("LowSnapShareThreshold")
+    if is_number(threshold) and not 0 <= threshold <= 1:
+        err(path, "LowSnapShareThreshold: 0 to 1")
+
+
+PLAYBOOK_GENERATOR_FIELDS = {
+    "OffenseFormations": list, "PlayActionDrop": (int, float), "OffensePlaybookSize": int, "DefensePlaybookSize": int,
+    "CategoryEmphasis": (int, float), "Concepts": list, "DefensiveFronts": list, "Coverages": list, "Pressures": list,
+    "SchemeFlavors": list,
+}
+CONCEPT_FIELDS = {"ConceptId": str, "Label": str, "Family": str, "Category": str, "Formations": list, "QBDrop": (int, float),
+                  "BackSpot": dict, "Slots": list, "BacksideRoute": str, "LineKind": str, "Deceptions": list}
+CONCEPT_SLOT_FIELDS = {"Roles": list, "Routes": list}
+FRONT_FIELDS = {"Formation": str, "Front": str, "LineKind": str}
+COVERAGE_FIELDS = {"Shell": str, "Label": str, "Category": str, "MaxBlitzers": int, "Slots": list}
+COVERAGE_SLOT_FIELDS = {"Role": str, "Kind": str, "Zone": dict}
+PRESSURE_FIELDS = {"PressureId": str, "Label": str, "Blitzers": dict}
+FLAVOR_FIELDS = {"SchemeId": str, "ConceptWeights": dict, "ShellWeights": dict, "PressureWeights": dict}
+RECEIVER_ROLES = {"RunningBack", "WideReceiver", "TightEnd"}
+
+
+def load_data(name, key):
+    """Data/<name>'s <key> (None when the file is missing or broken; its own checks report that)."""
+    try:
+        payload = json.loads((DATA_DIR / name).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return payload.get(key) if isinstance(payload, dict) else None
+
+
+def formation_roles(packages, formation, offense):
+    """{role: count} of the personnel package that lists formation on its side, or None."""
+    for package in packages or []:
+        if isinstance(package, dict) and package.get("bOffense") == offense and formation in (package.get("Formations") or []):
+            counts = package.get("RoleCounts") or {}
+            return {role: n for role, n in counts.items() if isinstance(n, int) and n > 0}
+    return None
+
+
+def concept_fits(concept, roles):
+    """Whether every slot of concept finds a receiver in roles (PSPlaybookGenerator::BuildConceptPlays)."""
+    if not roles or roles.get("Quarterback", 0) < 1:
+        return False
+    open_roles = dict(roles)
+    if concept.get("Category") == "Run":
+        if open_roles.get("RunningBack", 0) < 1:
+            return False
+        open_roles["RunningBack"] -= 1
+    for slot in concept.get("Slots") or []:
+        taken = next((r for r in (slot.get("Roles") or []) if r in RECEIVER_ROLES and open_roles.get(r, 0) > 0), None)
+        if taken is None or not slot.get("Routes"):
+            return False
+        open_roles[taken] -= 1
+    return True
+
+
+def validate_playbook_generator(path, payload):
+    """FPSPlaybookGeneratorTuning (Data/playbook_generator.json, Epic 121); mirrors
+    PSPlaybookGenerator::ValidateTuning, plus what only other files know: each coverage's shell in
+    coverage_matchups.json, each front in run_fits.json, each flavor's scheme in
+    coaching_staffs.json with weights for its side."""
+    if not check_typed(path, "playbook generator", payload, PLAYBOOK_GENERATOR_FIELDS, "FPSPlaybookGeneratorTuning"):
+        return
+    packages = load_data("personnel_packages.json", "Packages")
+    route_ids = load_route_ids()
+    shells_known = {s.get("Shell") for s in (load_data("coverage_matchups.json", "Shells") or []) if isinstance(s, dict)}
+    fronts_known = {f.get("Front") for f in (load_data("run_fits.json", "Fronts") or []) if isinstance(f, dict)}
+    schemes = {s.get("SchemeId"): s for s in (load_data("coaching_staffs.json", "Schemes") or []) if isinstance(s, dict)}
+
+    def check_route(where, route):
+        if route_ids is not None and route not in route_ids:
+            err(path, f"{where}: route '{route}' is not in sample_routes.json")
+
+    def is_id(value):
+        return isinstance(value, str) and value.isascii() and value.isalnum()
+
+    formations = payload.get("OffenseFormations") or []
+    if not formations:
+        err(path, "OffenseFormations: at least one")
+    for formation in formations:
+        if packages is not None and formation_roles(packages, formation, True) is None:
+            err(path, f"OffenseFormations: '{formation}' is in no offensive personnel package")
+    for field in ("OffensePlaybookSize", "DefensePlaybookSize"):
+        if isinstance(payload.get(field), int) and payload[field] < 1:
+            err(path, f"{field}: 1 or more")
+    if is_number(payload.get("CategoryEmphasis")) and payload["CategoryEmphasis"] < 0:
+        err(path, "CategoryEmphasis: 0 or more")
+    if is_number(payload.get("PlayActionDrop")) and payload["PlayActionDrop"] >= 0:
+        err(path, "PlayActionDrop: behind the line (below 0)")
+
+    concept_ids = set()
+    for idx, concept in enumerate(payload.get("Concepts") or []):
+        where = f"Concepts[{idx}]"
+        if not check_typed(path, where, concept, CONCEPT_FIELDS, "FPSPlayConcept"):
+            continue
+        cid = concept.get("ConceptId")
+        where = f"Concepts[{idx}] '{cid}'"
+        if not is_id(cid) or cid in concept_ids:
+            err(path, f"{where}.ConceptId: empty, not letters and digits, or used twice")
+        concept_ids.add(cid)
+        if not str(concept.get("Label", "")).strip():
+            err(path, f"{where}.Label: empty")
+        category = concept.get("Category")
+        if category not in ("Run", "ShortPass", "DeepPass", "Screen"):
+            err(path, f"{where}.Category: '{category}' is not Run, ShortPass, DeepPass or Screen")
+        if is_number(concept.get("QBDrop")) and concept["QBDrop"] >= 0:
+            err(path, f"{where}.QBDrop: behind the line (below 0)")
+        content_contracts.check_vector(path, f"{where}.BackSpot", concept.get("BackSpot"), err)
+        if concept.get("LineKind") not in ("PassBlock", "RunBlock"):
+            err(path, f"{where}.LineKind: PassBlock or RunBlock")
+        for formation in concept.get("Formations") or []:
+            if formation not in formations:
+                err(path, f"{where}.Formations: '{formation}' is not in OffenseFormations")
+        variants = 1
+        for sidx, slot in enumerate(concept.get("Slots") or []):
+            swhere = f"{where}.Slots[{sidx}]"
+            if not check_typed(path, swhere, slot, CONCEPT_SLOT_FIELDS, "FPSConceptSlot"):
+                continue
+            if not slot.get("Roles") or not slot.get("Routes"):
+                err(path, f"{swhere}: needs Roles and Routes")
+            for role in slot.get("Roles") or []:
+                if role not in RECEIVER_ROLES:
+                    err(path, f"{swhere}: {role} is not a receiver")
+            for route in slot.get("Routes") or []:
+                check_route(swhere, route)
+            variants *= max(1, len(slot.get("Routes") or []))
+        if variants > 64:
+            err(path, f"{where}: {variants} route variants; at most 64")
+        if concept.get("BacksideRoute"):
+            check_route(f"{where}.BacksideRoute", concept["BacksideRoute"])
+        for deception in concept.get("Deceptions") or []:
+            fits = (deception == "None" or (deception == "PlayAction" and category in ("ShortPass", "DeepPass"))
+                    or (deception in ("ZoneRead", "RPO") and category == "Run"))
+            if not fits:
+                err(path, f"{where}.Deceptions: {deception} doesn't go with a {category} concept (play-action on a pass, ZoneRead or RPO on a run)")
+            if deception == "RPO" and not concept.get("BacksideRoute"):
+                err(path, f"{where}: an RPO needs a BacksideRoute for its pass option")
+        if packages is not None:
+            usable = [f for f in formations if not concept.get("Formations") or f in concept["Formations"]]
+            if not any(concept_fits(concept, formation_roles(packages, f, True)) for f in usable):
+                err(path, f"{where}: its slots fit none of its formations")
+
+    for idx, front in enumerate(payload.get("DefensiveFronts") or []):
+        where = f"DefensiveFronts[{idx}]"
+        if not check_typed(path, where, front, FRONT_FIELDS, "FPSDefensiveFrontDef"):
+            continue
+        where = f"DefensiveFronts[{idx}] '{front.get('Formation')}'"
+        if packages is not None and formation_roles(packages, front.get("Formation"), False) is None:
+            err(path, f"{where}: in no defensive personnel package")
+        if fronts_known and front.get("Front") not in fronts_known:
+            err(path, f"{where}.Front: '{front.get('Front')}' has no run fits in run_fits.json ({sorted(fronts_known)})")
+        if front.get("LineKind") not in ("PassRush", "RunFit"):
+            err(path, f"{where}.LineKind: PassRush or RunFit")
+
+    shells = set()
+    for idx, coverage in enumerate(payload.get("Coverages") or []):
+        where = f"Coverages[{idx}]"
+        if not check_typed(path, where, coverage, COVERAGE_FIELDS, "FPSCoverageTemplate"):
+            continue
+        shell = coverage.get("Shell")
+        where = f"Coverages[{idx}] '{shell}'"
+        if not is_id(shell) or shell in shells:
+            err(path, f"{where}.Shell: empty, not letters and digits, or used twice")
+        shells.add(shell)
+        if shells_known and shell not in shells_known:
+            err(path, f"{where}.Shell: has no rules in coverage_matchups.json ({sorted(shells_known)})")
+        if coverage.get("Category") not in ("Base", "Prevent"):
+            err(path, f"{where}.Category: Base or Prevent")
+        if not str(coverage.get("Label", "")).strip() or (isinstance(coverage.get("MaxBlitzers"), int) and coverage["MaxBlitzers"] < 0):
+            err(path, f"{where}: needs a Label, and MaxBlitzers 0 or more")
+        jobs = [j for j in (coverage.get("Slots") or []) if isinstance(j, dict)]
+        for role in ("Linebacker", "DefensiveBack"):
+            if not any(j.get("Role") == role for j in jobs):
+                err(path, f"{where}: no job for a {role}")
+        for jidx, job in enumerate(coverage.get("Slots") or []):
+            jwhere = f"{where}.Slots[{jidx}]"
+            if not check_typed(path, jwhere, job, COVERAGE_SLOT_FIELDS, "FPSCoverageSlotDef"):
+                continue
+            if job.get("Role") not in content_contracts.DEFENSE_ROLES or job.get("Kind") not in ("ZoneCoverage", "ManCoverage"):
+                err(path, f"{jwhere}: a defender's ZoneCoverage or ManCoverage")
+            content_contracts.check_vector(path, f"{jwhere}.Zone", job.get("Zone"), err)
+
+    pressure_ids = set()
+    any_base = False
+    for idx, pressure in enumerate(payload.get("Pressures") or []):
+        where = f"Pressures[{idx}]"
+        if not check_typed(path, where, pressure, PRESSURE_FIELDS, "FPSPressureDef"):
+            continue
+        pid = pressure.get("PressureId")
+        where = f"Pressures[{idx}] '{pid}'"
+        if not is_id(pid) or pid in pressure_ids:
+            err(path, f"{where}.PressureId: empty, not letters and digits, or used twice")
+        pressure_ids.add(pid)
+        blitzers = pressure.get("Blitzers") or {}
+        for role, count in blitzers.items():
+            if role not in content_contracts.DEFENSE_ROLES or not isinstance(count, int) or isinstance(count, bool) or count < 0:
+                err(path, f"{where}.Blitzers: '{role}' is not a defensive role, or its count isn't a whole number from 0")
+        any_base |= not any(isinstance(n, int) and n > 0 for n in blitzers.values())
+    if not any_base:
+        err(path, "Pressures: one must send nobody, so coverages have a base call")
+
+    flavors = set()
+    for idx, flavor in enumerate(payload.get("SchemeFlavors") or []):
+        where = f"SchemeFlavors[{idx}]"
+        if not check_typed(path, where, flavor, FLAVOR_FIELDS, "FPSSchemeFlavor"):
+            continue
+        sid = flavor.get("SchemeId")
+        where = f"SchemeFlavors[{idx}] '{sid}'"
+        if not sid or sid in flavors:
+            err(path, f"{where}.SchemeId: empty or used twice")
+        flavors.add(sid)
+        scheme = schemes.get(sid)
+        if schemes and scheme is None:
+            err(path, f"{where}.SchemeId: no such scheme in coaching_staffs.json ({sorted(schemes)})")
+        for field, known in (("ConceptWeights", concept_ids), ("ShellWeights", shells), ("PressureWeights", pressure_ids)):
+            weights = flavor.get(field) or {}
+            for key, weight in weights.items():
+                if key not in known or not is_number(weight) or weight < 0:
+                    err(path, f"{where}.{field}: '{key}' is not one of the tuning's, or its weight is below 0")
+            if scheme is not None and weights and (field == "ConceptWeights") != bool(scheme.get("bOffense")):
+                err(path, f"{where}.{field}: {sid} is a{'n offensive' if scheme.get('bOffense') else ' defensive'} scheme; it weighs the other side")
+
+
+def load_name_forms():
+    """The blocked forms of Data/league_generator.json's NameBlocklist (empty when the file is
+    missing or broken; its own checks report that)."""
+    try:
+        tuning = json.loads((DATA_DIR / "league_generator.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return set()
+    blocklist = tuning.get("NameBlocklist") if isinstance(tuning, dict) else None
+    return content_contracts.blocked_name_forms(blocklist if isinstance(blocklist, list) else [])
+
+
 PERF_HARNESS_POSITIVE = ("FrameSeconds", "HistogramBucketMs", "HardFailMultiplier")
 PERF_HARNESS_NON_NEGATIVE = ("RegressionTolerance", "MinRegressionMs")
 PERF_HARNESS_COUNTS = {"WarmupFrames": 0, "PassFrames": 1, "PursuitFrames": 1, "PreSnapFrames": 0,
@@ -3809,6 +4411,402 @@ def validate_perf_harness(path, payload):
     extra = set(payload) - set(PERF_HARNESS_POSITIVE) - set(PERF_HARNESS_NON_NEGATIVE) - set(PERF_HARNESS_COUNTS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPerfHarnessTuning exactly")
+
+
+TRAINING_NUMBER_FIELDS = {
+    "DevelopIntensity", "GameplanIntensity", "DevelopPointsPerWeek", "DevelopHeadroom", "MinCoachDevelopment",
+    "MaxCoachDevelopment", "FundingFloor", "MaxFundingMultiplier", "GameplanBonusPerShare", "MaxGameplanBonus",
+    "MaxRelevance", "UnscoutedRelevance", "GameFatigue", "PracticeFatigue", "WeeklyRecovery", "RestRecovery",
+    "StaminaFatigueRelief", "FatiguePerformanceSwing", "AIRestFreshness", "AIRestShift", "AILateSeasonProgress",
+    "AILateGameplanShift",
+}
+TRAINING_INT_FIELDS = {"MaxFocusAreas", "RandomSeed", "AIFocusAreas"}
+TRAINING_FRACTIONS = {
+    "FundingFloor", "GameFatigue", "PracticeFatigue", "WeeklyRecovery", "RestRecovery", "StaminaFatigueRelief",
+    "AIRestFreshness", "AIRestShift", "AILateSeasonProgress", "AILateGameplanShift",
+}
+TRAINING_OBJECT_FIELDS = {"DefaultAllocation", "DevelopRatings", "FocusAreas", "PracticeInjury"}
+TRAINING_ALLOCATION_FIELDS = ("Develop", "Gameplan", "Rest")
+RATING_WEIGHT_FIELDS = ("Speed", "Agility", "Strength", "Acceleration", "Awareness")
+TRAINING_FOCUS_FIELDS = {"FocusId", "Label", "bVersusOffense", "Categories", "Roles", "Ratings"}
+INJURY_TUNING_FIELDS = {"BaseInjuryChance", "MaxFatigueMultiplier", "MinRecoveryWeeks", "MaxRecoveryWeeks"}
+
+
+def load_opponent_model_tracked():
+    """The play categories Data/opponent_model.json tracks, by the human's side (True = offense),
+    or None when it is missing or broken (its own checks report that)."""
+    try:
+        tuning = json.loads((DATA_DIR / "opponent_model.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(tuning, dict) or not isinstance(tuning.get("Counters"), list):
+        return None
+    tracked = {True: set(), False: set()}
+    for counter in tuning["Counters"]:
+        if isinstance(counter, dict) and isinstance(counter.get("bOffense"), bool):
+            tracked[counter["bOffense"]].add(counter.get("Observed"))
+    return tracked
+
+
+def validate_rating_weights(path, where, weights, need_some):
+    """An FPSRatingWeights object: each skill rating's weight, 0 or more."""
+    if not isinstance(weights, dict):
+        err(path, f"{where}: must be an object of {', '.join(RATING_WEIGHT_FIELDS)}")
+        return
+    for field in RATING_WEIGHT_FIELDS:
+        if field in weights and (not is_number(weights[field]) or weights[field] < 0):
+            err(path, f"{where}.{field}: '{weights[field]}' must be a number, 0 or more")
+    extra = set(weights) - set(RATING_WEIGHT_FIELDS)
+    if extra:
+        err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSRatingWeights exactly")
+    if need_some and not any(is_number(weights.get(field)) and weights[field] > 0 for field in RATING_WEIGHT_FIELDS):
+        err(path, f"{where}: needs a rating weighted above 0")
+
+
+def validate_training(path, payload, tracked):
+    """FPSTrainingTuning (Data/training.json, Epic 90); mirrors UPSWeeklyPreparation::ValidateTuning,
+    each focus area's categories ones Data/opponent_model.json tracks on its side."""
+    for field in sorted(TRAINING_NUMBER_FIELDS):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+        elif field in TRAINING_FRACTIONS and value > 1:
+            err(path, f"{field}: a fraction, at most 1")
+    for field in sorted(TRAINING_INT_FIELDS):
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int):
+            err(path, f"{field}: '{value}' must be a whole number")
+        elif field != "RandomSeed" and value < 0:
+            err(path, f"{field}: '{value}' must be 0 or more")
+    extra = set(payload) - TRAINING_NUMBER_FIELDS - TRAINING_INT_FIELDS - TRAINING_OBJECT_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTrainingTuning exactly")
+
+    def num(field):
+        value = payload.get(field)
+        return value if is_number(value) else None
+
+    if num("DevelopHeadroom") is not None and not 0 < num("DevelopHeadroom") <= 100:
+        err(path, "DevelopHeadroom: must be above 0 and at most 100")
+    if None not in (num("MinCoachDevelopment"), num("MaxCoachDevelopment")) and num("MaxCoachDevelopment") < num("MinCoachDevelopment"):
+        err(path, "MaxCoachDevelopment must not be below MinCoachDevelopment")
+    if num("MaxFundingMultiplier") is not None and num("MaxFundingMultiplier") < 1:
+        err(path, "MaxFundingMultiplier: must be at least 1")
+    for field in ("MaxGameplanBonus", "FatiguePerformanceSwing"):
+        if num(field) is not None and num(field) >= 1:
+            err(path, f"{field}: must be below 1")
+    if None not in (num("UnscoutedRelevance"), num("MaxRelevance")) and num("UnscoutedRelevance") > num("MaxRelevance"):
+        err(path, "UnscoutedRelevance must not exceed MaxRelevance")
+    focus_max, ai_focus = payload.get("MaxFocusAreas"), payload.get("AIFocusAreas")
+    if isinstance(focus_max, int) and focus_max < 1:
+        err(path, "MaxFocusAreas: must be at least 1")
+    if isinstance(focus_max, int) and isinstance(ai_focus, int) and ai_focus > focus_max:
+        err(path, "AIFocusAreas must not exceed MaxFocusAreas")
+
+    allocation = payload.get("DefaultAllocation")
+    if not isinstance(allocation, dict):
+        err(path, "'DefaultAllocation' must be an object of Develop, Gameplan, Rest")
+    else:
+        shares = [allocation.get(field) for field in TRAINING_ALLOCATION_FIELDS]
+        if any(not is_number(share) or share < 0 for share in shares) or sum(s for s in shares if is_number(s)) <= 0:
+            err(path, "DefaultAllocation: Develop, Gameplan and Rest must be numbers, 0 or more, and not all 0")
+        if set(allocation) - set(TRAINING_ALLOCATION_FIELDS):
+            err(path, f"DefaultAllocation: unknown field(s) {sorted(set(allocation) - set(TRAINING_ALLOCATION_FIELDS))}")
+    validate_rating_weights(path, "DevelopRatings", payload.get("DevelopRatings"), False)
+
+    injury = payload.get("PracticeInjury")
+    if not isinstance(injury, dict):
+        err(path, "'PracticeInjury' must be an FPSInjuryTuning object")
+    else:
+        chance, multiplier = injury.get("BaseInjuryChance"), injury.get("MaxFatigueMultiplier")
+        low, high = injury.get("MinRecoveryWeeks"), injury.get("MaxRecoveryWeeks")
+        if not is_number(chance) or not 0 <= chance <= 1:
+            err(path, f"PracticeInjury.BaseInjuryChance: '{chance}' must be a number from 0 to 1")
+        if not is_number(multiplier) or multiplier < 1:
+            err(path, f"PracticeInjury.MaxFatigueMultiplier: '{multiplier}' must be a number, 1 or more")
+        if (isinstance(low, bool) or not isinstance(low, int) or low < 1 or isinstance(high, bool)
+                or not isinstance(high, int) or high < low):
+            err(path, "PracticeInjury: MinRecoveryWeeks a whole number, 1 or more, and MaxRecoveryWeeks not below it")
+        if set(injury) - INJURY_TUNING_FIELDS:
+            err(path, f"PracticeInjury: unknown field(s) {sorted(set(injury) - INJURY_TUNING_FIELDS)}")
+
+    areas = payload.get("FocusAreas")
+    if not isinstance(areas, list):
+        err(path, "'FocusAreas' must be an array")
+        return
+    seen = set()
+    for idx, focus in enumerate(areas):
+        where = f"FocusAreas[{idx}]"
+        if not isinstance(focus, dict):
+            err(path, f"{where}: not an object")
+            continue
+        focus_id = focus.get("FocusId")
+        if not isinstance(focus_id, str) or not focus_id or focus_id in seen:
+            err(path, f"{where}.FocusId: empty or duplicate '{focus_id}'")
+        seen.add(focus_id)
+        if not isinstance(focus.get("Label", ""), str):
+            err(path, f"{where}.Label: must be a string")
+        versus_offense = focus.get("bVersusOffense")
+        if not isinstance(versus_offense, bool):
+            err(path, f"{where}.bVersusOffense: must be true or false")
+        categories = focus.get("Categories")
+        if not isinstance(categories, list) or not categories or len(set(map(str, categories))) != len(categories):
+            err(path, f"{where}.Categories: a non-empty array of distinct play categories")
+        elif isinstance(versus_offense, bool):
+            side = WEIGHTED_OFFENSE_CATEGORIES if versus_offense else WEIGHTED_DEFENSE_CATEGORIES
+            for category in categories:
+                if category not in side:
+                    err(path, f"{where}.Categories: '{category}' must be one of {sorted(side)}")
+                elif tracked is not None and category not in tracked[versus_offense]:
+                    err(path, f"{where}.Categories: opponent_model.json doesn't track '{category}' on that side")
+        roles = focus.get("Roles")
+        if not isinstance(roles, list) or not roles or any(role not in PLAYER_ROLES for role in roles):
+            err(path, f"{where}.Roles: a non-empty array of EPlayerRole values")
+        validate_rating_weights(path, f"{where}.Ratings", focus.get("Ratings"), True)
+        if set(focus) - TRAINING_FOCUS_FIELDS:
+            err(path, f"{where}: unknown field(s) {sorted(set(focus) - TRAINING_FOCUS_FIELDS)} - names must match FPSGameplanFocusDef exactly")
+
+
+PLAY_ART_NUMBERS = {
+    "RibbonWidth": "above 0", "PrimaryWidthScale": "above 0", "GroundOffset": "0 or more",
+    "RingRadius": "above 0", "BreakMarkerRadius": "0 or more", "SnapFadeSeconds": "0 or more",
+    "EmphasisScale": "above 0", "ZoneStarRadius": "above 0", "ManLineWidth": "above 0", "RushArrowWidth": "above 0",
+    "RushArrowDepth": "0 or more",
+}
+PLAY_ART_COLORS = ("UnrankedColor", "ZoneStarColor", "ManLineColor", "BlitzArrowColor", "RushArrowColor")
+PLAY_ART_FIELDS = set(PLAY_ART_NUMBERS) | set(PLAY_ART_COLORS) | {
+    "ReadColors", "BranchOpacity", "NoRouteArtCategories", "NoDefenseArtCategories", "bDrawDebug"}
+
+
+def validate_play_art(path, payload):
+    """FPSPlayArtStyle (Data/play_art.json, Epics 27 and 31); mirrors PSPlayArt::ValidateStyle,
+    plus each no-art category one of its side's play categories."""
+    for field, rule in PLAY_ART_NUMBERS.items():
+        value = payload.get(field)
+        bad = not is_number(value) or (value <= 0 if rule == "above 0" else value < 0)
+        if bad:
+            err(path, f"{field}: '{value}' must be a number {rule}")
+    colors = payload.get("ReadColors")
+    if not isinstance(colors, list) or not colors:
+        err(path, "ReadColors: needs a color for the primary read at least")
+    else:
+        for idx, value in enumerate(colors):
+            if not isinstance(value, str) or not HEX_COLOR.match(value):
+                err(path, f"ReadColors[{idx}]: '{value}' must be #RRGGBB")
+    for field in PLAY_ART_COLORS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not HEX_COLOR.match(value):
+            err(path, f"{field}: '{value}' must be #RRGGBB")
+    opacity = payload.get("BranchOpacity")
+    if not is_number(opacity) or not 0 <= opacity <= 1:
+        err(path, f"BranchOpacity: '{opacity}' must be a number from 0 to 1")
+    for field, side, known in (("NoRouteArtCategories", "an offensive", content_contracts.OFFENSE_CATEGORIES),
+                               ("NoDefenseArtCategories", "a defensive", content_contracts.DEFENSE_CATEGORIES)):
+        categories = payload.get(field)
+        if not isinstance(categories, list):
+            err(path, f"{field}: must be an array of play categories")
+            continue
+        for idx, category in enumerate(categories):
+            if category not in known:
+                err(path, f"{field}[{idx}]: '{category}' is not {side} play category")
+    if not isinstance(payload.get("bDrawDebug"), bool):
+        err(path, "bDrawDebug: must be true or false")
+    extra = set(payload) - PLAY_ART_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPlayArtStyle exactly")
+
+
+DRAFT_POSITIVE = ("PublicUncertainty", "ReportNoise", "ReportCost", "RangeSigmas", "RookieScaleExponent")
+DRAFT_NON_NEGATIVE = ("BoomBustSwing", "MisleadSwing", "PointsPerSeason", "NeedWeight", "MaxFundingMultiplier")
+DRAFT_FRACTIONS = ("CombineCertainty", "ProDayShare", "BoomBustChance", "MisleadChance", "FundingFloor",
+                   "FirstPickGuarantee", "LastPickGuarantee")
+DRAFT_COUNTS = {"NumRounds": 1, "AIScoutTargets": 1, "RookieYears": 1, "FirstPickSalary": 0}
+DRAFT_DRILL_FIELDS = {"DrillId", "Label", "Attribute", "Base", "PerPoint", "Noise"}
+DRAFT_DRILL_RATINGS = {"Speed", "Agility", "Strength", "Acceleration", "Awareness", "Stamina"}
+
+
+def load_contract_max_years():
+    """contracts.json's MaxContractYears, or None when it is missing or broken (its own checks
+    report that)."""
+    try:
+        tuning = json.loads((DATA_DIR / "contracts.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    years = tuning.get("MaxContractYears") if isinstance(tuning, dict) else None
+    return years if isinstance(years, int) and not isinstance(years, bool) else None
+
+
+def validate_draft(path, payload, max_contract_years):
+    """FPSDraftTuning (Data/draft.json, Epic 86); mirrors UPSDraft::ValidateTuning, and holds the
+    rookie deal to contracts.json's MaxContractYears."""
+    for field in DRAFT_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in DRAFT_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in DRAFT_FRACTIONS:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    if payload.get("CombineCertainty") == 0:
+        err(path, "CombineCertainty: must be above 0")
+    if is_number(payload.get("MaxFundingMultiplier")) and payload["MaxFundingMultiplier"] < 1:
+        err(path, "MaxFundingMultiplier: must be at least 1")
+    for field, floor in DRAFT_COUNTS.items():
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < floor:
+            err(path, f"{field}: '{value}' must be a whole number, {floor} or more")
+    years = payload.get("RookieYears")
+    if isinstance(years, int) and max_contract_years is not None and years > max_contract_years:
+        err(path, f"RookieYears: {years} is longer than contracts.json's MaxContractYears ({max_contract_years})")
+    known = set(DRAFT_POSITIVE) | set(DRAFT_NON_NEGATIVE) | set(DRAFT_FRACTIONS) | set(DRAFT_COUNTS) | {"CombineDrills"}
+    if set(payload) - known:
+        err(path, f"unknown field(s) {sorted(set(payload) - known)} - names must match FPSDraftTuning exactly")
+
+    drills = payload.get("CombineDrills")
+    if not isinstance(drills, list):
+        err(path, "'CombineDrills' must be an array")
+        return
+    seen = set()
+    for idx, drill in enumerate(drills):
+        where = f"CombineDrills[{idx}]"
+        if not isinstance(drill, dict):
+            err(path, f"{where}: not an object")
+            continue
+        drill_id = drill.get("DrillId")
+        if not isinstance(drill_id, str) or not drill_id or drill_id in seen:
+            err(path, f"{where}.DrillId: empty or duplicate '{drill_id}'")
+        seen.add(drill_id)
+        if drill.get("Attribute") not in DRAFT_DRILL_RATINGS:
+            err(path, f"{where}.Attribute: '{drill.get('Attribute')}' must be one of {sorted(DRAFT_DRILL_RATINGS)}")
+        for field in ("Base", "PerPoint", "Noise"):
+            if not is_number(drill.get(field)):
+                err(path, f"{where}.{field}: must be a number")
+        if is_number(drill.get("PerPoint")) and drill["PerPoint"] == 0:
+            err(path, f"{where}.PerPoint: must not be 0 (the drill would read nothing)")
+        if is_number(drill.get("Noise")) and drill["Noise"] < 0:
+            err(path, f"{where}.Noise: must be 0 or more")
+        if not isinstance(drill.get("Label", ""), str):
+            err(path, f"{where}.Label: must be a string")
+        if set(drill) - DRAFT_DRILL_FIELDS:
+            err(path, f"{where}: unknown field(s) {sorted(set(drill) - DRAFT_DRILL_FIELDS)} - names must match FPSCombineDrill exactly")
+
+
+PLAYER_STAT_CATEGORIES = {
+    "PassingYards", "PassingTouchdowns", "Completions", "InterceptionsThrown", "RushingYards", "RushingTouchdowns",
+    "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks", "Interceptions",
+}
+HALL_OF_FAME_INT_FIELDS = ("WaitSeasons", "MinSeasons", "MaxInducteesPerSeason")
+
+
+AGING_CURVE_FIELDS = {"PeakAgeStart", "PeakAgeEnd", "GrowthPerYear", "DeclinePerYear", "LowSnapShareThreshold"}
+RETIREMENT_FRACTIONS = ("BaseChance", "ChancePerYear", "LowRatingChance", "InjuredChance", "LowMorale", "LowMoraleChance",
+                        "MaxRetirementShare")
+RETIREMENT_INTS = ("MinAge", "ForcedAge", "RandomSeed")
+
+
+def validate_legacy_aging(path, payload):
+    """FPSLegacyTuning's RoleCurves (each an FPSProgressionTuning) and Retirement (Epic 94)."""
+    curves = payload.get("RoleCurves")
+    if not isinstance(curves, list):
+        err(path, "'RoleCurves' must be an array of { Role, Curve }")
+        curves = []
+    seen = set()
+    for idx, entry in enumerate(curves):
+        where = f"RoleCurves[{idx}]"
+        if not isinstance(entry, dict) or not isinstance(entry.get("Curve"), dict):
+            err(path, f"{where}: must be an object with a Role and a Curve object")
+            continue
+        role = entry.get("Role")
+        if role not in PLAYER_ROLES or role in seen:
+            err(path, f"{where}.Role: '{role}' must be an EPlayerRole, listed once")
+        seen.add(role)
+        curve = entry["Curve"]
+        start, end = curve.get("PeakAgeStart"), curve.get("PeakAgeEnd")
+        if not isinstance(start, int) or not isinstance(end, int) or isinstance(start, bool) or isinstance(end, bool) or start > end:
+            err(path, f"{where}.Curve: PeakAgeStart and PeakAgeEnd must be whole numbers, the start no later than the end")
+        for field in ("GrowthPerYear", "DeclinePerYear"):
+            if not is_number(curve.get(field)) or curve[field] < 0:
+                err(path, f"{where}.Curve.{field}: must be a number, 0 or more")
+        threshold = curve.get("LowSnapShareThreshold")
+        if not is_number(threshold) or not 0 <= threshold <= 1:
+            err(path, f"{where}.Curve.LowSnapShareThreshold: must be a number from 0 to 1")
+        if set(curve) - AGING_CURVE_FIELDS or set(entry) - {"Role", "Curve"}:
+            err(path, f"{where}: unknown field(s) - names must match FPSRoleAgingCurve and FPSProgressionTuning exactly")
+
+    rules = payload.get("Retirement")
+    if not isinstance(rules, dict):
+        err(path, "'Retirement' must be an FPSRetirementTuning object")
+        return
+    for field in RETIREMENT_FRACTIONS:
+        value = rules.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"Retirement.{field}: '{value}' must be a number from 0 to 1")
+    for field in RETIREMENT_INTS:
+        value = rules.get(field)
+        if isinstance(value, bool) or not isinstance(value, int):
+            err(path, f"Retirement.{field}: '{value}' must be a whole number")
+    if isinstance(rules.get("MinAge"), int) and isinstance(rules.get("ForcedAge"), int) and not 0 <= rules["MinAge"] < rules["ForcedAge"]:
+        err(path, "Retirement: MinAge must be 0 or more and ForcedAge above it")
+    rating = rules.get("LowRating")
+    if not is_number(rating) or not 0 <= rating <= 100:
+        err(path, f"Retirement.LowRating: '{rating}' must be a 0-100 rating")
+    known = set(RETIREMENT_FRACTIONS) | set(RETIREMENT_INTS) | {"LowRating"}
+    if set(rules) - known:
+        err(path, f"Retirement: unknown field(s) {sorted(set(rules) - known)} - names must match FPSRetirementTuning exactly")
+
+
+def validate_legacy(path, payload):
+    """FPSLegacyTuning (Data/legacy.json, Epic 94); mirrors UPSLeagueHistory::ValidateTuning."""
+    extra = set(payload) - {"HallOfFame", "LeaderCategories", "RoleCurves", "Retirement"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSLegacyTuning exactly")
+    validate_legacy_aging(path, payload)
+    hall = payload.get("HallOfFame")
+    if not isinstance(hall, dict):
+        err(path, "'HallOfFame' must be an FPSHallOfFameTuning object")
+    else:
+        for field in HALL_OF_FAME_INT_FIELDS:
+            value = hall.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                err(path, f"HallOfFame.{field}: '{value}' must be a whole number, 0 or more")
+        if hall.get("MaxInducteesPerSeason") == 0:
+            err(path, "HallOfFame.MaxInducteesPerSeason: must be at least 1")
+        score = hall.get("InductionScore")
+        if not is_number(score) or score <= 0:
+            err(path, f"HallOfFame.InductionScore: '{score}' must be a number above 0")
+        thresholds = hall.get("Thresholds")
+        if not isinstance(thresholds, list) or not thresholds:
+            err(path, "HallOfFame.Thresholds: a non-empty array, or nobody is ever voted in")
+            thresholds = []
+        seen = set()
+        for idx, threshold in enumerate(thresholds):
+            where = f"HallOfFame.Thresholds[{idx}]"
+            if not isinstance(threshold, dict):
+                err(path, f"{where}: not an object")
+                continue
+            category = threshold.get("Category")
+            if category not in PLAYER_STAT_CATEGORIES or category in seen:
+                err(path, f"{where}.Category: '{category}' must be a player EPSStatCategory, listed once")
+            seen.add(category)
+            value = threshold.get("CareerValue")
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                err(path, f"{where}.CareerValue: '{value}' must be a whole number, 1 or more")
+            if set(threshold) - {"Category", "CareerValue"}:
+                err(path, f"{where}: unknown field(s) {sorted(set(threshold) - {'Category', 'CareerValue'})}")
+        known = set(HALL_OF_FAME_INT_FIELDS) | {"InductionScore", "Thresholds"}
+        if set(hall) - known:
+            err(path, f"HallOfFame: unknown field(s) {sorted(set(hall) - known)} - names must match FPSHallOfFameTuning exactly")
+    leaders = payload.get("LeaderCategories")
+    if not isinstance(leaders, list):
+        err(path, "'LeaderCategories' must be an array of player EPSStatCategory names")
+    else:
+        for idx, category in enumerate(leaders):
+            if category not in PLAYER_STAT_CATEGORIES or category in leaders[:idx]:
+                err(path, f"LeaderCategories[{idx}]: '{category}' must be a player EPSStatCategory, listed once")
 
 
 def load_input_catalog():
@@ -3909,11 +4907,15 @@ def validate_difficulty(path, payload):
             err(path, f"{field}: '{payload.get(field)}' must be a Toggle setting in ui_settings.json")
 
 
-def main():
-    if not DATA_DIR.is_dir():
-        print("validate_data: no Data/ directory - nothing to check")
+def main(root=None):
+    """Checks root's Data/ (the repo's by default) and returns the exit code."""
+    repo = Path(root).resolve() if root else REPO
+    data_dir = repo / "Data"
+    if not data_dir.is_dir():
+        print(f"validate_data: no Data/ directory under {repo} - nothing to check")
         return 0
-    files = sorted(DATA_DIR.rglob("*.json"))
+    files = sorted(data_dir.rglob("*.json"))
+    name_forms = load_name_forms()
     parsed = {}
     for path in files:
         try:
@@ -3928,6 +4930,7 @@ def main():
                 err(path, "'Players' must be an array")
             else:
                 validate_players(path, payload["Players"], load_dna_catalog())
+                content_contracts.validate_name_policy(path, payload["Players"], name_forms, err)
         if isinstance(payload, dict) and "Contexts" in payload and "Actions" in payload:
             validate_input_catalog(path, payload)
         if isinstance(payload, dict) and "StickDeadZoneLower" in payload:
@@ -4044,6 +5047,12 @@ def main():
             validate_gap_overlay(path, payload)
         if isinstance(payload, dict) and "TradeRequestWeeks" in payload:
             validate_morale(path, payload)
+        if isinstance(payload, dict) and "RoleProfiles" in payload and "NameCultures" in payload:
+            validate_league_generator(path, payload)
+        if isinstance(payload, dict) and "PeakAgeStart" in payload and "GrowthPerYear" in payload:
+            validate_progression(path, payload)
+        if isinstance(payload, dict) and "Concepts" in payload and "Coverages" in payload:
+            validate_playbook_generator(path, payload)
         if isinstance(payload, dict) and "ReelSize" in payload:
             validate_highlights(path, payload)
         if isinstance(payload, dict) and "PlayerPickRadius" in payload:
@@ -4052,10 +5061,23 @@ def main():
             validate_difficulty(path, payload)
         if isinstance(payload, dict) and "HardFailMultiplier" in payload:
             validate_perf_harness(path, payload)
+        if isinstance(payload, dict) and "FocusAreas" in payload:
+            validate_training(path, payload, load_opponent_model_tracked())
+        if isinstance(payload, dict) and "CaptureResolutionMultiplier" in payload:
+            validate_photo_mode(path, payload)
+        if isinstance(payload, dict) and "ReadColors" in payload:
+            validate_play_art(path, payload)
+        if isinstance(payload, dict) and "CombineDrills" in payload:
+            validate_draft(path, payload, load_contract_max_years())
         if isinstance(payload, dict) and "PlayCallTimeoutSeconds" in payload:
             validate_game_intelligence(path, payload)
-    content_contracts.check_references(REPO, parsed, err)
-    validate_ui_text()
+        if isinstance(payload, dict) and "HallOfFame" in payload:
+            validate_legacy(path, payload)
+        if isinstance(payload, dict) and "StorylineKinds" in payload:
+            validate_narrative(path, payload)
+    content_contracts.check_references(repo, parsed, err)
+    if root is None:
+        validate_ui_text()
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:
@@ -4066,4 +5088,6 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser(description="Validate Data/ against the content contracts.")
+    parser.add_argument("--root", help="check this directory's Data/ instead of the repo's")
+    sys.exit(main(parser.parse_args().root))

@@ -32,9 +32,29 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Depends on:** 26, Core 16
 
 - [ ] Route-ribbon renderer: spline decal/mesh projected on the field following route waypoints
-- [ ] Endpoint ring marker at each route terminus; break-point articulation on cuts
-- [ ] Show/hide policy tied to play phase (visible pre-snap, fade at snap) and to user settings
-- [ ] Per-route color/emphasis coding (primary read vs. check-down)
+  *Code half built: `UPSOverlayPlayArtSubsystem` resolves the offense's call with
+  `PSPlayResolution::ResolvePlay` -- the one resolution, which `UPSPlayOrchestrator` now hands
+  the AI at the snap -- against the line the `GameState` event now carries, and compiles it into
+  art primitives (`PSPlayArt`: ribbon, ring, star, connector, arrow; Epics 31 and 35 reuse them):
+  a ribbon from each receiver's feet through the waypoints he will run. Development builds draw
+  them as debug lines. Still open, so unticked: the spline-mesh or decal renderer that reads
+  `GetRouteArt()`, and a PIE check (`Specs/Route_Ribbons_Spec.md`).*
+- [x] Endpoint ring marker at each route terminus; break-point articulation on cuts *(a `Ring`
+  primitive at each route's end; a ribbon's `BreakIndices` are the corners where it turns by the
+  route-running model's `BreakMinAngleDegrees` (and an option route's read), its `FakeIndices` a
+  double move's fakes; an option route's branches are lighter ribbons from the read, placed as
+  the route runner places them, each with its ring. Drawn as debug circles until story 1's
+  renderer)*
+- [x] Show/hide policy tied to play phase (visible pre-snap, fade at snap) and to user settings
+  *(from the offense's call to the snap, rebuilt after each `PlayCall`, `PreSnap` and `GameState`
+  event and `PlayArtRefreshHz` times a second (a new per-tier field) to follow motion; at the snap
+  it fades over `SnapFadeSeconds` on a `Full` tier, goes at once on `Simplified`, and a `Minimal`
+  tier draws none. The `RouteArt` setting (Gameplay) turns it off; head to head the versus rules
+  decide who sees it; otherwise a player on defense doesn't. No art for kicks and clock plays)*
+- [x] Per-route color/emphasis coding (primary read vs. check-down) *(a new optional per-route
+  `ReadOrder` in the play data (1 primary, then 2, 3, ...; checked by `tools/content_contracts.py`),
+  set on five sample plays; ribbons and rings take `ReadColors` by it, the primary read wider,
+  unranked routes `UnrankedColor`, all in `Data/play_art.json`. The AI doesn't read it)*
 - [ ] Editor pass: material/glow polish so ribbons read on grass at broadcast camera distance
 
 ### Epic 28: Player Position Badge System
@@ -76,10 +96,26 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Zone stars, man-coverage lines, and blitz arrows visualize the defensive call pre-snap.
 **Depends on:** 26, 27, Core 16
 
-- [ ] Zone-drop star markers at assignment landmarks (as in the reference frame's white stars)
-- [ ] Man-coverage connector lines defender→receiver
-- [ ] Blitz arrows from rushing defenders toward the LOS
-- [ ] Toggle policy: user setting + "show defense" study mode (hidden in competitive contexts)
+- [x] Zone-drop star markers at assignment landmarks (as in the reference frame's white stars)
+  *(`UPSOverlayPlayArtSubsystem` resolves the defense's call as it will run with the one play
+  resolution (`PSPlayResolution`) and compiles it into Epic 27's primitives
+  (`PSPlayArt::CompileDefenseArt`): a `Star` at each zone landmark on the defender's own side, at
+  his own spot for a zone with no offset. Drawn as debug shapes in development builds until the
+  editor-made renderer, `Specs/Defensive_Icons_Spec.md`)*
+- [x] Man-coverage connector lines defender→receiver *(a `Connector` from each man defender to
+  his receiver, taken as the defense AI takes him at the snap
+  (`PSPlayResolution::ResolveManMatchups`: a shadow, a press plan from Epic 69's engine, else the
+  nearest open receiver, by the one rule the AI now picks with); `Source` says which. A defender
+  with nobody left gets a star at his spot. A test checks every drawn matchup is the one the AI
+  plays after the snap)*
+- [x] Blitz arrows from rushing defenders toward the LOS *(an `Arrow` from each rusher's spot
+  through the line, `RushArrowDepth` behind it: the call's blitzers in `BlitzArrowColor`, the
+  linemen in `RushArrowColor`, `Data/play_art.json`)*
+- [x] Toggle policy: user setting + "show defense" study mode (hidden in competitive contexts)
+  *(the `DefenseIcons` setting turns them off; outside head-to-head the defense and spectators see
+  them and the offense only with the `StudyMode` setting; head to head only Epic 107's versus
+  rules decide (`ShouldShowOverlay(DefensiveIcons)`), which study mode doesn't reach past. The
+  platform tier and the snap's fade are the route art's)*
 
 ### Epic 32: Live Ball-Trajectory & Pass Indicators
 
@@ -121,10 +157,28 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** One data format drives both AI route execution (Epic 16) and overlay rendering (27/31) — art is never hand-drawn twice.
 **Depends on:** 27, 31, Core 16
 
-- [ ] Overlay-annotation schema layered onto play definitions (colors, emphasis, badge letters)
-- [ ] Compiler from play data → renderable art primitives (ribbons, rings, stars, arrows)
-- [ ] Validation: every eligible player in a play has consistent art + AI assignment
-- [ ] Round-trip test: authored play renders identically to what the AI runs
+- [x] Overlay-annotation schema layered onto play definitions (colors, emphasis, badge letters)
+  *(an optional `Art` block on each assignment (`FPSPlayArtAnnotation`): `Color`, `bEmphasis`
+  (`EmphasisScale` larger, `bEmphasized` on the primitives) and `BadgeLetter`, which Epic 28's
+  position badges now wear where a player has no pass button, for a viewer allowed to see that
+  side's art (`UPSOverlayPlayArtSubsystem::GetBadgeLetter`). It sits beside Epic 27's
+  `ReadOrder`; the AI ignores both. Checked by `tools/content_contracts.py` and
+  `PSPlayArt::ValidateAnnotation`; five sample plays carry one)*
+- [x] Compiler from play data → renderable art primitives (ribbons, rings, stars, arrows)
+  *(`PSPlayArt::CompilePlayArt`: a play, resolved for the players where they stand by the AI's
+  own resolution (`PSPlayResolution`, its man matchups too), into Epic 27's primitives -- ribbons,
+  rings, stars, connectors, arrows -- with the annotations layered on; nothing for a category
+  that draws none. The overlay subsystem compiles through it, so no art is hand-drawn)*
+- [x] Validation: every eligible player in a play has consistent art + AI assignment
+  *(`PSPlayArt::ValidatePlayArt` holds a play's art to the jobs its players are handed: one ribbon
+  through each runner's waypoints, with an end and his read order, nothing on blockers or spots, a
+  library-less or ranked-but-undrawn route reported; one star, line or arrow per defender by his
+  job, nothing on run fits; no stray art. `PlaySports.PlayArt.ValidationCatchesDrift` shows it
+  catching each kind of drift)*
+- [x] Round-trip test: authored play renders identically to what the AI runs
+  *(`PlaySports.PlayArt.PlaybookRoundTrip`: every play in the shipped playbook, lined up in its
+  formation's personnel package, compiles to art that validates, and after the snap every
+  receiver runs his ribbon and every defender plays his star, line or arrow)*
 
 ### Epic 36: Player Highlight & Emphasis Rendering
 

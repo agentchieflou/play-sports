@@ -112,7 +112,11 @@ enum class EPlayResultType : uint8
     FieldGoalGood,
     FieldGoalMissed,
     KickoffResult,
-    PuntResult
+    PuntResult,
+    /** The defense caught the pass (the Catch event's flag): a turnover. The defense takes the
+     *  ball where the return ended, or scores a touchdown when it ended at the offense's goal
+     *  line, unless a defensive flag the offense accepts wipes it out. */
+    Interception
 };
 
 USTRUCT(BlueprintType)
@@ -159,7 +163,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void SetPlayPhase(EPlayPhase NewPhase);
 
-    /** The carrier is down in bounds. Ignored once the play is over (Scoring). */
+    /** The carrier is down in bounds. Ignored once the play is over (Scoring). After an
+     *  interception it only ends the return: the turnover stands. */
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void RecordTackle(int32 YardsGained);
 
@@ -191,6 +196,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     FDriveSummary GetDriveSummary() const { return CurrentDriveSummary; }
 
+    /** The carrier reached the end zone the offense attacks. An interceptor carried there is
+     *  down in the end zone he defends: a touchback, not a score. */
     UFUNCTION(BlueprintCallable, Category = "Simulation")
     void RecordTouchdown();
 
@@ -211,6 +218,9 @@ public:
     UFUNCTION()
     void OnBusCatchEvent(const FPSTelemetryCatchEvent& Event);
 
+    /** The carrier is down (a live tackle): the play's yards are from the line of scrimmage to
+     *  the event's spot (YardLine), not the event's YardsGained, which counts from where the
+     *  carrier lined up. */
     UFUNCTION()
     void OnBusTackleEvent(const FPSTelemetryTackleEvent& Event);
 
@@ -259,6 +269,15 @@ public:
     UFUNCTION()
     void OnBusTimeoutEvent(const FPSTelemetryTimeoutEvent& Event);
 
+    /** The field's volumes report a crossing (BoundaryCrossed); this rules on it once, while the
+     *  ball is live. The ball alone out of bounds is dead. A carrier out of bounds is down there
+     *  (RecordOutOfBounds, the yards from the line of scrimmage). A carrier in the end zone the
+     *  offense attacks scores (RecordTouchdown). An interceptor's return ends where he crossed:
+     *  out of bounds at the spot, into the offense's end zone for a touchdown, into his own for
+     *  a touchback. A dead ball ignores every later crossing. */
+    UFUNCTION()
+    void OnBusBoundaryCrossedEvent(const FPSTelemetryBoundaryCrossedEvent& Event);
+
     UFUNCTION(BlueprintCallable, Category = "Simulation|Clock")
     bool CallTimeout(bool bHomeTeam);
 
@@ -305,6 +324,10 @@ private:
      *  catches no longer change the result. */
     bool IsBallDead() const;
 
+    /** A scrimmage play is under way: from the snap until the whistle (not before the snap, not
+     *  on a kick). Offensive holding is called only then. */
+    bool IsBallLive() const;
+
     /** A blocked kick's loose ball is being played out on the field (Epic 17.4). */
     bool bLooseBallLive = false;
 
@@ -315,6 +338,11 @@ private:
     FPSTelemetryPlayResultEvent PlayLog;
     bool bPlayLogOpen = false;
     int32 PlaysAnnounced = 0;
+
+    /** Where an interception's return ended, in the offense's yard lines (0 its goal line, 100
+     *  the defense's): the catch's spot, then the interceptor's tackle's. A return to 0 is a
+     *  touchdown for the defense. */
+    int32 InterceptionSpot = 0;
 
     /** Starts the play log at the snap, from the situation. */
     void OpenPlayLog();
@@ -350,4 +378,8 @@ private:
 
     /** Ends a spike or a kneel at the snap: nothing physical decides it. */
     void ResolveClockPlay();
+
+    /** A touchdown for the team with the ball: the rules' points and its try (UPSRulesConfig),
+     *  then it kicks off. The offense's own touchdown, and a defense's interception return. */
+    void ScoreTouchdown();
 };

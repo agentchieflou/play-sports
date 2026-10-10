@@ -1,4 +1,5 @@
 #include "PSOverlayBadgeComponent.h"
+#include "PSOverlayPlayArtSubsystem.h"
 #include "PSPerfBudget.h"
 #include "PSBall.h"
 #include "PSDataIngestion.h"
@@ -273,6 +274,7 @@ void UPSOverlayBadgeComponent::Refresh(const FPSBadgeView& View)
     const EPSInputDevice Device = Devices ? Devices->GetActiveDevice() : EPSInputDevice::KeyboardMouse;
     const FName PassingContext = PlayContext ? PlayContext->PassingContextId : FName(TEXT("Passing"));
     UPSInputConfig* Config = SlotOf.Num() > 0 ? Controller->GetInputConfig() : nullptr;
+    const UPSOverlayPlayArtSubsystem* PlayArt = World->GetSubsystem<UPSOverlayPlayArtSubsystem>();
 
     for (TActorIterator<APSPlayerPawn> It(World); It; ++It)
     {
@@ -304,6 +306,16 @@ void UPSOverlayBadgeComponent::Refresh(const FPSBadgeView& View)
                 Badge.Label = UPSLocalization::Verbatim(Glyph.Label).ToString();
                 Badge.GlyphId = Glyph.GlyphId;
                 Badge.PassSlot = *Slot;
+            }
+        }
+        if (Badge.Label.IsEmpty() && PlayArt)
+        {
+            // The letter the play gives him (Epic 35), where this human may see his side's art.
+            // A letter is a symbol, not ours to translate, like a button's name.
+            const FString Letter = PlayArt->GetBadgeLetter(Player, Controller);
+            if (!Letter.IsEmpty())
+            {
+                Badge.Label = UPSLocalization::Verbatim(Letter).ToString();
             }
         }
         if (Badge.Label.IsEmpty())

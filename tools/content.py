@@ -8,12 +8,18 @@ league config, the playbook and the route library. Venues have no content type y
                     which runs tools/content_contracts.py. Exit 1 on any error. This is
                     what CI's "Validate data contracts" step runs.
   report [--json]   Statistical sanity of the league: rating distributions per role, name
-                    duplication, roster shape, body plausibility and playbook coverage.
+                    duplication, roster shape (every personnel package fielded from each
+                    team's own roster), body plausibility and playbook coverage.
                     It warns and does not fail unless --strict is given. CI prints it.
   import            validate, then the PSContentReimport commandlet through Unreal (needs
                     UE_ROOT). The commandlet loads every file through UPSDataIngestion and
                     UPSPlaybookIngestion, the path the game uses.
   check             validate, then report (the default).
+
+validate, report and check take --root DIR to work on DIR/Data instead of the repo's: content
+laid out like the repo, such as what the generators' automation tests write. CI runs
+"check --root ... --strict" on Saved/GeneratedLeague (Epic 122) and Saved/GeneratedPlaybooks
+(Epic 121).
 
 Run from the repo root:  python tools/content.py [command]
 """
@@ -79,13 +85,16 @@ def load_league(repo):
             problems.append(f"team '{team.get('TeamId')}': roster '{team.get('RosterDataTablePath')}' did not load")
             players = []
         teams.append(dict(team, Players=[p for p in players if isinstance(p, dict)]))
-    plays, routes = [], []
+    plays, routes, packages = [], [], []
     for payload in parsed.values():
         if isinstance(payload, dict) and isinstance(payload.get("Plays"), list):
             plays.extend(p for p in payload["Plays"] if isinstance(p, dict))
         if isinstance(payload, dict) and isinstance(payload.get("Routes"), list):
             routes.extend(r for r in payload["Routes"] if isinstance(r, dict))
-    return {"league": league, "teams": teams, "plays": plays, "routes": routes, "problems": problems}
+        if isinstance(payload, dict) and "DefaultOffensePackage" in payload and isinstance(payload.get("Packages"), list):
+            packages.extend(p for p in payload["Packages"] if isinstance(p, dict))
+    return {"league": league, "teams": teams, "plays": plays, "routes": routes, "packages": packages,
+            "problems": problems}
 
 
 def describe(values):
@@ -164,6 +173,17 @@ def build_report(repo):
         missing = sorted(all_roles - set(roles))
         if missing:
             warnings.append(f"team '{team.get('TeamId')}' has no {', '.join(missing)} - plays' slots for them go unfilled")
+        # A live game fields a personnel package from the team's own roster (UPSPersonnelManager).
+        short = []
+        for package in league["packages"]:
+            counts = package.get("RoleCounts") if isinstance(package.get("RoleCounts"), dict) else {}
+            gaps = [f"{need} {role}, has {roles[role]}" for role, need in sorted(counts.items())
+                    if content_contracts.is_number(need) and roles[role] < need]
+            if gaps:
+                short.append(f"{package.get('PackageId')} ({'; '.join(gaps)})")
+        if short:
+            warnings.append(f"team '{team.get('TeamId')}' can't field personnel package(s) {', '.join(short)} - "
+                            "the field plays short")
         if mean is not None and league_mean is not None and abs(mean - league_mean) > TEAM_OUTLIER_POINTS:
             warnings.append(f"team '{team.get('TeamId')}' overall {mean} is far from the league's {league_mean:.1f}")
 
@@ -225,13 +245,13 @@ def print_report(report):
         print("No warnings.")
 
 
-def cmd_validate():
+def cmd_validate(root=None):
     validate_data.errors.clear()  # main() collects into a module list; start each run empty
-    return validate_data.main()
+    return validate_data.main(root)
 
 
-def cmd_report(as_json, strict):
-    report = build_report(REPO)
+def cmd_report(as_json, strict, root=None):
+    report = build_report(Path(root).resolve() if root else REPO)
     if as_json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
@@ -267,24 +287,29 @@ def cmd_import(runner=subprocess.call):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command")
-    sub.add_parser("validate", help="every data contract and cross-file reference")
+    root_help = "work on this directory's Data/ instead of the repo's"
+    validate = sub.add_parser("validate", help="every data contract and cross-file reference")
+    validate.add_argument("--root", help=root_help)
     report = sub.add_parser("report", help="statistical sanity of the league")
     report.add_argument("--json", action="store_true", help="machine-readable output")
     report.add_argument("--strict", action="store_true", help="exit 1 when there are warnings")
+    report.add_argument("--root", help=root_help)
     sub.add_parser("import", help="validate, then the PSContentReimport commandlet (needs UE_ROOT)")
     check = sub.add_parser("check", help="validate, then report (the default)")
     check.add_argument("--strict", action="store_true", help="exit 1 when the report warns")
+    check.add_argument("--root", help=root_help)
     args = parser.parse_args(argv)
+    root = getattr(args, "root", None)
 
     if args.command == "validate":
-        return cmd_validate()
+        return cmd_validate(root)
     if args.command == "report":
-        return cmd_report(args.json, args.strict)
+        return cmd_report(args.json, args.strict, root)
     if args.command == "import":
         return cmd_import()
-    status = cmd_validate()
+    status = cmd_validate(root)
     print("")
-    return max(status, cmd_report(False, getattr(args, "strict", False)))
+    return max(status, cmd_report(False, getattr(args, "strict", False), root))
 
 
 if __name__ == "__main__":

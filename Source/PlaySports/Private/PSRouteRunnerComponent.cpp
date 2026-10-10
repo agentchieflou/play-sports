@@ -6,6 +6,7 @@
 #include "PSOffenseController.h"
 #include "PSPlayerDNA.h"
 #include "PSPlayerPawn.h"
+#include "PSPlayResolution.h"
 #include "Engine/DataTable.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
@@ -366,9 +367,10 @@ void UPSRouteRunnerComponent::ReadOption(APSPlayerPawn* Self, APSOffenseControll
     TArray<bool> RestFakes;
     if (Branch)
     {
+        // The branch is placed at the read the way the play's routes are (PSPlayResolution).
+        Rest = PSPlayResolution::PlaceRoute(*Branch, ReadPoint, BranchMirror);
         for (const FPSRouteWaypoint& Waypoint : Branch->Waypoints)
         {
-            Rest.Add(ReadPoint + FVector(Waypoint.Offset.X, Waypoint.Offset.Y * BranchMirror, Waypoint.Offset.Z));
             RestFakes.Add(Waypoint.bFake);
         }
     }

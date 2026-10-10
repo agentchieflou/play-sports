@@ -76,6 +76,41 @@
             "Waypoints": [
                 { "Offset": { "X": -100, "Y": 0, "Z": 0 }, "TimingSeconds": 0.3 }
             ]
+        },
+        {
+            "RouteId": "Drag",
+            "Waypoints": [
+                { "Offset": { "X": 150, "Y": 0, "Z": 0 }, "TimingSeconds": 0.5 },
+                { "Offset": { "X": 300, "Y": -1500, "Z": 0 }, "TimingSeconds": 2.9 }
+            ]
+        },
+        {
+            "RouteId": "Dig",
+            "Waypoints": [
+                { "Offset": { "X": 1200, "Y": 0, "Z": 0 }, "TimingSeconds": 2.0 },
+                { "Offset": { "X": 1200, "Y": -800, "Z": 0 }, "TimingSeconds": 3.1 }
+            ]
+        },
+        {
+            "RouteId": "Seam",
+            "Waypoints": [
+                { "Offset": { "X": 500, "Y": 0, "Z": 0 }, "TimingSeconds": 0.8 },
+                { "Offset": { "X": 1700, "Y": -150, "Z": 0 }, "TimingSeconds": 2.8 }
+            ]
+        },
+        {
+            "RouteId": "Corner",
+            "Waypoints": [
+                { "Offset": { "X": 1000, "Y": 0, "Z": 0 }, "TimingSeconds": 1.7 },
+                { "Offset": { "X": 1500, "Y": 700, "Z": 0 }, "TimingSeconds": 2.9 }
+            ]
+        },
+        {
+            "RouteId": "Hitch",
+            "Waypoints": [
+                { "Offset": { "X": 550, "Y": 0, "Z": 0 }, "TimingSeconds": 0.9 },
+                { "Offset": { "X": 450, "Y": -50, "Z": 0 }, "TimingSeconds": 1.2 }
+            ]
         }
     ]
 }

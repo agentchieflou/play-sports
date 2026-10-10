@@ -41,6 +41,10 @@ TArray<FString> PSPlatformTiers::ValidateCatalog(const FPSPlatformTierCatalog& C
             Problems.Add(FString::Printf(TEXT("Tiers[%d]: ReplayPoseRateHz must be 0 or more"), Index));
         }
         Problems.Append(ValidateSystemBudgets(Tier, Index));
+        if (Tier.PlayArtRefreshHz < 0.f)
+        {
+            Problems.Add(FString::Printf(TEXT("Tiers[%d]: PlayArtRefreshHz must be 0 or more"), Index));
+        }
     }
     if (!FindTier(Catalog, Catalog.DefaultTier))
     {

@@ -132,6 +132,38 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(any("no TightEnd runs a route to be the pass option" in e for e in errors), errors)
         self.assertTrue(any("'Bootleg' is not an EPSDeception" in e for e in errors), errors)
 
+    def test_read_order(self):
+        # Epic 27: the play art's primary read and check-downs.
+        plays = copy.deepcopy(PLAYBOOK)
+        plays["Plays"][0]["Assignments"][1]["ReadOrder"] = 1
+        self.assertEqual(check(league(**{"Data/playbook.json": plays})), [])
+
+        plays["Plays"][0]["Assignments"][0]["ReadOrder"] = 2
+        plays["Plays"][0]["Assignments"].append({"Role": "TightEnd", "Kind": "Route", "RouteId": "Go", "ReadOrder": 3})
+        plays["Plays"][0]["Assignments"].append({"Role": "RunningBack", "Kind": "Route", "RouteId": "Go", "ReadOrder": 0})
+        plays["Plays"][1]["Assignments"][0]["ReadOrder"] = "1"
+        errors = check(league(**{"Data/playbook.json": plays}))
+        self.assertTrue(any("ReadOrder: only a route with a RouteId is read" in e for e in errors), errors)
+        self.assertTrue(any("ReadOrder: 0 - 1 is the primary read" in e for e in errors), errors)
+        self.assertTrue(any("ReadOrder values [1, 3] must run 1, 2, 3" in e for e in errors), errors)
+        self.assertTrue(any("ReadOrder: expected int" in e for e in errors), errors)
+
+
+class ArtAnnotationTests(unittest.TestCase):
+    def test_art_annotation(self):
+        # Epic 35: the play art's annotation layer.
+        plays = copy.deepcopy(PLAYBOOK)
+        plays["Plays"][0]["Assignments"][1]["Art"] = {"Color": "#3FB950", "bEmphasis": True, "BadgeLetter": "X"}
+        plays["Plays"][1]["Assignments"][0]["Art"] = {"BadgeLetter": "M"}
+        self.assertEqual(check(league(**{"Data/playbook.json": plays})), [])
+
+        plays["Plays"][0]["Assignments"][1]["Art"] = {"Color": "green", "bEmphasis": "yes", "BadgeLetter": "xyz", "Glow": 2}
+        errors = check(league(**{"Data/playbook.json": plays}))
+        self.assertTrue(any("Art.Color: 'green' must be #RRGGBB" in e for e in errors), errors)
+        self.assertTrue(any("Art.BadgeLetter: 'xyz' must be one or two capitals" in e for e in errors), errors)
+        self.assertTrue(any("Art.bEmphasis: expected bool" in e for e in errors), errors)
+        self.assertTrue(any("unknown field(s) ['Glow']" in e for e in errors), errors)
+
 
 class ReferenceTests(unittest.TestCase):
     def test_missing_roster_and_orphan_roster(self):
@@ -193,6 +225,20 @@ class ReportTests(unittest.TestCase):
         warnings = report["warnings"]
         self.assertTrue(any(w.startswith("team 'Alpha' has no ") and "DefensiveBack" in w for w in warnings), warnings)
         self.assertIn("no offensive Run play - the coaching AI has nothing to call there", warnings)
+
+    def test_a_roster_short_of_a_personnel_package(self):
+        personnel = {"DefaultOffensePackage": "Spread", "DefaultDefensePackage": "Dime", "Packages": [
+            {"PackageId": "Spread", "bOffense": True, "RoleCounts": {"Quarterback": 1, "WideReceiver": 2}},
+            {"PackageId": "Dime", "bOffense": False, "RoleCounts": {"DefensiveBack": 1}}]}
+        warnings = self.build(league(**{"Data/personnel_packages.json": personnel}))["warnings"]
+        self.assertIn("team 'Alpha' can't field personnel package(s) Spread (2 WideReceiver, has 1), "
+                      "Dime (1 DefensiveBack, has 0) - the field plays short", warnings)
+        self.assertIn("team 'Beta' can't field personnel package(s) Spread (2 WideReceiver, has 0) - the field plays short",
+                      warnings)
+
+    def test_every_shipped_team_fields_every_personnel_package(self):
+        report = content.build_report(content.REPO)
+        self.assertEqual([w for w in report["warnings"] if "personnel package" in w], [])
 
     def test_body_plausibility(self):
         roster = {"Players": [player("ALP_QB", "Quarterback", WeightKg=40), player("ALP_WR", "WideReceiver", HeightCm=250)]}

@@ -12,18 +12,21 @@
 class AController;
 class APlayerController;
 class APSPlayerController;
+class UPSMatchSetup;
 class UPSPlayCallSubsystem;
 
 /**
  * UPSVersusSubsystem runs a local head-to-head game (Epic 107): two seats, each an
  * APSPlayerController of its own (its own catalog contexts, input device and menus), one per
- * team. It is the one authority on who sits where and which team each seat plays for; the
- * play-call authority (UPSPlayCallSubsystem) still owns the calls, the control handoff
+ * team. It is the one authority on who sits where and which side, home or away, each seat plays
+ * for; the match setup (UPSMatchSetup) owns which league teams those are (GetSeatTeamId reads
+ * them from it), the play-call authority (UPSPlayCallSubsystem) the calls, the control handoff
  * (UPSControlHandoffComponent) who a switch goes to, and the menus their screens.
  *
  *  - Session flow (107.1): seats are claimed (ClaimSeat, one per user), each picks a team
  *    (SelectTeam / StepTeam; both can't have the same one), both ready up, and StartSession
- *    begins. The front end's Head to Head screen travels with "?mode=Versus?homeseat=<seat>";
+ *    begins. The front end's Head to Head screen travels with "?mode=Versus?homeseat=<seat>",
+ *    plus the two players' teams as "?home=" and "?away=" (UPSMatchSetup reads those);
  *    BeginFromTravel then seats the first two local players (creating the second) and starts.
  *    The seat whose team has the ball plays offense: when the ball changes hands (the bus's
  *    GameState) the seats swap sides, and every new down (PhaseChange to PreSnap) puts each
@@ -115,6 +118,17 @@ public:
     /** The second local player for a session started from the front end: created through the
      *  game instance, with its own controller. Null without a game instance (headless). */
     APSPlayerController* CreateLocalSeatPlayer(int32 ControllerId);
+
+    // --- The match's teams ----------------------------------------------------------------
+
+    /** The match whose home and away teams the seats play: the game mode's UPSMatchSetup, the one
+     *  authority on them, handed over at kickoff (it reads "?home=" and "?away=" from the same
+     *  travel URL). Kept as a reference, never copied. */
+    void SetMatchSetup(const UPSMatchSetup* InMatchSetup);
+
+    /** The league team a seat plays for: the match's home team for the seat on Home, its away
+     *  team for the seat on Away; None without a match or before the seat picks a side. */
+    FName GetSeatTeamId(int32 Seat) const;
 
     /** Starts a session from a travel URL ("?mode=Versus?homeseat=1"): seats the first two local
      *  players, creating the second, gives Home to the named seat (0 by default) and starts.
@@ -245,6 +259,9 @@ private:
 
     FPSVersusRules Rules;
     bool bRulesLoaded = false;
+
+    /** The game mode's match setup (SetMatchSetup): where the seats' teams are read. */
+    TWeakObjectPtr<const UPSMatchSetup> MatchSetup;
 
     UPROPERTY(Transient)
     TArray<FPSVersusSeat> Seats;

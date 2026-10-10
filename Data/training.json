@@ -1,0 +1,68 @@
+{
+    "DefaultAllocation": { "Develop": 0.4, "Gameplan": 0.35, "Rest": 0.25 },
+    "DevelopIntensity": 1.0,
+    "GameplanIntensity": 0.6,
+    "DevelopPointsPerWeek": 0.6,
+    "DevelopRatings": { "Speed": 0.2, "Agility": 0.4, "Strength": 0.6, "Acceleration": 0.3, "Awareness": 1.0 },
+    "DevelopHeadroom": 40.0,
+    "MinCoachDevelopment": 0.75,
+    "MaxCoachDevelopment": 1.25,
+    "FundingFloor": 0.5,
+    "MaxFundingMultiplier": 1.5,
+    "GameplanBonusPerShare": 0.1,
+    "MaxGameplanBonus": 0.12,
+    "MaxFocusAreas": 2,
+    "MaxRelevance": 2.0,
+    "UnscoutedRelevance": 0.5,
+    "FocusAreas": [
+        {
+            "FocusId": "RunDefense", "Label": "Run defense", "bVersusOffense": true,
+            "Categories": ["Run"],
+            "Roles": ["DefensiveLineman", "Linebacker"],
+            "Ratings": { "Speed": 0.0, "Agility": 0.0, "Strength": 1.0, "Acceleration": 0.5, "Awareness": 0.5 }
+        },
+        {
+            "FocusId": "ShortPassDefense", "Label": "Short-pass defense", "bVersusOffense": true,
+            "Categories": ["ShortPass", "Screen"],
+            "Roles": ["Linebacker", "DefensiveBack"],
+            "Ratings": { "Speed": 0.0, "Agility": 0.5, "Strength": 0.0, "Acceleration": 0.5, "Awareness": 1.0 }
+        },
+        {
+            "FocusId": "DeepPassDefense", "Label": "Deep-pass defense", "bVersusOffense": true,
+            "Categories": ["DeepPass", "PlayAction"],
+            "Roles": ["DefensiveBack"],
+            "Ratings": { "Speed": 0.5, "Agility": 0.5, "Strength": 0.0, "Acceleration": 0.0, "Awareness": 1.0 }
+        },
+        {
+            "FocusId": "BlitzPickup", "Label": "Blitz pickup", "bVersusOffense": false,
+            "Categories": ["Blitz"],
+            "Roles": ["OffensiveLineman", "RunningBack", "Quarterback"],
+            "Ratings": { "Speed": 0.0, "Agility": 0.0, "Strength": 0.5, "Acceleration": 0.0, "Awareness": 1.0 }
+        },
+        {
+            "FocusId": "BaseAttack", "Label": "Attacking base defense", "bVersusOffense": false,
+            "Categories": ["Base"],
+            "Roles": ["Quarterback", "WideReceiver", "TightEnd"],
+            "Ratings": { "Speed": 0.5, "Agility": 0.5, "Strength": 0.0, "Acceleration": 0.0, "Awareness": 0.5 }
+        },
+        {
+            "FocusId": "PreventAttack", "Label": "Running against prevent", "bVersusOffense": false,
+            "Categories": ["Prevent"],
+            "Roles": ["RunningBack", "OffensiveLineman", "TightEnd"],
+            "Ratings": { "Speed": 0.0, "Agility": 0.5, "Strength": 0.5, "Acceleration": 0.5, "Awareness": 0.0 }
+        }
+    ],
+    "GameFatigue": 0.2,
+    "PracticeFatigue": 0.15,
+    "WeeklyRecovery": 0.1,
+    "RestRecovery": 0.25,
+    "StaminaFatigueRelief": 0.5,
+    "FatiguePerformanceSwing": 0.08,
+    "PracticeInjury": { "BaseInjuryChance": 0.004, "MaxFatigueMultiplier": 4.0, "MinRecoveryWeeks": 1, "MaxRecoveryWeeks": 4 },
+    "RandomSeed": 90,
+    "AIRestFreshness": 0.7,
+    "AIRestShift": 0.2,
+    "AILateSeasonProgress": 0.6,
+    "AILateGameplanShift": 0.15,
+    "AIFocusAreas": 1
+}

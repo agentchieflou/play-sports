@@ -1,10 +1,12 @@
 #include "PSMatchSetup.h"
 #include "PSDataIngestion.h"
+#include "PSFieldGrid.h"
 #include "PSFranchiseSeason.h"
 #include "PSLeagueData.h"
 #include "PSPlayCallSubsystem.h"
 #include "PSStaffManager.h"
 #include "Engine/DataTable.h"
+#include "Misc/Paths.h"
 
 namespace PSMatchSetupPrivate
 {
@@ -51,6 +53,8 @@ FString UPSMatchSetup::ModeToString(EPSMatchMode InMode)
         return TEXT("Franchise");
     case EPSMatchMode::Practice:
         return TEXT("Practice");
+    case EPSMatchMode::Versus:
+        return TEXT("Versus");
     default:
         return TEXT("PlayNow");
     }
@@ -66,15 +70,31 @@ EPSMatchMode UPSMatchSetup::ModeFromString(const FString& Text)
     {
         return EPSMatchMode::Practice;
     }
+    if (Text == TEXT("Versus"))
+    {
+        return EPSMatchMode::Versus;
+    }
     return EPSMatchMode::PlayNow;
 }
 
-FString UPSMatchSetup::BuildOptions(EPSMatchMode InMode, FName InUserTeamId)
+FString UPSMatchSetup::BuildOptions(EPSMatchMode InMode, FName InUserTeamId, FName InHomeTeamId, FName InAwayTeamId, int32 InHomeSeat)
 {
     FString Options = FString::Printf(TEXT("mode=%s"), *ModeToString(InMode));
+    if (!InHomeTeamId.IsNone())
+    {
+        Options += FString::Printf(TEXT("?home=%s"), *InHomeTeamId.ToString());
+    }
+    if (!InAwayTeamId.IsNone())
+    {
+        Options += FString::Printf(TEXT("?away=%s"), *InAwayTeamId.ToString());
+    }
     if (!InUserTeamId.IsNone())
     {
         Options += FString::Printf(TEXT("?team=%s"), *InUserTeamId.ToString());
+    }
+    if (InHomeSeat >= 0)
+    {
+        Options += FString::Printf(TEXT("?homeseat=%d"), InHomeSeat);
     }
     return Options;
 }
@@ -219,6 +239,83 @@ bool UPSMatchSetup::ApplyStaffs(const UPSStaffManager* Staffs, UPSPlayCallSubsys
         Player = Staffs->ApplySchemeFit(AwayTeamId, Player);
     }
     return Staffs->FindStaff(HomeTeamId) != nullptr && Staffs->FindStaff(AwayTeamId) != nullptr;
+}
+
+bool UPSMatchSetup::LoadFieldPlayers(const FString& TeamsJsonPath, TArray<FPlayerAttributes>& OutHomePlayers, TArray<FPlayerAttributes>& OutAwayPlayers) const
+{
+    TArray<FPlayerAttributes> HomePlayers;
+    TArray<FPlayerAttributes> AwayPlayers;
+    if (!HasTeams() || !LoadTeamPlayers(TeamsJsonPath, HomeTeamId, HomePlayers) || !LoadTeamPlayers(TeamsJsonPath, AwayTeamId, AwayPlayers))
+    {
+        return false;
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("UPSMatchSetup: On the field, the %s (%d players) against the %s (%d players)."),
+        *HomeTeamId.ToString(), HomePlayers.Num(), *AwayTeamId.ToString(), AwayPlayers.Num());
+    OutHomePlayers = MoveTemp(HomePlayers);
+    OutAwayPlayers = MoveTemp(AwayPlayers);
+    return true;
+}
+
+bool UPSMatchSetup::ApplyStaffsToField(const UPSStaffManager* Staffs, UPSPlayCallSubsystem* PlayCall, TArray<FPlayerAttributes>& Players) const
+{
+    // One roster on both sides: its offense at the home team's fit, its defense at the away team's.
+    TArray<FPlayerAttributes> Offense;
+    TArray<FPlayerAttributes> Defense;
+    for (const FPlayerAttributes& Player : Players)
+    {
+        (APSFieldGrid::GetSideForRole(Player.Role) == EPSTeamSide::Offense ? Offense : Defense).Add(Player);
+    }
+    const bool bBothStaffs = ApplyStaffs(Staffs, PlayCall, Offense, Defense);
+    int32 OffenseIndex = 0;
+    int32 DefenseIndex = 0;
+    for (FPlayerAttributes& Player : Players)
+    {
+        Player = APSFieldGrid::GetSideForRole(Player.Role) == EPSTeamSide::Offense ? Offense[OffenseIndex++] : Defense[DefenseIndex++];
+    }
+    return bBothStaffs;
+}
+
+bool UPSMatchSetup::LoadTeamPlayers(const FString& TeamsJsonPath, FName TeamId, TArray<FPlayerAttributes>& OutPlayers)
+{
+    UPSDataIngestion* Ingestion = NewObject<UPSDataIngestion>();
+    UDataTable* Teams = NewObject<UDataTable>();
+    Teams->RowStruct = FPSTeamInfo::StaticStruct();
+    if (TeamId.IsNone() || !Ingestion->LoadTeamsFromJson(TeamsJsonPath, Teams))
+    {
+        return false;
+    }
+
+    TArray<FPSTeamInfo*> TeamRows;
+    Teams->GetAllRows<FPSTeamInfo>(TEXT("UPSMatchSetup"), TeamRows);
+    FPSTeamInfo* const* Team = TeamRows.FindByPredicate([TeamId](const FPSTeamInfo* Row) { return Row && Row->TeamId == TeamId; });
+    if (!Team)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSMatchSetup: %s is not in %s; it has no roster."), *TeamId.ToString(), *TeamsJsonPath);
+        return false;
+    }
+
+    FString RosterPath = FPaths::ProjectDir() / (*Team)->RosterDataTablePath;
+    FPaths::CollapseRelativeDirectories(RosterPath);
+    UDataTable* RosterTable = NewObject<UDataTable>();
+    RosterTable->RowStruct = FPlayerAttributes::StaticStruct();
+    if (!Ingestion->LoadPlayerAttributesFromJson(RosterPath, RosterTable))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSMatchSetup: Could not load the %s roster from %s."), *TeamId.ToString(), *RosterPath);
+        return false;
+    }
+
+    TArray<FPlayerAttributes*> Rows;
+    RosterTable->GetAllRows<FPlayerAttributes>(TEXT("UPSMatchSetup"), Rows);
+    OutPlayers.Reset();
+    for (const FPlayerAttributes* Row : Rows)
+    {
+        if (Row)
+        {
+            OutPlayers.Add(*Row);
+        }
+    }
+    return true;
 }
 
 TArray<FName> UPSMatchSetup::LoadLeagueTeamIds(const FString& TeamsJsonPath)

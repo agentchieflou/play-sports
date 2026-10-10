@@ -1,17 +1,23 @@
 #include "PSFranchiseFlow.h"
+#include "PSLeagueNarrative.h"
 #include "PSContractManager.h"
 #include "PSDataIngestion.h"
+#include "PSDraft.h"
 #include "PSFranchiseSeason.h"
 #include "PSFreeAgency.h"
 #include "PSLockerRoom.h"
 #include "PSLeagueData.h"
+#include "PSLeagueGenerator.h"
+#include "PSLeagueHistory.h"
 #include "PSMatchSetup.h"
 #include "PSOwnerEconomy.h"
+#include "PSPlayerAging.h"
 #include "PSPlayerAttributes.h"
 #include "PSQuickSimRunner.h"
 #include "PSRoster.h"
 #include "PSStaffManager.h"
 #include "PSStatsEngine.h"
+#include "PSWeeklyPreparation.h"
 #include "Engine/DataTable.h"
 #include "Misc/Paths.h"
 
@@ -22,10 +28,21 @@ void UPSFranchiseFlow::Initialize(UPSFranchiseSeason* InSeason, UPSStaffManager*
     UserTeamId = InUserTeamId;
     CarouselEvents.Reset();
     EconomyReports.Reset();
+    Retirements.Reset();
     LockerRoomEvents.Reset();
+    TrainingEvents.Reset();
     FreeAgency = nullptr;
     LastRollover = FPSLeagueYearRollover();
     bSeasonEnded = false;
+}
+
+void UPSFranchiseFlow::SetNarrative(UPSLeagueNarrative* InNarrative)
+{
+    Narrative = InNarrative;
+    if (Narrative)
+    {
+        Narrative->SetStats(Stats);
+    }
 }
 
 void UPSFranchiseFlow::SetStats(UPSStatsEngine* InStats)
@@ -34,6 +51,10 @@ void UPSFranchiseFlow::SetStats(UPSStatsEngine* InStats)
     if (Stats && Stats->GetSeason() <= 0)
     {
         Stats->StartSeason(Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear() : 1);
+    }
+    if (Narrative)
+    {
+        Narrative->SetStats(Stats);
     }
 }
 
@@ -139,6 +160,9 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
         return 0;
     }
 
+    // The week's practice comes before its games (Epic 90).
+    PrepareWeek();
+
     int32 Played = 0;
     const int32 Week = Season->GetCurrentWeek();
     UPSQuickSimRunner* Runner = NewObject<UPSQuickSimRunner>(this);
@@ -183,6 +207,20 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
                 }
             }
         }
+        if (Preparation)
+        {
+            // Epic 90: the injured sit; everyone plays at his freshness, with his gameplan for this opponent.
+            HomePlayers.RemoveAll([this](const FPlayerAttributes& Player) { return Preparation->IsInjured(Player.PlayerId); });
+            AwayPlayers.RemoveAll([this](const FPlayerAttributes& Player) { return Preparation->IsInjured(Player.PlayerId); });
+            for (FPlayerAttributes& Player : HomePlayers)
+            {
+                Player = Preparation->ApplyPreparation(Matchup.HomeTeamId, Matchup.AwayTeamId, Player);
+            }
+            for (FPlayerAttributes& Player : AwayPlayers)
+            {
+                Player = Preparation->ApplyPreparation(Matchup.AwayTeamId, Matchup.HomeTeamId, Player);
+            }
+        }
 
         if (Stats)
         {
@@ -192,6 +230,11 @@ int32 UPSFranchiseFlow::SimulateWeek(bool bIncludeUserGame)
         if (Stats)
         {
             Stats->FinishGame();
+        }
+        if (Preparation)
+        {
+            Preparation->RecordGame(Matchup.HomeTeamId, HomePlayers);
+            Preparation->RecordGame(Matchup.AwayTeamId, AwayPlayers);
         }
         // The home crowd comes for the record the team brought into the game (Epic 95).
         const TArray<FPSTeamStanding> Standings = Season->GetStandings();
@@ -257,11 +300,100 @@ TArray<FPSLockerRoomEvent> UPSFranchiseFlow::EvaluateLockerRooms(bool bNewLeague
     return Events;
 }
 
+TArray<FPSTrainingEvent> UPSFranchiseFlow::PrepareWeek()
+{
+    TArray<FPSTrainingEvent> Events;
+    if (!Preparation || !Season || bSeasonEnded)
+    {
+        return Events;
+    }
+    const int32 Week = Season->GetCurrentWeek();
+    const int32 FinalWeek = GetFinalWeek();
+    if (Week < 1 || Week > FinalWeek)
+    {
+        return Events;
+    }
+    const TArray<FPSWeekMatchup> Matchups = Season->GetMatchupsForWeek(Week);
+    const float SeasonProgress = FMath::Clamp(static_cast<float>(Week - 1) / FinalWeek, 0.f, 1.f);
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        // Its opponent this week; None on a bye.
+        FName OpponentId;
+        for (const FPSWeekMatchup& Matchup : Matchups)
+        {
+            if (Matchup.HomeTeamId == Team.Key || Matchup.AwayTeamId == Team.Key)
+            {
+                OpponentId = Matchup.HomeTeamId == Team.Key ? Matchup.AwayTeamId : Matchup.HomeTeamId;
+            }
+        }
+        Events.Append(Preparation->PrepareTeam(Team.Key, Team.Value, Week, OpponentId, SeasonProgress, Economy, Staffs));
+    }
+    TrainingEvents.Append(Events);
+    return Events;
+}
+
+bool UPSFranchiseFlow::PrepareDraft(UPSLeagueGenerator* Generator, int32 Seed)
+{
+    if (!Draft || !Generator || RostersByTeam.Num() == 0)
+    {
+        return false;
+    }
+    // The coming draft: next league year's, or this one's once the season is over (the contracts,
+    // else the statistics, have moved on then).
+    const int32 Year = Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear() : Stats && Stats->GetSeason() > 0 ? Stats->GetSeason() : 1;
+    TArray<FPlayerAttributes> LeaguePlayers;
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        if (Team.Value)
+        {
+            LeaguePlayers.Append(Team.Value->GetFullRoster());
+        }
+    }
+    if (!Draft->PrepareClass(Generator->GenerateDraftClass(Seed, bSeasonEnded ? Year : Year + 1, RostersByTeam.Num(), LeaguePlayers), Seed))
+    {
+        return false;
+    }
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        Draft->RegisterTeam(Team.Key, Team.Value, Team.Key == UserTeamId, Economy ? Economy->GetFundingIndex(Team.Key, EPSBudgetDepartment::Scouting) : 1.f);
+    }
+    return true;
+}
+
+bool UPSFranchiseFlow::BeginDraft()
+{
+    if (!Draft || !Season || !bSeasonEnded)
+    {
+        return false;
+    }
+    // The final standings turned around: the worst team picks first.
+    const TArray<FPSTeamStanding> Final = Season->GetSortedStandings();
+    TArray<FName> Order;
+    for (int32 Index = Final.Num() - 1; Index >= 0; --Index)
+    {
+        if (RostersByTeam.Contains(Final[Index].TeamId))
+        {
+            Order.Add(Final[Index].TeamId);
+        }
+    }
+    // Every team's picks go onto its roster (a loaded draft keeps its scouting).
+    for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+    {
+        Draft->RegisterTeam(Team.Key, Team.Value, Team.Key == UserTeamId, Economy ? Economy->GetFundingIndex(Team.Key, EPSBudgetDepartment::Scouting) : 1.f);
+    }
+    return Draft->BeginDraft(Order, Contracts, FreeAgency);
+}
+
 bool UPSFranchiseFlow::AdvanceWeek()
 {
     if (!Season || bSeasonEnded)
     {
         return false;
+    }
+    // The week just played becomes news (Epic 93).
+    if (Narrative)
+    {
+        Narrative->CloseWeek(Season, Season->GetCurrentWeek());
     }
     EvaluateLockerRooms(false);
     Season->AdvanceWeek();
@@ -285,9 +417,43 @@ bool UPSFranchiseFlow::EndSeason()
         }
     }
 
+    // The season being finished, numbered as the statistics (else the contracts) number it,
+    // before either moves on.
+    const int32 FinishedSeason = Stats && Stats->GetSeason() > 0 ? Stats->GetSeason()
+        : Contracts && Contracts->GetLeagueYear() > 0 ? Contracts->GetLeagueYear()
+        : LeagueHistory && LeagueHistory->GetSeasons().Num() > 0 ? LeagueHistory->GetSeasons().Last().Season + 1 : 1;
+    // The season's awards are voted on its box scores, before the stats engine archives them.
+    if (Narrative)
+    {
+        Narrative->AwardSeason(Season);
+    }
     if (Stats)
     {
         Stats->EndSeason();
+    }
+    if (LeagueHistory)
+    {
+        // Epic 94: the season goes into the archive.
+        LeagueHistory->ArchiveSeason(FinishedSeason, Season->GetSortedStandings(), Stats);
+    }
+    Retirements.Reset();
+    if (PlayerAging)
+    {
+        // Epic 94: veterans retire (before the injured heal), everyone else ages a year.
+        for (const TPair<FName, UPSRoster*>& Team : RostersByTeam)
+        {
+            Retirements.Append(PlayerAging->RunOffseason(Team.Key, Team.Value, FinishedSeason, Contracts, Stats, Preparation, LockerRoom, LeagueHistory));
+        }
+    }
+    if (Preparation)
+    {
+        // The off-season heals everyone (Epic 90).
+        Preparation->EndSeason();
+    }
+    if (LeagueHistory)
+    {
+        // The hall of fame votes on the retired (Epic 94).
+        LeagueHistory->RunHallOfFameVote(FinishedSeason);
     }
     if (Economy)
     {
@@ -324,7 +490,7 @@ bool UPSFranchiseFlow::EndSeason()
         FreeAgency->ReleaseUnsignedToPool(TMap<FName, int32>());
         for (int32 Index = 0; Index < Released.Num(); ++Index)
         {
-            FreeAgency->AddFreeAgent(Released[Index], Contracts->GetTuning().DefaultPlayerAge, 0.5f, ReleasedBy[Index]);
+            FreeAgency->AddFreeAgent(Released[Index], Contracts->GetPlayerAge(Released[Index]), 0.5f, ReleasedBy[Index]);
         }
         if (LockerRoom)
         {

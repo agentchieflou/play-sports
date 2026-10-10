@@ -9,6 +9,10 @@
 #include "PSStatsData.h"
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
+#include "PSDraftData.h"
+#include "PSTrainingData.h"
+#include "PSLegacyData.h"
+#include "PSNarrativeTypes.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -68,4 +72,24 @@ public:
      *  ArchiveForSeason). Track G shows them. Empty in a save from before highlights. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     TArray<FPSSeasonHighlight> SeasonHighlights;
+
+    /** Every player's freshness and injury, and each team's practice and gameplan (Epic 90;
+     *  UPSWeeklyPreparation). Empty in a save from before weekly preparation. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSTrainingState Training;
+
+    /** The coming (or last) draft: its class, every team's scouting and the picks (Epic 86;
+     *  UPSDraft). No prospects in a save from before the draft. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSDraftState Draft;
+
+    /** Every finished season, every retired player and the hall of fame (Epic 94;
+     *  UPSLeagueHistory). Empty in a save from before the league's history. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSLeagueHistoryState History;
+
+    /** The league's storylines, weekly news digests and every award given (Epic 93;
+     *  UPSLeagueNarrative). Empty in a save from before the narrative. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSNarrativeState Narrative;
 };
