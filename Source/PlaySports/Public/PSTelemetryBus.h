@@ -21,7 +21,8 @@ enum class EPSTelemetryEventType : uint8
     ControlChange,
     PlayCall,
     PumpFake,
-    PassRushMove
+    PassRushMove,
+    GapIntegrity
 };
 
 /** Why a player was downed/killed (Epic 139/140). */
@@ -340,6 +341,33 @@ struct FPSTelemetryPassRushEvent
     bool bDoubleTeamed = false;
 };
 
+/** The run defense's gap integrity changed (Epic 81): which gaps are open -- no owner, or an
+ *  owner not lined up on it. UPSDefenderGapSubsystem publishes it. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryGapIntegrityEvent
+{
+    GENERATED_BODY()
+
+    /** The front the gaps were assigned from. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Front;
+
+    /** The open gaps' EPSRunGap names, comma-separated, D left to D right. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString OpenGaps;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 OpenGapCount = 0;
+
+    /** A ball carrier other than the passer had the ball. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bRunRead = false;
+
+    /** Scrape exchanges so far this play. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 ScrapeExchanges = 0;
+};
+
 USTRUCT(BlueprintType)
 struct FPSTelemetryEvent
 {
@@ -373,6 +401,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeSignature, 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallSignature, const FPSTelemetryPlayCallEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeSignature, const FPSTelemetryPumpFakeEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushSignature, const FPSTelemetryPassRushEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegritySignature, const FPSTelemetryGapIntegrityEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -389,6 +418,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryControlChangeMC, const FPSTeleme
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPlayCallMC, const FPSTelemetryPlayCallEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPumpFakeMC, const FPSTelemetryPumpFakeEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPassRushMC, const FPSTelemetryPassRushEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryGapIntegrityMC, const FPSTelemetryGapIntegrityEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -444,6 +474,9 @@ public:
     void PublishPassRushMove(const FPSTelemetryPassRushEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishGapIntegrity(const FPSTelemetryGapIntegrityEvent& Event);
+
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
     TArray<FPSTelemetryEvent> GetEventHistory() const { return EventHistory; }
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
@@ -494,6 +527,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryPassRushSignature OnPassRushMove;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryGapIntegritySignature OnGapIntegrity;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -509,6 +545,7 @@ public:
     FPSTelemetryPlayCallMC OnPlayCallMC;
     FPSTelemetryPumpFakeMC OnPumpFakeMC;
     FPSTelemetryPassRushMC OnPassRushMoveMC;
+    FPSTelemetryGapIntegrityMC OnGapIntegrityMC;
 
 private:
     UPROPERTY(Transient)

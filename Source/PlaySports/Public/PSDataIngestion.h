@@ -17,6 +17,7 @@
 #include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
 #include "PSRushMoveComponent.h"
+#include "PSDefenderGapSubsystem.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -103,6 +104,11 @@ public:
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRushMovesFromJson(const FString& JsonFilePath, FPSRushMoveCatalog& OutCatalog);
+
+    /** Loads the run-fit fronts and tuning (Data/run_fits.json, Epic 81). False on a missing
+     *  file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadRunFitsFromJson(const FString& JsonFilePath, FPSRunFitCatalog& OutCatalog);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

@@ -175,15 +175,15 @@ namespace PSRushMoves
 
 /**
  * UPSRushMoveComponent is a CPU pass rusher's technique (Epic 70). While its defender is
- * rushing (UPSDefenderAIComponent's Rush or Contain) and held by a blocker (the engagement
- * APSGameMode::PairLinemen starts at the snap), it works moves on him: swim, rip, bull, spin
- * and club from Data/pass_rush_moves.json, each gated and scaled by the ratings it pits
- * against each other.
+ * rushing (UPSDefenderAIComponent's Rush or Contain) or fitting a gap on a run (Fit, Epic 81)
+ * and held by a blocker (the engagement APSGameMode::PairLinemen starts at the snap), it works
+ * moves on him: swim, rip, bull, spin and club from Data/pass_rush_moves.json, each gated and
+ * scaled by the ratings it pits against each other.
  *
  * The rush plan picks the move with the best score: its chance (higher right after the blocker
  * used the response the move counters) pulled toward how it has done against this blocker in
  * this game. A stopped move records the blocker's response; a winning one ends the engagement
- * and bursts the rusher toward the passer. A free offensive lineman beside the rusher makes a
+ * and bursts the rusher toward the ball carrier (the passer, until he hands off or throws). A free offensive lineman beside the rusher makes a
  * double team: every move gets harder and the split becomes available. Each resolved move is
  * published on UPSTelemetryBus (PassRushMove).
  *

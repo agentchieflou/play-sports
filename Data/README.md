@@ -36,6 +36,7 @@ loading anything, so a bad row never silently produces a half-populated DataTabl
 | `platform_tiers.json` | `FPSPlatformTierCatalog` (single object: `DefaultTier`, `Platforms`, `Tiers`) | `UPSDataIngestion::LoadPlatformTiersFromJson`, via `PSPlatformTiers::GetActiveTier` |
 | `carrier_moves.json` | `FPSCarrierMoveCatalog` (single object: `Moves`) | `UPSDataIngestion::LoadCarrierMovesFromJson`, via `UPSCarrierMoveComponent` |
 | `pass_rush_moves.json` | `FPSRushMoveCatalog` (single object: `RushMoves` plus the rush plan's tuning) | `UPSDataIngestion::LoadRushMovesFromJson`, via `UPSRushMoveComponent` |
+| `run_fits.json` | `FPSRunFitCatalog` (single object: `Fronts`, `DefaultFront` plus the fit tuning) | `UPSDataIngestion::LoadRunFitsFromJson`, via `UPSDefenderGapSubsystem` |
 | `input_glyphs.json` | `FPSInputGlyphCatalog` (single object: `GlyphSets`) | `UPSDataIngestion::LoadInputGlyphsFromJson`, via `UPSInputGlyphs` (owned by `UPSInputConfig`) |
 
 ## Player schema (`FPlayerAttributes`)
@@ -283,3 +284,28 @@ Single object (Epic 70; how a CPU pass rusher beats the man blocking him):
 
 `PSRushMoves::ValidateCatalog` and `tools/validate_data.py` check it.
 
+## Run-fit schema (`FPSRunFitCatalog`)
+
+Single object (Epic 81; how the run defense accounts for every gap). Gaps are `EPSRunGap` names,
+left (-Y) and right (+Y) of the ball: `ALeft`/`ARight` beside the center, then `B`, `C` (outside
+the tackle, inside an inline tight end) and `D`.
+- `Fronts[]`, each with:
+  - `Front`: the play's `Front` (`4-3`, `3-4`, `Nickel`, ...), each listed once.
+  - `Fits[]`: a `Role` (an `EPlayerRole`, each once per front) and its `Gaps`, given to that
+    role's defenders left to right across the field. A gap appears at most once per front;
+    defenders beyond the list have none.
+- `DefaultFront`: the listed front a call with an unlisted front (or no call) plays.
+- `GapWidth` (above 0): a gap outside the last lineman is this wide (cm).
+- `InlineTightEndWidth`: a tight end this close outside the end lineman extends the line.
+- `FitDepth`, `SecondLevelDepth`: how far past the line of scrimmage a defensive lineman, and
+  everyone else, fits his gap.
+- `LeverageOffset`: a spill fitter plays this far inside his gap's center, the force player (the
+  outermost fitter on each side) this far outside it.
+- `FlowWeight` (0-1): a second-level fitter moves this fraction of the way from his gap toward
+  the carrier, across the field.
+- `AttackRadius`: a carrier this close to a fitter's gap, across the field, is coming through it,
+  and the fitter attacks.
+- `FillRadius`: a fitter this close to his gap's spot, across the field, fills it (gap
+  integrity).
+
+`PSDefenderGaps::ValidateCatalog` and `tools/validate_data.py` check it.

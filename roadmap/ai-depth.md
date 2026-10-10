@@ -49,10 +49,25 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** Run defense is a coordinated gap-accounting system, not eleven independent chasers.
 **Depends on:** Core 15, Core 9
 
-- [ ] Gap assignment model (A/B/C/D gaps mapped from front + call)
-- [ ] Fit maintenance vs. blockers (spill/box responsibilities, force player rules)
-- [ ] Linebacker flow/scrape-exchange coordination with the line
+- [x] Gap assignment model (A/B/C/D gaps mapped from front + call)
+  *As built: `UPSDefenderGapSubsystem` is the one authority for gap ownership. At the snap it
+  maps the call's `Front` (`Data/run_fits.json`) onto the front defenders, left to right per
+  role. The call then takes defenders in coverage out of the fit, which leaves their gaps open.
+  Gap spots follow the live offensive line, with an inline tight end extending it.*
+- [x] Fit maintenance vs. blockers (spill/box responsibilities, force player rules)
+  *As built: the outermost fitter on each side forces (box: outside leverage), and everyone inside
+  him spills (inside leverage). On a run read, `UPSDefenderAIComponent` fits the gap (new `Fit`
+  action) until the carrier comes to it or crosses the line, then attacks. A blocked fitter works
+  across the blocker's face to his leverage point, and sheds with Epic 70's move library.*
+- [x] Linebacker flow/scrape-exchange coordination with the line
+  *As built: second-level fitters flow toward the carrier across the field
+  (`FlowWeight`). When the gap the carrier heads for has a blocked owner, or none, the nearest
+  free linebacker scrapes into it and the two swap gaps (once per gap per play).*
 - [ ] Integrity telemetry: visualize gap coverage live (consumes Track A iconography for debug)
+  *Telemetry half built: `GetIntegrity()` gives every gap's owner and whether it is filled, and a
+  `GapIntegrity` bus event fires whenever the open gaps change or an exchange happens. The live
+  visualization is still to do: it needs Track A's iconography and an editor session to
+  verify.*
 
 ### Epic 82: LLM Game-Intelligence Hooks
 

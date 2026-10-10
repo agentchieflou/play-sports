@@ -263,3 +263,19 @@ void UPSTelemetryBus::PublishPassRushMove(const FPSTelemetryPassRushEvent& Event
     }
     OnPassRushMoveMC.Broadcast(Event);
 }
+
+void UPSTelemetryBus::PublishGapIntegrity(const FPSTelemetryGapIntegrityEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryGapIntegrityEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("GapIntegrity: %s, %d open (%s)%s, exchanges %d"), *Event.Front, Event.OpenGapCount, *Event.OpenGaps,
+        Event.bRunRead ? TEXT(", run read") : TEXT(""), Event.ScrapeExchanges);
+    RecordHistory(EPSTelemetryEventType::GapIntegrity, Description, JsonPayload);
+
+    if (OnGapIntegrity.IsBound())
+    {
+        OnGapIntegrity.Broadcast(Event);
+    }
+    OnGapIntegrityMC.Broadcast(Event);
+}
