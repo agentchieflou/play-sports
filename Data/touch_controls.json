@@ -1,0 +1,72 @@
+{
+    "SafeZone": { "Left": 0.07, "Top": 0.04, "Right": 0.07, "Bottom": 0.06 },
+    "LayoutAspect": 2.0,
+    "bFloatingStick": true,
+    "StickZone": { "Min": { "X": 0.0, "Y": 0.3 }, "Max": { "X": 0.42, "Y": 1.0 } },
+    "GestureZone": { "Min": { "X": 0.45, "Y": 0.0 }, "Max": { "X": 1.0, "Y": 1.0 } },
+    "SwipeMinDistance": 0.12,
+    "SwipeMaxSeconds": 0.35,
+    "TouchControls": [
+        { "ControlId": "Stick", "Kind": "Stick", "Position": { "X": 0.16, "Y": 0.72 }, "Radius": 0.16 },
+        { "ControlId": "ButtonBottom", "Kind": "Button", "Position": { "X": 0.86, "Y": 0.8 }, "Radius": 0.08 },
+        { "ControlId": "ButtonRight", "Kind": "Button", "Position": { "X": 0.95, "Y": 0.6 }, "Radius": 0.08 },
+        { "ControlId": "ButtonLeft", "Kind": "Button", "Position": { "X": 0.77, "Y": 0.6 }, "Radius": 0.08 },
+        { "ControlId": "ButtonTop", "Kind": "Button", "Position": { "X": 0.86, "Y": 0.4 }, "Radius": 0.08 },
+        { "ControlId": "ButtonUpperLeft", "Kind": "Button", "Position": { "X": 0.7, "Y": 0.18 }, "Radius": 0.07 },
+        { "ControlId": "ButtonUpperRight", "Kind": "Button", "Position": { "X": 0.95, "Y": 0.18 }, "Radius": 0.07 },
+        { "ControlId": "Sprint", "Kind": "Button", "Position": { "X": 0.68, "Y": 0.86 }, "Radius": 0.09 },
+        { "ControlId": "Pause", "Kind": "Button", "Position": { "X": 0.5, "Y": 0.07 }, "Radius": 0.065 },
+        { "ControlId": "SwipeUp", "Kind": "Swipe", "Direction": "Up" },
+        { "ControlId": "SwipeDown", "Kind": "Swipe", "Direction": "Down" },
+        { "ControlId": "SwipeLeft", "Kind": "Swipe", "Direction": "Left" },
+        { "ControlId": "SwipeRight", "Kind": "Swipe", "Direction": "Right" }
+    ],
+    "TouchContexts": [
+        {
+            "ContextId": "OnField",
+            "Bindings": [
+                { "ControlId": "Stick", "ActionId": "Move" },
+                { "ControlId": "Sprint", "ActionId": "Sprint" },
+                { "ControlId": "ButtonBottom", "ActionId": "Confirm" },
+                { "ControlId": "ButtonRight", "ActionId": "Cancel" },
+                { "ControlId": "ButtonLeft", "ActionId": "SwitchPlayer" },
+                { "ControlId": "ButtonUpperLeft", "ActionId": "SwitchPlayer" },
+                { "ControlId": "Pause", "ActionId": "Pause" }
+            ]
+        },
+        {
+            "ContextId": "PreSnap",
+            "Bindings": []
+        },
+        {
+            "ContextId": "Passing",
+            "Bindings": [
+                { "ControlId": "ButtonLeft", "ActionId": "PassTarget1" },
+                { "ControlId": "ButtonTop", "ActionId": "PassTarget2" },
+                { "ControlId": "ButtonRight", "ActionId": "PassTarget3" },
+                { "ControlId": "ButtonUpperRight", "ActionId": "PassTarget4" },
+                { "ControlId": "ButtonBottom", "ActionId": "PassTarget5" },
+                { "ControlId": "ButtonUpperLeft", "ActionId": "PumpFake" }
+            ]
+        },
+        {
+            "ContextId": "BallCarrier",
+            "Bindings": [
+                { "ControlId": "ButtonLeft", "ActionId": "Juke" },
+                { "ControlId": "ButtonRight", "ActionId": "Spin" },
+                { "ControlId": "ButtonBottom", "ActionId": "Truck" },
+                { "ControlId": "ButtonUpperRight", "ActionId": "StiffArm" },
+                { "ControlId": "ButtonTop", "ActionId": "Hurdle" },
+                { "ControlId": "ButtonUpperLeft", "ActionId": "Slide" },
+                { "ControlId": "SwipeLeft", "ActionId": "Juke" },
+                { "ControlId": "SwipeRight", "ActionId": "Juke" },
+                { "ControlId": "SwipeUp", "ActionId": "Hurdle" },
+                { "ControlId": "SwipeDown", "ActionId": "Slide" }
+            ]
+        },
+        {
+            "ContextId": "Defense",
+            "Bindings": []
+        }
+    ]
+}

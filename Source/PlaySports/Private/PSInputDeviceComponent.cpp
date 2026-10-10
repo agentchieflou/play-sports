@@ -5,6 +5,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformMisc.h"
 #include "Input/Events.h"
 
 /** Observe-only Slate pre-processor feeding the last-input heuristic. Returns false from
@@ -35,6 +36,15 @@ public:
 
     virtual bool HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override
     {
+        // A finger arrives as a pointer event flagged as touch (Epic 130).
+        if (MouseEvent.IsTouchEvent())
+        {
+            if (UPSInputDeviceComponent* Component = Owner.Get())
+            {
+                Component->NotifyTouch();
+            }
+            return false;
+        }
         Forward(MouseEvent.GetEffectingButton(), 1.f);
         return false;
     }
@@ -55,7 +65,18 @@ UPSInputDeviceComponent::UPSInputDeviceComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
     AnalogThreshold = FInputTuningRow().DeviceSwitchAnalogThreshold;
-    ActiveDevice = EPSInputDevice::KeyboardMouse;
+    bHasTouchScreen = FPlatformMisc::SupportsTouchInput();
+    ActiveDevice = GetFallbackDevice();
+}
+
+EPSInputDevice UPSInputDeviceComponent::GetFallbackDevice() const
+{
+    return bHasTouchScreen ? EPSInputDevice::Touch : EPSInputDevice::KeyboardMouse;
+}
+
+void UPSInputDeviceComponent::NotifyTouch()
+{
+    SetActiveDevice(EPSInputDevice::Touch, false, true);
 }
 
 void UPSInputDeviceComponent::BeginPlay()
@@ -102,7 +123,16 @@ void UPSInputDeviceComponent::NotifyInput(const FKey& Key, float AnalogValue)
         return;
     }
 
-    SetActiveDevice(Key.IsGamepadKey() ? EPSInputDevice::Gamepad : EPSInputDevice::KeyboardMouse, false, true);
+    EPSInputDevice Device = EPSInputDevice::KeyboardMouse;
+    if (Key.IsGamepadKey())
+    {
+        Device = EPSInputDevice::Gamepad;
+    }
+    else if (Key.IsTouch())
+    {
+        Device = EPSInputDevice::Touch;
+    }
+    SetActiveDevice(Device, false, true);
 }
 
 void UPSInputDeviceComponent::NotifyConnectionChange(bool bConnected, bool bIsGamepad)
@@ -114,7 +144,7 @@ void UPSInputDeviceComponent::NotifyConnectionChange(bool bConnected, bool bIsGa
 
     if (!bConnected && ActiveDevice == EPSInputDevice::Gamepad)
     {
-        SetActiveDevice(EPSInputDevice::KeyboardMouse, true, false);
+        SetActiveDevice(GetFallbackDevice(), true, false);
         return;
     }
 

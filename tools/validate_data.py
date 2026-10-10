@@ -18,7 +18,10 @@ FSkillPlayerAITuningRow; "ManCushion" files against FDefenderAITuningRow; "SlotA
 against FPassingInputTuningRow, including that each named action is a Boolean in the input
 catalog's Passing context; "Moves" files against FPSCarrierMoveCatalog, each move's action a
 Boolean in the BallCarrier context; "Tiers" files against FPSPlatformTierCatalog, each tier's
-DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini.
+DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDeviceProfiles.ini;
+"TouchControls" files against FPSTouchLayout (Epic 130), each bound action living in its context
+with the control's value type, every action of a listed context reachable by touch, and every
+touch-bound action drawn by the default Touch glyph set.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -358,11 +361,14 @@ def validate_force_feedback(path, payload):
             err(path, f"Cue '{cue}' has no pattern")
 
 
-INPUT_DEVICES = ("KeyboardMouse", "Gamepad")
+INPUT_DEVICES = ("KeyboardMouse", "Gamepad", "Touch")
+TOUCH_KEY = re.compile(r"^Touch\d+$")
 
 
 def key_device(key):
-    return "Gamepad" if is_gamepad_key(key) else "KeyboardMouse"
+    if is_gamepad_key(key):
+        return "Gamepad"
+    return "Touch" if TOUCH_KEY.match(key) else "KeyboardMouse"
 
 
 def validate_input_glyphs(path, payload, catalog):
@@ -646,6 +652,162 @@ def validate_carrier_moves(path, payload, catalog):
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
 
 
+TOUCH_KINDS = {"Stick", "Button", "Swipe"}
+TOUCH_DIRECTIONS = {"Left", "Right", "Up", "Down"}
+TOUCH_LAYOUT_FIELDS = {"SafeZone", "LayoutAspect", "bFloatingStick", "StickZone", "GestureZone",
+                       "SwipeMinDistance", "SwipeMaxSeconds", "TouchControls", "TouchContexts"}
+
+
+def zone_ok(zone):
+    try:
+        lo, hi = zone["Min"], zone["Max"]
+        values = [lo["X"], lo["Y"], hi["X"], hi["Y"]]
+    except (KeyError, TypeError):
+        return False
+    return all(is_number(v) and 0 <= v <= 1 for v in values) and lo["X"] < hi["X"] and lo["Y"] < hi["Y"]
+
+
+def validate_touch_controls(path, payload, catalog, glyphs):
+    """FPSTouchLayout (Data/touch_controls.json, Epic 130); mirrors
+    PSTouchControls::ValidateLayout. catalog / glyphs are the parsed input catalog and glyph
+    table, or None."""
+    extra = set(payload) - TOUCH_LAYOUT_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTouchLayout exactly")
+    safe = payload.get("SafeZone")
+    margins = [safe.get(k) for k in ("Left", "Top", "Right", "Bottom")] if isinstance(safe, dict) else []
+    if (len(margins) != 4 or not all(is_number(m) and m >= 0 for m in margins)
+            or margins[0] + margins[2] >= 1 or margins[1] + margins[3] >= 1):
+        err(path, "SafeZone: margins must be numbers, 0 or more, leaving part of the screen on each axis")
+    aspect = payload.get("LayoutAspect")
+    if not is_number(aspect) or aspect <= 0:
+        err(path, "LayoutAspect must be a positive number")
+        aspect = 1.0
+    for name in ("StickZone", "GestureZone"):
+        if not zone_ok(payload.get(name)):
+            err(path, f"{name} must satisfy 0 <= Min < Max <= 1 on both axes")
+    for name in ("SwipeMinDistance", "SwipeMaxSeconds"):
+        if not is_number(payload.get(name)) or payload[name] <= 0:
+            err(path, f"{name} must be a positive number")
+
+    controls = {}
+    swipe_directions = set()
+    sticks = 0
+    for idx, control in enumerate(payload.get("TouchControls") or []):
+        where = f"TouchControls[{idx}]"
+        if not isinstance(control, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        cid = control.get("ControlId")
+        if not isinstance(cid, str) or not cid or cid in controls:
+            err(path, f"{where}.ControlId: empty or used twice")
+        controls[cid] = control
+        kind = control.get("Kind")
+        if kind not in TOUCH_KINDS:
+            err(path, f"{where}.Kind: '{kind}' is not an EPSTouchControlKind ({sorted(TOUCH_KINDS)})")
+            continue
+        if kind == "Swipe":
+            direction = control.get("Direction")
+            if direction not in TOUCH_DIRECTIONS or direction in swipe_directions:
+                err(path, f"{where}: a swipe needs a Direction ({sorted(TOUCH_DIRECTIONS)}) no other swipe uses")
+            swipe_directions.add(direction)
+            continue
+        if kind == "Stick":
+            sticks += 1
+        pos, radius = control.get("Position"), control.get("Radius")
+        x, y = (pos.get("X"), pos.get("Y")) if isinstance(pos, dict) else (None, None)
+        if not (is_number(x) and is_number(y) and 0 <= x <= 1 and 0 <= y <= 1 and is_number(radius) and radius > 0):
+            err(path, f"{where} '{cid}': needs a Position inside the safe area and a positive Radius")
+            continue
+        if kind == "Button" and (y - radius < 0 or y + radius > 1 or x - radius / aspect < 0 or x + radius / aspect > 1):
+            err(path, f"{where} '{cid}': the button reaches outside the safe area")
+    if sticks > 1:
+        err(path, f"the layout has {sticks} sticks; the touch layer drives one")
+    buttons = [c for c in controls.values() if isinstance(c, dict) and c.get("Kind") == "Button"
+               and isinstance(c.get("Position"), dict) and is_number(c.get("Radius"))
+               and is_number(c["Position"].get("X")) and is_number(c["Position"].get("Y"))]
+    for i, a in enumerate(buttons):
+        for b in buttons[i + 1:]:
+            dx = (a["Position"]["X"] - b["Position"]["X"]) * aspect
+            dy = a["Position"]["Y"] - b["Position"]["Y"]
+            if (dx * dx + dy * dy) ** 0.5 < a["Radius"] + b["Radius"]:
+                err(path, f"buttons '{a.get('ControlId')}' and '{b.get('ControlId')}' overlap")
+
+    catalog_contexts = {c.get("ContextId") for c in (catalog or {}).get("Contexts", []) if isinstance(c, dict)}
+    actions = {a.get("ActionId"): a for a in (catalog or {}).get("Actions", []) if isinstance(a, dict)}
+    bound_actions = set()
+    seen_contexts = set()
+    for idx, entry in enumerate(payload.get("TouchContexts") or []):
+        if not isinstance(entry, dict):
+            err(path, f"TouchContexts[{idx}]: must be an object")
+            continue
+        ctx = entry.get("ContextId")
+        where = f"TouchContexts[{idx}] '{ctx}'"
+        if not isinstance(ctx, str) or not ctx or ctx in seen_contexts:
+            err(path, f"{where}: empty or listed twice")
+        seen_contexts.add(ctx)
+        known_context = catalog is None or ctx in catalog_contexts
+        if not known_context:
+            err(path, f"{where}: not a context in input_actions.json")
+        bound_here, reached = set(), set()
+        for bidx, binding in enumerate(entry.get("Bindings") or []):
+            bwhere = f"{where}.Bindings[{bidx}]"
+            if not isinstance(binding, dict):
+                err(path, f"{bwhere}: must be an object")
+                continue
+            cid, aid = binding.get("ControlId"), binding.get("ActionId")
+            control = controls.get(cid)
+            if control is None:
+                err(path, f"{bwhere}: no control '{cid}' in TouchControls")
+            if cid in bound_here:
+                err(path, f"{bwhere}: control '{cid}' bound twice in one context")
+            bound_here.add(cid)
+            if not isinstance(aid, str) or not aid:
+                err(path, f"{bwhere}: no ActionId")
+                continue
+            bound_actions.add(aid)
+            reached.add(aid)
+            if catalog is None:
+                continue
+            action = actions.get(aid)
+            if action is None:
+                err(path, f"{bwhere}: '{aid}' is not an action in input_actions.json")
+                continue
+            if known_context and ctx not in (action.get("Contexts") or []):
+                err(path, f"{bwhere}: '{aid}' does not live in context '{ctx}'")
+            if isinstance(control, dict) and control.get("Kind") in TOUCH_KINDS:
+                expected = "Axis2D" if control["Kind"] == "Stick" else "Boolean"
+                if action.get("ValueType") != expected:
+                    err(path, f"{bwhere}: a {control['Kind']} control needs an action of type {expected}, and '{aid}' is {action.get('ValueType')}")
+            keys = [b.get("Key") for b in action.get("Bindings", []) if isinstance(b, dict) and isinstance(b.get("Key"), str)]
+            if not any(is_gamepad_key(k) for k in keys):
+                err(path, f"{bwhere}: '{aid}' has no gamepad binding for the touch value to go through")
+        if catalog is not None and known_context:
+            for aid, action in actions.items():
+                if ctx in (action.get("Contexts") or []) and aid not in reached:
+                    err(path, f"{where}: action '{aid}' has no touch control")
+
+    if glyphs is None:
+        return
+    touch_sets = [s for s in glyphs.get("GlyphSets", [])
+                  if isinstance(s, dict) and s.get("Device") == "Touch" and s.get("bDefaultForDevice")]
+    if len(touch_sets) != 1:
+        err(path, "input_glyphs.json needs exactly one default Touch glyph set")
+        return
+    drawn = {a.get("ActionId") for a in touch_sets[0].get("Actions", []) if isinstance(a, dict)}
+    for aid in sorted(bound_actions - drawn):
+        err(path, f"glyph set '{touch_sets[0].get('GlyphSetId')}' has no glyph for '{aid}', which a touch control drives")
+
+
+def load_input_glyphs():
+    """The glyph table touch controls must be drawn from, or None when missing or broken."""
+    try:
+        glyphs = json.loads((DATA_DIR / "input_glyphs.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return glyphs if isinstance(glyphs, dict) else None
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -700,6 +862,8 @@ def main():
             validate_passing_input(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "TouchControls" in payload:
+            validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

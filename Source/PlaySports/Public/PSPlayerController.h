@@ -17,6 +17,9 @@ class UPSPlayCallComponent;
 class UPSPlayContextComponent;
 class UPSPassingComponent;
 class UPSCarrierInputComponent;
+class UPSTouchInputComponent;
+class UInputModifier;
+class UInputTrigger;
 struct FInputActionValue;
 struct FInputActionInstance;
 
@@ -45,6 +48,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * (PreSnap, Passing, BallCarrier, Defense) matching the moment of the play,
  * UPSPassingComponent throws to receiver slots when the controlled QB passes, and
  * UPSCarrierInputComponent turns the move buttons into the carrier's moves.
+ *
+ * Touch (Epic 130) is UPSTouchInputComponent's: its stick, buttons and swipes resolve to catalog
+ * actions and come back here through InjectCatalogInput, so every handler below and every
+ * OnCatalogActionStarted consumer hears touch exactly as it hears the gamepad.
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -90,6 +97,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSCarrierInputComponent* GetCarrierInputComponent() const { return CarrierInputComponent; }
 
+    /** The touch layer: virtual stick, on-screen buttons and swipes (Epic 130). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSTouchInputComponent* GetTouchInputComponent() const { return TouchInputComponent; }
+
     /** The Move stick's value right now (X right, Y forward); zero once released. */
     UFUNCTION(BlueprintPure, Category = "Input")
     FVector2D GetMoveInput() const { return MoveInput; }
@@ -106,6 +117,15 @@ public:
     /** True while ContextId is on this controller's context stack. */
     UFUNCTION(BlueprintPure, Category = "Input")
     bool IsInputContextActive(FName ContextId) const;
+
+    /** The context stack, oldest first (Specs/Input_Architecture.md section 3). */
+    const TArray<FName>& GetActiveInputContexts() const { return ActiveInputContexts; }
+
+    /** Feeds RawValue to the catalog action ActionId through Enhanced Input, with Modifiers and
+     *  Triggers applied as if a key mapped with them had produced it (Epic 130's touch layer
+     *  passes the action's gamepad mapping). Inject every frame the input is held. False when
+     *  there is no local player to inject into (headless) or no such action. */
+    bool InjectCatalogInput(FName ActionId, const FInputActionValue& RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
 
     /** Binds every catalog action this controller handles onto InInputComponent. Called
      *  from SetupInputComponent; public so a test can bind onto a component it owns. */
@@ -221,6 +241,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSCarrierInputComponent* CarrierInputComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSTouchInputComponent* TouchInputComponent;
 
     UPROPERTY(Transient)
     TArray<FName> ActiveInputContexts;

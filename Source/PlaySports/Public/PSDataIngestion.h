@@ -16,6 +16,7 @@
 #include "PSPassingComponent.h"
 #include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSTouchControls.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -97,6 +98,11 @@ public:
      *  missing file, malformed JSON, or an unrecognized Move. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
+
+    /** Loads the touch layout (Data/touch_controls.json, Epic 130). False on a missing file,
+     *  malformed JSON, or an unrecognized control Kind or swipe Direction. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTouchLayoutFromJson(const FString& JsonFilePath, FPSTouchLayout& OutLayout);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

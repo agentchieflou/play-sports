@@ -28,10 +28,10 @@ packaging story is real. All touch input consumes Track M's action layer (`UPSIn
 **Goal:** Touch drives the same action layer as the gamepad — no fork in gameplay input.
 **Depends on:** 126, 128, 129
 
-- [ ] Touch layer mapping onto the `UPSInputConfig` action catalog: virtual stick + tap/swipe gestures resolve to the same Move/Confirm/etc. actions via Enhanced Input
-- [ ] `Specs/Touch_Controls_Spec.md`: on-screen layout, HUD-safe zones, per-context button sets (pre-snap vs ball-carrier) — the editor/visual half handed off per the Specs pattern
-- [ ] Glyph table (128) gains a touch glyph set; active-device events (127) drive automatic UI glyph switching
-- [ ] Automation test: injected touch gestures resolve to action values identical to their gamepad equivalents
+- [x] Touch layer mapping onto the `UPSInputConfig` action catalog: virtual stick + tap/swipe gestures resolve to the same Move/Confirm/etc. actions via Enhanced Input *(`UPSTouchInputComponent` on the controller: a floating stick, on-screen buttons and swipes from `Data/touch_controls.json`, each naming a catalog action per context and stacking by context priority; values go through the action's gamepad mapping and `APSPlayerController::InjectCatalogInput` into Enhanced Input. Runs on a device only once an iOS build exists)*
+- [x] `Specs/Touch_Controls_Spec.md`: on-screen layout, HUD-safe zones, per-context button sets (pre-snap vs ball-carrier) — the editor/visual half handed off per the Specs pattern *(the touch HUD widget that draws the controls is section 6's handoff, not built)*
+- [x] Glyph table (128) gains a touch glyph set; active-device events (127) drive automatic UI glyph switching *(`EPSInputDevice::Touch`; a default `Touch` set of action glyphs; a finger switches the device on the bus, and a phone starts on, and falls back to, Touch. No HUD prompt consumes glyphs yet; the test shows a prompt's glyph following the event)*
+- [x] Automation test: injected touch gestures resolve to action values identical to their gamepad equivalents *(`PlaySports.Input.TouchGesturesMatchGamepad`, `PlaySports.Input.TouchLayoutValidates`)*
 
 ### Epic 131: iOS Build Pipeline & Signing
 

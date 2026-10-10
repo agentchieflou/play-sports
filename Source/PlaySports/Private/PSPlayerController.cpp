@@ -7,6 +7,7 @@
 #include "PSPlayContextComponent.h"
 #include "PSPassingComponent.h"
 #include "PSCarrierInputComponent.h"
+#include "PSTouchInputComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
 #include "PSBroadcastCamera.h"
@@ -44,6 +45,7 @@ APSPlayerController::APSPlayerController()
     PlayContextComponent = CreateDefaultSubobject<UPSPlayContextComponent>(TEXT("PlayContextComp"));
     PassingComponent = CreateDefaultSubobject<UPSPassingComponent>(TEXT("PassingComp"));
     CarrierInputComponent = CreateDefaultSubobject<UPSCarrierInputComponent>(TEXT("CarrierInputComp"));
+    TouchInputComponent = CreateDefaultSubobject<UPSTouchInputComponent>(TEXT("TouchInputComp"));
 }
 
 UPSInputConfig* APSPlayerController::GetInputConfig()
@@ -63,6 +65,20 @@ UPSInputConfig* APSPlayerController::GetInputConfig()
 bool APSPlayerController::IsInputContextActive(FName ContextId) const
 {
     return ActiveInputContexts.Contains(ContextId);
+}
+
+bool APSPlayerController::InjectCatalogInput(FName ActionId, const FInputActionValue& RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
+{
+    UPSInputConfig* Config = GetInputConfig();
+    const UInputAction* Action = Config ? Config->FindAction(ActionId) : nullptr;
+    UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+    if (!Action || !Subsystem)
+    {
+        return false;
+    }
+
+    Subsystem->InjectInputForAction(Action, RawValue, Modifiers, Triggers);
+    return true;
 }
 
 void APSPlayerController::BeginPlay()

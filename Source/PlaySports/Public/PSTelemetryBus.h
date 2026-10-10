@@ -31,12 +31,14 @@ enum class EPSDeathCause : uint8
     InterceptionPunishment
 };
 
-/** Which kind of hardware the human player last used (Epic 127). */
+/** Which kind of hardware the human player last used (Epic 127; Touch is Epic 130's
+ *  touch screen). */
 UENUM(BlueprintType)
 enum class EPSInputDevice : uint8
 {
     KeyboardMouse,
-    Gamepad
+    Gamepad,
+    Touch
 };
 
 USTRUCT(BlueprintType)
