@@ -54,7 +54,7 @@ Epic 118's job format serves the growing `Specs/` editor backlog. Track P
 
 - [x] Deterministic-simulation audit: RNG discipline, float stability, tick-order guarantees (findings doc: `Specs/Determinism_Audit.md`)
 - [x] Serialization schema: initial state + input/event stream + version header (`PSReplayFormat.h`, JSON via `FJsonObjectConverter`)
-- [ ] Record/playback round-trip test: identical outcomes or diagnosed divergence report
+- [x] Record/playback round-trip test: identical outcomes or diagnosed divergence report *(as built: `UPSReplayRecorder` copies every bus event into an `FPSReplayRecording` as it is published, stamped with the driver's tick, so a whole game outlasts the bus's 100-event history. `UPSQuickSimRunner::RecordGame` records a seeded quick-sim game; `ReplayGame` re-simulates a loaded recording from its rosters, seed and step alone, and refuses one it can't (no seed, no fixed step, a mid-game start, a live world) with the reason. `PlaySports.Replay.RoundTrip.*`: record, save to JSON, load and play back give the same game event for event; an edited recording or a changed roster is reported at its first differing event, tick and field. The physical game stays Mode 1 (Specs/Determinism_Audit.md))*
 - [x] Migration policy for format versioning across releases (policy in `Specs/Determinism_Audit.md`; step-wise version gate implemented + tested)
 - [x] Divergence bisection tool: find the first tick where two runs differ *(as built: `UPSDeterminism::FindFirstDivergence` / `DescribeDivergence` (Epic 24) report the first event, tick and field where two `FPSReplayRecording`s differ)*
 
