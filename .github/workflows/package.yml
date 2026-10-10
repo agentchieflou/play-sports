@@ -1,0 +1,187 @@
+name: Package
+
+# Epic 145: cooks and packages the PlaySports game for Win64 on the self-hosted runner, then runs
+# the packaged build's smoke test. The build is the first of the PlaySports game target (ci.yml
+# builds the editor target only). Separate from ci.yml, so a content workflow can sit beside both.
+#
+# Runs:
+#   - on every push to main;
+#   - by hand (workflow_dispatch), Development or Shipping;
+#   - on a pull request that changes what packaging depends on (the paths below). Packaging adds
+#     real load to the one runner, so other PRs don't run it.
+#
+# The smoke test (UPSPackagedSmokeTest, -PSSmokeTest) needs no map: it runs once the engine is up,
+# before any map loads. It checks the build carries every default data file (Data/ is staged loose
+# by PlaySports.Build.cs), loads the league's first two teams, plays a full game between them on
+# the quick sim, writes the result to a JSON report and exits 0 on a pass, 1 on a failure. This job
+# fails unless the exit code is 0 and the report says it passed.
+#
+# The exact invocation, for running it by hand on Windows from the repo root:
+#   & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$PWD\play-sports.uproject" -WaitMutex
+#   & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySports Win64 Development -project="$PWD\play-sports.uproject" -WaitMutex
+#   & "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun -project="$PWD\play-sports.uproject" `
+#       -target=PlaySports -platform=Win64 -clientconfig=Development -cook -stage -package -pak `
+#       -archive -archivedirectory="$PWD\Saved\Archive" -unattended -utf8output -nop4
+#   & "$PWD\Saved\Archive\Windows\play-sports\Binaries\Win64\PlaySports.exe" -PSSmokeTest `
+#       -PSSmokeTestReport="$PWD\Saved\SmokeTest\result.json" -nullrhi -nosound -unattended -nosplash
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/package.yml"
+      - "*.uproject"
+      - "Config/**"
+      - "Source/**/*.Target.cs"
+      - "Source/**/*.Build.cs"
+      - "Plugins/**/*.uplugin"
+      - "Plugins/**/*.Build.cs"
+      - "Source/PlaySports/Private/PlaySports.cpp"
+      - "Source/PlaySports/Public/PSPackagedSmokeTest.h"
+      - "Source/PlaySports/Private/PSPackagedSmokeTest.cpp"
+      - "Source/PlaySports/Public/PSDataPaths.h"
+      - "Source/PlaySports/Private/PSDataPaths.cpp"
+  workflow_dispatch:
+    inputs:
+      config:
+        description: "Client configuration"
+        type: choice
+        options:
+          - Development
+          - Shipping
+        default: Development
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Push and pull_request runs have no inputs: they package Development.
+  CLIENT_CONFIG: ${{ inputs.config || 'Development' }}
+
+jobs:
+  package-win64:
+    name: Package Win64 and smoke test
+    runs-on: [self-hosted, windows, unreal]
+    # Building the editor (for the cook) and the game, cooking and staging take far longer than
+    # ci.yml's editor build, most of all on a cold shader cache.
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Generated maps and imported assets are committed through Git LFS (Epic 146); the cook
+          # needs the real files, not their pointers.
+          lfs: true
+
+      - name: Check runner prerequisites
+        shell: powershell
+        run: |
+          if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
+          if (-not (Test-Path "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat")) { throw "RunUAT.bat not found under UE_ROOT ($env:UE_ROOT)." }
+          Write-Host "Packaging PlaySports for Win64 $env:CLIENT_CONFIG"
+
+      - name: Build PlaySportsEditor (the cook runs in it)
+        shell: powershell
+        run: |
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$env:GITHUB_WORKSPACE\play-sports.uproject" -WaitMutex
+          if ($LASTEXITCODE -ne 0) { throw "UnrealBuildTool failed on the editor target with exit code $LASTEXITCODE" }
+
+      - name: Build PlaySports (game target)
+        shell: powershell
+        run: |
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySports Win64 $env:CLIENT_CONFIG -project="$env:GITHUB_WORKSPACE\play-sports.uproject" -WaitMutex
+          if ($LASTEXITCODE -ne 0) { throw "UnrealBuildTool failed on the game target with exit code $LASTEXITCODE" }
+
+      - name: Cook, stage and package
+        shell: powershell
+        run: |
+          $Archive = Join-Path $env:GITHUB_WORKSPACE "Saved\Archive"
+          if (Test-Path $Archive) { Remove-Item -Recurse -Force $Archive }
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun `
+            -project="$env:GITHUB_WORKSPACE\play-sports.uproject" `
+            -target=PlaySports `
+            -platform=Win64 `
+            -clientconfig="$env:CLIENT_CONFIG" `
+            -cook -stage -package -pak `
+            -archive -archivedirectory="$Archive" `
+            -unattended -utf8output -nop4
+          if ($LASTEXITCODE -ne 0) { throw "BuildCookRun failed with exit code $LASTEXITCODE" }
+
+      - name: Smoke test the packaged build
+        shell: powershell
+        run: |
+          $Platform = Join-Path $env:GITHUB_WORKSPACE "Saved\Archive\Windows"
+          $Exe = Get-ChildItem -Path $Platform -Recurse -Filter "PlaySports*.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DirectoryName -like "*\Binaries\Win64" } | Select-Object -First 1
+          if (-not $Exe) { throw "No packaged PlaySports executable under $Platform" }
+          Write-Host "Packaged executable: $($Exe.FullName)"
+
+          # The build carries Data/ loose beside its binaries (Epic 145.2).
+          $Staged = Join-Path $Exe.Directory.Parent.Parent.FullName "Data\sample_teams.json"
+          if (-not (Test-Path $Staged)) { throw "The packaged build has no staged Data/ folder ($Staged is missing)" }
+
+          $OutDir = Join-Path $env:GITHUB_WORKSPACE "Saved\SmokeTest"
+          New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+          $Report = Join-Path $OutDir "result.json"
+          $Log = Join-Path $OutDir "PlaySports.log"
+          Remove-Item $Report, $Log -ErrorAction SilentlyContinue
+
+          $GameArgs = @("-PSSmokeTest", "-PSSmokeTestReport=`"$Report`"", "-nullrhi", "-nosound", "-unattended", "-nosplash", "-abslog=`"$Log`"")
+          $Proc = Start-Process -FilePath $Exe.FullName -ArgumentList $GameArgs -PassThru
+          $null = $Proc.Handle
+          if (-not $Proc.WaitForExit(20 * 60 * 1000)) {
+            Stop-Process -Id $Proc.Id -Force
+            throw "The packaged smoke test did not exit within 20 minutes"
+          }
+          $Code = $Proc.ExitCode
+
+          if (Test-Path $Log) { Select-String -Path $Log -Pattern "PSSmokeTest:" | ForEach-Object { Write-Host $_.Line } }
+          if (-not (Test-Path $Report)) { throw "The packaged smoke test wrote no report (exit code $Code)" }
+          $Result = Get-Content $Report -Raw | ConvertFrom-Json
+          $Line = "Packaged smoke test ($env:CLIENT_CONFIG): $($Result.HomeTeam) $($Result.HomeScore) - $($Result.AwayTeam) $($Result.AwayScore), $($Result.Plays) plays, seed $($Result.Seed), passed $($Result.Passed), exit code $Code"
+          Write-Host $Line
+          "### Packaged smoke test`n`n$Line" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          foreach ($Failure in $Result.Failures) { Write-Host "::error::$Failure" }
+          if ($Code -ne 0 -or -not $Result.Passed) { throw "The packaged smoke test failed" }
+
+      - name: Upload packaged build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlaySports-Win64-${{ env.CLIENT_CONFIG }}
+          path: Saved/Archive/Windows/
+          if-no-files-found: error
+          # Packaged builds are large: keep each one briefly.
+          retention-days: 3
+
+      - name: Collect UAT logs
+        if: ${{ !cancelled() }}
+        shell: powershell
+        run: |
+          # For an installed engine UAT logs under the user's AppData, and the cook under the
+          # engine's AutomationTool\Saved folder.
+          $Dest = Join-Path $env:GITHUB_WORKSPACE "Saved\Logs\UAT"
+          New-Item -ItemType Directory -Force -Path $Dest | Out-Null
+          $Sources = @((Join-Path $env:APPDATA "Unreal Engine\AutomationTool\Logs"), (Join-Path $env:UE_ROOT "Engine\Programs\AutomationTool\Saved"))
+          foreach ($Source in $Sources) {
+            if (Test-Path $Source) {
+              Get-ChildItem -Path $Source -Recurse -File -Include *.txt, *.log | Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-6) } |
+                ForEach-Object { Copy-Item $_.FullName -Destination $Dest -Force }
+            }
+          }
+
+      - name: Upload smoke test and logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-logs-${{ env.CLIENT_CONFIG }}
+          path: |
+            Saved/SmokeTest/
+            Saved/Logs/
+          if-no-files-found: ignore
+          retention-days: 7

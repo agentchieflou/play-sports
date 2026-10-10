@@ -1,4 +1,5 @@
 #include "PlaySports.h"
+#include "PSPackagedSmokeTest.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FPlaySportsModule"
@@ -6,6 +7,9 @@
 void FPlaySportsModule::StartupModule()
 {
     UE_LOG(LogTemp, Display, TEXT("PlaySports module started."));
+
+    // Epic 145.3: -PSSmokeTest plays a scripted full game once the engine is up, then exits.
+    UPSPackagedSmokeTest::RegisterCommandLineHook();
 }
 
 void FPlaySportsModule::ShutdownModule()

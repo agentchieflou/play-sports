@@ -255,7 +255,7 @@ one CI run) rather than re-merging main into each PR after every landing.
     "142": {"track": "R", "mode": "mixed", "status": "partial", "depends_on": ["2"]},
     "143": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "22", "C1"]},
     "144": {"track": "R", "mode": "mixed", "status": "open", "depends_on": ["142", "2"]},
-    "145": {"track": "S", "mode": "code", "status": "open", "depends_on": ["112", "101"]},
+    "145": {"track": "S", "mode": "code", "status": "partial", "depends_on": ["112", "101"], "open_stories": ["145.1 Shipping on demand (follow-up committed locally by S1)", "145.4 boot flow into the front end and Play Now (needs the GameMap, now on main)"]},
     "146": {"track": "S", "mode": "mixed", "status": "partial", "depends_on": ["112"], "open_stories": ["146.5 world kit import through the pipeline (PR #203)"]},
     "147": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["145", "146", "142"]},
     "148": {"track": "S", "mode": "mixed", "status": "open", "depends_on": ["145", "147"]},
