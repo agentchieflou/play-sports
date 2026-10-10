@@ -568,7 +568,7 @@ bool FPSPlayArtPolicyTest::RunTest(const FString& Parameters)
     UPSSettingsSubsystem* Settings = NewObject<UPSSettingsSubsystem>(NewObject<UGameInstance>());
     Overlay->SetSettings(Settings);
     TestNotNull(TEXT("RouteArt is a setting"), Settings->GetCatalog().FindSetting(UPSOverlayPlayArtSubsystem::RouteArtSettingId));
-    TestTrue(TEXT("...on by default"), Overlay->IsSettingOn());
+    TestTrue(TEXT("...on by default"), Overlay->IsSettingOn(UPSOverlayPlayArtSubsystem::RouteArtSettingId));
     Settings->SetValue(UPSOverlayPlayArtSubsystem::RouteArtSettingId, 0.f);
     Overlay->Refresh();
     TestEqual(TEXT("Turned off, nothing is drawn"), Overlay->GetRouteArt().Num(), 0);

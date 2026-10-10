@@ -6,6 +6,7 @@
 #include "PSPlayResolution.h"
 
 class UDataTable;
+class UPSCoverageMatchupSubsystem;
 class UWorld;
 
 /**
@@ -38,6 +39,17 @@ namespace PSPlayArt
      */
     PLAYSPORTS_API TArray<FPSPlayArtPrimitive> CompileRouteArt(const TArray<FPSResolvedAssignment>& Resolved, const UDataTable* RouteLibrary,
         const FPSPlayArtStyle& Style, float BreakMinAngleDegrees, float GroundZ);
+
+    /**
+     * The defense's icons for a resolved defensive play (Epic 31), its man matchups resolved
+     * (PSPlayResolution::ResolveManMatchups): a star at each zone defender's landmark, a
+     * connector from each man defender to his receiver (Source says how he got him: "Shadow",
+     * "Press" or "Man"), and an arrow from each rusher through the line, RushArrowDepth behind
+     * it -- "Blitz" for the call's blitzers, "Rush" for the rest. Run fits draw nothing.
+     * LineOfScrimmage is the line the art lies on.
+     */
+    PLAYSPORTS_API TArray<FPSPlayArtPrimitive> CompileDefenseArt(const TArray<FPSResolvedAssignment>& Resolved, const FPSPlayArtStyle& Style,
+        const FVector& LineOfScrimmage, const UPSCoverageMatchupSubsystem* Matchups = nullptr);
 
     /** Draws Primitives as debug shapes at Opacity (0-1) for one frame. Development builds only;
      *  nothing in shipping, or without a world. */

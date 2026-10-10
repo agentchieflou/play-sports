@@ -1,4 +1,5 @@
 #include "PSPlayResolution.h"
+#include "PSCoverageMatchupSubsystem.h"
 #include "PSDefenderPreSnapSubsystem.h"
 #include "PSPlayerPawn.h"
 #include "PSPreSnapSubsystem.h"
@@ -147,4 +148,75 @@ TArray<FPSResolvedAssignment> PSPlayResolution::ResolvePlay(const FPSPlayDefinit
         }
     }
     return Resolved;
+}
+
+bool PSPlayResolution::IsCoverable(const APSPlayerPawn* Pawn, EPlayerRole Role)
+{
+    if (!Pawn || Pawn->TeamSide != EPSTeamSide::Offense)
+    {
+        return false;
+    }
+    return Role == EPlayerRole::WideReceiver || Role == EPlayerRole::TightEnd || Role == EPlayerRole::RunningBack;
+}
+
+APSPlayerPawn* PSPlayResolution::NearestOpenReceiver(const APSPlayerPawn* Defender, const TArray<APSPlayerPawn*>& Pawns, const TArray<EPlayerRole>& Roles, const TSet<const APSPlayerPawn*>& Taken)
+{
+    if (!Defender)
+    {
+        return nullptr;
+    }
+    APSPlayerPawn* Nearest = nullptr;
+    float NearestDistance = TNumericLimits<float>::Max();
+    for (int32 Index = 0; Index < Pawns.Num() && Index < Roles.Num(); ++Index)
+    {
+        APSPlayerPawn* Candidate = Pawns[Index];
+        if (!IsCoverable(Candidate, Roles[Index]) || Taken.Contains(Candidate))
+        {
+            continue;
+        }
+        const float Distance = FVector::Dist2D(Candidate->GetActorLocation(), Defender->GetActorLocation());
+        if (Distance < NearestDistance)
+        {
+            NearestDistance = Distance;
+            Nearest = Candidate;
+        }
+    }
+    return Nearest;
+}
+
+void PSPlayResolution::ResolveManMatchups(TArray<FPSResolvedAssignment>& Resolved, const TArray<APSPlayerPawn*>& Pawns, const TArray<EPlayerRole>& Roles, const UPSCoverageMatchupSubsystem* Matchups)
+{
+    // The receivers the defenders before him have taken, as each defender's AI holds his man
+    // once it has taken up its assignment.
+    TSet<const APSPlayerPawn*> Chosen;
+    for (FPSResolvedAssignment& Entry : Resolved)
+    {
+        const APSPlayerPawn* Defender = Entry.Pawn.Get();
+        if (!Defender || !Entry.bHasSlot || Entry.DefensiveType != EPSDefensiveAssignmentType::ManCoverage)
+        {
+            continue;
+        }
+        APSPlayerPawn* Named = Cast<APSPlayerPawn>(Entry.CoverageTarget.Get());
+        APSPlayerPawn* Pressed = Matchups ? Matchups->GetPlannedReceiver(Defender) : nullptr;
+        APSPlayerPawn* Receiver = Named ? Named : Pressed;
+        if (!Receiver)
+        {
+            // Open: nobody before him has the receiver, and no other defender lines up to press him.
+            TSet<const APSPlayerPawn*> Taken = Chosen;
+            for (const APSPlayerPawn* Other : Pawns)
+            {
+                const APSPlayerPawn* OtherPressed = Matchups && Other && Other != Defender ? Matchups->GetPlannedReceiver(Other) : nullptr;
+                if (OtherPressed)
+                {
+                    Taken.Add(OtherPressed);
+                }
+            }
+            Receiver = NearestOpenReceiver(Defender, Pawns, Roles, Taken);
+        }
+        Entry.ManReceiver = Receiver;
+        if (Receiver)
+        {
+            Chosen.Add(Receiver);
+        }
+    }
 }

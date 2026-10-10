@@ -96,10 +96,26 @@ host (no game-state bindings); Epics 29/33 build its real content. Per `AGENTS.m
 **Goal:** Zone stars, man-coverage lines, and blitz arrows visualize the defensive call pre-snap.
 **Depends on:** 26, 27, Core 16
 
-- [ ] Zone-drop star markers at assignment landmarks (as in the reference frame's white stars)
-- [ ] Man-coverage connector lines defender→receiver
-- [ ] Blitz arrows from rushing defenders toward the LOS
-- [ ] Toggle policy: user setting + "show defense" study mode (hidden in competitive contexts)
+- [x] Zone-drop star markers at assignment landmarks (as in the reference frame's white stars)
+  *(`UPSOverlayPlayArtSubsystem` resolves the defense's call as it will run with the one play
+  resolution (`PSPlayResolution`) and compiles it into Epic 27's primitives
+  (`PSPlayArt::CompileDefenseArt`): a `Star` at each zone landmark on the defender's own side, at
+  his own spot for a zone with no offset. Drawn as debug shapes in development builds until the
+  editor-made renderer, `Specs/Defensive_Icons_Spec.md`)*
+- [x] Man-coverage connector lines defender→receiver *(a `Connector` from each man defender to
+  his receiver, taken as the defense AI takes him at the snap
+  (`PSPlayResolution::ResolveManMatchups`: a shadow, a press plan from Epic 69's engine, else the
+  nearest open receiver, by the one rule the AI now picks with); `Source` says which. A defender
+  with nobody left gets a star at his spot. A test checks every drawn matchup is the one the AI
+  plays after the snap)*
+- [x] Blitz arrows from rushing defenders toward the LOS *(an `Arrow` from each rusher's spot
+  through the line, `RushArrowDepth` behind it: the call's blitzers in `BlitzArrowColor`, the
+  linemen in `RushArrowColor`, `Data/play_art.json`)*
+- [x] Toggle policy: user setting + "show defense" study mode (hidden in competitive contexts)
+  *(the `DefenseIcons` setting turns them off; outside head-to-head the defense and spectators see
+  them and the offense only with the `StudyMode` setting; head to head only Epic 107's versus
+  rules decide (`ShouldShowOverlay(DefensiveIcons)`), which study mode doesn't reach past. The
+  platform tier and the snap's fade are the route art's)*
 
 ### Epic 32: Live Ball-Trajectory & Pass Indicators
 

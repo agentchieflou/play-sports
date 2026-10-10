@@ -1,5 +1,6 @@
 #include "PSOverlayPlayArtSubsystem.h"
 #include "PSAIFieldSnapshot.h"
+#include "PSCoverageMatchupSubsystem.h"
 #include "PSDataIngestion.h"
 #include "PSPerfBudget.h"
 #include "PSPlayArt.h"
@@ -14,6 +15,8 @@
 #include "Misc/Paths.h"
 
 const FName UPSOverlayPlayArtSubsystem::RouteArtSettingId(TEXT("RouteArt"));
+const FName UPSOverlayPlayArtSubsystem::DefenseIconsSettingId(TEXT("DefenseIcons"));
+const FName UPSOverlayPlayArtSubsystem::StudyModeSettingId(TEXT("StudyMode"));
 
 void UPSOverlayPlayArtSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -27,6 +30,7 @@ void UPSOverlayPlayArtSubsystem::Initialize(FSubsystemCollectionBase& Collection
     {
         Bus->OnPlayCallMC.AddUObject(this, &UPSOverlayPlayArtSubsystem::HandlePlayCall);
         Bus->OnPreSnapMC.AddUObject(this, &UPSOverlayPlayArtSubsystem::HandlePreSnap);
+        Bus->OnDefensivePreSnapMC.AddUObject(this, &UPSOverlayPlayArtSubsystem::HandleDefensivePreSnap);
         Bus->OnGameStateMC.AddUObject(this, &UPSOverlayPlayArtSubsystem::HandleGameState);
         Bus->OnSnapMC.AddUObject(this, &UPSOverlayPlayArtSubsystem::HandleSnap);
         Bus->OnPhaseChangeMC.AddUObject(this, &UPSOverlayPlayArtSubsystem::HandlePhaseChange);
@@ -40,6 +44,7 @@ void UPSOverlayPlayArtSubsystem::Deinitialize()
     {
         Bus->OnPlayCallMC.RemoveAll(this);
         Bus->OnPreSnapMC.RemoveAll(this);
+        Bus->OnDefensivePreSnapMC.RemoveAll(this);
         Bus->OnGameStateMC.RemoveAll(this);
         Bus->OnSnapMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
@@ -58,19 +63,31 @@ void UPSOverlayPlayArtSubsystem::Tick(float DeltaTime)
     Super::Tick(DeltaTime);
     // The art's cost is the Overlays budget's (Epic 114): rebuilding it, and the debug draw.
     PS_PERF_SCOPE(Overlays);
-    // The player can turn the art off (or on) from the settings at any time.
-    const bool bSettingOn = IsSettingOn();
-    if (bSettingOn != bSettingWasOn)
+
+    // The player can turn either side's art off (or on) from the settings at any time.
+    const bool bRouteSettingOn = IsSettingOn(RouteArtSettingId);
+    const bool bDefenseSettingOn = IsSettingOn(DefenseIconsSettingId);
+    if (bRouteSettingOn != bRouteSettingWasOn || bDefenseSettingOn != bDefenseSettingWasOn)
     {
-        bSettingWasOn = bSettingOn;
+        bRouteSettingWasOn = bRouteSettingOn;
+        bDefenseSettingWasOn = bDefenseSettingOn;
         bStale = true;
     }
     AdvanceTime(DeltaTime);
 
     const UWorld* World = GetWorld();
-    if (Style.bDrawDebug && World && IsVisibleTo(World->GetFirstPlayerController()))
+    if (!Style.bDrawDebug || !World)
+    {
+        return;
+    }
+    const APlayerController* Viewer = World->GetFirstPlayerController();
+    if (IsVisibleTo(Viewer))
     {
         PSPlayArt::DrawDebug(World, RouteArt, Style, GetOpacity());
+    }
+    if (IsDefenseArtVisibleTo(Viewer))
+    {
+        PSPlayArt::DrawDebug(World, DefenseArt, Style, GetOpacity());
     }
 }
 
@@ -128,6 +145,18 @@ float UPSOverlayPlayArtSubsystem::GetOpacity() const
     return Style.SnapFadeSeconds > 0.f ? FMath::Clamp(FadeRemaining / Style.SnapFadeSeconds, 0.f, 1.f) : 0.f;
 }
 
+bool UPSOverlayPlayArtSubsystem::GetVersusVerdict(EPSVersusOverlay Overlay, const APlayerController* Viewer, bool& bOutShown) const
+{
+    const UWorld* World = GetWorld();
+    const UPSVersusSubsystem* Versus = World ? World->GetSubsystem<UPSVersusSubsystem>() : nullptr;
+    if (!Versus || !Versus->IsSessionActive())
+    {
+        return false;
+    }
+    bOutShown = Versus->ShouldShowOverlay(Overlay, Viewer);
+    return true;
+}
+
 bool UPSOverlayPlayArtSubsystem::IsVisibleTo(const APlayerController* Viewer) const
 {
     if (RouteArt.Num() == 0)
@@ -135,16 +164,34 @@ bool UPSOverlayPlayArtSubsystem::IsVisibleTo(const APlayerController* Viewer) co
         return false;
     }
     // Head to head, the house rules say who may see it on a shared or split screen (Epic 107).
-    const UWorld* World = GetWorld();
-    const UPSVersusSubsystem* Versus = World ? World->GetSubsystem<UPSVersusSubsystem>() : nullptr;
-    if (Versus && Versus->IsSessionActive())
+    bool bShown = false;
+    if (GetVersusVerdict(EPSVersusOverlay::RouteArt, Viewer, bShown))
     {
-        return Versus->ShouldShowOverlay(EPSVersusOverlay::RouteArt, Viewer);
+        return bShown;
     }
     // Otherwise the offense's art is the offense's: like its call, a defending player doesn't
     // see it. A spectator does.
     const APSPlayerPawn* ViewerPawn = Viewer ? Cast<APSPlayerPawn>(Viewer->GetPawn()) : nullptr;
     return !ViewerPawn || ViewerPawn->TeamSide != EPSTeamSide::Defense;
+}
+
+bool UPSOverlayPlayArtSubsystem::IsDefenseArtVisibleTo(const APlayerController* Viewer) const
+{
+    if (DefenseArt.Num() == 0)
+    {
+        return false;
+    }
+    // Head to head -- the competitive context -- only the house rules decide: study mode doesn't
+    // reach past them (Epic 107).
+    bool bShown = false;
+    if (GetVersusVerdict(EPSVersusOverlay::DefensiveIcons, Viewer, bShown))
+    {
+        return bShown;
+    }
+    // Otherwise the defense's icons are the defense's, unless the player studies them from the
+    // offense. A spectator sees them.
+    const APSPlayerPawn* ViewerPawn = Viewer ? Cast<APSPlayerPawn>(Viewer->GetPawn()) : nullptr;
+    return !ViewerPawn || ViewerPawn->TeamSide != EPSTeamSide::Offense || IsSettingOn(StudyModeSettingId, false);
 }
 
 void UPSOverlayPlayArtSubsystem::SetOverlayDetail(EPSOverlayDetail InDetail)
@@ -171,10 +218,14 @@ UPSSettingsSubsystem* UPSOverlayPlayArtSubsystem::GetSettings() const
     return SettingsOverride ? SettingsOverride : UPSSettingsSubsystem::Get(this);
 }
 
-bool UPSOverlayPlayArtSubsystem::IsSettingOn() const
+bool UPSOverlayPlayArtSubsystem::IsSettingOn(FName SettingId, bool bWithoutIt) const
 {
     UPSSettingsSubsystem* Settings = GetSettings();
-    return !Settings || !Settings->GetCatalog().FindSetting(RouteArtSettingId) || Settings->GetBool(RouteArtSettingId);
+    if (!Settings || !Settings->GetCatalog().FindSetting(SettingId))
+    {
+        return bWithoutIt;
+    }
+    return Settings->GetBool(SettingId);
 }
 
 float UPSOverlayPlayArtSubsystem::GetBreakMinAngleDegrees()
@@ -200,7 +251,9 @@ float UPSOverlayPlayArtSubsystem::GetBreakMinAngleDegrees()
 void UPSOverlayPlayArtSubsystem::Clear()
 {
     RouteArt.Reset();
+    DefenseArt.Reset();
     PlayId = NAME_None;
+    DefensePlayId = NAME_None;
     FadeRemaining = 0.f;
 }
 
@@ -214,14 +267,19 @@ void UPSOverlayPlayArtSubsystem::Refresh()
         return;
     }
     Clear();
-
-    if (!bHasLine || OverlayDetail == EPSOverlayDetail::Minimal || !IsSettingOn())
+    if (!bHasLine || OverlayDetail == EPSOverlayDetail::Minimal)
     {
         return;
     }
+    RebuildRouteArt();
+    RebuildDefenseArt();
+}
+
+void UPSOverlayPlayArtSubsystem::RebuildRouteArt()
+{
     UWorld* World = GetWorld();
     UPSPlayCallSubsystem* PlayCall = World ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
-    if (!PlayCall)
+    if (!PlayCall || !IsSettingOn(RouteArtSettingId))
     {
         return;
     }
@@ -242,6 +300,33 @@ void UPSOverlayPlayArtSubsystem::Refresh()
     PlayId = RouteArt.Num() > 0 ? Play.PlayId : NAME_None;
 }
 
+void UPSOverlayPlayArtSubsystem::RebuildDefenseArt()
+{
+    UWorld* World = GetWorld();
+    UPSPlayCallSubsystem* PlayCall = World ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+    UPSAIFieldSnapshot* Field = World ? World->GetSubsystem<UPSAIFieldSnapshot>() : nullptr;
+    if (!PlayCall || !Field || !IsSettingOn(DefenseIconsSettingId))
+    {
+        return;
+    }
+    // The defense's call as it will run, its adjustment applied (the play-call authority's).
+    FPSPlayDefinition Play;
+    if (!PlayCall->IsCallWindowOpen() || !PlayCall->GetCall(false).IsSet() || !PlayCall->GetDefensivePlayToRun(Play) || Play.bIsOffensivePlay
+        || Style.NoDefenseArtCategories.Contains(Play.PlayCategory))
+    {
+        return;
+    }
+
+    // Resolved as the snap will resolve it, its man matchups taken as the defense AI takes them.
+    const TArray<APSPlayerPawn*>& Pawns = Field->GetPawns();
+    const TArray<EPlayerRole>& Roles = Field->GetRoles();
+    const UPSCoverageMatchupSubsystem* Matchups = World->GetSubsystem<UPSCoverageMatchupSubsystem>();
+    TArray<FPSResolvedAssignment> Resolved = PSPlayResolution::ResolvePlay(Play, Pawns, PlayCall->GetRouteLibrary(), LineOfScrimmage, false);
+    PSPlayResolution::ResolveManMatchups(Resolved, Pawns, Roles, Matchups);
+    DefenseArt = PSPlayArt::CompileDefenseArt(Resolved, Style, LineOfScrimmage, Matchups);
+    DefensePlayId = DefenseArt.Num() > 0 ? Play.PlayId : NAME_None;
+}
+
 void UPSOverlayPlayArtSubsystem::AdvanceTime(float DeltaSeconds)
 {
     if (bSnapped)
@@ -256,8 +341,8 @@ void UPSOverlayPlayArtSubsystem::AdvanceTime(float DeltaSeconds)
         }
         return;
     }
-    // Before the snap the art is rebuilt after an event, and follows the players as they shift
-    // and go in motion.
+    // Before the snap the art is rebuilt after an event, and follows the players as they shift,
+    // go in motion and line up.
     if (RefreshHz > 0.f)
     {
         RefreshClock += DeltaSeconds;
@@ -270,17 +355,20 @@ void UPSOverlayPlayArtSubsystem::AdvanceTime(float DeltaSeconds)
 
 void UPSOverlayPlayArtSubsystem::HandlePlayCall(const FPSTelemetryPlayCallEvent& Event)
 {
-    // Rebuilt on the next tick, once every system has heard the call: the pre-snap authority
-    // drops the old call's changes on it.
-    if (Event.bOffense)
-    {
-        bStale = true;
-    }
+    // Rebuilt on the next tick, once every system has heard the call: the pre-snap authorities
+    // drop the old call's changes on it.
+    bStale = true;
 }
 
 void UPSOverlayPlayArtSubsystem::HandlePreSnap(const FPSTelemetryPreSnapEvent& Event)
 {
     // A hot route, a back kept in, a man in motion: the art shows the play as it now runs.
+    bStale = true;
+}
+
+void UPSOverlayPlayArtSubsystem::HandleDefensivePreSnap(const FPSTelemetryDefensivePreSnapEvent& Event)
+{
+    // A shadow, a disguise lining the defense up again, an audible.
     bStale = true;
 }
 
@@ -298,9 +386,11 @@ void UPSOverlayPlayArtSubsystem::HandleGameState(const FPSTelemetryGameStateEven
 void UPSOverlayPlayArtSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
 {
     bSnapped = true;
+    bStale = false;
     RefreshClock = 0.f;
     // A Full tier fades the art out; the others take it away at once (no animated transitions).
-    FadeRemaining = (OverlayDetail == EPSOverlayDetail::Full && RouteArt.Num() > 0) ? Style.SnapFadeSeconds : 0.f;
+    const bool bAnyArt = RouteArt.Num() > 0 || DefenseArt.Num() > 0;
+    FadeRemaining = (OverlayDetail == EPSOverlayDetail::Full && bAnyArt) ? Style.SnapFadeSeconds : 0.f;
     if (FadeRemaining <= 0.f)
     {
         Clear();
@@ -311,7 +401,7 @@ void UPSOverlayPlayArtSubsystem::HandlePhaseChange(const FPSTelemetryPhaseChange
 {
     if (Event.NewPhase == TEXT("PreSnap"))
     {
-        // A new down: its art comes with the offense's next call.
+        // A new down: its art comes with the next calls.
         bSnapped = false;
         Clear();
         bStale = true;
