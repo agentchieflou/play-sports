@@ -28,6 +28,7 @@
 #include "PSOverlayBroadcastTypes.h"
 #include "PSUIAccessibilitySubsystem.h"
 #include "PSOverlayBallFlightTypes.h"
+#include "PSOverlayBadgeTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
 #include "PSSpecialTeamsData.h"
@@ -196,6 +197,11 @@ public:
      *  False on a missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadBallFlightStyleFromJson(const FString& JsonFilePath, FPSBallFlightStyle& OutStyle);
+
+    /** Loads the position badges' style (Data/overlay_badges.json, Epic 28). False on a missing
+     *  file, malformed JSON, or an unrecognized Group, InPlay or Role. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadOverlayBadgeStyleFromJson(const FString& JsonFilePath, FPSOverlayBadgeStyle& OutStyle);
 
     /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
