@@ -155,6 +155,34 @@
             ]
         },
         {
+            "PlayId": "Offense_Spike",
+            "DisplayName": "Spike",
+            "Formation": "Clock",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Spike",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -100, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" },
+                { "Role": "TightEnd", "Kind": "PassBlock" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "WideReceiver", "Kind": "PassBlock" }
+            ]
+        },
+        {
+            "PlayId": "Offense_Kneel",
+            "DisplayName": "Kneel",
+            "Formation": "Clock",
+            "bIsOffensivePlay": true,
+            "PlayCategory": "Kneel",
+            "Assignments": [
+                { "Role": "Quarterback", "Kind": "Route", "FormationOffset": { "X": -100, "Y": 0, "Z": 0 } },
+                { "Role": "OffensiveLineman", "Kind": "PassBlock" },
+                { "Role": "TightEnd", "Kind": "PassBlock" },
+                { "Role": "RunningBack", "Kind": "PassBlock" },
+                { "Role": "WideReceiver", "Kind": "PassBlock" }
+            ]
+        },
+        {
             "PlayId": "Offense_SpreadSluggo",
             "DisplayName": "Sluggo",
             "Formation": "Spread",

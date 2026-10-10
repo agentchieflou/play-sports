@@ -60,7 +60,7 @@ bind the same key.
 | `World` | 0 | nothing yet (lobby and sideline walking, Epic 143) | The browser world's baseline (section 4). |
 | `OnField` | 1 | `APSPlayerController::OnPossess` of an `APSPlayerPawn`; popped on unpossess | The possessed pawn during play. |
 | `Menu` | 2 | not pushed on Enhanced Input | Names the keys menus treat as Confirm (Enter, A) and Back (Escape, B). While a screen is open the player is in UI input mode and Slate moves focus (D-pad, stick, arrows, Tab); `UPSMenuComponent` reads its Back keys from this context. |
-| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | The offense's pre-snap calls (Epic 66): audible, select, hot route, motion, slide, block/release. Hiking stays Confirm on `OnField`. |
+| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | The offense's pre-snap calls (Epic 66): audible, select, hot route, motion, slide, block/release. Pre-snap clock controls (Epic 76): `Tempo` (N / Y) cycles the offense's tempo, `Timeout` (O / View) calls a timeout, both through `UPSPlayCallComponent`. Hiking stays Confirm on `OnField`. |
 | `Passing` | 3 | `UPSPlayContextComponent`: the controlled QB holds the ball behind the line | The pass buttons and the pump fake. They take A, X and LB from `OnField` while on. |
 | `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | The move set (Epic 104.2). It takes the face buttons and both bumpers from `OnField` while on. |
 | `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | Epic 104.5's defensive inputs. |

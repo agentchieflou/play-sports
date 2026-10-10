@@ -19,6 +19,7 @@
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
 #include "PSPreSnapTypes.h"
+#include "PSSituationData.h"
 #include "PSRouteRunning.h"
 #include "PSPocketComponent.h"
 #include "PSDataIngestion.generated.h"
@@ -124,6 +125,11 @@ public:
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRushMovesFromJson(const FString& JsonFilePath, FPSRushMoveCatalog& OutCatalog);
+
+    /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
+     *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSituationalTuningFromJson(const FString& JsonFilePath, FPSSituationalTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)
