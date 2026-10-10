@@ -92,6 +92,7 @@ void UPSDefenderAIComponent::BindToBus()
     Bus->OnCatchMC.AddUObject(this, &UPSDefenderAIComponent::HandleCatch);
     Bus->OnPumpFakeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePumpFake);
     Bus->OnPhaseChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandlePhaseChange);
+    Bus->OnControlChangeMC.AddUObject(this, &UPSDefenderAIComponent::HandleControlChange);
     BoundBus = Bus;
 }
 
@@ -104,6 +105,7 @@ void UPSDefenderAIComponent::UnbindFromBus()
         Bus->OnCatchMC.RemoveAll(this);
         Bus->OnPumpFakeMC.RemoveAll(this);
         Bus->OnPhaseChangeMC.RemoveAll(this);
+        Bus->OnControlChangeMC.RemoveAll(this);
     }
     BoundBus.Reset();
 }
@@ -165,8 +167,16 @@ void UPSDefenderAIComponent::HandleSnap(const FPSTelemetrySnapEvent& Event)
 void UPSDefenderAIComponent::HandleThrow(const FPSTelemetryThrowEvent& Event)
 {
     APSPlayerPawn* Self = GetSelf();
-    if (!bPlayLive || !Self)
+    if (!bPlayLive)
     {
+        return;
+    }
+    if (!Self)
+    {
+        // A human has this defender: the AI still notes the ball is up, so it picks the play
+        // up correctly if control comes back before it lands (Epic 30).
+        bBallInAir = true;
+        LandingSpot = Event.LandingLocation.IsZero() ? Event.TargetLocation : Event.LandingLocation;
         return;
     }
     if (bSnapPending)
@@ -184,6 +194,29 @@ void UPSDefenderAIComponent::HandleThrow(const FPSTelemetryThrowEvent& Event)
     {
         BallHawkAt = TimeSinceSnap + GetReactionSeconds();
     }
+}
+
+void UPSDefenderAIComponent::HandleControlChange(const FPSTelemetryControlChangeEvent& Event)
+{
+    const APSPlayerPawn* Self = GetSelf();
+    if (!Event.bHumanControlled && Self && Self->GetAttributes().PlayerId == Event.PlayerId)
+    {
+        ResumeFromHuman();
+    }
+}
+
+void UPSDefenderAIComponent::ResumeFromHuman()
+{
+    const APSPlayerPawn* Self = GetSelf();
+    if (!Self)
+    {
+        return;
+    }
+    // Until the next decision the pawn keeps going the way the human was taking him; the
+    // decision itself reads the field as it is now.
+    FVector Heading = Self->GetVelocity();
+    Heading.Z = 0.f;
+    DesiredDirection = Heading.GetSafeNormal();
 }
 
 void UPSDefenderAIComponent::HandleCatch(const FPSTelemetryCatchEvent& Event)

@@ -19,6 +19,8 @@
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
 #include "PSTelemetrySamplingTypes.h"
+#include "PSOverlayReticle.h"
+#include "PSControlHandoffComponent.h"
 #include "PSPreSnapTypes.h"
 #include "PSDataIngestion.generated.h"
 
@@ -120,6 +122,15 @@ public:
      *  Epic 26). False on a missing file, malformed JSON, or an unrecognized event type. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadTelemetrySamplingTuningFromJson(const FString& JsonFilePath, FPSTelemetrySamplingTuning& OutTuning);
+
+    /** Loads the selected-player reticle's look (Data/overlay_reticle.json, Epic 30). False on
+     *  a missing file, malformed JSON, or an unrecognized State. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadOverlayReticleStyleFromJson(const FString& JsonFilePath, FPSOverlayReticleStyle& OutStyle);
+
+    /** Loads the player-switch tuning (Data/control_handoff.json, Epic 30). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadControlHandoffTuningFromJson(const FString& JsonFilePath, FControlHandoffTuningRow& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

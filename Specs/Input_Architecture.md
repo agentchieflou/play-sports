@@ -60,7 +60,7 @@ bind the same key.
 | `World` | 0 | nothing yet (lobby and sideline walking, Epic 143) | The browser world's baseline (section 4). |
 | `OnField` | 1 | `APSPlayerController::OnPossess` of an `APSPlayerPawn`; popped on unpossess | The possessed pawn during play. |
 | `Menu` | 2 | not pushed on Enhanced Input | Names the keys menus treat as Confirm (Enter, A) and Back (Escape, B). While a screen is open the player is in UI input mode and Slate moves focus (D-pad, stick, arrows, Tab); `UPSMenuComponent` reads its Back keys from this context. |
-| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | The offense's pre-snap calls (Epic 66): audible, select, hot route, motion, slide, block/release. Hiking stays Confirm on `OnField`. |
+| `PreSnap` | 3 | `UPSPlayContextComponent`: before the snap and after the whistle | The offense's pre-snap calls (Epic 66): audible, select, hot route, motion, slide, block/release; and the direct pick across the field on either side of the ball (Epic 30). Hiking stays Confirm on `OnField`. |
 | `Passing` | 3 | `UPSPlayContextComponent`: the controlled QB holds the ball behind the line | The pass buttons and the pump fake. They take A, X and LB from `OnField` while on. |
 | `BallCarrier` | 3 | `UPSPlayContextComponent`: the controlled player holds the ball anywhere else | The move set (Epic 104.2). It takes the face buttons and both bumpers from `OnField` while on. |
 | `Defense` | 3 | `UPSPlayContextComponent`: the controlled player is on defense during the play | Epic 104.5's defensive inputs. |
@@ -88,7 +88,7 @@ as the Xbox glyph set labels them.
 | Cancel | Boolean | World, OnField, Menu | Esc | B | `OnCatalogActionStarted`; menu Back |
 | Pause | Boolean | OnField | P | Menu (Start) | the controller → `UPSMenuComponent::TogglePause` |
 | Favorite | Boolean | Menu | F | X | the menu widget stars the focused play (Epic 102); like Back, read through Slate |
-| SwitchPlayer | Boolean | OnField | T | X, LB | the controller → `SwitchToBestPawn` |
+| SwitchPlayer | Boolean | OnField | T | X, LB | the controller → `UPSControlHandoffComponent::SwitchPlayer`: the side's ball carrier, else the teammate nearest the ball; pressed again within `CycleWindowSeconds` it cycles on through the same order (Epic 30) |
 | Interact | Boolean | World | E, Enter | A | `OnCatalogActionStarted` |
 | Secondary | Boolean | World | T | X | `OnCatalogActionStarted` |
 | ViewToggle | Boolean | World | V | Y | `OnCatalogActionStarted` |
@@ -107,6 +107,8 @@ as the Xbox glyph set labels them.
 | Motion | Boolean | PreSnap | M | D-pad Left | the same: the selected receiver goes in motion; a defender who travels shows man |
 | SlideProtection | Boolean | PreSnap | L | LT | the same: the line's slide, none → left → right |
 | BlockRelease | Boolean | PreSnap | K | D-pad Down | the same: the selected back or tight end is kept in or released |
+| PickPlayerLeft | Boolean | PreSnap | Q | RS flick left | `UPSControlHandoffComponent`: control to the nearest teammate to the left across the field (Epic 30) |
+| PickPlayerRight | Boolean | PreSnap | E | RS flick right | the same, to the right |
 
 Physical meaning is kept across contexts: A confirms, B cancels and Y toggles the camera in
 every context. Start opens the character sheet off the field and pauses on it (Epic 101). The
@@ -294,6 +296,9 @@ These automation tests run in CI's headless pass:
 | `PlaySports.Input.DeviceChangeRoundTripsOnBus` | Device changes are published on the bus (Epic 127). |
 | `PlaySports.Input.HumanAIPossessionHandoff` | Human↔AI handoff in both directions (Epic 127). |
 | `PlaySports.Input.SwitchPlayerFollowsBallAndCarrier` | SwitchPlayer goes to the carrier or the nearest teammate (Epic 127). |
+| `PlaySports.Control.SwitchCyclesNearestToBall` | Repeated switch presses cycle nearest-to-the-ball, skip the downed and stay on the side's carrier (Epic 30). |
+| `PlaySports.Control.PreSnapDirectPick` | PickPlayerLeft/Right and a named pick move control before the snap, never during the play (Epic 30). |
+| `PlaySports.Control.HandoffWithoutPops` | A handoff keeps the pawn's velocity both ways; the AI takes a receiver back mid-route without running back (Epic 30). |
 | `PlaySports.Input.ForceFeedbackTuningValidates` | The rumble patterns load and validate (Epic 128). |
 | `PlaySports.Input.TelemetryEventsDriveForceFeedback` | Bus events become rumble dispatches (Epic 128). |
 | `PlaySports.Input.GlyphTableCoversCatalog` | The glyph table loads, validates and draws every bound key (Epic 128). |

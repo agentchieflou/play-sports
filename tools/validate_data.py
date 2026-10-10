@@ -23,7 +23,9 @@ DeviceProfile defined by the engine (Windows, IOS, ...) or in Config/DefaultDevi
 "RushMoves" files against FPSRushMoveCatalog; "HotRouteSets" files against FPreSnapTuningRow, each
 route in the route library and each action a Boolean in the PreSnap context;
 "KeyframeEvents" files against FPSTelemetrySamplingTuning, each event an
-EPSTelemetryEventType as the bus header declares it.
+EPSTelemetryEventType as the bus header declares it; "ReticleStates" files against
+FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuningRow, each pick
+action a Boolean in the input catalog's PreSnap context.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -567,6 +569,8 @@ def project_device_profiles():
 
 # Epic 26's sampler: its rate and per-frame budget are per tier.
 TIER_TELEMETRY_NUMBERS = ("TelemetrySampleRateHz", "TelemetrySampleBudgetMs")
+# EPSOverlayDetail: how much broadcast overlay a tier draws (Track A).
+OVERLAY_DETAILS = {"Full", "Simplified", "Minimal"}
 
 
 def validate_platform_tiers(path, payload):
@@ -596,7 +600,10 @@ def validate_platform_tiers(path, payload):
             value = tier.get(field)
             if not is_number(value) or value <= 0:
                 err(path, f"{where}.{field}: '{value}' must be a number above 0")
-        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", *TIER_TELEMETRY_NUMBERS}
+        if tier.get("OverlayDetail") not in OVERLAY_DETAILS:
+            err(path, f"{where}.OverlayDetail: '{tier.get('OverlayDetail')}' must be one of {sorted(OVERLAY_DETAILS)}")
+        extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
+                             *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -849,6 +856,85 @@ def validate_rush_moves(path, payload):
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
 
 
+RETICLE_STATES = ("PreSnap", "InPlay", "BallCarrier")
+RETICLE_STATE_NUMBERS = ("Radius", "Brightness", "PulseHz", "PulseAmount")
+RETICLE_STYLE_FIELDS = {"OffenseColor", "DefenseColor", "bUseTeamColor", "MeshPath", "MaterialPath", "ColorParameter",
+                        "MeshDiameter", "Thickness", "GroundClearance", "ReticleStates"}
+HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def validate_overlay_reticle(path, payload):
+    """FPSOverlayReticleStyle (Data/overlay_reticle.json, Epic 30); mirrors
+    UPSOverlayReticleComponent::ValidateStyle."""
+    for field in ("OffenseColor", "DefenseColor"):
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    if not isinstance(payload.get("bUseTeamColor"), bool):
+        err(path, "bUseTeamColor: must be true or false")
+    for field in ("MeshPath", "MaterialPath", "ColorParameter"):
+        if not isinstance(payload.get(field), str):
+            err(path, f"{field}: must be a string")
+    diameter = payload.get("MeshDiameter")
+    if not is_number(diameter) or diameter <= 0:
+        err(path, f"MeshDiameter: '{diameter}' must be a number above 0")
+    for field in ("Thickness", "GroundClearance"):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    extra = set(payload) - RETICLE_STYLE_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSOverlayReticleStyle exactly")
+    states = payload.get("ReticleStates")
+    if not isinstance(states, list):
+        err(path, "'ReticleStates' must be an array")
+        return
+    seen = set()
+    for idx, row in enumerate(states):
+        where = f"ReticleStates[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        state = row.get("State")
+        if state not in RETICLE_STATES:
+            err(path, f"{where}.State: '{state}' must be one of {list(RETICLE_STATES)} (Hidden has no look)")
+        elif state in seen:
+            err(path, f"{where}.State: '{state}' is listed twice")
+        seen.add(state)
+        for field in RETICLE_STATE_NUMBERS:
+            value = row.get(field)
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.{field}: '{value}' must be a number, 0 or more")
+        if is_number(row.get("Radius")) and row["Radius"] <= 0:
+            err(path, f"{where}.Radius: must be above 0")
+        if is_number(row.get("PulseAmount")) and row["PulseAmount"] > 1:
+            err(path, f"{where}.PulseAmount: at most 1 (a fraction of Radius)")
+        extra = set(row) - set(RETICLE_STATE_NUMBERS) - {"State"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)}")
+    for state in RETICLE_STATES:
+        if state not in seen:
+            err(path, f"ReticleStates: no '{state}' entry")
+
+
+def validate_control_handoff(path, payload, catalog):
+    """FControlHandoffTuningRow (Data/control_handoff.json, Epic 30); mirrors
+    UPSControlHandoffComponent::ValidateTuning plus the catalog cross-check."""
+    window = payload.get("CycleWindowSeconds")
+    if not is_number(window) or window < 0:
+        err(path, f"CycleWindowSeconds: '{window}' must be a number, 0 or more")
+    left, right = payload.get("PickLeftAction"), payload.get("PickRightAction")
+    if not isinstance(left, str) or not isinstance(right, str) or not left or not right or left == right:
+        err(path, "PickLeftAction and PickRightAction must be two different action names")
+    elif catalog is not None:
+        actions = {a.get("ActionId"): a for a in catalog.get("Actions", []) if isinstance(a, dict)}
+        for field, action_id in (("PickLeftAction", left), ("PickRightAction", right)):
+            action = actions.get(action_id)
+            if action is None or action.get("ValueType") != "Boolean" or "PreSnap" not in (action.get("Contexts") or []):
+                err(path, f"{field}: '{action_id}' must be a Boolean action in input_actions.json's PreSnap context")
+    extra = set(payload) - {"CycleWindowSeconds", "PickLeftAction", "PickRightAction"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FControlHandoffTuningRow exactly")
+
 RECEIVER_ALIGNMENTS = {"Wide", "Slot", "Tight", "Backfield"}
 PRESNAP_NUMBERS = ("SlotMaxSplit", "MotionEndSplit", "MotionArrivalRadius", "ManTravelLateralRadius", "SlideAimOffset",
                    "BoxWidth", "BoxDepth", "CpuReadMinAwareness")
@@ -1000,6 +1086,10 @@ def main():
             validate_carrier_moves(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "KeyframeEvents" in payload:
             validate_telemetry_sampling(path, payload)
+        if isinstance(payload, dict) and "ReticleStates" in payload:
+            validate_overlay_reticle(path, payload)
+        if isinstance(payload, dict) and "CycleWindowSeconds" in payload:
+            validate_control_handoff(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "HotRouteSets" in payload:
             validate_presnap_tuning(path, payload, load_input_catalog(), load_route_ids())
         if isinstance(payload, dict) and "MaxQueued" in payload:

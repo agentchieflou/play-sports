@@ -49,6 +49,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "AI|Offense")
     int32 GetRouteWaypointCount() const { return RouteWaypoints.Num(); }
 
+    /** The assigned route, world space. */
+    const TArray<FVector>& GetRouteWaypoints() const { return RouteWaypoints; }
+
     /** Plays the called play for the possessed pawn (Epic 14): routes, reads, hand-offs. */
     UFUNCTION(BlueprintPure, Category = "AI|Offense")
     UPSSkillPlayerAIComponent* GetSkillAI() const { return SkillAI; }

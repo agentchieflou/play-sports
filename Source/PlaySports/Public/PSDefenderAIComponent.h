@@ -132,6 +132,11 @@ public:
      *  interval (Epic 129); headless tests pass their own. */
     void UpdateAI(float DeltaSeconds, float DecisionInterval);
 
+    /** Picks the pawn back up from a human mid-play without a pop (Epic 30): carries on in the
+     *  direction the pawn is moving until the next decision. Called when the bus says a human
+     *  released this pawn. */
+    void ResumeFromHuman();
+
     UFUNCTION(BlueprintPure, Category = "AI")
     EPSDefenderAction GetAction() const { return Action; }
 
@@ -166,6 +171,7 @@ private:
     void HandleCatch(const FPSTelemetryCatchEvent& Event);
     void HandlePumpFake(const FPSTelemetryPumpFakeEvent& Event);
     void HandlePhaseChange(const FPSTelemetryPhaseChangeEvent& Event);
+    void HandleControlChange(const FPSTelemetryControlChangeEvent& Event);
 
     void StartAssignment(APSPlayerPawn* Self);
     APSPlayerPawn* PickReceiverToCover(const APSPlayerPawn* Self) const;
