@@ -114,7 +114,7 @@ void UPSAIDebugOverlayWidget::NativeTick(const FGeometry& MyGeometry, float InDe
     UPSUITeamCatalog::ParseHexColor(Tuning.OverlayOffenseColor, OffenseColor);
     UPSUITeamCatalog::ParseHexColor(Tuning.OverlayDefenseColor, DefenseColor);
     UPSUITeamCatalog::ParseHexColor(Tuning.OverlayTextColor, TextColor);
-    const float Padding = Tuning.OverlayPadding;
+    const float PlatePadding = Tuning.OverlayPadding;
     OffenseLineColor = OffenseColor;
     DefenseLineColor = DefenseColor;
     LineWidth = Tuning.OverlayTargetLineWidth;
@@ -135,7 +135,7 @@ void UPSAIDebugOverlayWidget::NativeTick(const FGeometry& MyGeometry, float InDe
         UTextBlock* Label = PlateLabels[Used];
         Plate->SetBrushColor(Card.bOffense ? OffenseColor : DefenseColor);
         Plate->SetRenderOpacity(Card.bCrowdedOut ? Tuning.OverlayCrowdedOpacity : Tuning.OverlayOpacity);
-        Plate->SetPadding(FMargin(Padding));
+        Plate->SetPadding(FMargin(PlatePadding));
         Plate->SetVisibility(ESlateVisibility::HitTestInvisible);
         // Developer text: player IDs, assignments and reasons, as the AI wrote them.
         Label->SetText(UPSLocalization::Verbatim(Card.Text));
