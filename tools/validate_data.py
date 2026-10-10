@@ -102,7 +102,10 @@ deltas; "ModelMoments" files against FPSCommentaryHookTuning (Epic 23.5), each m
 EPSCommentaryMoment and the task one of routing.json's; "CentimetresPerYard" files against
 FPSFieldDimensions (Data/field_dimensions.json, the field's one frame): every dimension a positive
 number; "HoldingChancePerPlay" files against FPSPenaltyTuning (Data/penalties.json): each flag's
-chance from 0 to 1. Teams, the league config, the playbook, player rating ranges and every reference
+chance from 0 to 1; "PickRoundValues" files against FPSTradeTuning (Epic 88): one entry per
+EPSTradeStance, 0-1 weights, chances and win percentages (the rebuilder's under the contender's), a
+counter ratio no more than the accept ratio, a falling pick chart above its last pick's value.
+Teams, the league config, the playbook, player rating ranges and every reference
 between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -1232,7 +1235,7 @@ def validate_game_intelligence(path, payload):
 
 
 
-STORYLINE_KINDS = ("WinStreak", "LosingStreak", "RookieSurge", "RevengeGame", "RecordBroken", "AwardRace")
+STORYLINE_KINDS = ("WinStreak", "LosingStreak", "RookieSurge", "RevengeGame", "RecordBroken", "AwardRace", "Trade")
 STAT_CATEGORIES = ("PassingYards", "PassingTouchdowns", "Completions", "InterceptionsThrown", "RushingYards",
                    "RushingTouchdowns", "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks",
                    "Interceptions", "TeamPoints", "TeamTotalYards")
@@ -1308,6 +1311,77 @@ def validate_narrative(path, payload):
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSNarrativeTuning exactly")
+
+
+TRADE_STANCES = ("Contender", "Balanced", "Rebuilder")
+TRADE_POSITIVE = ("MaxPlayerValue", "TalentCurveExponent", "CounterRatio", "AcceptRatio", "DeadlineFraction")
+TRADE_NON_NEGATIVE = ("RoleWeightExponent", "SurplusValuePerCap", "NeedValueWeight", "LastPickValue", "LopsidedMinGap",
+                      "DeadlineBuyerPremium", "MinTargetGain")
+TRADE_FRACTIONS = ("UncontrolledYearWeight", "TradeRequestDiscount", "ContenderWinPercentage", "RebuilderWinPercentage",
+                   "FuturePickDiscount", "MaxValueImbalance", "DeadlineFraction", "BaseTradeChance", "DeadlineTradeChance",
+                   "DeadlineSellerDiscount")
+TRADE_COUNTS = {"ValueHorizonYears": 1, "TradablePickYears": 1, "MaxAssetsPerSide": 1, "MaxTradesPerTeamPerSeason": 1,
+                "DeadlineRampWeeks": 1, "TargetsPerAttempt": 1, "MinGamesForStance": 0, "RetradeCooldownWeeks": 0,
+                "MinPlayersAtRole": 0, "MaxOffersToUserPerWeek": 0, "RandomSeed": None}
+
+
+def validate_trades(path, payload):
+    """FPSTradeTuning (Data/trades.json, Epic 88); mirrors UPSTradeMarket::ValidateTuning."""
+    for field in TRADE_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in TRADE_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in TRADE_FRACTIONS:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    for field, floor in TRADE_COUNTS.items():
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or (floor is not None and value < floor):
+            err(path, f"{field}: '{value}' must be a whole number" + (f", {floor} or more" if floor is not None else ""))
+    contender, rebuilder = payload.get("ContenderWinPercentage"), payload.get("RebuilderWinPercentage")
+    if is_number(contender) and is_number(rebuilder) and rebuilder >= contender:
+        err(path, f"RebuilderWinPercentage ({rebuilder}) must be under ContenderWinPercentage ({contender})")
+    accept, counter = payload.get("AcceptRatio"), payload.get("CounterRatio")
+    if is_number(accept) and is_number(counter) and counter > accept:
+        err(path, f"CounterRatio ({counter}) must be no more than AcceptRatio ({accept})")
+
+    stances = payload.get("Stances")
+    if not isinstance(stances, list):
+        err(path, "'Stances' must be an array of { Stance, FutureYearWeight, PickMultiplier }")
+        stances = []
+    for idx, entry in enumerate(stances):
+        where = f"Stances[{idx}]"
+        if not isinstance(entry, dict) or entry.get("Stance") not in TRADE_STANCES:
+            err(path, f"{where}.Stance must be one of {list(TRADE_STANCES)}")
+            continue
+        weight, multiplier = entry.get("FutureYearWeight"), entry.get("PickMultiplier")
+        if not is_number(weight) or not 0 <= weight <= 1:
+            err(path, f"{where}.FutureYearWeight: '{weight}' must be a number from 0 to 1")
+        if not is_number(multiplier) or multiplier <= 0:
+            err(path, f"{where}.PickMultiplier: '{multiplier}' must be a number above 0")
+        if set(entry) - {"Stance", "FutureYearWeight", "PickMultiplier"}:
+            err(path, f"{where}: unknown field(s) {sorted(set(entry) - {'Stance', 'FutureYearWeight', 'PickMultiplier'})} - names must match FPSTradeStanceTuning exactly")
+    named = [entry.get("Stance") for entry in stances if isinstance(entry, dict)]
+    for stance in TRADE_STANCES:
+        if named.count(stance) != 1:
+            err(path, f"Stances: '{stance}' must have exactly one entry")
+
+    chart = payload.get("PickRoundValues")
+    if not isinstance(chart, list) or not chart or not all(is_number(value) and value > 0 for value in chart):
+        err(path, "PickRoundValues must be a non-empty array of numbers above 0")
+    elif any(later > earlier for earlier, later in zip(chart, chart[1:])):
+        err(path, f"PickRoundValues {chart}: a later round's first pick can't be worth more")
+    elif is_number(payload.get("LastPickValue")) and payload["LastPickValue"] > chart[-1]:
+        err(path, f"LastPickValue ({payload['LastPickValue']}) must be no more than the last round's first pick ({chart[-1]})")
+
+    known = set(TRADE_POSITIVE) | set(TRADE_NON_NEGATIVE) | set(TRADE_FRACTIONS) | set(TRADE_COUNTS) | {"Stances", "PickRoundValues"}
+    if set(payload) - known:
+        err(path, f"unknown field(s) {sorted(set(payload) - known)} - names must match FPSTradeTuning exactly")
 
 
 SOURCE_PUBLIC = REPO / "Source" / "PlaySports" / "Public"
@@ -5496,6 +5570,8 @@ def main(root=None):
             validate_game_intelligence(path, payload)
         if isinstance(payload, dict) and "HallOfFame" in payload:
             validate_legacy(path, payload)
+        if isinstance(payload, dict) and "PickRoundValues" in payload:
+            validate_trades(path, payload)
         if isinstance(payload, dict) and "StorylineKinds" in payload:
             validate_narrative(path, payload)
         if isinstance(payload, dict) and "FormationClasses" in payload:

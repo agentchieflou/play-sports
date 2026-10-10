@@ -95,6 +95,7 @@ every CI build.
 | `coaching_staffs.json` | `FPSCoachingLeague` (single object: `Schemes`, `Coaches`, `Staffs`, `Tuning`) | `UPSDataIngestion::LoadCoachingLeagueFromJson`, via `UPSStaffManager` |
 | `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
 | `draft.json` | `FPSDraftTuning` (single object: prospect uncertainty, `CombineDrills`, scouting, the CPU's board, the rookie scale) | `UPSDataIngestion::LoadDraftTuningFromJson`, via `UPSDraft` |
+| `trades.json` | `FPSTradeTuning` (single object: the value model, `Stances`, the `PickRoundValues` chart, answers, guardrails, the deadline) | `UPSDataIngestion::LoadTradeTuningFromJson`, via `UPSTradeMarket` |
 | `training.json` | `FPSTrainingTuning` (single object: allocation, development, funding, gameplan `FocusAreas`, fatigue, `PracticeInjury`, recommendation fields) | `UPSDataIngestion::LoadTrainingTuningFromJson`, via `UPSWeeklyPreparation` |
 | `legacy.json` | `FPSLegacyTuning` (single object: `HallOfFame`, `LeaderCategories`) | `UPSDataIngestion::LoadLegacyTuningFromJson`, via `UPSLeagueHistory` |
 | `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
@@ -1072,6 +1073,47 @@ money is in thousands of dollars.
 
 `tools/validate_data.py` checks it: positive uncertainties and costs, 0-1 shares and guarantees,
 each drill reading a rating, `RookieYears` within `contracts.json`'s `MaxContractYears`.
+
+## Trade schema (`FPSTradeTuning`)
+
+Single object (Epic 88), read by `UPSTradeMarket`. Values are trade points (the first overall pick
+is worth `PickRoundValues[0]`). The market owns no player, contract or pick: a trade moves players
+between rosters, their contracts in the contract manager and picks in the draft (which saves who
+holds each one, `UPSFranchiseSaveGame::Draft`); the trades made, the CPU's offers and the telemetry
+live in the franchise save (`UPSFranchiseSaveGame::TradeMarket`).
+- A player's value: over `ValueHorizonYears` seasons, this one first, a season at his projected
+  rating (Epic 94's role curve in `legacy.json`) is worth `MaxPlayerValue` x his place between
+  `contracts.json`'s `ReplacementRating` and `EliteRating` to the `TalentCurveExponent`, x his
+  position's `TopCapFraction` over the highest to the `RoleWeightExponent`; a season past his
+  contract counts `UncontrolledYearWeight`. Each season he is signed adds `SurplusValuePerCap` x
+  (what the contract market would pay him - his base salary) / the cap. A team short at his
+  position (`RosterTarget`) values him up to `NeedValueWeight` more; his own team values one who
+  asked to be traded (Epic 91) at `TradeRequestDiscount`.
+- `Stances[]`: `Stance` (`Contender`, `Balanced`, `Rebuilder`; a team with `MinGamesForStance`
+  games is a contender at `ContenderWinPercentage` or better, a rebuilder at
+  `RebuilderWinPercentage` or worse), its `FutureYearWeight` (each later season weighs this much of
+  the one before) and `PickMultiplier`.
+- Picks: `PickRoundValues[]`, each round's first pick, falling in ratio to the next round's (the
+  last round to `LastPickValue`); the pick's place in its round comes from its team's standing (or
+  the draft's order once set); `TradablePickYears` drafts trade, each one further off worth
+  `FuturePickDiscount` less.
+- Answers: a team accepts at `AcceptRatio` (what it gets over what it gives), counters from
+  `CounterRatio`, rejects below.
+- Guardrails: neutral values may differ by at most `MaxValueImbalance` of the larger side (gaps
+  under `LopsidedMinGap` points never count); `MaxAssetsPerSide`, `MaxTradesPerTeamPerSeason`,
+  `RetradeCooldownWeeks`, `MinPlayersAtRole`.
+- The deadline: `DeadlineFraction` of the regular season's weeks; over `DeadlineRampWeeks` its
+  urgency raises a contender's or rebuilder's weekly chance from `BaseTradeChance` to
+  `DeadlineTradeChance`, takes `DeadlineBuyerPremium` off a contender's accept ratio and
+  `DeadlineSellerDiscount` off the weight a rebuilder gives this season.
+- The CPU: goes after another team's player only when he is worth `MinTargetGain` points more to
+  it than to his team; prices a package for the `TargetsPerAttempt` biggest gains, from that many
+  of its cheapest and its biggest assets; at most `MaxOffersToUserPerWeek` offers to the player's
+  team a week; `RandomSeed`.
+
+`tools/validate_data.py` checks it: positive values, 0-1 weights, chances and win percentages (the
+rebuilder's under the contender's), `CounterRatio` no more than `AcceptRatio`, one entry per stance,
+a falling pick chart above `LastPickValue`.
 
 ## Legacy schema (`FPSLegacyTuning`)
 

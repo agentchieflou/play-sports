@@ -52,6 +52,7 @@
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
 #include "PSDraftData.h"
+#include "PSTradeData.h"
 #include "PSTrainingData.h"
 #include "PSLegacyData.h"
 #include "PSPocketComponent.h"
@@ -352,6 +353,12 @@ public:
      *  UPSDraft::ValidateTuning checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadDraftTuningFromJson(const FString& JsonFilePath, FPSDraftTuning& OutTuning);
+
+    /** Loads the trade market: the value model, the pick chart, the answers, the guardrails and
+     *  the deadline (Data/trades.json, Epic 88). False on a missing file, malformed JSON or an
+     *  unknown Stance; UPSTradeMarket::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTradeTuningFromJson(const FString& JsonFilePath, FPSTradeTuning& OutTuning);
 
     /** Loads the practice week: allocation, development, gameplan focus areas, fatigue and practice
      *  injuries (Data/training.json, Epic 90). False on a missing file, malformed JSON or an

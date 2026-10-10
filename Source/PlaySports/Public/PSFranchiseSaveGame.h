@@ -10,6 +10,7 @@
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
 #include "PSDraftData.h"
+#include "PSTradeData.h"
 #include "PSTrainingData.h"
 #include "PSLegacyData.h"
 #include "PSNarrativeTypes.h"
@@ -92,4 +93,10 @@ public:
      *  UPSLeagueNarrative). Empty in a save from before the narrative. */
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FPSNarrativeState Narrative;
+
+    /** Every trade made, the CPU's open offers to the player's team and the league's trade
+     *  telemetry (Epic 88; UPSTradeMarket). Who holds which pick is the draft's (Draft), each
+     *  contract's team the ledger's. Empty in a save from before trades. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    FPSTradeMarketState TradeMarket;
 };

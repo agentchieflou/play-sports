@@ -46,7 +46,8 @@ enum class EPSTelemetryEventType : uint8
     Recognition,
     Penalty,
     Crowd,
-    Commentary
+    Commentary,
+    Trade
 };
 
 /** What a statistic counts (Epic 92). Player categories first, then team ones. */
@@ -435,6 +436,66 @@ struct FPSTelemetryBoundaryCrossedEvent
     /** Into an end zone, not out of bounds. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
     bool bEndZone = false;
+};
+
+/** A trade was made (Epic 88): UPSTradeMarket announces each one, for the news, the screens and
+ *  the league-wide tuning of the market. */
+USTRUCT(BlueprintType)
+struct FPSTelemetryTradeEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 TradeId = 0;
+
+    /** The contracts' league year and the week (0 in the off-season). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 LeagueYear = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 Week = 0;
+
+    /** The team that proposed it and the team that accepted. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName FromTeamId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FName ToTeamId;
+
+    /** Each team's stance then: Contender, Balanced or Rebuilder. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString FromStance;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString ToStance;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PlayersMoved = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    int32 PicksMoved = 0;
+
+    /** The league's neutral values of what each side gave, and their imbalance (0 = even). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float NeutralFrom = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float NeutralTo = 0.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float Imbalance = 0.f;
+
+    /** The deadline's urgency then (0-1). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    float DeadlineUrgency = 0.f;
+
+    /** The player's team was in it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    bool bUserTeam = false;
+
+    /** "Hawks get BEARS_WR_02 (WR, 30); Bears get 2027 round 2 (Hawks)". */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Telemetry")
+    FString Description;
 };
 
 USTRUCT(BlueprintType)
@@ -1628,6 +1689,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecognitionSignature, co
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryPenaltySignature, const FPSTelemetryPenaltyEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCrowdSignature, const FPSTelemetryCrowdEvent&, Event);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentarySignature, const FPSTelemetryCommentaryEvent&, Event);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeSignature, const FPSTelemetryTradeEvent&, Event);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetrySnapMC, const FPSTelemetrySnapEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryThrowMC, const FPSTelemetryThrowEvent&);
@@ -1671,6 +1733,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryRecognitionMC, const FPSTelemetr
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryPenaltyMC, const FPSTelemetryPenaltyEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCrowdMC, const FPSTelemetryCrowdEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryCommentaryMC, const FPSTelemetryCommentaryEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPSTelemetryTradeMC, const FPSTelemetryTradeEvent&);
 
 UCLASS(BlueprintType, Blueprintable)
 class PLAYSPORTS_API UPSTelemetryBus : public UWorldSubsystem
@@ -1786,6 +1849,10 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishBoundaryCrossed(const FPSTelemetryBoundaryCrossedEvent& Event);
+
+    /** A trade, from UPSTradeMarket (Epic 88). */
+    UFUNCTION(BlueprintCallable, Category = "Telemetry")
+    void PublishTrade(const FPSTelemetryTradeEvent& Event);
 
     UFUNCTION(BlueprintCallable, Category = "Telemetry")
     void PublishRecognition(const FPSTelemetryRecognitionEvent& Event);
@@ -1942,6 +2009,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Telemetry")
     FPSTelemetryCommentarySignature OnCommentary;
 
+    UPROPERTY(BlueprintAssignable, Category = "Telemetry")
+    FPSTelemetryTradeSignature OnTrade;
+
     FPSTelemetrySnapMC OnSnapMC;
     FPSTelemetryThrowMC OnThrowMC;
     FPSTelemetryCatchMC OnCatchMC;
@@ -1985,6 +2055,7 @@ public:
     FPSTelemetryPenaltyMC OnPenaltyMC;
     FPSTelemetryCrowdMC OnCrowdMC;
     FPSTelemetryCommentaryMC OnCommentaryMC;
+    FPSTelemetryTradeMC OnTradeMC;
 
 private:
     UPROPERTY(Transient)
