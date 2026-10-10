@@ -56,6 +56,11 @@
             "Description": "A move or pass pressed a moment early still happens when it can."
         },
         {
+            "SettingId": "Units", "Category": "Gameplay", "Label": "Units", "Kind": "Choice",
+            "Choices": ["Feet and pounds", "Centimeters and kilograms"], "Default": 0,
+            "Description": "How players' heights and weights are shown."
+        },
+        {
             "SettingId": "Vibration", "Category": "Controls", "Label": "Vibration", "Kind": "Toggle", "Default": 1,
             "Description": "The controller rumbles on hits, catches and scores."
         },
@@ -68,6 +73,24 @@
             "SettingId": "StickDeadZone", "Category": "Controls", "Label": "Stick dead zone", "Kind": "Choice",
             "Choices": ["Small", "Standard", "Large"], "Values": [0.5, 1.0, 1.5], "Default": 1,
             "Description": "How far a stick moves before it counts: smaller for a tight stick, larger for a worn one."
+        },
+        {
+            "SettingId": "Captions", "Category": "Accessibility", "Label": "Captions", "Kind": "Toggle", "Default": 1,
+            "Description": "What the booth, the PA and the referees say, written at the bottom of the screen."
+        },
+        {
+            "SettingId": "CaptionSize", "Category": "Accessibility", "Label": "Caption size", "Kind": "Choice",
+            "Choices": ["Small", "Medium", "Large"], "Values": [18, 24, 32], "Default": 1,
+            "Description": "How big captions are."
+        },
+        {
+            "SettingId": "Narration", "Category": "Accessibility", "Label": "Menu narration", "Kind": "Toggle", "Default": 0,
+            "Description": "Menus say each screen and the option you move to, for a screen reader."
+        },
+        {
+            "SettingId": "ColorblindMode", "Category": "Accessibility", "Label": "Color vision", "Kind": "Choice",
+            "Choices": ["Standard", "Protanopia (red)", "Deuteranopia (green)", "Tritanopia (blue)"], "Default": 0,
+            "Description": "Team and overlay colors are shifted so the ones you see alike stand apart."
         },
         {
             "SettingId": "ReducedMotion", "Category": "Accessibility", "Label": "Reduced motion", "Kind": "Toggle", "Default": 0,

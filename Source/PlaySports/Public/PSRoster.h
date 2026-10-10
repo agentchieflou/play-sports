@@ -38,6 +38,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Roster")
     bool FindPlayerById(FName PlayerId, FPlayerAttributes& OutAttributes) const;
 
+    /** The roster's own row for PlayerId, or null. On-field pawns point at these rows
+     *  (APSPlayerPawn::InitializePlayerPointer), so they stay valid until InitializeRoster
+     *  runs again (Epic 19.5). */
+    const FPlayerAttributes* FindPlayerPtr(FName PlayerId) const;
+
     /** Substitutes any on-field pawn whose CurrentStamina/MaxStamina ratio has
      *  dropped below FatigueThreshold with its next depth-chart backup. Returns
      *  the role->incoming-player substitutions made, for the caller to actually

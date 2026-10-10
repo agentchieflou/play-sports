@@ -16,6 +16,7 @@
 #include "PSPassingComponent.h"
 #include "PSPlatformTiers.h"
 #include "PSCarrierMoveComponent.h"
+#include "PSTouchControls.h"
 #include "PSInputBufferComponent.h"
 #include "PSRushMoveComponent.h"
 #include "PSTelemetrySamplingTypes.h"
@@ -25,14 +26,21 @@
 #include "PSOverlayReticle.h"
 #include "PSControlHandoffComponent.h"
 #include "PSOverlayBroadcastTypes.h"
+#include "PSUIAccessibilitySubsystem.h"
+#include "PSOverlayBallFlightTypes.h"
 #include "PSPreSnapTypes.h"
 #include "PSSituationData.h"
+#include "PSSpecialTeamsData.h"
+#include "PSStaffData.h"
 #include "PSSessionTelemetryTypes.h"
 #include "PSDefenderGapSubsystem.h"
 #include "PSRouteRunning.h"
 #include "PSCameraFraming.h"
 #include "PSCameraDirectorComponent.h"
 #include "PSCameraSkycamComponent.h"
+#include "PSBlownCoverageSubsystem.h"
+#include "PSRosterData.h"
+#include "PSPocketComponent.h"
 #include "PSDefenderPreSnapTypes.h"
 #include "PSDataIngestion.generated.h"
 
@@ -116,6 +124,20 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCarrierMovesFromJson(const FString& JsonFilePath, FPSCarrierMoveCatalog& OutCatalog);
 
+    /** Loads when the defense calls a coverage blown and who may help (Data/blown_coverage.json,
+     *  Epic 17.4). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadBlownCoverageTuningFromJson(const FString& JsonFilePath, FBlownCoverageTuningRow& OutTuning);
+
+    /** Loads the quarterback's pocket and scramble tuning (Data/pocket_tuning.json, Epic 71). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPocketTuningFromJson(const FString& JsonFilePath, FPocketTuningRow& OutTuning);
+
+    /** Loads the touch layout (Data/touch_controls.json, Epic 130). False on a missing file,
+     *  malformed JSON, or an unrecognized control Kind or swipe Direction. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadTouchLayoutFromJson(const FString& JsonFilePath, FPSTouchLayout& OutLayout);
+
     /** Loads the route-running model's tuning (Data/route_running.json, Epic 68). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadRouteRunningTuningFromJson(const FString& JsonFilePath, FRouteRunningTuningRow& OutTuning);
@@ -140,6 +162,10 @@ public:
     /** Loads the settings catalog (Data/ui_settings.json, Epic 103). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSettingsCatalogFromJson(const FString& JsonFilePath, FPSSettingsCatalog& OutCatalog);
+
+    /** Loads the caption and color tuning (Data/ui_accessibility.json, Epic 103). */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadUIAccessibilityTuningFromJson(const FString& JsonFilePath, FPSUIAccessibilityTuning& OutTuning);
 
     /** Loads the pass-rush move library (Data/pass_rush_moves.json, Epic 70). False on a
      *  missing file or malformed JSON. */
@@ -166,10 +192,25 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadBroadcastOverlayThemeFromJson(const FString& JsonFilePath, FPSBroadcastOverlayTheme& OutTheme);
 
+    /** Loads the ball-flight overlay's look and rules (Data/ball_flight_overlay.json, Epic 32).
+     *  False on a missing file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadBallFlightStyleFromJson(const FString& JsonFilePath, FPSBallFlightStyle& OutStyle);
+
     /** Loads the situational football tuning (Data/situational_tuning.json, Epic 76). False on
      *  a missing file, malformed JSON, or an unrecognized Tempo or Situation string. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSituationalTuningFromJson(const FString& JsonFilePath, FPSSituationalTuning& OutTuning);
+
+    /** Loads the special-teams tuning (Data/special_teams.json, Epic 75). False on a missing
+     *  file or malformed JSON. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadSpecialTeamsTuningFromJson(const FString& JsonFilePath, FPSSpecialTeamsTuning& OutTuning);
+
+    /** Loads the coaching league: schemes, coaches, staffs and tuning (Data/coaching_staffs.json,
+     *  Epic 89). False on a missing file, malformed JSON, or an unrecognized Role string. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCoachingLeagueFromJson(const FString& JsonFilePath, FPSCoachingLeague& OutLeague);
 
     /** Loads the session telemetry tuning (Data/session_telemetry.json, Epic 117). */
     UFUNCTION(BlueprintCallable, Category = "Data")
@@ -194,6 +235,11 @@ public:
     /** Loads the skycam's cable rig and flying (Data/camera_skycam.json, Epic 39). */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadSkycamTuningFromJson(const FString& JsonFilePath, FPSSkycamTuning& OutTuning);
+
+    /** Loads the personnel packages (Data/personnel_packages.json, Epic 19.5). False on a
+     *  missing file or malformed JSON; UPSPersonnelManager::ValidateCatalog checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadPersonnelCatalogFromJson(const FString& JsonFilePath, FPSPersonnelCatalog& OutCatalog);
 
     /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
      *  missing file or malformed JSON. */

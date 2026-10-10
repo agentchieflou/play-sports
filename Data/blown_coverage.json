@@ -1,0 +1,6 @@
+{
+    "CheckIntervalSeconds": 0.1,
+    "UncoveredSeparation": 1000.0,
+    "MinDepthPastLine": 300.0,
+    "HelpRadius": 2500.0
+}

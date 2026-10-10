@@ -219,7 +219,7 @@ bool FPSScoreBugTest::RunTest(const FString& Parameters)
     Bug = Broadcast->GetScoreBug();
     TestTrue(TEXT("Six or seven points"), After.HomeScore == 6 || After.HomeScore == 7);
     TestEqual(TEXT("The bug shows the sim's score"), Bug.HomeScore, After.HomeScore);
-    TestFalse(TEXT("Away has the ball now"), Bug.bHomeHasPossession);
+    TestTrue(TEXT("The scorers kick off: home has the ball until the kick (Epic 75)"), Bug.bHomeHasPossession);
     TestEqual(TEXT("The kickoff is announced"), Bug.SituationText, FString(TEXT("Kickoff")));
     FPSChyron Chyron;
     if (TestTrue(TEXT("A chyron is up"), Broadcast->GetCurrentChyron(Chyron)))

@@ -59,7 +59,8 @@ public:
 
     void SetSeed(int32 Seed) { Random.Initialize(Seed); }
 
-    /** The next tip text for Context; empty when no tip fits. */
+    /** The next tip text for Context, in the player's language (Epic 106: Data/ui_text_data.csv
+     *  Tip.<TipId>); empty when no tip fits. */
     FString NextTip(FName Context);
 
     /** Empty or duplicate IDs, empty text, a tip with no context, an unknown context. */

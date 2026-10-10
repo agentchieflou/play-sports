@@ -20,6 +20,9 @@ class UPSCarrierInputComponent;
 class UPSPreSnapInputComponent;
 class UPSDefenderPreSnapInputComponent;
 class UPSInputBufferComponent;
+class UPSTouchInputComponent;
+class UInputModifier;
+class UInputTrigger;
 class UPSDefenseInputComponent;
 class UPSKickMeterComponent;
 class UPSSettingsComponent;
@@ -63,6 +66,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPSInputCatalogActionSignature, FNam
  * direction keeps the pawn's velocity, so neither the human nor the resuming AI starts from a
  * standstill. UPSOverlayReticleComponent draws the selected-player reticle under the
  * controlled pawn.
+ *
+ * Touch (Epic 130) is UPSTouchInputComponent's: its stick, buttons and swipes resolve to catalog
+ * actions and come back here through InjectCatalogInput, so every handler below and every
+ * OnCatalogActionStarted consumer hears touch exactly as it hears the gamepad.
  *
  * Move, Sprint, SwitchPlayer and Pause drive the game here (Pause opens UPSMenuComponent's
  * pause screen, Epic 101). Every other Boolean catalog action is broadcast on
@@ -121,6 +128,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSInputBufferComponent* GetInputBufferComponent() const { return InputBufferComponent; }
 
+    /** The touch layer: virtual stick, on-screen buttons and swipes (Epic 130). */
+    UFUNCTION(BlueprintPure, Category = "Input")
+    UPSTouchInputComponent* GetTouchInputComponent() const { return TouchInputComponent; }
+
     /** The human defender's jump at the snap and strip button (Epic 104.5). */
     UFUNCTION(BlueprintPure, Category = "Input")
     UPSDefenseInputComponent* GetDefenseInputComponent() const { return DefenseInputComponent; }
@@ -163,6 +174,15 @@ public:
     /** True while ContextId is on this controller's context stack. */
     UFUNCTION(BlueprintPure, Category = "Input")
     bool IsInputContextActive(FName ContextId) const;
+
+    /** The context stack, oldest first (Specs/Input_Architecture.md section 3). */
+    const TArray<FName>& GetActiveInputContexts() const { return ActiveInputContexts; }
+
+    /** Feeds RawValue to the catalog action ActionId through Enhanced Input, with Modifiers and
+     *  Triggers applied as if a key mapped with them had produced it (Epic 130's touch layer
+     *  passes the action's gamepad mapping). Inject every frame the input is held. False when
+     *  there is no local player to inject into (headless) or no such action. */
+    bool InjectCatalogInput(FName ActionId, const FInputActionValue& RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
 
     /** Binds every catalog action this controller handles onto InInputComponent. Called
      *  from SetupInputComponent; public so a test can bind onto a component it owns. */
@@ -234,6 +254,10 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Possession")
     bool bTakeDefaultControlOnBeginPlay;
 
+    /** With the Reduced motion setting on (Epic 103.5), a blended change of view is a cut:
+     *  the blend time goes through UPSUIAccessibilitySubsystem::GetTransitionSeconds. */
+    virtual void SetViewTarget(AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams()) override;
+
 protected:
     virtual void BeginPlay() override;
     virtual void SetupInputComponent() override;
@@ -287,6 +311,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSInputBufferComponent* InputBufferComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Input")
+    UPSTouchInputComponent* TouchInputComponent;
 
     UPROPERTY(VisibleAnywhere, Category = "Input")
     UPSDefenseInputComponent* DefenseInputComponent;

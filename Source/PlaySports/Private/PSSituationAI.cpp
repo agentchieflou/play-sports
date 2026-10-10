@@ -88,7 +88,7 @@ bool UPSSituationAI::LoadTuningFromJson(const FString& JsonFilePath)
 
 bool UPSSituationAI::ShouldKneelOut(const FPSSituationContext& Situation) const
 {
-    if (Situation.Down < 1 || Situation.Down > 4)
+    if (Situation.bKickoff || Situation.Down < 1 || Situation.Down > 4)
     {
         return false;
     }
@@ -115,6 +115,11 @@ bool UPSSituationAI::ShouldKneelOut(const FPSSituationContext& Situation) const
 
 EPSGameSituation UPSSituationAI::ClassifySituation(const FPSSituationContext& Situation) const
 {
+    // A kickoff is no scrimmage down: no tempo, no clock plays, no timeouts (Epic 75).
+    if (Situation.bKickoff)
+    {
+        return EPSGameSituation::Normal;
+    }
     if (ShouldKneelOut(Situation))
     {
         return EPSGameSituation::VictoryFormation;

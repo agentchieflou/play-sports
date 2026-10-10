@@ -18,6 +18,12 @@ class PLAYSPORTS_API UPSScoreboardWidget : public UUserWidget
 public:
     virtual void NativeConstruct() override;
 
+    /** The game clock as shown, "14:05" (Epic 106: patterns from Data/ui_text.csv). */
+    static FText MakeGameClockText(float GameClockSeconds);
+
+    /** A play phase's name (HUD.Phase.<Phase>), else the phase as the bus names it. */
+    static FText MakePhaseText(const FString& PhaseName);
+
 protected:
     UPROPERTY(BlueprintReadOnly, Category = "Scoreboard")
     int32 HomeScore = 0;
@@ -68,6 +74,12 @@ class PLAYSPORTS_API UPSPlayResultWidget : public UUserWidget
 
 public:
     virtual void NativeConstruct() override;
+
+    /** The banners as shown (Epic 106: Data/ui_text.csv): "+7 YARDS", "TOUCHDOWN!",
+     *  "INCOMPLETE PASS". */
+    static FText MakeYardsBanner(int32 YardsGained);
+    static FText MakeScoreBanner(const FString& ScoreType);
+    static FText MakeIncompletePassBanner();
 
 protected:
     UPROPERTY(BlueprintReadOnly, Category = "PlayResult")

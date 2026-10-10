@@ -42,6 +42,11 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPSHumanCallNeededMC, bool /* bOffense */);
  * sideline intent. When a window opens, a CPU side that needs to stop a running clock calls
  * a timeout (Timeout on the bus; the simulation charges it); a human side asks with
  * RequestTimeout.
+ *
+ * Scheme identity (Epic 89): each team can carry a plan (FPSTeamPlan, built by UPSStaffManager
+ * from its coaching staff). The team on each side calls only the plays its playbook keeps, and
+ * the CPU calls and the suggestions use its coordinators' tendencies. Without plans, both sides
+ * call from the whole playbook.
  */
 UCLASS()
 class PLAYSPORTS_API UPSPlayCallSubsystem : public UWorldSubsystem
@@ -66,8 +71,23 @@ public:
     /** The tuning in use, loaded from the default path on first use. */
     const FPlayCallTuningRow& GetTuning();
 
-    /** A side's plays in playbook order (the default playbook loads on first use). */
+    /** A side's plays in playbook order (the default playbook loads on first use): the ones the
+     *  team on that side keeps (its plan) that can be run at this down. */
     TArray<FPSPlayDefinition> GetPlays(bool bOffense);
+
+    /** Every play in the playbook, both sides, in playbook order. */
+    const TArray<FPSPlayDefinition>& GetPlaybook();
+
+    /** Sets the home or away team's plan for the game (Epic 89). */
+    void SetTeamPlan(bool bHome, const FPSTeamPlan& Plan);
+
+    /** Both teams call from the whole playbook again, with neutral tendencies. */
+    void ClearTeamPlans();
+
+    const FPSTeamPlan& GetTeamPlan(bool bHome) const { return bHome ? HomePlan : AwayPlan; }
+
+    /** The plan of the team on a side at this down (the situation says who has the ball). */
+    const FPSTeamPlan& GetCallingPlan(bool bOffense) const;
 
     /** A side's formations, each once, in playbook order. */
     TArray<FString> GetFormations(bool bOffense);
@@ -187,8 +207,9 @@ public:
     /** The live play clock, or a negative number before the game mode has set one. */
     float GetPlayClockSeconds() const { return PlayClockSeconds; }
 
-    /** Calls PlayId for its side (the play says which). False when the window is closed or
-     *  the play is unknown. A new call replaces the side's earlier one. */
+    /** Calls PlayId for its side (the play says which). False when the window is closed, the
+     *  play is unknown or the team's playbook doesn't keep it. A new call replaces the side's
+     *  earlier one. */
     bool CallPlay(FName PlayId, EPSPlayCaller Caller);
 
     const FPSPlayCall& GetCall(bool bOffense) const { return bOffense ? OffenseCall : DefenseCall; }
@@ -252,6 +273,12 @@ private:
 
     UPROPERTY(Transient)
     FPSSituationContext Situation;
+
+    UPROPERTY(Transient)
+    FPSTeamPlan HomePlan;
+
+    UPROPERTY(Transient)
+    FPSTeamPlan AwayPlan;
 
     UPROPERTY(Transient)
     FPSPlayCall OffenseCall;

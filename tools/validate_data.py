@@ -31,10 +31,23 @@ FPSCameraDirectorTuning, each all-22 shot's rig in camera_all22.json; "ReticleSt
 FPSOverlayReticleStyle; "CycleWindowSeconds" files against FControlHandoffTuningRow, each pick
 action a Boolean in the input catalog's PreSnap context; "ChyronKinds" files against
 FPSBroadcastOverlayTheme; "Settings" files against FPSSettingsCatalog (Epic 103.1);
-"CatenaryParameterCm" files against FPSSkycamTuning; "ShellSafeties" files against
-FPSDefensivePreSnapTuning, each action a Boolean in the DefensePreSnap context. Teams, the league
-config, the playbook, player rating ranges and every reference between files are
-tools/content_contracts.py's (Epic 125), run from here.
+"CatenaryParameterCm" files against FPSSkycamTuning; "UncoveredSeparation" files against
+FBlownCoverageTuningRow; "Packages" + "DefaultOffensePackage" files against FPSPersonnelCatalog (11
+players per package, roles on the package's side, one package per formation and side);
+"CaptionWordsPerSecond" files against FPSUIAccessibilityTuning (Epic 103.2). The UI string tables
+(Data/ui_text.csv, Data/ui_text_data.csv) and the UI code's text are checked by tools/ui_text.py
+(Epic 106); "KickoffTouchbackChance" files against FPSSpecialTeamsTuning, each return scheme a
+KickReturn formation (Epic 75); "UprightWidth" files against FPSBallFlightStyle; "PocketRadius"
+files against FPocketTuningRow; "TouchControls" files against FPSTouchLayout (Epic 130): every input
+context has a touch button set or is listed as without one, each bound action lives in its context
+with the control's value type, every action of a covered context is reachable by touch, and every
+touch-bound action has a Touch glyph; "Staffs" files against FPSCoachingLeague (Epic 89): each
+scheme's formations in the playbook on its side (an offense keeping a run and a pass, a defense a
+base call), coaches' schemes and roles, each staff's team in sample_teams.json and its jobs held by
+coaches of that role. "ShellSafeties" files against FPSDefensivePreSnapTuning (Epic 67), each
+action a Boolean in the DefensePreSnap context. Teams, the league config, the playbook, player
+rating ranges and every reference between files are tools/content_contracts.py's (Epic 125), run
+from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -384,11 +397,14 @@ def validate_force_feedback(path, payload):
             err(path, f"Cue '{cue}' has no pattern")
 
 
-INPUT_DEVICES = ("KeyboardMouse", "Gamepad")
+INPUT_DEVICES = ("KeyboardMouse", "Gamepad", "Touch")
+TOUCH_KEY = re.compile(r"^Touch\d+$")
 
 
 def key_device(key):
-    return "Gamepad" if is_gamepad_key(key) else "KeyboardMouse"
+    if is_gamepad_key(key):
+        return "Gamepad"
+    return "Touch" if TOUCH_KEY.match(key) else "KeyboardMouse"
 
 
 def validate_input_glyphs(path, payload, catalog):
@@ -499,7 +515,7 @@ SKILL_AI_FIELDS = ("WaypointArrivalRadius", "OpenSeparation", "AwarenessMisreadS
                    "MaxReadSeconds", "PressureRadius", "PressuredThrowSeparation", "HandoffRadius",
                    "HandoffTimeoutSeconds", "CarrierAvoidRadius", "CarrierAvoidWeight", "ThrowLeadSpeed",
                    "BlockSetDistance", "BlockEngageRadius", "FieldHalfWidth", "SidelineCushion", "SidelineSteerWeight",
-                   "ReadWindowSeconds", "MaxAnticipationSeconds")
+                   "ReadWindowSeconds", "MaxAnticipationSeconds", "BlownCoverageSeparation")
 
 
 def validate_skill_ai_tuning(path, payload):
@@ -676,6 +692,89 @@ def validate_session_telemetry(path, payload):
         for value in percentiles:
             if not is_number(value) or not 0 < value <= 100:
                 err(path, f"Percentiles: '{value}' must be a number in (0, 100]")
+
+
+OFFENSIVE_ROLES = PLAYER_ROLES - {"DefensiveLineman", "Linebacker", "DefensiveBack"}
+PLAYERS_PER_SIDE = 11
+PERSONNEL_FIELDS = {"PackageId", "DisplayName", "bOffense", "RoleCounts", "Formations"}
+
+
+def validate_personnel_catalog(path, payload):
+    """FPSPersonnelCatalog (Data/personnel_packages.json, Epic 19.5); mirrors
+    UPSPersonnelManager::ValidateCatalog."""
+    packages = payload.get("Packages")
+    if not isinstance(packages, list) or not packages:
+        err(path, "'Packages' must be a non-empty array")
+        return
+    threshold = payload.get("FatigueSubstitutionThreshold", 0.3)
+    if not is_number(threshold) or not 0 <= threshold <= 1:
+        err(path, f"FatigueSubstitutionThreshold: '{threshold}' must be a number from 0 to 1")
+    extra = set(payload) - {"DefaultOffensePackage", "DefaultDefensePackage", "FatigueSubstitutionThreshold", "Packages"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSPersonnelCatalog exactly")
+
+    sides = {}
+    owners = {True: {}, False: {}}
+    for idx, package in enumerate(packages):
+        if not isinstance(package, dict):
+            err(path, f"Packages[{idx}]: not an object")
+            continue
+        pid = package.get("PackageId")
+        where = f"Packages[{idx}] '{pid}'"
+        if not isinstance(pid, str) or not pid:
+            err(path, f"{where}: empty PackageId")
+        elif pid in sides:
+            err(path, f"{where}: duplicate PackageId")
+        offense = package.get("bOffense", True)
+        if not isinstance(offense, bool):
+            err(path, f"{where}.bOffense: must be true or false")
+            offense = True
+        sides[pid] = offense
+        extra = set(package) - PERSONNEL_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSPersonnelPackage exactly")
+        if not str(package.get("DisplayName", "")).strip():
+            err(path, f"{where}: no DisplayName")
+
+        counts = package.get("RoleCounts")
+        if not isinstance(counts, dict):
+            err(path, f"{where}.RoleCounts: must be an object of role -> count")
+            counts = {}
+        total = 0
+        for role, count in counts.items():
+            if role not in PLAYER_ROLES:
+                err(path, f"{where}.RoleCounts: '{role}' is not a valid EPlayerRole")
+                continue
+            if (role in OFFENSIVE_ROLES) != offense:
+                err(path, f"{where}.RoleCounts: {role} doesn't play on {'offense' if offense else 'defense'}")
+            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                err(path, f"{where}.RoleCounts.{role}: '{count}' must be a whole number, 0 or more")
+                continue
+            total += count
+        if total != PLAYERS_PER_SIDE:
+            err(path, f"{where}: fields {total} players, not {PLAYERS_PER_SIDE}")
+        if offense and (counts.get("Quarterback", 0) < 1 or counts.get("OffensiveLineman", 0) < 1):
+            err(path, f"{where}: an offense needs a Quarterback and an OffensiveLineman to snap to him")
+
+        formations = package.get("Formations", [])
+        if not isinstance(formations, list):
+            err(path, f"{where}.Formations: must be an array of formation names")
+            continue
+        for formation in formations:
+            if not isinstance(formation, str) or not formation.strip():
+                err(path, f"{where}.Formations: empty formation name")
+                continue
+            # FString keys compare case-insensitively in the engine.
+            key = formation.lower()
+            if key in owners[offense]:
+                err(path, f"Formation '{formation}' brings on both {owners[offense][key]} and {pid}")
+            else:
+                owners[offense][key] = pid
+
+    for field, offense in (("DefaultOffensePackage", True), ("DefaultDefensePackage", False)):
+        default = payload.get(field)
+        if sides.get(default) is not offense:
+            err(path, f"{field}: '{default}' is not {'an offensive' if offense else 'a defensive'} package")
 
 
 def validate_carrier_moves(path, payload, catalog):
@@ -1220,17 +1319,6 @@ SITUATIONAL_FIELDS = set(SITUATIONAL_SECONDS) | set(SITUATIONAL_COUNTS) | {
     "MiddleRouteIds", "SidelinePlayDelta", "MiddlePlayDelta", "CategoryWeights"}
 
 
-def load_route_ids():
-    """The route library's IDs, or None when it is missing or broken (its own checks report that)."""
-    try:
-        routes = json.loads((DATA_DIR / "sample_routes.json").read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-        return None
-    if not isinstance(routes, dict) or not isinstance(routes.get("Routes"), list):
-        return None
-    return {r.get("RouteId") for r in routes["Routes"] if isinstance(r, dict)}
-
-
 def validate_situational_tuning(path, payload, route_ids):
     """FPSSituationalTuning (Data/situational_tuning.json, Epic 76)."""
     extra = set(payload) - SITUATIONAL_FIELDS
@@ -1347,6 +1435,128 @@ def validate_situational_tuning(path, payload, route_ids):
             err(path, f"{where}: no Reason (the play-call screen shows it)")
 
 
+UI_ACCESSIBILITY_NUMBERS = ("CaptionMinSeconds", "CaptionMaxSeconds", "CaptionWordsPerSecond", "MinMatchupColorDistance")
+
+
+def validate_ui_accessibility(path, payload):
+    """FPSUIAccessibilityTuning (Data/ui_accessibility.json, Epic 103); mirrors
+    UPSUIAccessibilitySubsystem::ValidateTuning."""
+    for field in UI_ACCESSIBILITY_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    low, high = payload.get("CaptionMinSeconds"), payload.get("CaptionMaxSeconds")
+    if is_number(low) and is_number(high) and not 0 < low <= high:
+        err(path, "CaptionMinSeconds must be positive and CaptionMaxSeconds no less")
+    if is_number(payload.get("CaptionWordsPerSecond")) and payload["CaptionWordsPerSecond"] <= 0:
+        err(path, "CaptionWordsPerSecond must be positive")
+    lines = payload.get("CaptionMaxLines")
+    if isinstance(lines, bool) or not isinstance(lines, int) or lines < 1:
+        err(path, f"CaptionMaxLines: '{lines}' must be a whole number, 1 or more")
+    extra = set(payload) - set(UI_ACCESSIBILITY_NUMBERS) - {"CaptionMaxLines"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSUIAccessibilityTuning exactly")
+
+
+SPECIAL_TEAMS_CHANCES = ("KickoffTouchbackChance", "OnsideRecoveryChance", "OnsideRecoveryVsHandsTeamChance",
+                         "LateralTouchdownChance", "LateralFumbleLostChance", "PuntBlockChance", "FieldGoalBlockChance",
+                         "MaxBlockChance", "BlockedKickTouchdownChance", "DefaultBigReturnChance",
+                         "LaneDisciplineBigReturnScale", "FakePuntSuccessChance", "FakeFieldGoalSuccessChance",
+                         "FakeVsBlockUnitDelta", "FakeMinAggression", "FakeCallChance", "SurpriseOnsideChance",
+                         "BaseBlockCallChance")
+SPECIAL_TEAMS_YARD_LINES = ("KickoffYardLine", "SafetyKickYardLine", "TouchbackYardLine", "KickoffReturnMinYardLine",
+                            "KickoffReturnMaxYardLine", "PuntTouchbackYardLine", "MissedFieldGoalMinYardLine",
+                            "MissedFieldGoalMaxYardLine")
+SPECIAL_TEAMS_COUNTS = ("OnsideKickYards", "PuntGrossYardsMin", "PuntGrossYardsMax", "PuntReturnYardsMin", "PuntReturnYardsMax",
+                        "BlockedPuntRecoilYards", "BigReturnYards", "FakeExtraYardsMax", "FakeMaxDistance",
+                        "OnsideMaxDeficit", "LateralsMaxDeficit")
+SPECIAL_TEAMS_NUMBERS = ("HandsTeamReturnPenaltyYards", "FieldGoalSnapYards", "BlockUnitMultiplier", "EdgeSpeedFactor",
+                         "InteriorStrengthFactor", "BlockUnitReturnPenaltyYards", "CoverageAwarenessSpan",
+                         "LaneDisciplineYards", "MaxFieldGoalAttemptYards", "LastPlaySeconds", "NoPuntTrailingSeconds",
+                         "OnsideWindowSeconds", "LateralsWindowSeconds", "BlockWindowSeconds", "SpecialTeamsPlayWeight")
+SPECIAL_TEAMS_FIELDS = (set(SPECIAL_TEAMS_CHANCES) | set(SPECIAL_TEAMS_YARD_LINES) | set(SPECIAL_TEAMS_COUNTS)
+                        | set(SPECIAL_TEAMS_NUMBERS) | {"FieldGoalRanges", "ReturnSchemes"})
+
+
+def load_return_formations():
+    """The formations of the playbook's KickReturn plays, or None when the playbook is missing or
+    broken (its own checks report that)."""
+    try:
+        playbook = json.loads((DATA_DIR / "sample_playbook.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(playbook, dict) or not isinstance(playbook.get("Plays"), list):
+        return None
+    return {p.get("Formation") for p in playbook["Plays"] if isinstance(p, dict) and p.get("PlayCategory") == "KickReturn"}
+
+
+def validate_special_teams(path, payload, return_formations):
+    """FPSSpecialTeamsTuning (Data/special_teams.json, Epic 75)."""
+    extra = set(payload) - SPECIAL_TEAMS_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSSpecialTeamsTuning exactly")
+    for field in SPECIAL_TEAMS_CHANCES:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a chance, 0-1")
+    for field in SPECIAL_TEAMS_YARD_LINES:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 99:
+            err(path, f"{field}: '{value}' must be a yard line, 1-99")
+    for field in SPECIAL_TEAMS_COUNTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            err(path, f"{field}: '{value}' must be a whole number, 0 or more")
+    for field in SPECIAL_TEAMS_NUMBERS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for low, high in (("KickoffReturnMinYardLine", "KickoffReturnMaxYardLine"), ("PuntGrossYardsMin", "PuntGrossYardsMax"),
+                      ("PuntReturnYardsMin", "PuntReturnYardsMax"), ("MissedFieldGoalMinYardLine", "MissedFieldGoalMaxYardLine")):
+        if isinstance(payload.get(low), int) and isinstance(payload.get(high), int) and payload[low] > payload[high]:
+            err(path, f"{low} ({payload[low]}) must not exceed {high} ({payload[high]})")
+
+    ranges = payload.get("FieldGoalRanges")
+    if not isinstance(ranges, list) or not ranges:
+        err(path, "FieldGoalRanges: must list at least one range")
+        ranges = []
+    previous = None
+    for idx, row in enumerate(ranges):
+        where = f"FieldGoalRanges[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        yards, chance = row.get("MaxYards"), row.get("MakeChance")
+        if not is_number(yards) or yards <= 0:
+            err(path, f"{where}.MaxYards: '{yards}' must be a distance above 0")
+        elif previous is not None and yards <= previous:
+            err(path, f"{where}.MaxYards: ranges must run shortest first")
+        else:
+            previous = yards
+        if not is_number(chance) or not 0 <= chance <= 1:
+            err(path, f"{where}.MakeChance: '{chance}' must be a chance, 0-1")
+
+    schemes = payload.get("ReturnSchemes")
+    if not isinstance(schemes, list):
+        err(path, "'ReturnSchemes' must be an array")
+        schemes = []
+    seen = set()
+    for idx, row in enumerate(schemes):
+        where = f"ReturnSchemes[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        formation = row.get("Formation")
+        if not isinstance(formation, str) or not formation or formation in seen:
+            err(path, f"{where}.Formation: '{formation}' is empty or listed twice")
+        seen.add(formation)
+        if return_formations is not None and formation not in return_formations:
+            err(path, f"{where}.Formation: '{formation}' is not the formation of a KickReturn play in sample_playbook.json")
+        if not is_number(row.get("ReturnYardsBonus")):
+            err(path, f"{where}.ReturnYardsBonus: '{row.get('ReturnYardsBonus')}' must be a number")
+        chance = row.get("BigReturnChance")
+        if not is_number(chance) or not 0 <= chance <= 1:
+            err(path, f"{where}.BigReturnChance: '{chance}' must be a chance, 0-1")
 RUN_GAPS = {"DLeft", "CLeft", "BLeft", "ALeft", "ARight", "BRight", "CRight", "DRight"}
 RUN_FIT_NUMBERS = ("GapWidth", "InlineTightEndWidth", "FitDepth", "SecondLevelDepth", "LeverageOffset", "FlowWeight",
                    "AttackRadius", "FillRadius")
@@ -1439,6 +1649,22 @@ def validate_route_running(path, payload):
     extra = set(payload) - set(ROUTE_RUNNING_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FRouteRunningTuningRow exactly")
+
+
+BLOWN_COVERAGE_FIELDS = ("CheckIntervalSeconds", "UncoveredSeparation", "MinDepthPastLine", "HelpRadius")
+
+
+def validate_blown_coverage(path, payload):
+    """FBlownCoverageTuningRow (Data/blown_coverage.json, Epic 17.4)."""
+    for field in BLOWN_COVERAGE_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    if is_number(payload.get("CheckIntervalSeconds")) and payload["CheckIntervalSeconds"] <= 0:
+        err(path, "CheckIntervalSeconds: must be above 0")
+    extra = set(payload) - set(BLOWN_COVERAGE_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FBlownCoverageTuningRow exactly")
 
 
 ROUTE_FIELDS = {"RouteId", "Waypoints", "OptionReadWaypoint", "VsManBranch", "VsZoneBranch"}
@@ -1771,6 +1997,452 @@ def validate_skycam(path, payload):
         err(path, f"MinHeightCm ({payload['MinHeightCm']}) must be below the cables' ceiling over midfield ({ceiling:.0f})")
 
 
+def validate_ui_text():
+    """Data/ui_text.csv, Data/ui_text_data.csv and the UI code's text (Epic 106); the checks
+    live in tools/ui_text.py, which also regenerates ui_text_data.csv."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ui_text
+    for path, message in ui_text.problems():
+        err(path, message)
+
+
+BALL_FLIGHT_COLORS = ("ArcColor", "LandingColor", "LeadOnTargetColor", "LeadOffTargetColor", "GoodColor", "NoGoodColor")
+BALL_FLIGHT_TEXTS = ("DotMeshPath", "RingMeshPath", "MaterialPath", "ColorParameter", "GoodLabel", "WideLeftLabel",
+                     "WideRightLabel", "ShortLabel")
+BALL_FLIGHT_POSITIVE = ("MeshDiameter", "ArcDotDiameter", "LandingRadiusFallback", "LeadRadius", "DeviationTolerance",
+                        "MaxFlightSeconds", "UprightWidth", "ReadoutTextSize")
+BALL_FLIGHT_NON_NEGATIVE = ("RingThickness", "GroundClearance", "LingerSeconds", "ReadoutSeconds", "CrossbarHeight",
+                            "ReadoutHeight")
+BALL_FLIGHT_FIELDS = {"ArcPoints", "GroundZ", "GoalPostX", "GoalPostY", *BALL_FLIGHT_COLORS, *BALL_FLIGHT_TEXTS,
+                      *BALL_FLIGHT_POSITIVE, *BALL_FLIGHT_NON_NEGATIVE}
+
+
+def validate_ball_flight_overlay(path, payload):
+    """FPSBallFlightStyle (Data/ball_flight_overlay.json, Epic 32); mirrors
+    UPSOverlayBallFlightSubsystem::ValidateStyle."""
+    for field in BALL_FLIGHT_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in BALL_FLIGHT_TEXTS:
+        if not isinstance(payload.get(field), str) or not payload[field]:
+            err(path, f"{field}: must be a non-empty string")
+    for field in BALL_FLIGHT_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in BALL_FLIGHT_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("GroundZ", "GoalPostY"):
+        if not is_number(payload.get(field)):
+            err(path, f"{field}: '{payload.get(field)}' must be a number")
+    points = payload.get("ArcPoints")
+    if not isinstance(points, int) or isinstance(points, bool) or points < 2:
+        err(path, f"ArcPoints: '{points}' must be a whole number, 2 or more (release and landing)")
+    posts = payload.get("GoalPostX")
+    if not isinstance(posts, list) or not posts or not all(is_number(x) for x in posts):
+        err(path, "GoalPostX: must be a non-empty array of numbers (each end line's X)")
+    extra = set(payload) - BALL_FLIGHT_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSBallFlightStyle exactly")
+
+
+POCKET_FIELDS = ("PocketRadius", "EngagedPressureWeight", "EdgeWidth", "MinPressure", "CollapsePressure",
+                 "EscapeRadius", "ClimbStopDistance", "SackImminentRadius", "StripBaseChance", "StripStrengthWeight",
+                 "ThrowawayMinAwareness", "GroundingAvoidAwareness", "TackleBoxHalfWidth", "ThrowawayReceiverRange",
+                 "ThrowawayShort", "ThrowawayDepth", "ThrowawayWidth", "ScrambleForwardBias", "ScrambleMaxSeconds",
+                 "RunLaneClearance", "RunLaneWidth", "SlideTriggerRadius", "SlideMinGain", "ScrambleDrillDepth",
+                 "ScrambleDrillWidth", "ScrambleDrillJitter", "ScrambleDeepDepth", "ScrambleDeepRunOn")
+
+
+def validate_pocket_tuning(path, payload):
+    """FPocketTuningRow (Data/pocket_tuning.json, Epic 71)."""
+    for field in POCKET_FIELDS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("EngagedPressureWeight", "StripBaseChance"):
+        if is_number(payload.get(field)) and payload[field] > 1:
+            err(path, f"{field}: at most 1")
+    for field in ("ThrowawayMinAwareness", "GroundingAvoidAwareness"):
+        if is_number(payload.get(field)) and payload[field] > 100:
+            err(path, f"{field}: ratings run 0-100")
+    for low, high in (("MinPressure", "CollapsePressure"), ("ThrowawayMinAwareness", "GroundingAvoidAwareness")):
+        if is_number(payload.get(low)) and is_number(payload.get(high)) and payload[low] > payload[high]:
+            err(path, f"{low} must not exceed {high}")
+    extra = set(payload) - set(POCKET_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPocketTuningRow exactly")
+
+
+TOUCH_KINDS = {"Stick", "Button", "Swipe"}
+TOUCH_DIRECTIONS = {"Left", "Right", "Up", "Down"}
+TOUCH_LAYOUT_FIELDS = {"SafeZone", "LayoutAspect", "bFloatingStick", "StickZone", "GestureZone",
+                       "SwipeMinDistance", "SwipeMaxSeconds", "TouchControls", "TouchContexts",
+                       "ContextsWithoutTouch"}
+
+
+def zone_ok(zone):
+    try:
+        lo, hi = zone["Min"], zone["Max"]
+        values = [lo["X"], lo["Y"], hi["X"], hi["Y"]]
+    except (KeyError, TypeError):
+        return False
+    return all(is_number(v) and 0 <= v <= 1 for v in values) and lo["X"] < hi["X"] and lo["Y"] < hi["Y"]
+
+
+def validate_touch_controls(path, payload, catalog, glyphs):
+    """FPSTouchLayout (Data/touch_controls.json, Epic 130); mirrors
+    PSTouchControls::ValidateLayout. catalog / glyphs are the parsed input catalog and glyph
+    table, or None."""
+    extra = set(payload) - TOUCH_LAYOUT_FIELDS
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTouchLayout exactly")
+    safe = payload.get("SafeZone")
+    margins = [safe.get(k) for k in ("Left", "Top", "Right", "Bottom")] if isinstance(safe, dict) else []
+    if (len(margins) != 4 or not all(is_number(m) and m >= 0 for m in margins)
+            or margins[0] + margins[2] >= 1 or margins[1] + margins[3] >= 1):
+        err(path, "SafeZone: margins must be numbers, 0 or more, leaving part of the screen on each axis")
+    aspect = payload.get("LayoutAspect")
+    if not is_number(aspect) or aspect <= 0:
+        err(path, "LayoutAspect must be a positive number")
+        aspect = 1.0
+    for name in ("StickZone", "GestureZone"):
+        if not zone_ok(payload.get(name)):
+            err(path, f"{name} must satisfy 0 <= Min < Max <= 1 on both axes")
+    for name in ("SwipeMinDistance", "SwipeMaxSeconds"):
+        if not is_number(payload.get(name)) or payload[name] <= 0:
+            err(path, f"{name} must be a positive number")
+
+    controls = {}
+    swipe_directions = set()
+    sticks = 0
+    for idx, control in enumerate(payload.get("TouchControls") or []):
+        where = f"TouchControls[{idx}]"
+        if not isinstance(control, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        cid = control.get("ControlId")
+        if not isinstance(cid, str) or not cid or cid in controls:
+            err(path, f"{where}.ControlId: empty or used twice")
+        controls[cid] = control
+        kind = control.get("Kind")
+        if kind not in TOUCH_KINDS:
+            err(path, f"{where}.Kind: '{kind}' is not an EPSTouchControlKind ({sorted(TOUCH_KINDS)})")
+            continue
+        if kind == "Swipe":
+            direction = control.get("Direction")
+            if direction not in TOUCH_DIRECTIONS or direction in swipe_directions:
+                err(path, f"{where}: a swipe needs a Direction ({sorted(TOUCH_DIRECTIONS)}) no other swipe uses")
+            swipe_directions.add(direction)
+            continue
+        if kind == "Stick":
+            sticks += 1
+        pos, radius = control.get("Position"), control.get("Radius")
+        x, y = (pos.get("X"), pos.get("Y")) if isinstance(pos, dict) else (None, None)
+        if not (is_number(x) and is_number(y) and 0 <= x <= 1 and 0 <= y <= 1 and is_number(radius) and radius > 0):
+            err(path, f"{where} '{cid}': needs a Position inside the safe area and a positive Radius")
+            continue
+        if kind == "Button" and (y - radius < 0 or y + radius > 1 or x - radius / aspect < 0 or x + radius / aspect > 1):
+            err(path, f"{where} '{cid}': the button reaches outside the safe area")
+    if sticks > 1:
+        err(path, f"the layout has {sticks} sticks; the touch layer drives one")
+    buttons = [c for c in controls.values() if isinstance(c, dict) and c.get("Kind") == "Button"
+               and isinstance(c.get("Position"), dict) and is_number(c.get("Radius"))
+               and is_number(c["Position"].get("X")) and is_number(c["Position"].get("Y"))]
+    for i, a in enumerate(buttons):
+        for b in buttons[i + 1:]:
+            dx = (a["Position"]["X"] - b["Position"]["X"]) * aspect
+            dy = a["Position"]["Y"] - b["Position"]["Y"]
+            if (dx * dx + dy * dy) ** 0.5 < a["Radius"] + b["Radius"]:
+                err(path, f"buttons '{a.get('ControlId')}' and '{b.get('ControlId')}' overlap")
+
+    catalog_contexts = {c.get("ContextId") for c in (catalog or {}).get("Contexts", []) if isinstance(c, dict)}
+    actions = {a.get("ActionId"): a for a in (catalog or {}).get("Actions", []) if isinstance(a, dict)}
+    bound_actions = set()
+    seen_contexts = set()
+    for idx, entry in enumerate(payload.get("TouchContexts") or []):
+        if not isinstance(entry, dict):
+            err(path, f"TouchContexts[{idx}]: must be an object")
+            continue
+        ctx = entry.get("ContextId")
+        where = f"TouchContexts[{idx}] '{ctx}'"
+        if not isinstance(ctx, str) or not ctx or ctx in seen_contexts:
+            err(path, f"{where}: empty or listed twice")
+        seen_contexts.add(ctx)
+        known_context = catalog is None or ctx in catalog_contexts
+        if not known_context:
+            err(path, f"{where}: not a context in input_actions.json")
+        bound_here, reached = set(), set()
+        for bidx, binding in enumerate(entry.get("Bindings") or []):
+            bwhere = f"{where}.Bindings[{bidx}]"
+            if not isinstance(binding, dict):
+                err(path, f"{bwhere}: must be an object")
+                continue
+            cid, aid = binding.get("ControlId"), binding.get("ActionId")
+            control = controls.get(cid)
+            if control is None:
+                err(path, f"{bwhere}: no control '{cid}' in TouchControls")
+            if cid in bound_here:
+                err(path, f"{bwhere}: control '{cid}' bound twice in one context")
+            bound_here.add(cid)
+            if not isinstance(aid, str) or not aid:
+                err(path, f"{bwhere}: no ActionId")
+                continue
+            bound_actions.add(aid)
+            reached.add(aid)
+            if catalog is None:
+                continue
+            action = actions.get(aid)
+            if action is None:
+                err(path, f"{bwhere}: '{aid}' is not an action in input_actions.json")
+                continue
+            if known_context and ctx not in (action.get("Contexts") or []):
+                err(path, f"{bwhere}: '{aid}' does not live in context '{ctx}'")
+            if isinstance(control, dict) and control.get("Kind") in TOUCH_KINDS:
+                expected = "Axis2D" if control["Kind"] == "Stick" else "Boolean"
+                if action.get("ValueType") != expected:
+                    err(path, f"{bwhere}: a {control['Kind']} control needs an action of type {expected}, and '{aid}' is {action.get('ValueType')}")
+            keys = [b.get("Key") for b in action.get("Bindings", []) if isinstance(b, dict) and isinstance(b.get("Key"), str)]
+            if not any(is_gamepad_key(k) for k in keys):
+                err(path, f"{bwhere}: '{aid}' has no gamepad binding for the touch value to go through")
+        if catalog is not None and known_context:
+            for aid, action in actions.items():
+                if ctx in (action.get("Contexts") or []) and aid not in reached:
+                    err(path, f"{where}: action '{aid}' has no touch control")
+
+    # Every input context either has a touch button set or is listed as having none, so a new
+    # context can't slip past touch unnoticed.
+    without = payload.get("ContextsWithoutTouch") or []
+    if not isinstance(without, list):
+        err(path, "ContextsWithoutTouch must be an array of context IDs")
+        without = []
+    for cid in without:
+        if cid in seen_contexts:
+            err(path, f"ContextsWithoutTouch: '{cid}' also has a touch button set")
+        elif catalog is not None and cid not in catalog_contexts:
+            err(path, f"ContextsWithoutTouch: '{cid}' is not a context in input_actions.json")
+    if catalog is not None:
+        for cid in sorted(c for c in catalog_contexts if isinstance(c, str)):
+            if cid not in seen_contexts and cid not in without:
+                err(path, f"context '{cid}' has no touch button set: add it to TouchContexts (or, deliberately, to ContextsWithoutTouch)")
+
+    if glyphs is None:
+        return
+    touch_sets = [s for s in glyphs.get("GlyphSets", [])
+                  if isinstance(s, dict) and s.get("Device") == "Touch" and s.get("bDefaultForDevice")]
+    if len(touch_sets) != 1:
+        err(path, "input_glyphs.json needs exactly one default Touch glyph set")
+        return
+    drawn = {a.get("ActionId") for a in touch_sets[0].get("Actions", []) if isinstance(a, dict)}
+    for aid in sorted(bound_actions - drawn):
+        err(path, f"glyph set '{touch_sets[0].get('GlyphSetId')}' has no glyph for '{aid}', which a touch control drives")
+
+
+def load_input_glyphs():
+    """The glyph table touch controls must be drawn from, or None when missing or broken."""
+    try:
+        glyphs = json.loads((DATA_DIR / "input_glyphs.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return glyphs if isinstance(glyphs, dict) else None
+
+
+COACH_ROLES = ("HeadCoach", "OffensiveCoordinator", "DefensiveCoordinator")
+OFFENSE_ROLES = {"Quarterback", "RunningBack", "WideReceiver", "TightEnd", "OffensiveLineman"}
+FIT_ATTRIBUTES = {"Speed", "Agility", "Strength", "Acceleration", "Awareness", "Stamina"}
+PASS_CATEGORIES = {"ShortPass", "DeepPass", "PlayAction", "Screen"}
+SCHEME_FIELDS = {"SchemeId", "Label", "bOffense", "Formations", "CategoryWeights", "FitWeights", "Description"}
+COACH_FIELDS = {"CoachId", "DisplayName", "Role", "SchemeId", "PlayCalling", "Development", "Aggression"}
+STAFF_JOBS = {"HeadCoachId": "HeadCoach", "OffensiveCoordinatorId": "OffensiveCoordinator",
+              "DefensiveCoordinatorId": "DefensiveCoordinator"}
+STAFF_FIELDS = set(STAFF_JOBS) | {"TeamId", "HeadCoachSeasons"}
+STAFF_TUNING_NUMBERS = ("MinSchemeAdherence", "MaxSchemeAdherence", "FitSpan", "BestFitMultiplier", "WorstFitMultiplier",
+                        "PromotionBonus", "SchemeMatchBonus")
+STAFF_TUNING_CHANCES = ("DevelopmentMisfitRelief", "FitLabelThreshold", "FireWinPercentage", "CoordinatorSafeWinPercentage",
+                        "PromoteWinPercentage")
+STAFF_TUNING_COUNTS = ("GraceSeasons", "CoordinatorFiresPerSide")
+
+
+def load_playbook_plays():
+    """The playbook's plays, or None when it is missing or broken (its own checks report that)."""
+    try:
+        playbook = json.loads((DATA_DIR / "sample_playbook.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(playbook, dict) or not isinstance(playbook.get("Plays"), list):
+        return None
+    return [p for p in playbook["Plays"] if isinstance(p, dict)]
+
+
+def load_team_ids():
+    """The league's team IDs, or None when the teams file is missing or broken."""
+    try:
+        teams = json.loads((DATA_DIR / "sample_teams.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(teams, dict) or not isinstance(teams.get("Teams"), list):
+        return None
+    return {t.get("TeamId") for t in teams["Teams"] if isinstance(t, dict)}
+
+
+def validate_coaching_staffs(path, payload, plays, team_ids):
+    """FPSCoachingLeague (Data/coaching_staffs.json, Epic 89); mirrors UPSStaffManager::Validate."""
+    extra = set(payload) - {"Schemes", "Coaches", "Staffs", "Tuning"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCoachingLeague exactly")
+
+    schemes = {}
+    for idx, row in enumerate(payload.get("Schemes") if isinstance(payload.get("Schemes"), list) else []):
+        where = f"Schemes[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        unknown = set(row) - SCHEME_FIELDS
+        if unknown:
+            err(path, f"{where}: unknown field(s) {sorted(unknown)}")
+        scheme_id = row.get("SchemeId")
+        if not isinstance(scheme_id, str) or not scheme_id or scheme_id in schemes:
+            err(path, f"{where}.SchemeId: '{scheme_id}' is empty or listed twice")
+            continue
+        schemes[scheme_id] = row
+        where = f"Schemes '{scheme_id}'"
+        offense = row.get("bOffense")
+        if not isinstance(offense, bool):
+            err(path, f"{where}.bOffense: must be true or false")
+            continue
+        if not isinstance(row.get("Label"), str) or not row["Label"]:
+            err(path, f"{where}.Label: must be a non-empty string")
+        formations = row.get("Formations")
+        if not isinstance(formations, list) or not formations:
+            err(path, f"{where}.Formations: must list at least one formation")
+            formations = []
+        weights = row.get("CategoryWeights")
+        if not isinstance(weights, dict):
+            err(path, f"{where}.CategoryWeights: must be an object")
+            weights = {}
+        if plays is not None:
+            side = [p for p in plays if p.get("bIsOffensivePlay") is offense]
+            for formation in formations:
+                if not any(p.get("Formation") == formation for p in side):
+                    err(path, f"{where}.Formations: '{formation}' is no {'offensive' if offense else 'defensive'} formation in sample_playbook.json")
+            kept = {p.get("PlayCategory") for p in side if p.get("Formation") in formations}
+            if offense and not ("Run" in kept and kept & PASS_CATEGORIES):
+                err(path, f"{where}.Formations: the scheme's plays need a run and a pass")
+            if not offense and "Base" not in kept:
+                err(path, f"{where}.Formations: the scheme's plays need a Base defense")
+            categories = {p.get("PlayCategory") for p in side}
+            for category in weights:
+                if category not in categories:
+                    err(path, f"{where}.CategoryWeights: '{category}' is no {'offensive' if offense else 'defensive'} PlayCategory in sample_playbook.json")
+        for category, value in weights.items():
+            if not is_number(value) or value < 0:
+                err(path, f"{where}.CategoryWeights.{category}: '{value}' must be a number, 0 or more")
+        fit_weights = row.get("FitWeights")
+        if not isinstance(fit_weights, list):
+            err(path, f"{where}.FitWeights: must be an array")
+            fit_weights = []
+        for fidx, entry in enumerate(fit_weights):
+            fwhere = f"{where}.FitWeights[{fidx}]"
+            if not isinstance(entry, dict) or set(entry) != {"Role", "Attribute", "Weight"}:
+                err(path, f"{fwhere}: must have exactly Role, Attribute and Weight")
+                continue
+            if entry["Role"] not in PLAYER_ROLES:
+                err(path, f"{fwhere}.Role: '{entry['Role']}' is not an EPlayerRole")
+            elif (entry["Role"] in OFFENSE_ROLES) != offense:
+                err(path, f"{fwhere}.Role: {entry['Role']} plays the other side")
+            if entry["Attribute"] not in FIT_ATTRIBUTES:
+                err(path, f"{fwhere}.Attribute: '{entry['Attribute']}' must be one of {sorted(FIT_ATTRIBUTES)}")
+            if not is_number(entry["Weight"]) or entry["Weight"] <= 0:
+                err(path, f"{fwhere}.Weight: '{entry['Weight']}' must be above 0")
+
+    coaches = {}
+    for idx, row in enumerate(payload.get("Coaches") if isinstance(payload.get("Coaches"), list) else []):
+        where = f"Coaches[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        if set(row) != COACH_FIELDS:
+            err(path, f"{where}: fields must be exactly {sorted(COACH_FIELDS)}")
+        coach_id = row.get("CoachId")
+        if not isinstance(coach_id, str) or not coach_id or coach_id in coaches:
+            err(path, f"{where}.CoachId: '{coach_id}' is empty or listed twice")
+            continue
+        coaches[coach_id] = row
+        where = f"Coaches '{coach_id}'"
+        role = row.get("Role")
+        if role not in COACH_ROLES:
+            err(path, f"{where}.Role: '{role}' must be one of {list(COACH_ROLES)}")
+        scheme = schemes.get(row.get("SchemeId"))
+        if scheme is None:
+            err(path, f"{where}.SchemeId: '{row.get('SchemeId')}' is not a scheme in this file")
+        elif role in ("OffensiveCoordinator", "DefensiveCoordinator") and scheme.get("bOffense") != (role == "OffensiveCoordinator"):
+            err(path, f"{where}.SchemeId: a {role} cannot run the {scheme.get('Label')}")
+        for field in ("PlayCalling", "Development"):
+            value = row.get(field)
+            if not is_number(value) or not 0 <= value <= 100:
+                err(path, f"{where}.{field}: '{value}' must be 0-100")
+        value = row.get("Aggression")
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{where}.Aggression: '{value}' must be 0-1")
+
+    teams = set()
+    employed = set()
+    for idx, row in enumerate(payload.get("Staffs") if isinstance(payload.get("Staffs"), list) else []):
+        where = f"Staffs[{idx}]"
+        if not isinstance(row, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        if set(row) != STAFF_FIELDS:
+            err(path, f"{where}: fields must be exactly {sorted(STAFF_FIELDS)}")
+        team = row.get("TeamId")
+        if not isinstance(team, str) or not team or team in teams:
+            err(path, f"{where}.TeamId: '{team}' is empty or listed twice")
+        elif team_ids is not None and team not in team_ids:
+            err(path, f"{where}.TeamId: '{team}' is not a team in sample_teams.json")
+        teams.add(team)
+        for field, role in STAFF_JOBS.items():
+            coach_id = row.get(field)
+            if coach_id in (None, "", "None"):
+                continue
+            coach = coaches.get(coach_id)
+            if coach is None:
+                err(path, f"{where}.{field}: '{coach_id}' is not a coach in this file")
+            elif coach.get("Role") != role:
+                err(path, f"{where}.{field}: '{coach_id}' is not a {role}")
+            if coach_id in employed:
+                err(path, f"{where}.{field}: '{coach_id}' is on two staffs")
+            employed.add(coach_id)
+        seasons = row.get("HeadCoachSeasons")
+        if not isinstance(seasons, int) or isinstance(seasons, bool) or seasons < 0:
+            err(path, f"{where}.HeadCoachSeasons: '{seasons}' must be a whole number, 0 or more")
+
+    tuning = payload.get("Tuning")
+    if not isinstance(tuning, dict):
+        err(path, "'Tuning' must be an object")
+        return
+    known = set(STAFF_TUNING_NUMBERS) | set(STAFF_TUNING_CHANCES) | set(STAFF_TUNING_COUNTS)
+    if set(tuning) - known:
+        err(path, f"Tuning: unknown field(s) {sorted(set(tuning) - known)} - names must match FPSStaffTuning exactly")
+    for field in STAFF_TUNING_NUMBERS:
+        if not is_number(tuning.get(field)) or tuning[field] < 0:
+            err(path, f"Tuning.{field}: '{tuning.get(field)}' must be a number, 0 or more")
+    for field in STAFF_TUNING_CHANCES:
+        if not is_number(tuning.get(field)) or not 0 <= tuning[field] <= 1:
+            err(path, f"Tuning.{field}: '{tuning.get(field)}' must be 0-1")
+    for field in STAFF_TUNING_COUNTS:
+        value = tuning.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            err(path, f"Tuning.{field}: '{value}' must be a whole number, 0 or more")
+    if is_number(tuning.get("FitSpan")) and tuning["FitSpan"] <= 0:
+        err(path, "Tuning.FitSpan: must be above 0")
+    if is_number(tuning.get("BestFitMultiplier")) and tuning["BestFitMultiplier"] < 1:
+        err(path, "Tuning.BestFitMultiplier: a fit never plays below his ratings (1 or more)")
+    if is_number(tuning.get("WorstFitMultiplier")) and not 0 < tuning["WorstFitMultiplier"] <= 1:
+        err(path, "Tuning.WorstFitMultiplier: must be above 0 and at most 1")
+
+
 DEFENSIVE_PRESNAP_NUMBERS = ("TwoHighDepth", "TwoHighWidth", "SingleHighDepth", "RobberDepth", "RobberWidth",
                              "DeepSafetyDepth", "ShowBlitzDepth", "BlitzLookDepth", "BlitzLookWidth", "CreepDelaySeconds")
 DEFENSIVE_PRESNAP_FRACTIONS = ("CreepSpeedScale", "MaxDisguiseLeak", "DisguiseChanceConservative", "DisguiseChanceAggressive",
@@ -1895,6 +2567,8 @@ def main():
             validate_session_telemetry(path, payload)
         if isinstance(payload, dict) and "Moves" in payload:
             validate_carrier_moves(path, payload, load_input_catalog())
+        if isinstance(payload, dict) and "PocketRadius" in payload:
+            validate_pocket_tuning(path, payload)
         if isinstance(payload, dict) and "KeyframeEvents" in payload:
             validate_telemetry_sampling(path, payload)
         if isinstance(payload, dict) and "ReticleStates" in payload:
@@ -1903,10 +2577,18 @@ def main():
             validate_control_handoff(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "ChyronKinds" in payload:
             validate_broadcast_overlay(path, payload)
+        if isinstance(payload, dict) and "UprightWidth" in payload:
+            validate_ball_flight_overlay(path, payload)
         if isinstance(payload, dict) and "SituationTempos" in payload:
             validate_situational_tuning(path, payload, load_route_ids())
+        if isinstance(payload, dict) and "KickoffTouchbackChance" in payload:
+            validate_special_teams(path, payload, load_return_formations())
+        if isinstance(payload, dict) and "Schemes" in payload and "Staffs" in payload:
+            validate_coaching_staffs(path, payload, load_playbook_plays(), load_team_ids())
         if isinstance(payload, dict) and "PressRadius" in payload:
             validate_route_running(path, payload)
+        if isinstance(payload, dict) and "UncoveredSeparation" in payload:
+            validate_blown_coverage(path, payload)
         if isinstance(payload, dict) and "Routes" in payload:
             validate_routes(path, payload)
         if isinstance(payload, dict) and "HotRouteSets" in payload:
@@ -1919,6 +2601,8 @@ def main():
             validate_kick_meter(path, payload, load_input_catalog())
         if isinstance(payload, dict) and "RushMoves" in payload:
             validate_rush_moves(path, payload)
+        if isinstance(payload, dict) and "CaptionWordsPerSecond" in payload:
+            validate_ui_accessibility(path, payload)
         if isinstance(payload, dict) and "Fronts" in payload:
             validate_run_fits(path, payload)
         if isinstance(payload, dict) and "All22Rigs" in payload:
@@ -1929,9 +2613,14 @@ def main():
             validate_camera_director(path, payload, load_all22_rig_ids())
         if isinstance(payload, dict) and "CatenaryParameterCm" in payload:
             validate_skycam(path, payload)
+        if isinstance(payload, dict) and "Packages" in payload and "DefaultOffensePackage" in payload:
+            validate_personnel_catalog(path, payload)
+        if isinstance(payload, dict) and "TouchControls" in payload:
+            validate_touch_controls(path, payload, load_input_catalog(), load_input_glyphs())
         if isinstance(payload, dict) and "ShellSafeties" in payload:
             validate_defensive_presnap(path, payload, load_input_catalog())
     content_contracts.check_references(REPO, parsed, err)
+    validate_ui_text()
     if errors:
         print(f"validate_data: {len(errors)} error(s):")
         for e in errors:

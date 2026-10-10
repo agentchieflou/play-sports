@@ -16,6 +16,7 @@
 #include "PSFieldGrid.h"
 #include "PSBroadcastCamera.h"
 #include "PSRoster.h"
+#include "PSPersonnelManager.h"
 #include "PSHealthComponent.h"
 #include "PSRulesConfig.h"
 #include "PSPlayerLeveling.h"
@@ -59,6 +60,7 @@ APSGameMode::APSGameMode()
     PlaySimulation = nullptr;
     BroadcastCamera = nullptr;
     ActiveRoster = nullptr;
+    PersonnelManager = nullptr;
     CurrentPlayIndex = 0;
     ExtraDefenderPawn = nullptr;
     PlayerLeveling = nullptr;
@@ -126,29 +128,32 @@ void APSGameMode::StartPlay()
             int32 RowCount = PlayerRosterTable->GetRowMap().Num();
             UE_LOG(LogTemp, Display, TEXT("PSGameMode: Successfully ingested roster. Loaded %d players."), RowCount);
 
-            // Separate players into Offense and Defense
-            TArray<FPlayerAttributes> OffenseRoster;
-            TArray<FPlayerAttributes> DefenseRoster;
+            // Epic 19.5: the roster holds every player and the depth chart; the personnel
+            // manager picks who takes the field from it, starting with the default packages.
             TArray<FPlayerAttributes*> AllPlayers;
             PlayerRosterTable->GetAllRows<FPlayerAttributes>(TEXT("PSGameMode Roster Ingestion"), AllPlayers);
-
-            for (FPlayerAttributes* Player : AllPlayers)
+            TArray<FPlayerAttributes> RosterRows;
+            for (const FPlayerAttributes* Player : AllPlayers)
             {
                 if (Player)
                 {
-                    if (Player->Role == EPlayerRole::Quarterback ||
-                        Player->Role == EPlayerRole::RunningBack ||
-                        Player->Role == EPlayerRole::WideReceiver ||
-                        Player->Role == EPlayerRole::TightEnd ||
-                        Player->Role == EPlayerRole::OffensiveLineman)
-                    {
-                        OffenseRoster.Add(*Player);
-                    }
-                    else
-                    {
-                        DefenseRoster.Add(*Player);
-                    }
+                    RosterRows.Add(*Player);
                 }
+            }
+            ActiveRoster = NewObject<UPSRoster>(this);
+            ActiveRoster->InitializeRoster(RosterRows);
+            ActiveRoster->BuildDefaultDepthChart();
+            PersonnelManager = NewObject<UPSPersonnelManager>(this);
+            PersonnelManager->Initialize(ActiveRoster);
+            PersonnelManager->LoadCatalogFromJson(UPSPersonnelManager::GetDefaultCatalogPath());
+            const TArray<const FPlayerAttributes*> Starters = PersonnelManager->GetStartingLineup();
+
+            TArray<FPlayerAttributes> OffenseRoster;
+            TArray<FPlayerAttributes> DefenseRoster;
+            for (const FPlayerAttributes* Player : Starters)
+            {
+                TArray<FPlayerAttributes>& SideRoster = APSFieldGrid::GetSideForRole(Player->Role) == EPSTeamSide::Offense ? OffenseRoster : DefenseRoster;
+                SideRoster.Add(*Player);
             }
 
             PlaySimulation = NewObject<UPSPlaySimulation>(this);
@@ -171,15 +176,6 @@ void APSGameMode::StartPlay()
                 PlaySimulation->InitializeWithWorld(GetWorld());
             }
 
-            // Epic 139/141: authoritative combat/leveling live-state for this roster
-            ActiveRoster = NewObject<UPSRoster>(this);
-            if (ActiveRoster)
-            {
-                TArray<FPlayerAttributes> FullRosterCopy = OffenseRoster;
-                FullRosterCopy.Append(DefenseRoster);
-                ActiveRoster->InitializeRoster(FullRosterCopy);
-                ActiveRoster->BuildDefaultDepthChart();
-            }
             PlayerLeveling = NewObject<UPSPlayerLeveling>(this);
 
             // Find the broadcast camera in the level so bus-driven catch events can
@@ -195,21 +191,12 @@ void APSGameMode::StartPlay()
             UGameplayStatics::GetAllActorsOfClass(GetWorld(), APSPlayerPawn::StaticClass(), ExistingPawns);
             if (ExistingPawns.Num() == 0)
             {
-                TArray<const FPlayerAttributes*> RosterPlayers;
-                if (PlaySimulation)
-                {
-                    for (const FPlayerAttributes& Player : PlaySimulation->GetOffenseRoster())
-                    {
-                        RosterPlayers.Add(&Player);
-                    }
-                    for (const FPlayerAttributes& Player : PlaySimulation->GetDefenseRoster())
-                    {
-                        RosterPlayers.Add(&Player);
-                    }
-                }
-
+                // The pawns point at the roster's own rows (one authority, Epic C3/19.5).
                 const float ScrimmageX = PlaySimulation ? PlaySimulation->GetPlayState().YardLine * 100.f : 2000.f;
-                CachedPawns = APSFieldGrid::SpawnPlayersFromRoster(RosterPlayers, ScrimmageX, GetWorld());
+                CachedPawns = APSFieldGrid::SpawnPlayersFromRoster(Starters, ScrimmageX, GetWorld());
+                PersonnelManager->BindPawns(CachedPawns);
+                PersonnelManager->BindToBus(GetWorld()->GetSubsystem<UPSTelemetryBus>());
+                PersonnelManager->BeginNewPlay(ScrimmageX, CurrentPlayIndex);
             }
             else
             {
@@ -480,11 +467,12 @@ void APSGameMode::ResetPawnPositions()
         APSPlayerPawn* Pawn = FieldPawns[PawnIndex];
 
         // Epic 139: heal every on-field pawn's live HP pool back to full for the
-        // new play, and mirror that into the authoritative roster live-state.
+        // new play, and mirror that into the authoritative roster live-state. A ball
+        // carrier due to sit this play out keeps his sit-out for the personnel manager.
         if (UPSHealthComponent* Health = Pawn->GetHealthComponent())
         {
             Health->Respawn();
-            if (ActiveRoster)
+            if (ActiveRoster && ActiveRoster->IsAvailableForPlay(Pawn->GetAttributes().PlayerId, CurrentPlayIndex))
             {
                 ActiveRoster->RespawnForNewPlay(Pawn->GetAttributes().PlayerId, Health->GetMaxHitPoints());
             }
@@ -526,6 +514,12 @@ void APSGameMode::ResetPawnPositions()
         ActiveBall->AttachToCarrier(Center, TEXT("HandSocket"));
         Center->GainPossession();
         UE_LOG(LogTemp, Display, TEXT("PSGameMode: Reset play cycle. Re-attached ActiveBall to Center at scrimmage line."));
+    }
+
+    // Epic 19.5: sit-outs and tired players come off now; the play call brings its package on.
+    if (PersonnelManager)
+    {
+        PersonnelManager->BeginNewPlay(ScrimmageX, CurrentPlayIndex);
     }
 }
 

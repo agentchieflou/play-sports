@@ -17,7 +17,7 @@ are deliberately thin skeletons meant to be built out incrementally, several by 
 play-sports.uproject          UE5.8 project definition, enables the two plugins below
 Source/PlaySports/            Runtime game module ("PlaySports")
 Plugins/Autonomix/            Editor-time AI bridge plugin (stub)
-Plugins/AgenticLink/          External agent bridge plugin (stub)
+Plugins/AgenticLink/          External agent bridge: MCP server over engine reflection (opt-in)
 Data/                         External data assets consumed by ingestion code
 RawAssets/                    Source (non-.uasset) assets with provenance: the world kit (CC0/own GLB, textures, skies)
 tools/assets/                 Offline Blender/Node pipeline that made RawAssets/ (never run by CI)
@@ -53,13 +53,19 @@ are meant to live once built.
 
 ### `Plugins/AgenticLink`
 
-"External agent bridge for Model Context Protocol and transaction-safe engine access" — **stub
-only**, same shape as Autonomix. Depends on `Slate`/`SlateCore` (likely for an in-editor status
-UI). This is the intended home for an actual MCP server/bridge connecting external agents to the
-engine's reflection API — not implemented yet.
+"External agent bridge for Model Context Protocol and transaction-safe engine access" (Epic 25).
+An MCP server (`FAgenticLinkMcpServer`, JSON-RPC 2.0) served over Streamable HTTP on the engine's
+HTTP server (`FAgenticLinkHttpTransport`) at `http://127.0.0.1:<port>/mcp`. It starts **only**
+when the editor is launched with `-AgenticLinkMcp` (port 8790) or `-AgenticLinkMcpPort=<port>`;
+otherwise the module just logs. Tools (`FAgenticLinkEngineTools`): `list_actors`,
+`get_property`, `set_property` (instance-editable properties), `call_function`
+(BlueprintCallable functions) and `spawn_actor`, acting on the PIE world while playing, else the
+editor level. Each edit is one `FScopedTransaction`, so Ctrl+Z undoes an agent's change. A
+request with a non-localhost `Origin` is refused; `Config/DefaultEngine.ini` binds the HTTP
+server to 127.0.0.1. Headless tests: `PlaySports.AgenticLink.*`.
 
-**Do not assume either plugin does anything beyond logging a startup message.** If a task requires
-real editor automation or an MCP bridge, that is new implementation work, not a wiring task.
+**Autonomix does nothing beyond logging a startup message**, and AgenticLink's server is off
+unless its switch is given. T3D import and the Python escape hatch are not built yet.
 
 ### `Data/`
 
@@ -185,8 +191,14 @@ This repo is set up so multiple AI coding tools can work in it with shared conte
 
 `.mcp.json` (Claude Code — key `mcpServers`) and `.vscode/mcp.json` (VS Code/Copilot — key
 `servers`, **not** `mcpServers`, a common copy-paste mistake) currently declare zero servers.
-They're placeholders: once `Plugins/AgenticLink` actually exposes engine operations over MCP, or a
-model-router server is built, register it in both files using each one's own key name.
+The AgenticLink server exists but isn't registered in them yet (registering it is the repo
+owner's call). While an editor runs with `-AgenticLinkMcp`, the entries are:
+
+```json
+{ "mcpServers": { "agenticlink": { "type": "http", "url": "http://127.0.0.1:8790/mcp" } } }
+```
+
+for `.mcp.json`, and the same object under `"servers"` for `.vscode/mcp.json`.
 
 Antigravity does not read a repo-local MCP config — its config is global, at
 `~/.gemini/config/mcp_config.json`. To add a server there, merge an entry shaped like:
@@ -202,7 +214,9 @@ Antigravity does not read a repo-local MCP config — its config is global, at
 }
 ```
 
-(Note `serverUrl`, not `url` — Antigravity's key name differs from VS Code/Cursor.)
+(Note `serverUrl`, not `url` — Antigravity's key name differs from VS Code/Cursor.) For
+AgenticLink the entry is `"agenticlink": { "serverUrl": "http://127.0.0.1:8790/mcp" }`, with no
+headers.
 
 ### Free-tier / local model slots
 

@@ -1,5 +1,6 @@
 #include "PSLoadingScreenSubsystem.h"
 #include "PSLoadingTips.h"
+#include "PSLocalization.h"
 #include "MoviePlayer.h"
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/Layout/SBorder.h"
@@ -53,7 +54,7 @@ void UPSLoadingScreenSubsystem::HandlePreLoadMap(const FString& MapName)
         .VAlign(VAlign_Center)
         [
             SNew(STextBlock)
-            .Text(FText::FromString(Tip))
+            .Text(UPSLocalization::FromLocalized(Tip))
         ];
     GetMoviePlayer()->SetupLoadingScreen(Attributes);
 }

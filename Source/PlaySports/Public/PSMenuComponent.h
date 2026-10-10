@@ -35,6 +35,11 @@ public:
     /** The menu catalog, loaded from Data/ui_menus.json on first use. */
     const FPSMenuCatalog& GetCatalog();
 
+    /** How long a screen fades in: the catalog's TransitionSeconds, or none with the Reduced
+     *  motion setting on (Epic 103.5). */
+    UFUNCTION(BlueprintPure, Category = "Menu")
+    float GetTransitionSeconds();
+
     /** Problems that would strand or confuse a player, one line each: missing root/pause
      *  screen, duplicate IDs, an option that does nothing or targets an unknown screen, a
      *  root screen Back could close, or an option-less screen Back can't leave. */
@@ -71,6 +76,11 @@ public:
 
     /** Shows and changes InSettings instead of the game instance's (headless tests). */
     void SetSettings(UPSSettingsSubsystem* InSettings) { SettingsOverride = InSettings; }
+
+    /** The UI narration hook for an option taking focus (Epic 103.3): says its label and
+     *  detail through UPSUIAccessibilitySubsystem::Narrate. The screen widget calls it. */
+    UFUNCTION(BlueprintCallable, Category = "Menu")
+    void NarrateOption(FName OptionId);
 
     /** Waits for the next key to give ActionId (Epic 103.4); the remap screen says so. */
     UFUNCTION(BlueprintCallable, Category = "Menu")

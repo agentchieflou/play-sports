@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "PSSaveGame.h"
 #include "PSLeagueData.h"
+#include "PSStaffData.h"
 #include "PSFranchiseSaveGame.generated.h"
 
 /** Persists a UPSFranchiseSeason snapshot (standings, matchups, current week)
@@ -29,4 +30,12 @@ public:
 
     UPROPERTY(BlueprintReadWrite, Category = "Franchise")
     FName UserControlledTeamId;
+
+    /** Every coach and each team's staff after the latest carousel (Epic 89; UPSStaffManager).
+     *  Empty in a save from before coaching staffs: the data file's staffs stand. */
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    TArray<FPSCoachDef> Coaches;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Franchise")
+    TArray<FPSTeamStaffDef> Staffs;
 };

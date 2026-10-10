@@ -8,6 +8,7 @@
 #include "PSProfileSaveGame.h"
 #include "PSSaveSubsystem.h"
 #include "PSSituationAI.h"
+#include "PSSpecialTeamsData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/DataTable.h"
 #include "Engine/World.h"
@@ -203,7 +204,37 @@ const FPlayCallTuningRow& UPSPlayCallSubsystem::GetTuning()
 TArray<FPSPlayDefinition> UPSPlayCallSubsystem::GetPlays(bool bOffense)
 {
     EnsurePlaybookLoaded();
-    return Plays.FilterByPredicate([bOffense](const FPSPlayDefinition& Play) { return Play.bIsOffensivePlay == bOffense; });
+    // A kickoff runs kickoff calls and returns; a scrimmage down everything else (Epic 75). The
+    // team keeps its scheme's plays (Epic 89).
+    const bool bKickoff = Situation.bKickoff;
+    const TArray<FName>& Kept = GetCallingPlan(bOffense).PlayIds;
+    return Plays.FilterByPredicate([bOffense, bKickoff, &Kept](const FPSPlayDefinition& Play)
+    {
+        return Play.bIsOffensivePlay == bOffense && PSSpecialTeams::IsCallableAt(PSSpecialTeams::FromCategory(Play.PlayCategory), bKickoff)
+            && (Kept.Num() == 0 || Kept.Contains(Play.PlayId));
+    });
+}
+
+const TArray<FPSPlayDefinition>& UPSPlayCallSubsystem::GetPlaybook()
+{
+    EnsurePlaybookLoaded();
+    return Plays;
+}
+
+void UPSPlayCallSubsystem::SetTeamPlan(bool bHome, const FPSTeamPlan& Plan)
+{
+    (bHome ? HomePlan : AwayPlan) = Plan;
+}
+
+void UPSPlayCallSubsystem::ClearTeamPlans()
+{
+    HomePlan = FPSTeamPlan();
+    AwayPlan = FPSTeamPlan();
+}
+
+const FPSTeamPlan& UPSPlayCallSubsystem::GetCallingPlan(bool bOffense) const
+{
+    return GetTeamPlan(Situation.bHomeHasPossession == bOffense);
 }
 
 TArray<FString> UPSPlayCallSubsystem::GetFormations(bool bOffense)
@@ -284,8 +315,8 @@ TArray<FPSPlaySuggestion> UPSPlayCallSubsystem::RankPlays(bool bOffense)
     {
         CoachingAI = NewObject<UPSCoachingAI>(this);
     }
-    const FPSTendencyProfile Tendency = FPSTendencyProfile();
-    return CoachingAI->RankPlays(Situation, Tendency, GetPlays(bOffense), bOffense);
+    const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
+    return CoachingAI->RankPlays(Situation, bOffense ? Plan.OffenseTendency : Plan.DefenseTendency, GetPlays(bOffense), bOffense);
 }
 
 TArray<FPSMenuOptionDef> UPSPlayCallSubsystem::BuildSuggestionOptions(bool bOffense)
@@ -567,12 +598,24 @@ FString UPSPlayCallSubsystem::BuildCallScreenBody(bool bOffense) const
             SituationLine += FString::Printf(TEXT("\nTempo: %s"), *TempoDef->Label);
         }
     }
+
+    // The team's scheme (Epic 89).
+    const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
+    const FString& Scheme = bOffense ? Plan.OffenseTendency.Label : Plan.DefenseTendency.Label;
+    if (!Scheme.IsEmpty())
+    {
+        SituationLine += FString::Printf(TEXT("\nScheme: %s"), *Scheme);
+    }
     return Tendencies.IsEmpty() ? SituationLine : FString::Printf(TEXT("%s\n%s"), *SituationLine, *Tendencies);
 }
 
 FString UPSPlayCallSubsystem::DescribeSituation(const FPSSituationContext& InSituation)
 {
     // YardLine counts from the offense's own goal line (0) to the opponent's (100).
+    if (InSituation.bKickoff)
+    {
+        return FString::Printf(TEXT("Kickoff from own %d"), InSituation.YardLine);
+    }
     FString Spot;
     if (InSituation.YardLine == 50)
     {
@@ -665,6 +708,8 @@ FPSSituationContext UPSPlayCallSubsystem::MakeSituation(const FPlayState& State)
     Context.TimeoutsRemaining = State.bHomeHasPossession ? State.HomeTimeoutsRemaining : State.AwayTimeoutsRemaining;
     Context.OpponentTimeoutsRemaining = State.bHomeHasPossession ? State.AwayTimeoutsRemaining : State.HomeTimeoutsRemaining;
     Context.bClockRunning = State.bIsClockRunning;
+    Context.bKickoff = State.bKickoff;
+    Context.bHomeHasPossession = State.bHomeHasPossession;
     return Context;
 }
 
@@ -767,6 +812,11 @@ bool UPSPlayCallSubsystem::CallPlay(FName PlayId, EPSPlayCaller Caller)
     {
         return false;
     }
+    const TArray<FName>& Kept = GetCallingPlan(Play.bIsOffensivePlay).PlayIds;
+    if (Kept.Num() > 0 && !Kept.Contains(PlayId))
+    {
+        return false;
+    }
     SetCall(Play, Caller);
     return true;
 }
@@ -807,6 +857,18 @@ void UPSPlayCallSubsystem::SetCall(const FPSPlayDefinition& Play, EPSPlayCaller 
         }
         Bus->PublishPlayCall(Event);
     }
+
+    // The defense sees the offense line up to kick (Epic 75): a CPU defense calls its return or
+    // block against it, or its regular defense again when the offense comes out of the kick.
+    const EPSSpecialTeamsPlay ShownKick = PSSpecialTeams::GetShownKick(PSSpecialTeams::FromCategory(Play.PlayCategory));
+    if (Play.bIsOffensivePlay && ShownKick != Situation.OffenseKick)
+    {
+        Situation.OffenseKick = ShownKick;
+        if (DefenseCall.Caller == EPSPlayCaller::CPU)
+        {
+            CallForCpu(false);
+        }
+    }
 }
 
 void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
@@ -821,7 +883,8 @@ void UPSPlayCallSubsystem::CallForCpu(bool bOffense)
         CoachingAI = NewObject<UPSCoachingAI>(this);
     }
 
-    FPSTendencyProfile Tendency;
+    const FPSTeamPlan& Plan = GetCallingPlan(bOffense);
+    const FPSTendencyProfile& Tendency = bOffense ? Plan.OffenseTendency : Plan.DefenseTendency;
     const FName Chosen = bOffense
         ? CoachingAI->SelectOffensivePlay(Situation, Tendency, Candidates)
         : CoachingAI->SelectDefensivePlay(Situation, Tendency, Candidates);
@@ -912,6 +975,8 @@ void UPSPlayCallSubsystem::HandleSnap(const FPSTelemetrySnapEvent& Event)
         Situation.Distance = Event.Distance;
         Situation.YardLine = Event.YardLine;
         Situation.GameClockSeconds = Event.GameClockSeconds;
+        Situation.bKickoff = false;
+        Situation.OffenseKick = EPSSpecialTeamsPlay::None;
     }
     for (const bool bOffense : { true, false })
     {

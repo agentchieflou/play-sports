@@ -10,6 +10,7 @@
 #include "PSPreSnapInputComponent.h"
 #include "PSDefenderPreSnapInputComponent.h"
 #include "PSInputBufferComponent.h"
+#include "PSTouchInputComponent.h"
 #include "PSDefenseInputComponent.h"
 #include "PSKickMeterComponent.h"
 #include "PSSettingsComponent.h"
@@ -21,6 +22,7 @@
 #include "PSHealthComponent.h"
 #include "PSPossessionComponent.h"
 #include "PSTelemetryBus.h"
+#include "PSUIAccessibilitySubsystem.h"
 #include "AIController.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "EnhancedInputComponent.h"
@@ -75,6 +77,7 @@ APSPlayerController::APSPlayerController()
     PreSnapInputComponent = CreateDefaultSubobject<UPSPreSnapInputComponent>(TEXT("PreSnapInputComp"));
     DefenderPreSnapInputComponent = CreateDefaultSubobject<UPSDefenderPreSnapInputComponent>(TEXT("DefenderPreSnapInputComp"));
     InputBufferComponent = CreateDefaultSubobject<UPSInputBufferComponent>(TEXT("InputBufferComp"));
+    TouchInputComponent = CreateDefaultSubobject<UPSTouchInputComponent>(TEXT("TouchInputComp"));
     DefenseInputComponent = CreateDefaultSubobject<UPSDefenseInputComponent>(TEXT("DefenseInputComp"));
     KickMeterComponent = CreateDefaultSubobject<UPSKickMeterComponent>(TEXT("KickMeterComp"));
     SettingsComponent = CreateDefaultSubobject<UPSSettingsComponent>(TEXT("SettingsComp"));
@@ -99,6 +102,20 @@ UPSInputConfig* APSPlayerController::GetInputConfig()
 bool APSPlayerController::IsInputContextActive(FName ContextId) const
 {
     return ActiveInputContexts.Contains(ContextId);
+}
+
+bool APSPlayerController::InjectCatalogInput(FName ActionId, const FInputActionValue& RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
+{
+    UPSInputConfig* Config = GetInputConfig();
+    const UInputAction* Action = Config ? Config->FindAction(ActionId) : nullptr;
+    UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+    if (!Action || !Subsystem)
+    {
+        return false;
+    }
+
+    Subsystem->InjectInputForAction(Action, RawValue, Modifiers, Triggers);
+    return true;
 }
 
 void APSPlayerController::BeginPlay()
@@ -429,6 +446,16 @@ void APSPlayerController::PublishControlChange(const APSPlayerPawn* PlayerPawn, 
     Event.PlayerId = Attributes.PlayerId;
     Event.bHumanControlled = bHumanControlled;
     Bus->PublishControlChange(Event);
+}
+
+void APSPlayerController::SetViewTarget(AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams)
+{
+    UWorld* World = GetWorld();
+    if (UPSUIAccessibilitySubsystem* Accessibility = World ? World->GetSubsystem<UPSUIAccessibilitySubsystem>() : nullptr)
+    {
+        TransitionParams.BlendTime = Accessibility->GetTransitionSeconds(TransitionParams.BlendTime);
+    }
+    Super::SetViewTarget(NewViewTarget, TransitionParams);
 }
 
 void APSPlayerController::ViewThroughBroadcastCamera()

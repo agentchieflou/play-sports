@@ -78,6 +78,10 @@ bool UPSBallActionComponent::ThrowPass(APSBall* Ball, const FVector& TargetLocat
     if (bSuccess)
     {
         Ball->Launch(OutVelocity);
+        // The velocity was worked out from hand height; the carried ball sits at the pawn's
+        // center (the stand-in mesh has no hand socket), so it leaves from where the throw
+        // was aimed from (Epic 32: otherwise it comes down short of the target).
+        Ball->SetActorLocation(StartLocation, false, nullptr, ETeleportType::TeleportPhysics);
         OwnerPawn->LosePossession();
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Player %s (ID: %s) threw a pass to %s. Launch velocity: %s"),
             *OwnerPawn->GetAttributes().DisplayName,
@@ -213,6 +217,8 @@ bool UPSBallActionComponent::ExecutePitch(APSPlayerPawn* TargetPlayer)
     if (bSuccess)
     {
         Ball->Launch(OutVelocity);
+        // From where the pitch was aimed from, as for a pass.
+        Ball->SetActorLocation(StartLocation, false, nullptr, ETeleportType::TeleportPhysics);
         OwnerPawn->LosePossession();
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Executed lateral pitch from %s to %s. Launch velocity: %s"), 
             *OwnerPawn->GetAttributes().DisplayName, 
@@ -283,14 +289,20 @@ void UPSBallActionComponent::FumbleBall()
         return;
     }
 
-    APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
-    if (GM && GM->ActiveBall)
+    // The ball this pawn carries (rule 5: no reach-through), else the game's.
+    APSBall* Ball = GetCarriedBall();
+    if (!Ball)
+    {
+        const APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
+        Ball = GM ? GM->ActiveBall : nullptr;
+    }
+    if (Ball)
     {
         FVector FumbleVelocity = OwnerPawn->GetActorForwardVector() * 300.f + FVector(0.f, 0.f, 200.f);
         FumbleVelocity += FMath::VRand() * 100.f;
         FumbleVelocity.Z = FMath::Max(50.f, FumbleVelocity.Z);
 
-        GM->ActiveBall->Fumble(FumbleVelocity);
+        Ball->Fumble(FumbleVelocity);
         OwnerPawn->LosePossession();
         UE_LOG(LogTemp, Display, TEXT("UPSBallActionComponent: Player %s (ID: %s) fumbled the ball!"), *OwnerPawn->GetAttributes().DisplayName, *OwnerPawn->GetAttributes().PlayerId.ToString());
     }

@@ -527,8 +527,9 @@ bool FPSRouteTimingTest::RunTest(const FString& Parameters)
     APSPlayerPawn* QB = SpawnPlayer(World, EPlayerRole::Quarterback, TEXT("QB"), FVector(-500.f, 0.f, 100.f), 0.f, 100.f);
     APSPlayerPawn* Quick = SpawnPlayer(World, EPlayerRole::WideReceiver, TEXT("WR_QUICK"), FVector(0.f, 900.f, 100.f));
     APSPlayerPawn* Deep = SpawnPlayer(World, EPlayerRole::WideReceiver, TEXT("WR_DEEP"), FVector(0.f, -900.f, 100.f));
-    // The quick receiver is 350 cm clear; the deep one has nobody near him.
+    // The quick receiver is 350 cm clear, the deep one 600 (open, but his coverage isn't blown).
     SpawnPlayer(World, EPlayerRole::DefensiveBack, TEXT("CB"), FVector(0.f, 1250.f, 100.f));
+    SpawnPlayer(World, EPlayerRole::DefensiveBack, TEXT("CB_DEEP"), FVector(0.f, -1500.f, 100.f));
     if (!TestNotNull(TEXT("QB"), QB) || !TestNotNull(TEXT("Quick"), Quick) || !TestNotNull(TEXT("Deep"), Deep))
     {
         DestroyTestWorld(World);

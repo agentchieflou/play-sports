@@ -369,6 +369,21 @@ void UPSTelemetryBus::PublishTimeout(const FPSTelemetryTimeoutEvent& Event)
     OnTimeoutMC.Broadcast(Event);
 }
 
+void UPSTelemetryBus::PublishSpeech(const FPSTelemetrySpeechEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetrySpeechEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Description = FString::Printf(TEXT("Speech: %s (%s): %s"), *Event.Speaker, *Event.Channel.ToString(), *Event.Text);
+    RecordHistory(EPSTelemetryEventType::Speech, Description, JsonPayload);
+
+    if (OnSpeech.IsBound())
+    {
+        OnSpeech.Broadcast(Event);
+    }
+    OnSpeechMC.Broadcast(Event);
+}
+
 void UPSTelemetryBus::PublishGapIntegrity(const FPSTelemetryGapIntegrityEvent& Event)
 {
     FString JsonPayload;
@@ -415,6 +430,54 @@ void UPSTelemetryBus::PublishGameState(const FPSTelemetryGameStateEvent& Event)
         OnGameState.Broadcast(Event);
     }
     OnGameStateMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishBlownCoverage(const FPSTelemetryBlownCoverageEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryBlownCoverageEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    const FString Help = Event.HelperName.IsEmpty() ? FString(TEXT("no help")) : Event.HelperName + TEXT(" helps");
+    FString Description = FString::Printf(TEXT("BlownCoverage: %s free by %.0f cm, %s"), *Event.ReceiverName, Event.Separation, *Help);
+    RecordHistory(EPSTelemetryEventType::BlownCoverage, Description, JsonPayload);
+
+    if (OnBlownCoverage.IsBound())
+    {
+        OnBlownCoverage.Broadcast(Event);
+    }
+    OnBlownCoverageMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishPersonnel(const FPSTelemetryPersonnelEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPersonnelEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Personnel: %s %s (%d in, %d out)"),
+        Event.bOffense ? TEXT("Offense") : TEXT("Defense"), *Event.PackageName, Event.PlayersIn.Num(), Event.PlayersOut.Num());
+    RecordHistory(EPSTelemetryEventType::Personnel, Description, JsonPayload);
+
+    if (OnPersonnel.IsBound())
+    {
+        OnPersonnel.Broadcast(Event);
+    }
+    OnPersonnelMC.Broadcast(Event);
+}
+
+void UPSTelemetryBus::PublishPocket(const FPSTelemetryPocketEvent& Event)
+{
+    FString JsonPayload;
+    FJsonObjectConverter::UStructToJsonObjectString(FPSTelemetryPocketEvent::StaticStruct(), &Event, JsonPayload, 0, 0);
+
+    FString Description = FString::Printf(TEXT("Pocket: %s %s vs %s%s"),
+        *UEnum::GetValueAsString(Event.Kind), *Event.PasserName, *Event.DefenderName, Event.bSuccess ? TEXT(" (success)") : TEXT(""));
+    RecordHistory(EPSTelemetryEventType::Pocket, Description, JsonPayload);
+
+    if (OnPocket.IsBound())
+    {
+        OnPocket.Broadcast(Event);
+    }
+    OnPocketMC.Broadcast(Event);
 }
 
 void UPSTelemetryBus::PublishDefensivePreSnap(const FPSTelemetryDefensivePreSnapEvent& Event)

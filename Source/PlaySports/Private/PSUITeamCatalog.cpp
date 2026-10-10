@@ -102,6 +102,8 @@ bool UPSUITeamCatalog::BuildSummaries(const FString& TeamsJsonPath, TArray<FPSTe
             float DefenseSum = 0.f;
             int32 OffenseCount = 0;
             int32 DefenseCount = 0;
+            float WeightSum = 0.f;
+            float HeightSum = 0.f;
             for (const FPlayerAttributes* Player : Players)
             {
                 if (!Player)
@@ -110,6 +112,8 @@ bool UPSUITeamCatalog::BuildSummaries(const FString& TeamsJsonPath, TArray<FPSTe
                 }
                 const float Rating = PSUITeamCatalog::SkillAverage(*Player);
                 AllSum += Rating;
+                WeightSum += Player->WeightKg;
+                HeightSum += Player->HeightCm;
                 if (PSUITeamCatalog::IsDefensiveRole(Player->Role))
                 {
                     DefenseSum += Rating;
@@ -126,6 +130,11 @@ bool UPSUITeamCatalog::BuildSummaries(const FString& TeamsJsonPath, TArray<FPSTe
             Summary.Overall = PSUITeamCatalog::MeanRating(AllSum, Summary.PlayerCount);
             Summary.Offense = PSUITeamCatalog::MeanRating(OffenseSum, OffenseCount);
             Summary.Defense = PSUITeamCatalog::MeanRating(DefenseSum, DefenseCount);
+            if (Summary.PlayerCount > 0)
+            {
+                Summary.AverageWeightKg = WeightSum / Summary.PlayerCount;
+                Summary.AverageHeightCm = HeightSum / Summary.PlayerCount;
+            }
         }
 
         OutSummaries.Add(Summary);

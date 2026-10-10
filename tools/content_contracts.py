@@ -32,9 +32,12 @@ DEFENSE_ROLES = {"DefensiveLineman", "Linebacker", "DefensiveBack"}
 OFFENSE_KINDS = {"Route", "PassBlock", "RunBlock"}
 DEFENSE_KINDS = {"ManCoverage", "ZoneCoverage", "PassRush", "RunFit", "Blitz"}
 # FPSPlayDefinition::PlayCategory: what the coaching AI weights (UPSCoachingAI), plus the clock
-# plays the simulation resolves at the snap (EPSClockPlay, PSSituationData.h).
-OFFENSE_CATEGORIES = {"Run", "ShortPass", "DeepPass", "PlayAction", "Screen", "Spike", "Kneel"}
-DEFENSE_CATEGORIES = {"Base", "Blitz", "Prevent"}
+# plays the simulation resolves at the snap (EPSClockPlay, PSSituationData.h) and the
+# special-teams calls (EPSSpecialTeamsPlay, PSSpecialTeamsData.h; Epic 75).
+OFFENSE_SPECIAL_TEAMS = {"Punt", "FakePunt", "FieldGoal", "FakeFieldGoal", "Kickoff", "OnsideKick"}
+DEFENSE_SPECIAL_TEAMS = {"KickReturn", "KickBlock", "HandsTeam", "ReturnLaterals"}
+OFFENSE_CATEGORIES = {"Run", "ShortPass", "DeepPass", "PlayAction", "Screen", "Spike", "Kneel"} | OFFENSE_SPECIAL_TEAMS
+DEFENSE_CATEGORIES = {"Base", "Blitz", "Prevent"} | DEFENSE_SPECIAL_TEAMS
 
 TEAM_FIELDS = {
     "TeamId": str, "DisplayName": str, "Division": str, "RosterDataTablePath": str,
