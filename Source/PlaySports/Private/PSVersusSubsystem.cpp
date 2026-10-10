@@ -4,6 +4,7 @@
 #include "PSFieldGrid.h"
 #include "PSInputDeviceComponent.h"
 #include "PSLocalization.h"
+#include "PSMatchSetup.h"
 #include "PSMenuComponent.h"
 #include "PSPlayCallSubsystem.h"
 #include "PSPlayerController.h"
@@ -374,6 +375,21 @@ APSPlayerController* UPSVersusSubsystem::CreateLocalSeatPlayer(int32 ControllerI
         return nullptr;
     }
     return Cast<APSPlayerController>(UGameplayStatics::CreatePlayer(World, ControllerId, true));
+}
+
+void UPSVersusSubsystem::SetMatchSetup(const UPSMatchSetup* InMatchSetup)
+{
+    MatchSetup = InMatchSetup;
+}
+
+FName UPSVersusSubsystem::GetSeatTeamId(int32 Seat) const
+{
+    const UPSMatchSetup* Match = MatchSetup.Get();
+    if (!Match || !IsValidSeat(Seat) || !Seats.IsValidIndex(Seat) || Seats[Seat].Team == EPSVersusTeam::None)
+    {
+        return NAME_None;
+    }
+    return Match->GetTeamId(Seats[Seat].Team == EPSVersusTeam::Home);
 }
 
 bool UPSVersusSubsystem::IsVersusURL(const FURL& URL)

@@ -113,10 +113,44 @@ Phase 2 + Phase 1.5 completion are hard prerequisites for this entire track.
 **Goal:** Structured game-state surfaces that external models consume for analysis, play suggestion, and narration — all bridge-gated.
 **Depends on:** Core 25, 26, Core 18
 
-- [ ] Game-state serialization contract (situation, personnel, tendencies) sized for model context windows
-- [ ] Play-call consultation endpoint (Epic 18's hook made real once the bridge exists)
-- [ ] Post-game analysis generation (drive summaries, key-play identification from Epic 42's scoring)
-- [ ] Model-slot routing per `AGENTS.md` free-tier contract (cheap models for narration, better for strategy)
+- [x] Game-state serialization contract (situation, personnel, tendencies) sized for model context windows
+  *As built: `PSGameStateSerializer::Serialize` writes one compact JSON object
+  (`play-sports.game-state/1`) from the authorities: the situation from the play simulation's
+  `GameState` on the bus, the personnel from `UPSPersonnelManager`, the human's tendencies from
+  `UPSOpponentModel` (Epic 78) and the game's team lines and leaders from `UPSStatsEngine` (Epic
+  92). It never runs over its budget (`ContextBudgetChars` in `Data/game_intelligence.json`, at
+  least `MinBudgetChars` = 1024): the leaders, the players on the field and the tendency shares go
+  first, then whole sections, named in `trimmed`; the situation always stays. Tested:
+  `PlaySports.GameIntelligence.StateContractSizeBound`.*
+- [x] Play-call consultation endpoint (Epic 18's hook made real once the bridge exists)
+  *As built: `UPSGameIntelligenceSubsystem` is the coaching AI's `IPSCoachingSuggestionProvider`.
+  An agent turns consultation on per CPU side (`SetConsultation`); each call window then opens a
+  `PlayCall` request (the game state, the side's plays this down as the only answers), and the
+  side's call waits in `PollReadyToSnap` until it is answered or `PlayCallTimeoutSeconds` pass
+  (never past the quick-call point of the play clock). An answer outside the choices is refused;
+  an answered play is the CPU's call unless the clock or special teams call one outright
+  (`Overruled`); no answer means the CPU's own call. Agents poll `GetPendingRequestsJson` and
+  answer with `AnswerRequest` through AgenticLink's `call_function`, which now also reaches world
+  and game-instance subsystems; in-process code binds `OnRequestOpenedMC`. Everything is gated on
+  AgenticLink's `AgenticLinkBridge` modular feature (registered while its MCP server serves): with
+  no bridge every hook is refused and the CPU calls at once. Tested:
+  `PlaySports.GameIntelligence.PlayCallConsultation`, `.BridgeGate`,
+  `PlaySports.AgenticLink.EngineReflection`. Not exercised against a live editor or model.*
+- [x] Post-game analysis generation (drive summaries, key-play identification from Epic 42's scoring)
+  *As built: the drives come from the `GameState` events (each finished drive's team, quarter,
+  plays, yards and result); the key plays are `UPSHighlightSubsystem`'s reel, the most important
+  first (`MaxKeyPlays`). At the final whistle, with the bridge online, a `DriveSummary` and a
+  `GameAnalysis` request carry `PSGameStateSerializer::SerializeAnalysis` (within the same budget,
+  oldest drives dropped first) and their answers are kept in `FPSGameAnalysis`. Tested:
+  `PlaySports.GameIntelligence.PostGameAnalysis`.*
+- [x] Model-slot routing per `AGENTS.md` free-tier contract (cheap models for narration, better for strategy)
+  *As built: each request names a task of Epic 119's `tools/orchestrator/routing.json` (data:
+  `PlayCallTask` strategy, `DriveSummaryTask` summary, `GameAnalysisTask` analysis), checked by
+  `tools/validate_data.py` (the play call's task at least as capable as the summary's).
+  `python -m tools.orchestrator game-hooks` is the relay: it polls the game over AgenticLink and
+  sends each request through `RouterService.complete` by its task, no second router. Tested:
+  `PlaySports.GameIntelligence.ModelRouting`, `tools/orchestrator/tests/test_game_hooks.py`
+  (fake engine and router; no live model called).*
 
 ### Epic 83: Simulation Calibration Harness
 

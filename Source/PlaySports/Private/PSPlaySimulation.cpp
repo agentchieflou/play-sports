@@ -194,8 +194,9 @@ void UPSPlaySimulation::AdvancePlay(float DeltaSeconds)
             UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: DELAY OF GAME penalty! 5 yards loss."));
         }
     }
-    else
+    else if (IsBallLive())
     {
+        // Holding is called while the ball is live, never after the whistle or on a kick.
         if (ActivePenalty == EPSPenaltyType::None && FMath::FRand() < 0.03f * DeltaSeconds)
         {
             ActivePenalty = EPSPenaltyType::Holding;
@@ -294,25 +295,23 @@ void UPSPlaySimulation::ResolvePlayResult()
     Defender.Agility = 80.0f;
     Defender.Awareness = 80.0f;
 
-    for (const FPlayerAttributes& Player : OffenseRoster)
+    // The starters take the snaps: the first of each role in roster order, which is the depth
+    // chart's (UPSRoster::BuildDefaultDepthChart), never a backup further down.
+    const auto FindStarter = [](const TArray<FPlayerAttributes>& Roster, EPlayerRole Role, EPlayerRole OrRole, FPlayerAttributes& OutPlayer)
     {
-        if (Player.Role == EPlayerRole::Quarterback)
+        const FPlayerAttributes* Starter = Roster.FindByPredicate([Role](const FPlayerAttributes& Candidate) { return Candidate.Role == Role; });
+        if (!Starter)
         {
-            Passer = Player;
+            Starter = Roster.FindByPredicate([OrRole](const FPlayerAttributes& Candidate) { return Candidate.Role == OrRole; });
         }
-        else if (Player.Role == EPlayerRole::WideReceiver || Player.Role == EPlayerRole::TightEnd)
+        if (Starter)
         {
-            Receiver = Player;
+            OutPlayer = *Starter;
         }
-    }
-
-    for (const FPlayerAttributes& Player : DefenseRoster)
-    {
-        if (Player.Role == EPlayerRole::DefensiveBack || Player.Role == EPlayerRole::Linebacker)
-        {
-            Defender = Player;
-        }
-    }
+    };
+    FindStarter(OffenseRoster, EPlayerRole::Quarterback, EPlayerRole::Quarterback, Passer);
+    FindStarter(OffenseRoster, EPlayerRole::WideReceiver, EPlayerRole::TightEnd, Receiver);
+    FindStarter(DefenseRoster, EPlayerRole::DefensiveBack, EPlayerRole::Linebacker, Defender);
 
     // Resolve Pass Completion (Incomplete vs Complete)
     float CompletionChance = 0.60f + (Passer.Awareness + Receiver.Agility - Defender.Awareness - Defender.Agility) * 0.005f;
@@ -475,44 +474,14 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     }
 
     bool bTurnover = false;
+    bool bReturnTouchdown = false;
     EPlayPhase NextPhase = EPlayPhase::PreSnap;
 
     // Touchdown Score Tracking
     if (CurrentPlayResult.ResultType == EPlayResultType::Touchdown)
     {
-        int32 TouchdownPoints = 6;
-        int32 PatPoints = 0;
-
-        if (FMath::FRand() < 0.94f)
-        {
-            PatPoints = 1;
-            UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: PAT kick is GOOD!"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: PAT kick is MISSED!"));
-        }
-
-        int32 TotalPoints = TouchdownPoints + PatPoints;
-
-        if (CurrentState.bHomeHasPossession)
-        {
-            CurrentState.HomeScore += TotalPoints;
-        }
-        else
-        {
-            CurrentState.AwayScore += TotalPoints;
-        }
-
         CurrentDriveSummary.Result = TEXT("Touchdown");
-        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Next play: Kickoff."), 
-            CurrentState.HomeScore, CurrentState.AwayScore);
-
-        // The scoring team kicks off (Epic 75).
-        CurrentState.bKickoff = true;
-        CurrentState.YardLine = GetSpecialTeams()->GetTuning().KickoffYardLine;
-        CurrentState.Down = 1;
-        CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+        ScoreTouchdown();
     }
     // Safety Score Tracking
     else if (CurrentPlayResult.ResultType == EPlayResultType::Safety)
@@ -551,6 +520,9 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         CurrentState.YardLine = InterceptionSpot >= 100 ? 100 - GetSpecialTeams()->GetTuning().PuntTouchbackYardLine : InterceptionSpot;
         CurrentDriveSummary.Result = TEXT("Interception");
         bTurnover = true;
+        // Returned to the offense's goal line: a touchdown for the defense, scored once the
+        // ball is its (below).
+        bReturnTouchdown = InterceptionSpot <= 0;
         UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: INTERCEPTION! The return ended at the offense's %d."), InterceptionSpot);
     }
     else
@@ -648,6 +620,13 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
         }
     }
 
+    // A pick-six: the defense, the team with the ball now, scores and kicks off.
+    if (bReturnTouchdown)
+    {
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: The interception is returned for a touchdown."));
+        ScoreTouchdown();
+    }
+
     CurrentState.YardLineToGain = FMath::Min(CurrentState.YardLineToGain, 100);
     CurrentState.Distance = CurrentState.YardLineToGain - CurrentState.YardLine;
 
@@ -685,6 +664,37 @@ void UPSPlaySimulation::EndPlayAndPrepareNext()
     }
 }
 
+void UPSPlaySimulation::ScoreTouchdown()
+{
+    const UPSRulesConfig* Rules = RulesConfig ? RulesConfig : GetDefault<UPSRulesConfig>();
+    int32 Points = Rules->TouchdownPoints;
+    if (FMath::FRand() < Rules->PATSuccessChance)
+    {
+        ++Points;
+        UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: PAT kick is GOOD!"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UPSPlaySimulation: PAT kick is MISSED!"));
+    }
+    if (CurrentState.bHomeHasPossession)
+    {
+        CurrentState.HomeScore += Points;
+    }
+    else
+    {
+        CurrentState.AwayScore += Points;
+    }
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: TOUCHDOWN! Score: Home %d - Away %d. Next play: Kickoff."),
+        CurrentState.HomeScore, CurrentState.AwayScore);
+
+    // The scoring team kicks off (Epic 75).
+    CurrentState.bKickoff = true;
+    CurrentState.YardLine = GetSpecialTeams()->GetTuning().KickoffYardLine;
+    CurrentState.Down = 1;
+    CurrentState.YardLineToGain = CurrentState.YardLine + 10;
+}
+
 void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
 {
     CachedWorld = InWorld;
@@ -713,6 +723,8 @@ void UPSPlaySimulation::InitializeWithWorld(UWorld* InWorld)
     Bus->OnLooseBall.AddDynamic(this, &UPSPlaySimulation::OnBusLooseBallEvent);
     Bus->OnPlayCall.AddDynamic(this, &UPSPlaySimulation::OnBusPlayCallEvent);
     Bus->OnTimeout.AddDynamic(this, &UPSPlaySimulation::OnBusTimeoutEvent);
+    // The field's volumes: out of bounds and the end zones.
+    Bus->OnBoundaryCrossed.AddDynamic(this, &UPSPlaySimulation::OnBusBoundaryCrossedEvent);
 
     UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: Subscribed to TelemetryBus (C2)."));
     PublishGameStateIfChanged();
@@ -775,8 +787,11 @@ void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
         return;
     }
 
+    // The play's yards run from the line of scrimmage, this simulation's spot, to where the
+    // carrier went down (the event's spot, in the offense's yard lines). The event's own
+    // YardsGained counts from where the carrier lined up, behind the line for a back.
     CurrentPlayResult.ResultType = EPlayResultType::Tackle;
-    CurrentPlayResult.YardsGained = Event.YardsGained;
+    CurrentPlayResult.YardsGained = FMath::Clamp(Event.YardLine, 0, 100) - CurrentState.YardLine;
     const FName CarrierId = FindPlayerIdByName(Event.BallCarrierName);
     PlayLog.TacklerId = FindPlayerIdByName(Event.TacklerName);
     if (Event.bIsSack)
@@ -790,8 +805,8 @@ void UPSPlaySimulation::OnBusTackleEvent(const FPSTelemetryTackleEvent& Event)
         PlayLog.RusherId = CarrierId;
     }
     SetPlayPhase(EPlayPhase::Scoring);
-    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusTackle — %s tackled by %s for %d yards."),
-        *Event.BallCarrierName, *Event.TacklerName, Event.YardsGained);
+    UE_LOG(LogTemp, Display, TEXT("UPSPlaySimulation: BusTackle -- %s tackled by %s at the %d, %d yards from the line."),
+        *Event.BallCarrierName, *Event.TacklerName, Event.YardLine, CurrentPlayResult.YardsGained);
 }
 
 void UPSPlaySimulation::OnBusScoreEvent(const FPSTelemetryScoreEvent& Event)
@@ -904,6 +919,40 @@ void UPSPlaySimulation::OnBusTimeoutEvent(const FPSTelemetryTimeoutEvent& Event)
     CallTimeout(Event.bOffense == CurrentState.bHomeHasPossession);
 }
 
+void UPSPlaySimulation::OnBusBoundaryCrossedEvent(const FPSTelemetryBoundaryCrossedEvent& Event)
+{
+    // Before the snap nothing is live; after the whistle the play has its result.
+    if (bQuickSimMode || IsBallDead() || CurrentState.Phase == EPlayPhase::PreSnap)
+    {
+        return;
+    }
+
+    const int32 Spot = FMath::Clamp(Event.YardLine, 0, 100);
+    if (Event.CarrierName.IsEmpty())
+    {
+        // The ball alone out of bounds is dead; loose in an end zone it plays on.
+        if (!Event.bEndZone)
+        {
+            SetPlayPhase(EPlayPhase::Scoring);
+        }
+        return;
+    }
+    if (CurrentPlayResult.ResultType == EPlayResultType::Interception)
+    {
+        InterceptionSpot = Spot;
+        SetPlayPhase(EPlayPhase::Scoring);
+        return;
+    }
+    if (!Event.bEndZone)
+    {
+        RecordOutOfBounds(Spot - CurrentState.YardLine);
+    }
+    else if (Spot >= 100)
+    {
+        RecordTouchdown();
+    }
+}
+
 void UPSPlaySimulation::RecordTouchdown()
 {
     // The end zone the offense attacks is the one the interceptor defends: down in it.
@@ -963,6 +1012,12 @@ UPSSpecialTeamsModel* UPSPlaySimulation::GetSpecialTeams()
         SpecialTeams->LoadTuningFromJson(UPSSpecialTeamsModel::GetDefaultTuningPath());
     }
     return SpecialTeams;
+}
+
+bool UPSPlaySimulation::IsBallLive() const
+{
+    const EPlayPhase Phase = CurrentState.Phase;
+    return Phase == EPlayPhase::Snap || Phase == EPlayPhase::PassRush || Phase == EPlayPhase::BallCarrierMovement;
 }
 
 bool UPSPlaySimulation::IsBallDead() const

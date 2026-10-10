@@ -1,0 +1,40 @@
+{
+    "StreakMin": 3,
+    "RookieSurgeTopN": 3,
+    "AwardRaceFromWeek": 4,
+    "AwardRaceMargin": 0.15,
+    "StorylineKinds": [
+        { "Kind": "WinStreak", "Weight": 3.0 },
+        { "Kind": "LosingStreak", "Weight": 2.0 },
+        { "Kind": "RookieSurge", "Weight": 2.5 },
+        { "Kind": "RevengeGame", "Weight": 2.0 },
+        { "Kind": "RecordBroken", "Weight": 4.0 },
+        { "Kind": "AwardRace", "Weight": 3.5 }
+    ],
+    "MaxDigestItems": 6,
+    "DigestsKept": 20,
+    "MaxBroadcastStorylines": 2,
+    "OffenseScoring": [
+        { "Category": "PassingYards", "Weight": 0.04 },
+        { "Category": "PassingTouchdowns", "Weight": 4.0 },
+        { "Category": "InterceptionsThrown", "Weight": -2.0 },
+        { "Category": "RushingYards", "Weight": 0.1 },
+        { "Category": "RushingTouchdowns", "Weight": 6.0 },
+        { "Category": "Receptions", "Weight": 0.5 },
+        { "Category": "ReceivingYards", "Weight": 0.1 },
+        { "Category": "ReceivingTouchdowns", "Weight": 6.0 }
+    ],
+    "DefenseScoring": [
+        { "Category": "Tackles", "Weight": 1.0 },
+        { "Category": "Sacks", "Weight": 4.0 },
+        { "Category": "Interceptions", "Weight": 5.0 }
+    ],
+    "MvpWinWeight": 20.0,
+    "VoterCount": 50,
+    "BallotPoints": [10, 5, 3, 1],
+    "VoterNoise": 0.15,
+    "VotingSeed": 9301,
+    "DigestTask": "narration",
+    "DigestInstructions": "Write this week's league news as a short sports-desk column: lead with the heaviest storyline, then the week's honors. Use only the facts given.",
+    "DigestContextChars": 4000
+}

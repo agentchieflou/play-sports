@@ -97,10 +97,33 @@ its own persistence or event capture.
 **Goal:** Seasons tell stories — streaks, rivalries, awards races, comeback arcs — surfaced as news and broadcast talking points.
 **Depends on:** 92, 82
 
-- [ ] Storyline detection rules over the stat/event stream (win streaks, rookie surges, revenge games)
-- [ ] Weekly league news digest generation (template-based; LLM-enhanced via 82 when bridged)
-- [ ] Awards system: weekly honors, season awards with voting model
-- [ ] Broadcast integration: active storylines feed Track A chyrons and Track H commentary
+- [x] Storyline detection rules over the stat/event stream (win streaks, rookie surges, revenge games)
+  *As built: `UPSLeagueNarrative::CloseWeek`, run by `UPSFranchiseFlow::AdvanceWeek` (`SetNarrative`),
+  tells the week's stories from the authorities: win and losing streaks (`StreakMin`) and next week's
+  revenge games from `UPSFranchiseSeason`'s results; a rookie (first season of a league with
+  history) among a category's `RookieSurgeTopN`, records `UPSStatsEngine` announced broken
+  (`OnRecordBroken`) and a close MVP race from the stats engine (Epic 92). Weights per kind in
+  `Data/league_narrative.json`. Tested: `PlaySports.Narrative.Storylines`.*
+- [x] Weekly league news digest generation (template-based; LLM-enhanced via 82 when bridged)
+  *As built: each week's `FPSNewsDigest`, heaviest storyline first, then the week's honors, written
+  from the string table's `Narrative.*` templates (`UPSLocalization`). With Epic 82's bridge online
+  (`SetIntelligence`) the digest is offered to a model as a `NewsDigest` request routed as
+  `narration` (`UPSGameIntelligenceSubsystem::OpenTextRequest`); its answer is kept as `ModelText`.
+  Digests persist in `UPSFranchiseSaveGame::Narrative`. Tested: `PlaySports.Narrative.NewsDigest`,
+  `.FranchiseSave`.*
+- [x] Awards system: weekly honors, season awards with voting model
+  *As built: offensive and defensive player of the week from the week's box scores
+  (`OffenseScoring`, `DefenseScoring`); at season end (`UPSFranchiseFlow::EndSeason`, before the stats
+  engine archives the season) MVP, offensive and defensive player of the year and rookie of the year
+  by a seeded vote (`VoterCount` voters with `VoterNoise`, `BallotPoints`). The award record for Epic
+  94: `GetAwards`, `GetAwardsForPlayer`, `CountAwards`, `OnAwardGiven`. Tested:
+  `PlaySports.Narrative.Awards`.*
+- [x] Broadcast integration: active storylines feed Track A chyrons and Track H commentary
+  *As built: `FeedBroadcast` queues a game's `MaxBroadcastStorylines` heaviest storylines about its
+  two teams as chyrons through `UPSOverlayBroadcastSubsystem::PushChyron` (no cast); `GetTalkingPoints`
+  is the same list for Track H's commentary engine (Epic 96, not built yet) to read. Nothing calls
+  `FeedBroadcast` at a played franchise game's kickoff yet: the franchise flow isn't carried into the
+  match world at runtime. Tested: `PlaySports.Narrative.Broadcast`.*
 
 ### Epic 94: Multi-Season Aging, Retirement & Legacy
 
@@ -108,10 +131,10 @@ its own persistence or event capture.
 **Goal:** The league regenerates across decades — aging curves, retirements, hall of fame, franchise history.
 **Depends on:** 86, 92
 
-- [ ] Age-based progression/regression curves per role (extends Core 19's progression)
-- [ ] Retirement decisions (age, performance, injuries, morale) and roster churn balance
-- [ ] Hall of fame induction from career stat thresholds + awards (92)
-- [ ] Franchise history archive: past seasons, champions, legends browsable in UI (Track I)
+- [x] Age-based progression/regression curves per role (extends Core 19's progression) *(`UPSPlayerAging` over `Data/legacy.json`'s `RoleCurves`: each role's own `FPSProgressionTuning` (a running back peaks at 23-26 and falls fast, a quarterback at 27-33) run through Core 19's `UPSPlayerProgression` at each season's end; a role without one ages on `Data/player_progression.json`. A player's snap share is his depth-chart place (1, 1/2, 1/3 ...), so buried backups grow at half. Everyone is a year older (`FPlayerAttributes::Age`, Epic 122; the contract manager's default age for a player without one))*
+- [x] Retirement decisions (age, performance, injuries, morale) and roster churn balance *(from `MinAge` a veteran's chance grows each year, and rises when his rating is under `LowRating`, when he ends the season hurt (Epic 90's `UPSWeeklyPreparation`, read before it heals everyone) or unhappy (Epic 91's morale); at `ForcedAge` he goes. At most `MaxRetirementShare` of a roster retires a season, the likeliest first (the forced always), so the draft (Epic 86) refills it. A retiree leaves his roster, his contract is cut, and the league's history keeps his career. Rolls are seeded per player and season. Free agents don't age yet)*
+- [x] Hall of fame induction from career stat thresholds + awards (92) *(`UPSLeagueHistory`: after each season, retirees who have waited `WaitSeasons` and played `MinSeasons` go in when their best career total reaches its threshold (`HallOfFame.Thresholds`, from Epic 92's career lines), the best first, `MaxInducteesPerSeason` a year. Awards join the score with Epic 93 (blocked on 82); no awards yet)*
+- [ ] Franchise history archive: past seasons, champions, legends browsable in UI (Track I) *(code half done: `UPSLeagueHistory` archives every season's final standings, champion (the best record: no playoffs are played yet) and leaders, every retiree's career and the hall of fame in `UPSFranchiseSaveGame::History`; `GetFranchiseHistory`, `DescribeSeason` and `DescribeFranchise` give a team's seasons, titles and legends. The browsing screens are Track I's)*
 
 ### Epic 95: Owner Mode & League Economics
 

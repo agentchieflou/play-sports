@@ -8,6 +8,7 @@
 #include "PSEconomyData.h"
 #include "PSLockerRoomData.h"
 #include "PSTrainingData.h"
+#include "PSLegacyData.h"
 #include "PSFranchiseFlow.generated.h"
 
 class UPSContractManager;
@@ -15,11 +16,14 @@ class UPSDraft;
 class UPSFranchiseSeason;
 class UPSFreeAgency;
 class UPSLeagueGenerator;
+class UPSLeagueNarrative;
 class UPSLockerRoom;
 class UPSOwnerEconomy;
+class UPSPlayerAging;
 class UPSMatchSetup;
 class UPSRoster;
 class UPSStaffManager;
+class UPSLeagueHistory;
 class UPSStatsEngine;
 class UPSWeeklyPreparation;
 
@@ -37,10 +41,14 @@ class UPSWeeklyPreparation;
  *    recorded in the season and, with a statistics engine (Epic 92), every play in its box
  *    score.
  *  - AdvanceWeek: on to the next week; once the last week's games are all played, the season
- *    ends.
- *  - EndSeason: the off-season, once per season. The coaching carousel
+ *    ends. With a narrative (Epic 93) the week just played is closed first: its storylines,
+ *    honors and news digest.
+ *  - EndSeason: the off-season, once per season. The narrative's season awards are voted (Epic
+ *    93) while the season's box scores are still open. The coaching carousel
  *    (UPSStaffManager::RunCarousel) runs on the final standings, the statistics engine (Epic 92)
- *    archives the season, the owner economy (Epic 95) closes the books; then, with a contract manager
+ *    archives the season, the league's history (Epic 94) keeps its standings and leaders, veterans
+ *    retire and everyone else ages a year (Epic 94), the hall of fame votes, the owner economy
+ *    (Epic 95) closes the books; then, with a contract manager
  *    (UPSContractManager, Epic 87), the league year rolls over, CPU teams over the new cap cut
  *    back under it, and free agency (UPSFreeAgency) opens with every player whose deal ran out or
  *    who was cut. The player's team bids there; GetFreeAgency()->AdvanceDay() runs its days.
@@ -71,6 +79,14 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Franchise")
     UPSStatsEngine* GetStats() const { return Stats; }
+
+    /** The league's storylines, news and awards (Epic 93): each week's close and the season's
+     *  awards. It reads the statistics engine set here (SetStats). */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetNarrative(UPSLeagueNarrative* InNarrative);
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSLeagueNarrative* GetNarrative() const { return Narrative; }
 
     /** The league's business (Epic 95): every simulated game's gate and fans, and the books at
      *  the season's end (with the contract manager's payroll when there is one). */
@@ -140,6 +156,28 @@ public:
     /** Everything that has happened in practice, in order. */
     UFUNCTION(BlueprintPure, Category = "Franchise")
     const TArray<FPSTrainingEvent>& GetTrainingEvents() const { return TrainingEvents; }
+
+    /** The league's history (Epic 94): each season's end archives the final standings and the
+     *  season's leaders (from the statistics engine when there is one), then holds the hall of
+     *  fame vote. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetLeagueHistory(UPSLeagueHistory* InHistory) { LeagueHistory = InHistory; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSLeagueHistory* GetLeagueHistory() const { return LeagueHistory; }
+
+    /** The turn of the years (Epic 94): at each season's end, before the injured heal, every team's
+     *  veterans may retire (into the league's history) and everyone else ages a year along his
+     *  role's curve. */
+    UFUNCTION(BlueprintCallable, Category = "Franchise")
+    void SetPlayerAging(UPSPlayerAging* InAging) { PlayerAging = InAging; }
+
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    UPSPlayerAging* GetPlayerAging() const { return PlayerAging; }
+
+    /** Who retired at the season's end (empty before then). */
+    UFUNCTION(BlueprintPure, Category = "Franchise")
+    const TArray<FPSRetirementDecision>& GetRetirements() const { return Retirements; }
 
     /** Every team's books for the season that just ended (empty before then). */
     UFUNCTION(BlueprintPure, Category = "Franchise")
@@ -237,6 +275,9 @@ private:
     UPSOwnerEconomy* Economy = nullptr;
 
     UPROPERTY(Transient)
+    UPSLeagueNarrative* Narrative = nullptr;
+
+    UPROPERTY(Transient)
     TArray<FPSEconomySeasonReport> EconomyReports;
 
     UPROPERTY(Transient)
@@ -253,6 +294,15 @@ private:
 
     UPROPERTY(Transient)
     UPSDraft* Draft = nullptr;
+
+    UPROPERTY(Transient)
+    UPSLeagueHistory* LeagueHistory = nullptr;
+
+    UPROPERTY(Transient)
+    UPSPlayerAging* PlayerAging = nullptr;
+
+    UPROPERTY(Transient)
+    TArray<FPSRetirementDecision> Retirements;
 
     UPROPERTY(Transient)
     FPSLeagueYearRollover LastRollover;

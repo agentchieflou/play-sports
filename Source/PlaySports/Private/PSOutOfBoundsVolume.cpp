@@ -2,9 +2,8 @@
 #include "Components/BoxComponent.h"
 #include "PSPlayerPawn.h"
 #include "PSBall.h"
-#include "PSGameMode.h"
-#include "PSPlaySimulation.h"
-#include "Kismet/GameplayStatics.h"
+#include "PSTelemetryBus.h"
+#include "Engine/World.h"
 
 APSOutOfBoundsVolume::APSOutOfBoundsVolume()
 {
@@ -28,28 +27,42 @@ void APSOutOfBoundsVolume::BeginPlay()
 
 void APSOutOfBoundsVolume::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-    APSGameMode* GM = Cast<APSGameMode>(UGameplayStatics::GetGameMode(this));
-    if (!GM || !GM->PlaySimulation)
+    ReportCrossing(OtherActor);
+}
+
+bool APSOutOfBoundsVolume::ReportCrossing(AActor* OtherActor)
+{
+    UPSTelemetryBus* Bus = GetWorld() ? GetWorld()->GetSubsystem<UPSTelemetryBus>() : nullptr;
+    if (!Bus || !OtherActor)
     {
-        return;
+        return false;
     }
 
-    if (APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(OtherActor))
+    FPSTelemetryBoundaryCrossedEvent Crossing;
+    if (const APSPlayerPawn* Pawn = Cast<APSPlayerPawn>(OtherActor))
     {
-        if (Pawn->HasPossession())
+        if (!Pawn->HasPossession())
         {
-            float YardsGained = (Pawn->GetActorLocation().X - Pawn->GetStartingLocation().X) / 100.f;
-            GM->PlaySimulation->RecordOutOfBounds(FMath::RoundToInt(YardsGained));
-            UE_LOG(LogTemp, Display, TEXT("PSOutOfBoundsVolume: Player with ball ran Out of Bounds. Yards gained: %.1f"), YardsGained);
+            return false;
+        }
+        Crossing.CarrierName = Pawn->GetAttributes().DisplayName;
+    }
+    else if (const APSBall* Ball = Cast<APSBall>(OtherActor))
+    {
+        // A carried ball goes out with its carrier, who reports it.
+        if (Ball->GetAttachParentActor())
+        {
+            return false;
         }
     }
-    else if (APSBall* Ball = Cast<APSBall>(OtherActor))
+    else
     {
-        if (GM->PlaySimulation->GetPlayState().Phase != EPlayPhase::Scoring && 
-            GM->PlaySimulation->GetPlayState().Phase != EPlayPhase::PreSnap)
-        {
-            GM->PlaySimulation->SetPlayPhase(EPlayPhase::Scoring);
-            UE_LOG(LogTemp, Display, TEXT("PSOutOfBoundsVolume: Ball went Out of Bounds. Resolving play."));
-        }
+        return false;
     }
+
+    // The game mode places yard line N at X = N * 100 cm, the offense attacking +X.
+    Crossing.YardLine = FMath::Clamp(FMath::RoundToInt(OtherActor->GetActorLocation().X / 100.f), 0, 100);
+    Bus->PublishBoundaryCrossed(Crossing);
+    UE_LOG(LogTemp, Display, TEXT("PSOutOfBoundsVolume: %s out of bounds at the %d."), Crossing.CarrierName.IsEmpty() ? TEXT("The ball") : *Crossing.CarrierName, Crossing.YardLine);
+    return true;
 }

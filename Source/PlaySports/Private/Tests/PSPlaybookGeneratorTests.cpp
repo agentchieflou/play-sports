@@ -16,6 +16,9 @@
 //      formation his route, spot or block and every defender his rush, blitz, man or zone.
 //   5. Written playbooks load back through UPSPlaybookIngestion, still valid. CI then validates
 //      the same files (Saved/GeneratedPlaybooks) with tools/content.py check --strict.
+//   6. Epic 35's art/AI consistency: every play the grammar makes, lined up in its formation,
+//      compiles to art that is the jobs its players are handed (PSPlayArt::ValidatePlayArt),
+//      its routes ranked in read order; a route the library lacks is caught.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -631,13 +634,84 @@ bool FPSPlaybookGeneratorWriteTest::RunTest(const FString& Parameters)
             {
                 const FPSPlayAssignment& Want = Play.Assignments[Index];
                 const FPSPlayAssignment& Got = Row->Assignments[Index];
-                bSame &= Got.Role == Want.Role && Got.Kind == Want.Kind && Got.RouteId == Want.RouteId
+                bSame &= Got.Role == Want.Role && Got.Kind == Want.Kind && Got.RouteId == Want.RouteId && Got.ReadOrder == Want.ReadOrder
                     && Got.ZoneOffset.Equals(Want.ZoneOffset, 0.01f) && Got.FormationOffset.Equals(Want.FormationOffset, 0.01f);
             }
         }
         TestTrue(*FString::Printf(TEXT("%s: every play reads back as generated"), *Name), bSame);
         TestEqual(*FString::Printf(TEXT("%s: and is still valid"), *Name), Generator->ValidatePlays(ReadBack).Num(), 0);
     }
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 6 -- Epic 35's art/AI consistency
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSPlaybookGeneratorPlayArtTest,
+    "PlaySports.Content.PlaybookGenerator.PlayArtConsistency",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSPlaybookGeneratorPlayArtTest::RunTest(const FString& Parameters)
+{
+    using namespace PSPlaybookGeneratorTests;
+
+    UWorld* World = CreateTestWorld();
+    if (!TestNotNull(TEXT("Test world"), World))
+    {
+        return false;
+    }
+    UPSPlaybookGenerator* Generator = NewObject<UPSPlaybookGenerator>();
+
+    // The slots are the quarterback's progression, so the art ranks them; the backside isn't read.
+    const FPSPlaybookGeneratorTuning& Tuning = Generator->GetTuning();
+    const FPSPlayConcept* Flood = FindConcept(Tuning, TEXT("Flood"));
+    if (TestNotNull(TEXT("Flood is shipped"), Flood))
+    {
+        const TArray<FPSPlayDefinition> Floods = PSPlaybookGenerator::BuildConceptPlays(Tuning, *Flood, TEXT("Trips Right"),
+            PSPlaybookGenerator::GetFormationRoles(Generator->GetPersonnel(), TEXT("Trips Right"), true));
+        TArray<int32> Reads;
+        for (const FPSPlayAssignment& Assignment : Floods.Num() > 0 ? Floods[0].Assignments : TArray<FPSPlayAssignment>())
+        {
+            if (!Assignment.RouteId.IsNone())
+            {
+                Reads.Add(Assignment.ReadOrder);
+            }
+        }
+        // Go 1, Out 2, the backside Curl unread, the back's Flat 3 (in assignment order: back, receivers).
+        TestTrue(TEXT("Flood reads the clear, the out, then the flat; the backside curl is unread"), Reads == TArray<int32>({ 3, 1, 2, 0 }));
+    }
+
+    // Every play the grammar makes passes the art/AI check: the art drawn for it is the jobs its
+    // players are handed at the snap. Every scheme's book is drawn from these.
+    TArray<FPSPlayDefinition> Library = Generator->BuildLibrary(true, TArray<FString>());
+    Library.Append(Generator->BuildLibrary(false, TArray<FString>()));
+    const TArray<FString> Problems = Generator->ValidatePlayArt(World, Library);
+    TestTrue(*FString::Printf(TEXT("All %d generated plays pass the art/AI consistency check"), Library.Num()), Library.Num() > 300 && Problems.Num() == 0);
+    for (int32 Index = 0; Index < FMath::Min(Problems.Num(), 20); ++Index)
+    {
+        AddError(Problems[Index]);
+    }
+
+    // The check bites: a route the library lacks has nothing to draw or run.
+    const FPSPlayDefinition* Pass = Library.FindByPredicate([](const FPSPlayDefinition& Play) { return Play.PlayCategory == TEXT("ShortPass"); });
+    if (TestNotNull(TEXT("A pass to break"), Pass))
+    {
+        FPSPlayDefinition Broken = *Pass;
+        for (FPSPlayAssignment& Assignment : Broken.Assignments)
+        {
+            if (!Assignment.RouteId.IsNone())
+            {
+                Assignment.RouteId = TEXT("Wheel");
+                break;
+            }
+        }
+        const TArray<FString> BrokenProblems = Generator->ValidatePlayArt(World, { Broken });
+        TestTrue(TEXT("...is caught"), BrokenProblems.ContainsByPredicate([](const FString& Problem) { return Problem.Contains(TEXT("no route library has")); }));
+    }
+    TestTrue(TEXT("Without a world's overlay there is nothing to check with"), Generator->ValidatePlayArt(nullptr, Library).Num() == 1);
+
+    DestroyTestWorld(World);
     return true;
 }
 

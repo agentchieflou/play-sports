@@ -16,6 +16,10 @@
 //   3. A scripted scenario: the same throws, rolled identically, gain fewer yards and no
 //      touchdowns against a faster cornerback.
 //   4. UPSQuickSimRunner, the franchise's quick sim, gives the same score for the same seed.
+//   5. The starters take the quick sim's snaps: the first quarterback, receiver and defensive
+//      back in roster order (the depth chart's), never a backup listed after them.
+//   6. No flag after the whistle: offensive holding is called only while the ball is live, so a
+//      finished play's result stands however long the whistle's wait.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -24,6 +28,7 @@
 #include "PSPlaySimulation.h"
 #include "PSQuickSimRunner.h"
 #include "PSReplayFormat.h"
+#include "PSTelemetryBus.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -352,6 +357,79 @@ bool FPSQuickSimReproducibleTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Somebody scored"), First.HomeScore + First.AwayScore > 0);
 
     UnseedRandom();
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 5. The starters take the quick sim's snaps
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSQuickSimStartersTest,
+    "PlaySports.Gym.QuickSimStartersTakeTheSnaps",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSQuickSimStartersTest::RunTest(const FString& Parameters)
+{
+    using namespace PSScriptedGameTests;
+
+    // OFF_00 is the quarterback, OFF_02 and OFF_03 the receivers, OFF_04 the tight end; a
+    // backup quarterback is listed last. DEF_08 is the linebacker, DEF_09 and DEF_10 the backs.
+    TArray<FPlayerAttributes> Offense = MakeRoster(TEXT("OFF"), 80.f);
+    FPlayerAttributes Backup = Offense[0];
+    Backup.PlayerId = FName(TEXT("OFF_QB2"));
+    Backup.DisplayName = TEXT("OFF_QB2");
+    Offense.Add(Backup);
+    const TArray<FPlayerAttributes> Defense = MakeRoster(TEXT("DEF"), 80.f);
+
+    FMath::RandInit(5);
+    UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
+    Sim->bQuickSimMode = true;
+    Sim->InitializePlay(Offense, Defense);
+    TArray<FPSTelemetryPlayResultEvent> Plays;
+    Sim->OnPlayResolved.AddLambda([&Plays](const FPSTelemetryPlayResultEvent& Event) { Plays.Add(Event); });
+    Sim->TriggerSnap();
+    Sim->ActivePenalty = EPSPenaltyType::None;
+    Sim->SetPlayPhase(EPlayPhase::BallCarrierMovement);
+    Sim->AdvancePlay(3.5f);
+    Sim->EndPlayAndPrepareNext();
+
+    if (TestEqual(TEXT("One play"), Plays.Num(), 1))
+    {
+        TestEqual(TEXT("The starting quarterback throws, not the backup"), Plays[0].PasserId, FName(TEXT("OFF_00")));
+        TestEqual(TEXT("...to the first receiver, not the tight end listed last"), Plays[0].ReceiverId, FName(TEXT("OFF_02")));
+        TestTrue(TEXT("...and a tackle is the first defensive back's"), Plays[0].TacklerId.IsNone() || Plays[0].TacklerId == FName(TEXT("DEF_09")));
+    }
+
+    UnseedRandom();
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// 6. No flag after the whistle
+// ---------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPSNoFlagAfterWhistleTest,
+    "PlaySports.Gym.NoHoldingAfterTheWhistle",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSNoFlagAfterWhistleTest::RunTest(const FString& Parameters)
+{
+    using namespace PSScriptedGameTests;
+
+    UPSPlaySimulation* Sim = NewObject<UPSPlaySimulation>();
+    Sim->InitializePlay(MakeRoster(TEXT("OFF"), 80.f), MakeRoster(TEXT("DEF"), 80.f));
+    Sim->TriggerSnap();
+    Sim->ActivePenalty = EPSPenaltyType::None;
+
+    // Down at the 24, then a long wait in the whistle's phase: at holding's 3% a second, a flag
+    // during it would be certain, and an accepted one would take the 4 yards back and 10 more.
+    Sim->RecordTackle(4);
+    Sim->AdvancePlay(100.f);
+    const FPlayState State = Sim->GetPlayState();
+    TestEqual(TEXT("The play is over"), State.Phase, EPlayPhase::PreSnap);
+    TestEqual(TEXT("No flag after the whistle: the 4 yards stand"), State.YardLine, 24);
+    TestEqual(TEXT("...2nd and 6"), State.Distance, 6);
+    TestEqual(TEXT("...and no flag is pending"), Sim->ActivePenalty, EPSPenaltyType::None);
     return true;
 }
 

@@ -84,9 +84,14 @@ FPSPlaybookGeneratorTuning (Epic 121): its concepts' routes in the route library
 personnel packages, each front in run_fits.json, each coverage shell in coverage_matchups.json and
 each flavor's scheme in coaching_staffs.json; "CombineDrills" files against FPSDraftTuning (Epic
 86): positive uncertainties and costs, 0-1 shares and guarantees, each drill reading a rating, a
-rookie deal no longer than contracts.json's MaxContractYears. Teams, the league config, the
-playbook, player rating ranges and every reference between files are tools/content_contracts.py's
-(Epic 125), run from here.
+rookie deal no longer than contracts.json's MaxContractYears; "PlayCallTimeoutSeconds" files against
+FPSGameIntelligenceTuning (Epic 82), each task one of tools/orchestrator/routing.json's;
+"HallOfFame" files against FPSLegacyTuning (Epic 94): the hall of fame's waits and score, each
+threshold and archived leader a player stat category, listed once, each role's age curve and the
+retirement chances; "StorylineKinds" files against FPSNarrativeTuning (Epic 93): one weight per
+EPSStorylineKind, award scoring by EPSStatCategory, a falling ballot, the digest's task one of
+routing.json's. Teams, the league config, the playbook, player rating ranges and every reference
+between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -1153,6 +1158,137 @@ def validate_highlights(path, payload):
         "KindShots", "WinProbability"}
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSHighlightTuning exactly")
+
+
+
+GAME_INTELLIGENCE_COUNTS = ("MaxOpenRequests", "MaxAnswerChars", "MaxKeyPlays")
+GAME_INTELLIGENCE_TASKS = ("PlayCallTask", "DriveSummaryTask", "GameAnalysisTask")
+GAME_INTELLIGENCE_TEXTS = ("PlayCallInstructions", "DriveSummaryInstructions", "GameAnalysisInstructions")
+GAME_STATE_MIN_BUDGET = 1024  # PSGameStateSerializer::MinBudgetChars
+ROUTING_TABLE = REPO / "tools" / "orchestrator" / "routing.json"
+
+
+def validate_game_intelligence(path, payload):
+    """FPSGameIntelligenceTuning (Data/game_intelligence.json, Epic 82); mirrors
+    UPSGameIntelligenceSubsystem::ValidateTuning, and each task against Epic 119's routing table."""
+    budget = payload.get("ContextBudgetChars")
+    if not isinstance(budget, int) or isinstance(budget, bool) or budget < GAME_STATE_MIN_BUDGET:
+        err(path, f"ContextBudgetChars: '{budget}' must be a whole number, at least {GAME_STATE_MIN_BUDGET}")
+    timeout = payload.get("PlayCallTimeoutSeconds")
+    if not is_number(timeout) or timeout <= 0:
+        err(path, f"PlayCallTimeoutSeconds: '{timeout}' must be above 0")
+    for field in GAME_INTELLIGENCE_COUNTS:
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            err(path, f"{field}: '{value}' must be a whole number, 1 or more")
+    leaders = payload.get("LeadersPerCategory")
+    if not isinstance(leaders, int) or isinstance(leaders, bool) or leaders < 0:
+        err(path, f"LeadersPerCategory: '{leaders}' must be a whole number, 0 or more")
+    if not isinstance(payload.get("bPostGameRequests"), bool):
+        err(path, "bPostGameRequests must be true or false")
+    for field in GAME_INTELLIGENCE_TEXTS:
+        if not isinstance(payload.get(field), str) or not payload.get(field).strip():
+            err(path, f"{field} must be a non-empty string")
+    try:
+        routes = json.loads(ROUTING_TABLE.read_text(encoding="utf-8")).get("tasks", {})
+    except (OSError, ValueError) as error:
+        err(path, f"can't read the model router's tasks from {ROUTING_TABLE.relative_to(REPO)}: {error}")
+        routes = None
+    for field in GAME_INTELLIGENCE_TASKS:
+        task = payload.get(field)
+        if not isinstance(task, str) or not task:
+            err(path, f"{field} must name a model-router task")
+        elif routes is not None and task not in routes:
+            err(path, f"{field}: '{task}' is not a task in tools/orchestrator/routing.json ({sorted(routes)})")
+    if routes is not None and all(payload.get(f) in routes for f in ("PlayCallTask", "DriveSummaryTask")):
+        play_call = routes[payload["PlayCallTask"]].get("min_capability", 0)
+        summary = routes[payload["DriveSummaryTask"]].get("min_capability", 0)
+        if play_call < summary:
+            err(path, f"PlayCallTask '{payload['PlayCallTask']}' routes to weaker models (min_capability {play_call}) "
+                      f"than DriveSummaryTask '{payload['DriveSummaryTask']}' ({summary}): strategy needs the better ones")
+    extra = set(payload) - {"ContextBudgetChars", "PlayCallTimeoutSeconds", "LeadersPerCategory", "bPostGameRequests"} \
+        - set(GAME_INTELLIGENCE_COUNTS) - set(GAME_INTELLIGENCE_TASKS) - set(GAME_INTELLIGENCE_TEXTS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSGameIntelligenceTuning exactly")
+
+
+
+STORYLINE_KINDS = ("WinStreak", "LosingStreak", "RookieSurge", "RevengeGame", "RecordBroken", "AwardRace")
+STAT_CATEGORIES = ("PassingYards", "PassingTouchdowns", "Completions", "InterceptionsThrown", "RushingYards",
+                   "RushingTouchdowns", "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks",
+                   "Interceptions", "TeamPoints", "TeamTotalYards")
+NARRATIVE_COUNTS = ("RookieSurgeTopN", "AwardRaceFromWeek", "MaxDigestItems", "DigestsKept", "VoterCount")
+
+
+def validate_narrative(path, payload):
+    """FPSNarrativeTuning (Data/league_narrative.json, Epic 93); mirrors UPSLeagueNarrative::ValidateTuning."""
+    def whole(value):
+        return isinstance(value, int) and not isinstance(value, bool)
+
+    if not whole(payload.get("StreakMin")) or payload.get("StreakMin") < 2:
+        err(path, f"StreakMin: '{payload.get('StreakMin')}' must be a whole number, 2 or more")
+    for field in NARRATIVE_COUNTS:
+        if not whole(payload.get(field)) or payload.get(field) < 1:
+            err(path, f"{field}: '{payload.get(field)}' must be a whole number, 1 or more")
+    if not whole(payload.get("MaxBroadcastStorylines")) or payload.get("MaxBroadcastStorylines") < 0:
+        err(path, f"MaxBroadcastStorylines: '{payload.get('MaxBroadcastStorylines')}' must be a whole number, 0 or more")
+    margin = payload.get("AwardRaceMargin")
+    if not is_number(margin) or not 0 <= margin <= 1:
+        err(path, f"AwardRaceMargin: '{margin}' must be 0 to 1")
+    noise = payload.get("VoterNoise")
+    if not is_number(noise) or not 0 <= noise < 1:
+        err(path, f"VoterNoise: '{noise}' must be 0 or more, under 1")
+    if not is_number(payload.get("MvpWinWeight")) or payload.get("MvpWinWeight") < 0:
+        err(path, f"MvpWinWeight: '{payload.get('MvpWinWeight')}' must be a number, 0 or more")
+    if not whole(payload.get("VotingSeed")):
+        err(path, "VotingSeed must be a whole number")
+    kinds = payload.get("StorylineKinds")
+    if not isinstance(kinds, list):
+        err(path, "'StorylineKinds' must be an array")
+        kinds = []
+    for idx, entry in enumerate(kinds):
+        if not isinstance(entry, dict) or entry.get("Kind") not in STORYLINE_KINDS:
+            err(path, f"StorylineKinds[{idx}].Kind must be one of {list(STORYLINE_KINDS)}")
+        elif not is_number(entry.get("Weight")) or entry.get("Weight") < 0:
+            err(path, f"StorylineKinds[{idx}].Weight: '{entry.get('Weight')}' must be a number, 0 or more")
+    named = [entry.get("Kind") for entry in kinds if isinstance(entry, dict)]
+    for kind in STORYLINE_KINDS:
+        if named.count(kind) != 1:
+            err(path, f"StorylineKinds: '{kind}' must have exactly one entry")
+    for field in ("OffenseScoring", "DefenseScoring"):
+        weights = payload.get(field)
+        if not isinstance(weights, list) or not weights:
+            err(path, f"'{field}' must be a non-empty array")
+            continue
+        for idx, entry in enumerate(weights):
+            if not isinstance(entry, dict) or entry.get("Category") not in STAT_CATEGORIES:
+                err(path, f"{field}[{idx}].Category must be an EPSStatCategory ({list(STAT_CATEGORIES)})")
+            elif not is_number(entry.get("Weight")):
+                err(path, f"{field}[{idx}].Weight must be a number")
+    ballot = payload.get("BallotPoints")
+    if not isinstance(ballot, list) or not ballot or not all(whole(p) and p > 0 for p in ballot):
+        err(path, "BallotPoints must be a non-empty array of whole numbers above 0")
+    elif any(later > earlier for earlier, later in zip(ballot, ballot[1:])):
+        err(path, f"BallotPoints {ballot}: a lower place can't be worth more")
+    if not isinstance(payload.get("DigestInstructions"), str) or not payload.get("DigestInstructions").strip():
+        err(path, "DigestInstructions must be a non-empty string")
+    if not whole(payload.get("DigestContextChars")) or payload.get("DigestContextChars") < 512:
+        err(path, f"DigestContextChars: '{payload.get('DigestContextChars')}' must be a whole number, 512 or more")
+    task = payload.get("DigestTask")
+    try:
+        routes = json.loads(ROUTING_TABLE.read_text(encoding="utf-8")).get("tasks", {})
+    except (OSError, ValueError):
+        routes = None
+    if not isinstance(task, str) or not task:
+        err(path, "DigestTask must name a model-router task")
+    elif routes is not None and task not in routes:
+        err(path, f"DigestTask: '{task}' is not a task in tools/orchestrator/routing.json ({sorted(routes)})")
+    known = {"StreakMin", "AwardRaceMargin", "StorylineKinds", "MaxBroadcastStorylines", "OffenseScoring", "DefenseScoring",
+             "MvpWinWeight", "BallotPoints", "VoterNoise", "VotingSeed", "DigestTask", "DigestInstructions",
+             "DigestContextChars"} | set(NARRATIVE_COUNTS)
+    extra = set(payload) - known
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSNarrativeTuning exactly")
 
 
 TELESTRATOR_FIELDS = ("FieldHeightCm", "MinPointSpacing", "MaxStrokePoints", "PlayerPickRadius", "MaxMarks")
@@ -4559,6 +4695,120 @@ def validate_draft(path, payload, max_contract_years):
             err(path, f"{where}: unknown field(s) {sorted(set(drill) - DRAFT_DRILL_FIELDS)} - names must match FPSCombineDrill exactly")
 
 
+PLAYER_STAT_CATEGORIES = {
+    "PassingYards", "PassingTouchdowns", "Completions", "InterceptionsThrown", "RushingYards", "RushingTouchdowns",
+    "Receptions", "ReceivingYards", "ReceivingTouchdowns", "Tackles", "Sacks", "Interceptions",
+}
+HALL_OF_FAME_INT_FIELDS = ("WaitSeasons", "MinSeasons", "MaxInducteesPerSeason")
+
+
+AGING_CURVE_FIELDS = {"PeakAgeStart", "PeakAgeEnd", "GrowthPerYear", "DeclinePerYear", "LowSnapShareThreshold"}
+RETIREMENT_FRACTIONS = ("BaseChance", "ChancePerYear", "LowRatingChance", "InjuredChance", "LowMorale", "LowMoraleChance",
+                        "MaxRetirementShare")
+RETIREMENT_INTS = ("MinAge", "ForcedAge", "RandomSeed")
+
+
+def validate_legacy_aging(path, payload):
+    """FPSLegacyTuning's RoleCurves (each an FPSProgressionTuning) and Retirement (Epic 94)."""
+    curves = payload.get("RoleCurves")
+    if not isinstance(curves, list):
+        err(path, "'RoleCurves' must be an array of { Role, Curve }")
+        curves = []
+    seen = set()
+    for idx, entry in enumerate(curves):
+        where = f"RoleCurves[{idx}]"
+        if not isinstance(entry, dict) or not isinstance(entry.get("Curve"), dict):
+            err(path, f"{where}: must be an object with a Role and a Curve object")
+            continue
+        role = entry.get("Role")
+        if role not in PLAYER_ROLES or role in seen:
+            err(path, f"{where}.Role: '{role}' must be an EPlayerRole, listed once")
+        seen.add(role)
+        curve = entry["Curve"]
+        start, end = curve.get("PeakAgeStart"), curve.get("PeakAgeEnd")
+        if not isinstance(start, int) or not isinstance(end, int) or isinstance(start, bool) or isinstance(end, bool) or start > end:
+            err(path, f"{where}.Curve: PeakAgeStart and PeakAgeEnd must be whole numbers, the start no later than the end")
+        for field in ("GrowthPerYear", "DeclinePerYear"):
+            if not is_number(curve.get(field)) or curve[field] < 0:
+                err(path, f"{where}.Curve.{field}: must be a number, 0 or more")
+        threshold = curve.get("LowSnapShareThreshold")
+        if not is_number(threshold) or not 0 <= threshold <= 1:
+            err(path, f"{where}.Curve.LowSnapShareThreshold: must be a number from 0 to 1")
+        if set(curve) - AGING_CURVE_FIELDS or set(entry) - {"Role", "Curve"}:
+            err(path, f"{where}: unknown field(s) - names must match FPSRoleAgingCurve and FPSProgressionTuning exactly")
+
+    rules = payload.get("Retirement")
+    if not isinstance(rules, dict):
+        err(path, "'Retirement' must be an FPSRetirementTuning object")
+        return
+    for field in RETIREMENT_FRACTIONS:
+        value = rules.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"Retirement.{field}: '{value}' must be a number from 0 to 1")
+    for field in RETIREMENT_INTS:
+        value = rules.get(field)
+        if isinstance(value, bool) or not isinstance(value, int):
+            err(path, f"Retirement.{field}: '{value}' must be a whole number")
+    if isinstance(rules.get("MinAge"), int) and isinstance(rules.get("ForcedAge"), int) and not 0 <= rules["MinAge"] < rules["ForcedAge"]:
+        err(path, "Retirement: MinAge must be 0 or more and ForcedAge above it")
+    rating = rules.get("LowRating")
+    if not is_number(rating) or not 0 <= rating <= 100:
+        err(path, f"Retirement.LowRating: '{rating}' must be a 0-100 rating")
+    known = set(RETIREMENT_FRACTIONS) | set(RETIREMENT_INTS) | {"LowRating"}
+    if set(rules) - known:
+        err(path, f"Retirement: unknown field(s) {sorted(set(rules) - known)} - names must match FPSRetirementTuning exactly")
+
+
+def validate_legacy(path, payload):
+    """FPSLegacyTuning (Data/legacy.json, Epic 94); mirrors UPSLeagueHistory::ValidateTuning."""
+    extra = set(payload) - {"HallOfFame", "LeaderCategories", "RoleCurves", "Retirement"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSLegacyTuning exactly")
+    validate_legacy_aging(path, payload)
+    hall = payload.get("HallOfFame")
+    if not isinstance(hall, dict):
+        err(path, "'HallOfFame' must be an FPSHallOfFameTuning object")
+    else:
+        for field in HALL_OF_FAME_INT_FIELDS:
+            value = hall.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                err(path, f"HallOfFame.{field}: '{value}' must be a whole number, 0 or more")
+        if hall.get("MaxInducteesPerSeason") == 0:
+            err(path, "HallOfFame.MaxInducteesPerSeason: must be at least 1")
+        score = hall.get("InductionScore")
+        if not is_number(score) or score <= 0:
+            err(path, f"HallOfFame.InductionScore: '{score}' must be a number above 0")
+        thresholds = hall.get("Thresholds")
+        if not isinstance(thresholds, list) or not thresholds:
+            err(path, "HallOfFame.Thresholds: a non-empty array, or nobody is ever voted in")
+            thresholds = []
+        seen = set()
+        for idx, threshold in enumerate(thresholds):
+            where = f"HallOfFame.Thresholds[{idx}]"
+            if not isinstance(threshold, dict):
+                err(path, f"{where}: not an object")
+                continue
+            category = threshold.get("Category")
+            if category not in PLAYER_STAT_CATEGORIES or category in seen:
+                err(path, f"{where}.Category: '{category}' must be a player EPSStatCategory, listed once")
+            seen.add(category)
+            value = threshold.get("CareerValue")
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                err(path, f"{where}.CareerValue: '{value}' must be a whole number, 1 or more")
+            if set(threshold) - {"Category", "CareerValue"}:
+                err(path, f"{where}: unknown field(s) {sorted(set(threshold) - {'Category', 'CareerValue'})}")
+        known = set(HALL_OF_FAME_INT_FIELDS) | {"InductionScore", "Thresholds"}
+        if set(hall) - known:
+            err(path, f"HallOfFame: unknown field(s) {sorted(set(hall) - known)} - names must match FPSHallOfFameTuning exactly")
+    leaders = payload.get("LeaderCategories")
+    if not isinstance(leaders, list):
+        err(path, "'LeaderCategories' must be an array of player EPSStatCategory names")
+    else:
+        for idx, category in enumerate(leaders):
+            if category not in PLAYER_STAT_CATEGORIES or category in leaders[:idx]:
+                err(path, f"LeaderCategories[{idx}]: '{category}' must be a player EPSStatCategory, listed once")
+
+
 def load_input_catalog():
     """The input catalog the glyph table must cover, or None when it is missing or broken
     (its own checks report that)."""
@@ -4819,6 +5069,12 @@ def main(root=None):
             validate_play_art(path, payload)
         if isinstance(payload, dict) and "CombineDrills" in payload:
             validate_draft(path, payload, load_contract_max_years())
+        if isinstance(payload, dict) and "PlayCallTimeoutSeconds" in payload:
+            validate_game_intelligence(path, payload)
+        if isinstance(payload, dict) and "HallOfFame" in payload:
+            validate_legacy(path, payload)
+        if isinstance(payload, dict) and "StorylineKinds" in payload:
+            validate_narrative(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()

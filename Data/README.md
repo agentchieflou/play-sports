@@ -95,6 +95,7 @@ every CI build.
 | `morale.json` | `FPSMoraleTuning` (single object: morale inputs, effects, event thresholds, `Units`) | `UPSDataIngestion::LoadMoraleTuningFromJson`, via `UPSLockerRoom` |
 | `draft.json` | `FPSDraftTuning` (single object: prospect uncertainty, `CombineDrills`, scouting, the CPU's board, the rookie scale) | `UPSDataIngestion::LoadDraftTuningFromJson`, via `UPSDraft` |
 | `training.json` | `FPSTrainingTuning` (single object: allocation, development, funding, gameplan `FocusAreas`, fatigue, `PracticeInjury`, recommendation fields) | `UPSDataIngestion::LoadTrainingTuningFromJson`, via `UPSWeeklyPreparation` |
+| `legacy.json` | `FPSLegacyTuning` (single object: `HallOfFame`, `LeaderCategories`) | `UPSDataIngestion::LoadLegacyTuningFromJson`, via `UPSLeagueHistory` |
 | `owner_economics.json` | `FPSEconomyTuning` (single object: gate, media, fan and budget fields, `DefaultBudget`) | `UPSDataIngestion::LoadEconomyTuningFromJson`, via `UPSOwnerEconomy` |
 | `contracts.json` | `FPSContractTuning` (single object: cap, contract rules, demand, offer and free-agency fields, `PositionMarkets`) | `UPSDataIngestion::LoadContractTuningFromJson`, via `UPSContractManager` (and `UPSFreeAgency`) |
 | `telemetry_sampling.json` | `FPSTelemetrySamplingTuning` (single object) | `UPSDataIngestion::LoadTelemetrySamplingTuningFromJson`, via `UPSTelemetrySamplingSubsystem` |
@@ -118,6 +119,8 @@ every CI build.
 | `difficulty.json` | `FPSDifficultyCatalog` (single object: `DifficultyTiers`, the assists' setting IDs, `SuggestedPlayAccent`) | `UPSDataIngestion::LoadDifficultyCatalogFromJson`, via `UPSDifficultySubsystem` |
 | `perf_harness.json` | `FPSPerfHarnessTuning` (single object) | `UPSDataIngestion::LoadPerfHarnessTuningFromJson`, via `UPSPerfHarness`; also read by `tools/perf_budget.py` |
 | `play_art.json` | `FPSPlayArtStyle` (single object) | `UPSDataIngestion::LoadPlayArtStyleFromJson`, via `UPSOverlayPlayArtSubsystem` |
+| `game_intelligence.json` | `FPSGameIntelligenceTuning` (single object) | `UPSDataIngestion::LoadGameIntelligenceTuningFromJson`, via `UPSGameIntelligenceSubsystem`; its tasks are checked against `tools/orchestrator/routing.json` |
+| `league_narrative.json` | `FPSNarrativeTuning` (single object: storyline rules and `StorylineKinds`, award scoring, the vote, the digest's model task) | `UPSDataIngestion::LoadNarrativeTuningFromJson`, via `UPSLeagueNarrative` |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -408,9 +411,10 @@ instead of hand-authoring each play. Every field is required:
   carrier's spot), `LineKind` (`PassBlock` or `RunBlock`: the line, and a tight end or back no slot
   claims) and `BacksideRoute` (what a wide receiver no slot claims runs; empty: he blocks).
   - `Slots[]`, in the quarterback's read order: `Roles` (receivers, in preference) and `Routes` (route
-    library IDs). Each slot goes to the first receiver of its roles the formation still has. A
-    concept makes a play for every combination of its slots' routes (at most 64) in every formation
-    its slots fit.
+    library IDs). Each slot goes to the first receiver of its roles the formation still has, and its
+    route gets the slot's place as its `ReadOrder` (1, 2, ...), so the play art ranks the
+    progression; a backside route is unread. A concept makes a play for every combination of its
+    slots' routes (at most 64) in every formation its slots fit.
   - `Deceptions`: the Epic 72 variants it is made with: `None`, `PlayAction` on a pass (a
     `PlayAction` play from `PlayActionDrop`), `ZoneRead` or `RPO` on a run.
 - `DefensiveFronts[]`: `Formation` (a defensive personnel package's), `Front` (in `run_fits.json`)
@@ -432,7 +436,8 @@ instead of hand-authoring each play. Every field is required:
 
 Generated plays are ordinary `FPSPlayDefinition`s with PlayIds `<SchemeId>_<ConceptId>_<Formation>_<n>`
 (or `<SchemeId>_Def_<Formation>_<Shell>_<PressureId>`), so the play loader, the AI and the playbook
-contract treat them like the hand-written book. The automation test
+contract treat them like the hand-written book, and `UPSPlaybookGenerator::ValidatePlayArt` holds them
+to Epic 35's art/AI consistency check (`PSPlayArt::ValidatePlayArt`). The automation test
 `PlaySports.Content.PlaybookGenerator.WritesValidContent` writes every scheme's book to
 `Saved/GeneratedPlaybooks/Data/playbooks/`. CI checks those books with
 `python tools/content.py check --root Saved/GeneratedPlaybooks --strict`. `validate_data.py` checks
@@ -448,8 +453,13 @@ much), `LowSnapShareThreshold` (a backup under this snap share grows half as fas
 
 ## Adding a new team
 
-1. Add a `rosters/team_<name>.json` roster file following the player schema above (aim for at
-   least one player per `EPlayerRole`).
+1. Add a `rosters/team_<name>.json` roster file following the player schema above. A live game
+   fields each side from its team's own roster, so the roster must fill every package in
+   `personnel_packages.json`: at least 1 QB, 2 RB, 2 TE, 4 WR, 5 OL, 6 DL, 4 LB and 6 DB, plus
+   depth for fatigue substitutions (the Falcons carry 31, the other shipped teams 39).
+   `python tools/content.py report` warns about a package a team can't field, and a unit test
+   fails the build on one for shipped teams. `python tools/player_dna.py --write` gives new
+   players their DNA.
 2. Add an entry to `sample_teams.json` pointing `RosterDataTablePath` at it.
 3. Run `python tools/content.py` before committing. CI runs the same validation and imports
    the roster through the game's loaders (`PlaySports.Content.ImportShippedContent`).
@@ -1047,6 +1057,29 @@ money is in thousands of dollars.
 
 `tools/validate_data.py` checks it: positive uncertainties and costs, 0-1 shares and guarantees,
 each drill reading a rating, `RookieYears` within `contracts.json`'s `MaxContractYears`.
+
+## Legacy schema (`FPSLegacyTuning`)
+
+Single object (Epic 94), read by `UPSLeagueHistory`. The archive itself (every finished season, every
+retired player, the hall of fame) lives in the franchise save (`UPSFranchiseSaveGame::History`), not
+here.
+- `HallOfFame`: a retired player is voted in once `WaitSeasons` seasons have passed since he retired,
+  if he played `MinSeasons` seasons and his hall score reaches `InductionScore`; at most
+  `MaxInducteesPerSeason` a season, the best first. His hall score is his best category: the highest
+  of his career totals over their `Thresholds[]` (`Category`, a player `EPSStatCategory`;
+  `CareerValue`).
+- `LeaderCategories`: the player categories whose season leader each season's archive keeps.
+- `RoleCurves[]` (read by `UPSPlayerAging`): `Role` and its `Curve`, Core 19's `FPSProgressionTuning`
+  (`PeakAgeStart`, `PeakAgeEnd`, `GrowthPerYear`, `DeclinePerYear`, `LowSnapShareThreshold`); a role
+  not listed ages on `player_progression.json`'s curve.
+- `Retirement` (`UPSPlayerAging`): from `MinAge`, `BaseChance` plus `ChancePerYear` a year past it,
+  plus `LowRatingChance` under `LowRating`, `InjuredChance` when hurt at the season's end,
+  `LowMoraleChance` under `LowMorale`; always at `ForcedAge`; at most `MaxRetirementShare` of a
+  roster a season (the forced always); `RandomSeed`.
+
+`tools/validate_data.py` checks it: whole-number waits, a positive score, each threshold and leader
+a player category listed once, one curve per role with its peak in order, 0-1 chances, `ForcedAge`
+above `MinAge`.
 
 ## Owner economics schema (`FPSEconomyTuning`)
 
@@ -1751,3 +1784,47 @@ What a cut is comes from the route-running tuning (`BreakMinAngleDegrees` in
 turn each side's art off; `StudyMode` shows the defense's icons to the offense too, outside
 head-to-head games, where `versus_rules.json` decides.
 `UPSOverlayPlayArtSubsystem::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Game intelligence schema (`FPSGameIntelligenceTuning`)
+
+Single object (Epic 82; `UPSGameIntelligenceSubsystem`, the game's hooks for outside models through
+the Epic 25 bridge):
+- `ContextBudgetChars` (at least 1024, `PSGameStateSerializer::MinBudgetChars`): the most characters
+  a request's game state (or post-game analysis) may take; a model reads about four to a token.
+- `PlayCallTimeoutSeconds` (above 0): how long a CPU side's call waits for an outside model's play
+  before calling its own.
+- `MaxOpenRequests`, `MaxAnswerChars`, `MaxKeyPlays` (1 or more), `LeadersPerCategory` (0 or more):
+  open requests at once, the longest answer taken, the key plays in a post-game analysis and the
+  game's leaders per stat category in the game state.
+- `bPostGameRequests`: ask for the drive summary and game analysis at the final whistle.
+- `PlayCallTask`, `DriveSummaryTask`, `GameAnalysisTask`: the model router's task each request
+  names, each one of `tools/orchestrator/routing.json`'s `tasks` (Epic 119); the play call's needs
+  at least the `min_capability` of the summary's.
+- `PlayCallInstructions`, `DriveSummaryInstructions`, `GameAnalysisInstructions` (not empty): what
+  each request asks of the model.
+
+`UPSGameIntelligenceSubsystem::ValidateTuning` and `tools/validate_data.py` check it.
+
+## League narrative schema (`FPSNarrativeTuning`)
+
+Single object (Epic 93; `UPSLeagueNarrative`, driven by `UPSFranchiseFlow`):
+- `StreakMin` (2 or more): wins or losses in a row that make a streak. `RookieSurgeTopN` (1 or more):
+  a rookie in a category's top this many is a story. `AwardRaceFromWeek` (1 or more) and
+  `AwardRaceMargin` (0 to 1): from that week, an MVP race whose second is within that share of the
+  leader is news.
+- `StorylineKinds[]`: exactly one `Weight` (0 or more) for each `Kind` (`WinStreak`, `LosingStreak`,
+  `RookieSurge`, `RevengeGame`, `RecordBroken`, `AwardRace`). The news and the broadcast lead with the
+  heaviest.
+- `MaxDigestItems`, `DigestsKept` (1 or more), `MaxBroadcastStorylines` (0 or more): a week's news
+  items, the digests kept in the save, a game's storyline chyrons.
+- `OffenseScoring[]`, `DefenseScoring[]` (`Category`, an `EPSStatCategory`, and `Weight`): award
+  scores. `MvpWinWeight` (0 or more): the MVP's score adds his team's winning share times it.
+- The season's vote: `VoterCount` (1 or more) voters, each seeing every score off by up to
+  `VoterNoise` (0 or more, under 1), rank `BallotPoints.Num()` players for those points (above 0,
+  never more for a lower place); `VotingSeed` with the season makes it repeatable.
+- `DigestTask` (a task in `tools/orchestrator/routing.json`), `DigestInstructions`,
+  `DigestContextChars` (512 or more): with Epic 82's bridge online, what a model is asked to write
+  each week, and the most characters of facts it gets.
+
+The news text itself is the string table's `Narrative.*` rows (`Data/ui_text.csv`).
+`UPSLeagueNarrative::ValidateTuning` and `tools/validate_data.py` check it.

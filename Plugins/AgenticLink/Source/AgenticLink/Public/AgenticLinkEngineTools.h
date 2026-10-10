@@ -6,6 +6,7 @@
 
 class AActor;
 class UClass;
+class UObject;
 class UWorld;
 
 /**
@@ -15,8 +16,11 @@ class UWorld;
  *  - list_actors   {class?, limit?}               actors with name, label, class, location
  *  - get_property  {actor, property}              an editable or Blueprint-visible property, as text
  *  - set_property  {actor, property, value}       an instance-editable property, as an undoable edit
- *  - call_function {actor, function, arguments?}  a BlueprintCallable UFUNCTION, run as a
- *                                                 CallInEditor button runs it; outputs as text
+ *  - call_function {actor | subsystem, function, arguments?}  a BlueprintCallable UFUNCTION,
+ *                                                 run as a CallInEditor button runs it; outputs
+ *                                                 as text. On an actor it is an undoable edit; on
+ *                                                 a world or game-instance subsystem (runtime
+ *                                                 state, not level content) it is a plain call
  *  - spawn_actor   {class, location?, rotation?, label?}  a new actor, as an undoable edit
  *
  * Values travel in Unreal's text format ("(X=1,Y=2,Z=3)", "(\"Tag\")", "True"); JSON numbers and
@@ -37,6 +41,12 @@ public:
 
     /** The actor in World whose object name, editor label or path name is ActorName. */
     static AActor* FindActor(UWorld* World, const FString& ActorName);
+
+    /** World's subsystem of the class named SubsystemName: a world subsystem, or a subsystem of
+     *  the world's game instance. By native name ("PSGameIntelligenceSubsystem", the U prefix
+     *  optional) or path ("/Script/PlaySports.PSGameIntelligenceSubsystem"); null when the
+     *  class isn't a subsystem or the world has none of it. */
+    static UObject* FindSubsystem(UWorld* World, const FString& SubsystemName);
 
     /** An actor class by path ("/Script/Engine.TargetPoint", a Blueprint's "..._C") or by
      *  native name ("TargetPoint"); null when it isn't a spawnable actor class. */

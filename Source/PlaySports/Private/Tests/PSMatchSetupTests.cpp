@@ -13,18 +13,32 @@
 //      team and fit on the Air Raid one; a team with no staff plays the whole playbook unfitted.
 //   4. The franchise flow plays a season week by week through the quick sim and, once the last
 //      week is played, ends it: the coaching carousel runs once on the final standings.
+//   5. Each side takes the field from its own team: both teams' players from their own roster
+//      files, at their own staffs' scheme fit; spawned as the game mode spawns them, the home
+//      team's eleven on offense and the away team's eleven on defense, at those ratings. Without
+//      teams the game mode's own roster stays.
+//   6. A head-to-head game: the two players' teams travel with the home seat
+//      ("?mode=Versus?home=X?away=Y?homeseat=1"), the match reads them back as Versus with X at
+//      home and Y away (the seat is not a team), fields X's whole roster at home and Y's away,
+//      and the versus seats read their teams from the match.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "PSFieldGrid.h"
+#include "PSFieldSides.h"
 #include "PSFranchiseFlow.h"
 #include "PSFranchiseSeason.h"
 #include "PSMatchSetup.h"
 #include "PSMenuComponent.h"
+#include "PSPersonnelManager.h"
 #include "PSPlayCallSubsystem.h"
+#include "PSPlayerController.h"
+#include "PSPlayerPawn.h"
 #include "PSRoster.h"
 #include "PSScheduleEngine.h"
 #include "PSStaffManager.h"
 #include "PSUITeamCatalog.h"
+#include "PSVersusSubsystem.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 
@@ -375,6 +389,204 @@ bool FPSFranchiseFlowSeasonEndTest::RunTest(const FString& Parameters)
     }
     TestFalse(TEXT("Unplayed games keep the season open"), bEnded || Unplayed->HasSeasonEnded());
     TestEqual(TEXT("...with no carousel"), Unplayed->GetCarouselEvents().Num(), 0);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 5 -- Each side takes the field from its own team
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSMatchSetupFieldTest,
+    "PlaySports.Match.EachSideTakesTheFieldFromItsOwnTeam",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSMatchSetupFieldTest::RunTest(const FString& Parameters)
+{
+    using namespace PSMatchSetupTests;
+
+    UWorld* World = CreateTestWorld();
+    UPSPlayCallSubsystem* PlayCall = World ? World->GetSubsystem<UPSPlayCallSubsystem>() : nullptr;
+    if (!TestNotNull(TEXT("Play-call subsystem"), PlayCall))
+    {
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return false;
+    }
+
+    const FString TeamsPath = UPSUITeamCatalog::GetDefaultTeamsPath();
+    const FName Hawks(TEXT("Hawks"));
+    const FName Wolves(TEXT("Wolves"));
+    TArray<FPlayerAttributes> HawksPlayers;
+    TArray<FPlayerAttributes> WolvesPlayers;
+    if (!TestTrue(TEXT("Both teams' rosters load"), UPSMatchSetup::LoadTeamPlayers(TeamsPath, Hawks, HawksPlayers) && UPSMatchSetup::LoadTeamPlayers(TeamsPath, Wolves, WolvesPlayers)))
+    {
+        DestroyTestWorld(World);
+        return false;
+    }
+    const auto IsOnTeam = [](const TArray<FPlayerAttributes>& Team, FName PlayerId)
+    {
+        return Team.ContainsByPredicate([PlayerId](const FPlayerAttributes& Player) { return Player.PlayerId == PlayerId; });
+    };
+
+    // The Hawks host the Wolves: each team brings its whole roster.
+    UPSMatchSetup* Match = NewObject<UPSMatchSetup>();
+    TestTrue(TEXT("Hawks vs Wolves"), Match->SetTeams(Hawks, Wolves));
+    TArray<FPlayerAttributes> Home;
+    TArray<FPlayerAttributes> Away;
+    if (!TestTrue(TEXT("The field's players load"), Match->LoadFieldPlayers(TeamsPath, Home, Away)))
+    {
+        DestroyTestWorld(World);
+        return false;
+    }
+    TestEqual(TEXT("Every Hawk is at home"), Home.Num(), HawksPlayers.Num());
+    TestEqual(TEXT("...and every Wolf away"), Away.Num(), WolvesPlayers.Num());
+    TestTrue(TEXT("...in their own rosters' order"), Home.Num() > 0 && Away.Num() > 0
+        && Home[0].PlayerId == HawksPlayers[0].PlayerId && Away.Last().PlayerId == WolvesPlayers.Last().PlayerId);
+
+    // At kickoff each team plays at its own staff's scheme fit.
+    UPSStaffManager* Staffs = LoadStaffs();
+    TestTrue(TEXT("Both staffs take over"), Match->ApplyStaffs(Staffs, PlayCall, Home, Away));
+    TestTrue(TEXT("The plans are the Hawks' and the Wolves'"), PlayCall->GetTeamPlan(true).TeamId == Hawks && PlayCall->GetTeamPlan(false).TeamId == Wolves);
+    for (int32 Index = 0; Index < Home.Num(); ++Index)
+    {
+        const FPlayerAttributes Fitted = Staffs->ApplySchemeFit(Hawks, HawksPlayers[Index]);
+        TestTrue(*FString::Printf(TEXT("%s at the Hawks' fit"), *Home[Index].PlayerId.ToString()),
+            FMath::IsNearlyEqual(Home[Index].Speed, Fitted.Speed) && FMath::IsNearlyEqual(Home[Index].Awareness, Fitted.Awareness));
+    }
+
+    // Spawned as the game mode spawns them (both teams on the roster, the Hawks with the ball,
+    // the default packages, the field grid): the Hawks' offense against the Wolves' defense.
+    TArray<FPlayerAttributes> Field = Home;
+    Field.Append(Away);
+    UPSRoster* Roster = NewObject<UPSRoster>();
+    Roster->InitializeRoster(Field);
+    Roster->BuildDefaultDepthChart();
+    TArray<FName> HomeIds;
+    for (const FPlayerAttributes& Player : Home)
+    {
+        HomeIds.Add(Player.PlayerId);
+    }
+    UPSFieldSides* Sides = NewObject<UPSFieldSides>();
+    Sides->Initialize(Roster, HomeIds);
+    UPSPersonnelManager* Personnel = NewObject<UPSPersonnelManager>();
+    Personnel->Initialize(Roster);
+    Personnel->LoadCatalogFromJson(UPSPersonnelManager::GetDefaultCatalogPath());
+    const TArray<APSPlayerPawn*> Pawns = APSFieldGrid::SpawnPlayersFromRoster(Personnel->GetStartingLineup(), 2000.f, World);
+    int32 OffensePawns = 0;
+    int32 DefensePawns = 0;
+    for (const APSPlayerPawn* Pawn : Pawns)
+    {
+        const FPlayerAttributes Player = Pawn->GetAttributes();
+        const bool bOffense = Pawn->TeamSide == EPSTeamSide::Offense;
+        OffensePawns += bOffense ? 1 : 0;
+        DefensePawns += bOffense ? 0 : 1;
+        TestTrue(*FString::Printf(TEXT("The %s pawn %s is his team's"), bOffense ? TEXT("offense's") : TEXT("defense's"), *Player.PlayerId.ToString()),
+            bOffense ? IsOnTeam(HawksPlayers, Player.PlayerId) : IsOnTeam(WolvesPlayers, Player.PlayerId));
+        const FPlayerAttributes* Row = Field.FindByPredicate([&Player](const FPlayerAttributes& Candidate) { return Candidate.PlayerId == Player.PlayerId; });
+        TestTrue(*FString::Printf(TEXT("...at his team's fit (%s)"), *Player.PlayerId.ToString()), Row && FMath::IsNearlyEqual(Player.Speed, Row->Speed));
+    }
+    TestEqual(TEXT("Eleven Hawks on offense"), OffensePawns, 11);
+    TestEqual(TEXT("...against eleven Wolves"), DefensePawns, 11);
+
+    // Without teams, or with a team the league has no roster for, the game mode keeps its own.
+    TArray<FPlayerAttributes> Fallback = MakeSide();
+    TArray<FPlayerAttributes> NoAway;
+    TestFalse(TEXT("No teams, no field players"), NewObject<UPSMatchSetup>()->LoadFieldPlayers(TeamsPath, Fallback, NoAway));
+    TestEqual(TEXT("...the game mode's roster is untouched"), Fallback.Num(), 3);
+    TestTrue(TEXT("Hawks vs a team with no roster"), Match->SetTeams(Hawks, FName(TEXT("Sharks"))));
+    TestFalse(TEXT("...fields nobody"), Match->LoadFieldPlayers(TeamsPath, Fallback, NoAway));
+    TestEqual(TEXT("...and leaves the game mode's roster"), Fallback.Num(), 3);
+
+    DestroyTestWorld(World);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Test 6 -- A head-to-head game's teams
+// ---------------------------------------------------------------------------
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FPSMatchSetupVersusTest,
+    "PlaySports.Match.VersusTeamsTravelAndTakeTheField",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FPSMatchSetupVersusTest::RunTest(const FString& Parameters)
+{
+    using namespace PSMatchSetupTests;
+
+    const TArray<FName> League = LeagueTeams();
+    const FName Wolves(TEXT("Wolves"));
+    const FName Bears(TEXT("Bears"));
+
+    // The two players' picks travel with the seat that plays home; the menu, with no team-pick
+    // widget yet, sends the seat alone.
+    const FString Travel = UPSMatchSetup::BuildOptions(EPSMatchMode::Versus, NAME_None, Wolves, Bears, 1);
+    TestEqual(TEXT("The picks travel with the home seat"), Travel, FString(TEXT("mode=Versus?home=Wolves?away=Bears?homeseat=1")));
+    UPSMenuComponent* Menu = NewObject<UPSMenuComponent>();
+    TestEqual(TEXT("The Head to Head screen's options"), Menu->BuildTravelOptions(EPSMenuCommand::StartVersus, TEXT("1")), FString(TEXT("mode=Versus?homeseat=1")));
+
+    // The match reads a versus game with the Wolves at home and the Bears away.
+    UPSMatchSetup* Match = NewObject<UPSMatchSetup>();
+    TestTrue(TEXT("The match reads the versus options"), Match->InitializeFromOptions(TEXT("?") + Travel, League));
+    TestTrue(TEXT("A versus game"), Match->GetMode() == EPSMatchMode::Versus);
+    TestTrue(TEXT("The Wolves host the Bears"), Match->GetHomeTeamId() == Wolves && Match->GetAwayTeamId() == Bears);
+    TestTrue(TEXT("Both teams are human: no single player's team"), Match->GetUserTeamId().IsNone());
+    UPSMatchSetup* Copy = NewObject<UPSMatchSetup>();
+    TestTrue(TEXT("The setup's own options read back"), Copy->InitializeFromOptions(Match->ToOptions(), League));
+    TestTrue(TEXT("...as the same versus game"), Copy->GetMode() == EPSMatchMode::Versus && Copy->GetHomeTeamId() == Wolves && Copy->GetAwayTeamId() == Bears);
+
+    // homeseat= is the versus subsystem's seat, not a team, and home= doesn't read as it.
+    FURL VersusURL;
+    VersusURL.AddOption(TEXT("mode=Versus"));
+    VersusURL.AddOption(TEXT("home=Wolves"));
+    VersusURL.AddOption(TEXT("away=Bears"));
+    VersusURL.AddOption(TEXT("homeseat=1"));
+    TestTrue(TEXT("A versus URL"), UPSVersusSubsystem::IsVersusURL(VersusURL));
+    TestEqual(TEXT("...with seat 1 at home"), UPSVersusSubsystem::GetHomeSeatFromURL(VersusURL), 1);
+
+    // The field: the Wolves' whole roster at home and the Bears' away.
+    const FString TeamsPath = UPSUITeamCatalog::GetDefaultTeamsPath();
+    TArray<FPlayerAttributes> WolvesPlayers;
+    TArray<FPlayerAttributes> BearsPlayers;
+    TArray<FPlayerAttributes> Home;
+    TArray<FPlayerAttributes> Away;
+    if (!TestTrue(TEXT("Both rosters and the field load"), UPSMatchSetup::LoadTeamPlayers(TeamsPath, Wolves, WolvesPlayers)
+        && UPSMatchSetup::LoadTeamPlayers(TeamsPath, Bears, BearsPlayers) && Match->LoadFieldPlayers(TeamsPath, Home, Away)))
+    {
+        return false;
+    }
+    TestEqual(TEXT("Every Wolf is at home"), Home.Num(), WolvesPlayers.Num());
+    TestEqual(TEXT("...and every Bear away"), Away.Num(), BearsPlayers.Num());
+    TestTrue(TEXT("...in their own rosters' order"), Home.Num() > 0 && Away.Num() > 0
+        && Home[0].PlayerId == WolvesPlayers[0].PlayerId && Away.Last().PlayerId == BearsPlayers.Last().PlayerId);
+
+    // The seats read their teams from the match: seat 1 plays home, so the Wolves.
+    UWorld* World = CreateTestWorld();
+    UPSVersusSubsystem* Versus = World ? World->GetSubsystem<UPSVersusSubsystem>() : nullptr;
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    APSPlayerController* PlayerOne = World ? World->SpawnActor<APSPlayerController>(APSPlayerController::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : nullptr;
+    APSPlayerController* PlayerTwo = World ? World->SpawnActor<APSPlayerController>(APSPlayerController::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : nullptr;
+    if (!TestTrue(TEXT("A versus subsystem and two players"), Versus && PlayerOne && PlayerTwo))
+    {
+        if (World)
+        {
+            DestroyTestWorld(World);
+        }
+        return false;
+    }
+    TestTrue(TEXT("Both players sit"), Versus->ClaimSeat(PlayerOne, 0) == 0 && Versus->ClaimSeat(PlayerTwo, 1) == 1);
+    const int32 HomeSeat = UPSVersusSubsystem::GetHomeSeatFromURL(VersusURL);
+    TestTrue(TEXT("Seat 1 home, seat 0 away"), Versus->SelectTeam(HomeSeat, EPSVersusTeam::Home) && Versus->SelectTeam(1 - HomeSeat, EPSVersusTeam::Away));
+    TestTrue(TEXT("No match handed over: no team"), Versus->GetSeatTeamId(1).IsNone());
+    Versus->SetMatchSetup(Match);
+    TestEqual(TEXT("Seat 1 plays the Wolves"), Versus->GetSeatTeamId(1), Wolves);
+    TestEqual(TEXT("Seat 0 plays the Bears"), Versus->GetSeatTeamId(0), Bears);
+    TestTrue(TEXT("The match changes its teams"), Match->SetTeams(Bears, Wolves));
+    TestEqual(TEXT("...and the seats follow, with no copy of their own"), Versus->GetSeatTeamId(1), Bears);
+
+    DestroyTestWorld(World);
     return true;
 }
 

@@ -53,6 +53,7 @@
 #include "PSLockerRoomData.h"
 #include "PSDraftData.h"
 #include "PSTrainingData.h"
+#include "PSLegacyData.h"
 #include "PSPocketComponent.h"
 #include "PSPlayerDNA.h"
 #include "PSDefenderPreSnapTypes.h"
@@ -69,6 +70,8 @@
 #include "PSDeceptionSubsystem.h"
 #include "PSPerfTypes.h"
 #include "PSPlayArtTypes.h"
+#include "PSGameIntelligenceTypes.h"
+#include "PSNarrativeTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -345,6 +348,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadTrainingTuningFromJson(const FString& JsonFilePath, FPSTrainingTuning& OutTuning);
 
+    /** Loads the league's history rules: the hall of fame's thresholds and the archived season
+     *  leaders (Data/legacy.json, Epic 94). False on a missing file, malformed JSON or an unknown
+     *  category; UPSLeagueHistory::ValidateTuning checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadLegacyTuningFromJson(const FString& JsonFilePath, FPSLegacyTuning& OutTuning);
+
     /** Loads the defense's pre-snap tuning (Data/defensive_presnap.json, Epic 67). False on a
      *  missing file or malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
@@ -419,6 +428,19 @@ public:
      *  malformed JSON. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadPlayArtStyleFromJson(const FString& JsonFilePath, FPSPlayArtStyle& OutStyle);
+
+    /** Loads the hooks for outside models (Data/game_intelligence.json, Epic 82): the game
+     *  state's budget, the play-call timeout and each request's model-router task. False on a
+     *  missing file or malformed JSON; UPSGameIntelligenceSubsystem::ValidateTuning checks the
+     *  rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadGameIntelligenceTuningFromJson(const FString& JsonFilePath, FPSGameIntelligenceTuning& OutTuning);
+
+    /** Loads the league narrative's rules, award scoring and vote (Data/league_narrative.json,
+     *  Epic 93). False on a missing file or malformed JSON; UPSLeagueNarrative::ValidateTuning
+     *  checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadNarrativeTuningFromJson(const FString& JsonFilePath, FPSNarrativeTuning& OutTuning);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

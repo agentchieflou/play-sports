@@ -59,10 +59,13 @@ HTTP server (`FAgenticLinkHttpTransport`) at `http://127.0.0.1:<port>/mcp`. It s
 when the editor is launched with `-AgenticLinkMcp` (port 8790) or `-AgenticLinkMcpPort=<port>`;
 otherwise the module just logs. Tools (`FAgenticLinkEngineTools`): `list_actors`,
 `get_property`, `set_property` (instance-editable properties), `call_function`
-(BlueprintCallable functions) and `spawn_actor`, acting on the PIE world while playing, else the
-editor level. Each edit is one `FScopedTransaction`, so Ctrl+Z undoes an agent's change. A
-request with a non-localhost `Origin` is refused; `Config/DefaultEngine.ini` binds the HTTP
-server to 127.0.0.1. Headless tests: `PlaySports.AgenticLink.*`.
+(BlueprintCallable functions, on an actor or on a world/game-instance `subsystem`) and
+`spawn_actor`, acting on the PIE world while playing, else the editor level. Each actor edit is one
+`FScopedTransaction`, so Ctrl+Z undoes an agent's change. A request with a non-localhost `Origin`
+is refused; `Config/DefaultEngine.ini` binds the HTTP server to 127.0.0.1. While it serves, the
+module is registered as the `AgenticLinkBridge` modular feature: game code gates its model hooks on
+that name with no link to the plugin (Epic 82's `UPSGameIntelligenceSubsystem`; relay:
+`python -m tools.orchestrator game-hooks`). Headless tests: `PlaySports.AgenticLink.*`.
 
 **Autonomix does nothing beyond logging a startup message**, and AgenticLink's server is off
 unless its switch is given. T3D import and the Python escape hatch are not built yet.
