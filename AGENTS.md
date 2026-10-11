@@ -128,6 +128,12 @@ Verification rules for agents:
 - The no-unverified-claims rule still applies to everything CI does not exercise: PIE behavior,
   editor-authored content, visuals, performance. Editor specs in `Specs/` remain the handoff
   for that work.
+- **Visuals are judged on real renders.** The `Render` workflow (`.github/workflows/render.yml`)
+  runs the game on the runner's GPU (`-RenderOffscreen -PSRenderCapture`) and uploads 1080p PNGs
+  from the fixed views in `Data/render_views.json`, with each view's GPU time, as the `renders`
+  artifact. It runs on PRs that touch content, config or the visual source, and by hand
+  (`workflow_dispatch`). Look at the PNGs before claiming how something looks; read the GPU times
+  beside `index.json`'s `RunnerGpuBefore`, since the runner is a shared laptop.
 
 ### Running CI's checks on a machine with UE 5.8 (Epic 24)
 
