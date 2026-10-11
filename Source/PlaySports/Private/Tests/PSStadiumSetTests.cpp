@@ -221,15 +221,15 @@ bool FPSStadiumSetBuildTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Asking again returns the same set"), Grid->SpawnStadiumSet() == Set);
 
     const TArray<FPSStadiumPiece> Pieces = APSStadiumSet::ComputePieces(PSField::GetDimensions(), APSStadiumSet::LoadStyle(APSStadiumSet::GetDefaultStylePath()));
-    auto CheckKind = [this, Set, &Pieces](EPSStadiumPieceKind Kind, const TCHAR* Name)
+    auto CheckKind = [this, Set, &Pieces](EPSStadiumPieceKind Kind, const TCHAR* Label)
     {
         UInstancedStaticMeshComponent* Mesh = Set->GetPieces(Kind);
-        if (!TestNotNull(Name, Mesh))
+        if (!TestNotNull(Label, Mesh))
         {
             return;
         }
-        TestEqual(*FString::Printf(TEXT("%s: one instance per piece"), Name), Mesh->GetInstanceCount(), PiecesOfKind(Pieces, Kind).Num());
-        TestTrue(*FString::Printf(TEXT("%s: nothing collides but the field's ground"), Name), Mesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
+        TestEqual(*FString::Printf(TEXT("%s: one instance per piece"), Label), Mesh->GetInstanceCount(), PiecesOfKind(Pieces, Kind).Num());
+        TestTrue(*FString::Printf(TEXT("%s: nothing collides but the field's ground"), Label), Mesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
     };
     CheckKind(EPSStadiumPieceKind::GoalPost, TEXT("Goal posts"));
     CheckKind(EPSStadiumPieceKind::Bench, TEXT("Benches"));
