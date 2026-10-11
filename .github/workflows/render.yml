@@ -1,0 +1,207 @@
+name: Render
+
+# Lane V1: renders the real game scene with the GPU on the self-hosted runner and uploads PNGs, so
+# visual changes are judged on images the engine drew, not on guesses.
+#
+# The game (the editor binary with -game, so nothing is cooked) opens /Game/Maps/GameMap, which
+# starts the match (Play Now's lineup: both elevens and the ball). -RenderOffscreen renders with
+# the GPU and no window. -PSRenderCapture (UPSRenderCapture) waits for the match and for shaders
+# still compiling, warms up, then puts a camera at each view in Data/render_views.json, saves
+# <ViewId>.png with its GPU time, writes index.json and exits 0 when every view has its PNG.
+# Everything lands in Saved/Renders, uploaded as the `renders` artifact with the game's log. The
+# runner is the owner's laptop, so index.json also records the GPU's state and the other processes
+# using it before and after the capture (RunnerGpuBefore/After), and gpu_samples.csv its load every
+# 5 s while the game ran: read the GPU timings beside them.
+#
+# Runs by hand (workflow_dispatch, optionally for some views only) and on a pull request that
+# changes what the renders show: content, config, the views, or the visual source (field, stadium,
+# lighting, look and render classes). The runner is shared, so other PRs don't run it.
+#
+# The exact invocation, for running it by hand on Windows from the repo root:
+#   & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$PWD\play-sports.uproject" -WaitMutex
+#   & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor.exe" "$PWD\play-sports.uproject" /Game/Maps/GameMap -game `
+#       -RenderOffscreen -windowed -ResX=1920 -ResY=1080 -PSRenderCapture -PSRenderCaptureOut="$PWD\Saved\Renders" `
+#       -nosound -unattended -nosplash -nop4
+# (add -PSRenderCaptureOnly=broadcast_wide+turf_low for some views only).
+
+on:
+  workflow_dispatch:
+    inputs:
+      views:
+        description: "ViewIds to render, joined with + (empty: every view in Data/render_views.json)"
+        type: string
+        default: ""
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/render.yml"
+      - "Content/**"
+      - "Config/**"
+      - "Data/render_views.json"
+      - "Data/field_dimensions.json"
+      - "Data/field_markings.json"
+      - "Data/platform_tiers.json"
+      - "Source/PlaySports/**/PSRenderCapture*"
+      - "Source/PlaySports/**/PSFieldSurface*"
+      - "Source/PlaySports/**/PSFieldGrid*"
+      - "Source/PlaySports/**/*Stadium*"
+      - "Source/PlaySports/**/*Lighting*"
+      - "Source/PlaySports/**/*Look*"
+
+concurrency:
+  group: render-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Render the game scene (GPU, offscreen)
+    runs-on: [self-hosted, windows, unreal]
+    timeout-minutes: 120
+    env:
+      PS_RENDER_VIEWS: ${{ inputs.views }}
+      PS_RENDER_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # /Game/Maps/GameMap is in Git LFS: without it the game would load a pointer file.
+          lfs: true
+
+      - name: Runner session and GPUs
+        # Rendering needs a GPU the runner's session can reach. A runner installed as a Windows
+        # service runs in session 0, which may have none.
+        shell: powershell
+        run: |
+          if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
+          $Identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+          $Session = (Get-Process -Id $PID).SessionId
+          Write-Host "Runner account: $Identity"
+          Write-Host "Session id: $Session (0 is the services session)"
+          Write-Host "Interactive: $([Environment]::UserInteractive)"
+          Get-CimInstance Win32_VideoController | Format-Table Name, DriverVersion, Status, CurrentHorizontalResolution, CurrentVerticalResolution -AutoSize | Out-String -Width 200 | Write-Host
+
+      - name: Build PlaySportsEditor
+        shell: powershell
+        run: |
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$env:GITHUB_WORKSPACE\play-sports.uproject" -WaitMutex
+          if ($LASTEXITCODE -ne 0) { throw "UnrealBuildTool failed with exit code $LASTEXITCODE" }
+
+      - name: Render the views
+        shell: powershell
+        run: |
+          $Project = Join-Path $env:GITHUB_WORKSPACE "play-sports.uproject"
+          $Editor = Join-Path $env:UE_ROOT "Engine\Binaries\Win64\UnrealEditor.exe"
+          $OutDir = Join-Path $env:GITHUB_WORKSPACE "Saved\Renders"
+          if (Test-Path $OutDir) { Remove-Item -Recurse -Force $OutDir }
+          New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+          $Log = Join-Path $OutDir "game.log"
+
+          # The runner is the owner's laptop: other programs may be using the GPU, so the timings are
+          # read beside what else was running. Sampled before the game starts and after it exits.
+          function Get-GpuContext {
+            $Context = [ordered]@{ SampledAt = (Get-Date).ToString("o") }
+            if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
+              $Fields = ((nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,clocks.sm --format=csv,noheader,nounits) | Select-Object -First 1) -split ',\s*'
+              if ($Fields.Count -ge 7) {
+                $Context.Gpu = $Fields[0]; $Context.UtilizationPercent = $Fields[1]; $Context.MemoryUsedMiB = $Fields[2]; $Context.MemoryTotalMiB = $Fields[3]
+                $Context.TemperatureC = $Fields[4]; $Context.PowerW = $Fields[5]; $Context.SmClockMHz = $Fields[6]
+              }
+            }
+            try {
+              # Per-process 3D engine use, every adapter, as Task Manager shows it.
+              $Samples = (Get-Counter -Counter "\GPU Engine(*engtype_3D)\Utilization Percentage" -ErrorAction Stop).CounterSamples
+              $ByProcess = @{}
+              foreach ($Sample in $Samples) {
+                if ($Sample.InstanceName -match "pid_(\d+)_" -and $Sample.CookedValue -gt 0) {
+                  $ProcessId = [int]$Matches[1]
+                  $ByProcess[$ProcessId] = $ByProcess[$ProcessId] + $Sample.CookedValue
+                }
+              }
+              $Context.Processes3D = @($ByProcess.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8 | ForEach-Object {
+                $Process = Get-Process -Id $_.Key -ErrorAction SilentlyContinue
+                [ordered]@{ Process = $(if ($Process) { $Process.ProcessName } else { "pid $($_.Key)" }); GpuPercent = [Math]::Round($_.Value, 1) }
+              })
+            } catch {
+              $Context.Processes3D = @()
+              $Context.ProcessesError = $_.Exception.Message
+            }
+            return $Context
+          }
+          function Format-GpuContext($Context) {
+            $Top = ($Context.Processes3D | ForEach-Object { "$($_.Process) $($_.GpuPercent)%" }) -join ", "
+            return "$($Context.Gpu): $($Context.UtilizationPercent)% busy, $($Context.MemoryUsedMiB)/$($Context.MemoryTotalMiB) MiB, $($Context.TemperatureC) C, $($Context.PowerW) W; 3D use by process: $(if ($Top) { $Top } else { 'none' })"
+          }
+
+          $Before = Get-GpuContext
+          Write-Host "GPU before the capture: $(Format-GpuContext $Before)"
+          $Sampler = $null
+          if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
+            # Every 5 s while the game runs (its own load included), for reading the timings.
+            $Sampler = Start-Process -FilePath "nvidia-smi" -ArgumentList @("--query-gpu=timestamp,utilization.gpu,memory.used,temperature.gpu,power.draw,clocks.sm", "--format=csv", "-l", "5") `
+              -RedirectStandardOutput (Join-Path $OutDir "gpu_samples.csv") -NoNewWindow -PassThru
+          }
+
+          $GameArgs = @("`"$Project`"", "/Game/Maps/GameMap", "-game", "-RenderOffscreen", "-windowed", "-ResX=1920", "-ResY=1080",
+            "-PSRenderCapture", "-PSRenderCaptureOut=`"$OutDir`"", "-PSRenderCaptureCommit=$env:PS_RENDER_COMMIT",
+            "-nosound", "-unattended", "-nosplash", "-nop4", "-abslog=`"$Log`"")
+          if ($env:PS_RENDER_VIEWS) { $GameArgs += "-PSRenderCaptureOnly=$env:PS_RENDER_VIEWS" }
+          Write-Host "$Editor $($GameArgs -join ' ')"
+          $Started = Get-Date
+          $Proc = Start-Process -FilePath $Editor -ArgumentList $GameArgs -PassThru
+          $null = $Proc.Handle
+          # The capture has its own limit (TotalTimeoutSeconds); this one catches a hung game.
+          if (-not $Proc.WaitForExit(80 * 60 * 1000)) {
+            Stop-Process -Id $Proc.Id -Force
+            Write-Host "::error::The game did not exit within 80 minutes"
+          }
+          $Code = $Proc.ExitCode
+          Write-Host ("The game ran {0:N0} s and exited with code {1}" -f ((Get-Date) - $Started).TotalSeconds, $Code)
+          if ($Sampler -and -not $Sampler.HasExited) { Stop-Process -Id $Sampler.Id -Force }
+          Start-Sleep -Seconds 3
+          $After = Get-GpuContext
+          Write-Host "GPU after the capture: $(Format-GpuContext $After)"
+
+          if (Test-Path $Log) {
+            Write-Host "--- RHI, GPU and capture lines from the game's log ---"
+            Select-String -Path $Log -Pattern "PSRenderCapture:|LogRHI|LogD3D12RHI|LogD3D11RHI|Adapter|Fatal error|Assertion failed" |
+              Select-Object -First 200 | ForEach-Object { Write-Host $_.Line }
+          } else {
+            Write-Host "::warning::The game wrote no log at $Log"
+          }
+
+          $IndexPath = Join-Path $OutDir "index.json"
+          if (-not (Test-Path $IndexPath)) { throw "The capture wrote no index.json (exit code $Code): see the log above" }
+          $Index = Get-Content $IndexPath -Raw | ConvertFrom-Json
+          $Index | Add-Member -NotePropertyName RunnerGpuBefore -NotePropertyValue ([pscustomobject]$Before) -Force
+          $Index | Add-Member -NotePropertyName RunnerGpuAfter -NotePropertyValue ([pscustomobject]$After) -Force
+          [System.IO.File]::WriteAllText($IndexPath, ($Index | ConvertTo-Json -Depth 8))
+
+          $Rows = @("| View | PNG | Resolution | GPU ms (mean / max) | Frame ms | Restarts |", "|---|---|---|---|---|---|")
+          foreach ($View in $Index.Views) {
+            $Rows += "| $($View.View) | $(if ($View.Written) { $View.File } else { 'missing' }) | $($View.ResolutionX)x$($View.ResolutionY) | $($View.GpuMs) / $($View.GpuMsMax) | $($View.FrameMs) | $($View.Restarts) |"
+          }
+          $Summary = @("### Render capture", "",
+            "Commit $($Index.Commit) on $($Index.Rhi), $($Index.Adapter); $($Index.PlayersOnField) players on the field; match ready after $($Index.MatchReadySeconds) s, compilation done after $($Index.CompileDoneSeconds) s.", "",
+            "GPU before: $(Format-GpuContext $Before)", "",
+            "GPU after: $(Format-GpuContext $After)", "") + $Rows
+          foreach ($Failure in $Index.Failures) { $Summary += "- $Failure"; Write-Host "::error::$Failure" }
+          $Summary | ForEach-Object { Write-Host $_ }
+          ($Summary -join "`n") | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if ($Code -ne 0 -or -not $Index.Passed) { throw "The render capture failed (exit code $Code)" }
+
+      - name: Upload renders
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: renders
+          path: Saved/Renders/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Summarize crash reports
+        if: ${{ !cancelled() }}
+        shell: powershell
+        run: python tools/crash_report.py summarize
