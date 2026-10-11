@@ -104,35 +104,43 @@ jobs:
           function Get-GpuContext {
             $Context = [ordered]@{ SampledAt = (Get-Date).ToString("o") }
             if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
-              $Fields = ((nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,clocks.sm --format=csv,noheader,nounits) | Select-Object -First 1) -split ',\s*'
-              if ($Fields.Count -ge 7) {
-                $Context.Gpu = $Fields[0]; $Context.UtilizationPercent = $Fields[1]; $Context.MemoryUsedMiB = $Fields[2]; $Context.MemoryTotalMiB = $Fields[3]
-                $Context.TemperatureC = $Fields[4]; $Context.PowerW = $Fields[5]; $Context.SmClockMHz = $Fields[6]
+              $Fields = ((nvidia-smi --query-gpu=name,utilization.gpu,utilization.encoder,utilization.decoder,memory.used,memory.total,temperature.gpu,power.draw,clocks.sm --format=csv,noheader,nounits) | Select-Object -First 1) -split ',\s*'
+              if ($Fields.Count -ge 9) {
+                $Context.Gpu = $Fields[0]; $Context.UtilizationPercent = $Fields[1]; $Context.EncoderPercent = $Fields[2]; $Context.DecoderPercent = $Fields[3]
+                $Context.MemoryUsedMiB = $Fields[4]; $Context.MemoryTotalMiB = $Fields[5]; $Context.TemperatureC = $Fields[6]; $Context.PowerW = $Fields[7]; $Context.SmClockMHz = $Fields[8]
               }
+              # CUDA work, which the 3D counters don't show.
+              $Context.ComputeApps = @(nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader 2>$null | Where-Object { $_ -and $_ -notmatch "No running" } | ForEach-Object { $_.Trim() })
             }
             try {
-              # Per-process 3D engine use, every adapter, as Task Manager shows it.
-              $Samples = (Get-Counter -Counter "\GPU Engine(*engtype_3D)\Utilization Percentage" -ErrorAction Stop).CounterSamples
+              # Per-process use of every GPU engine (3D, compute, copy, video), on every adapter, as
+              # Task Manager shows it: each process's busiest engines.
+              $Samples = (Get-Counter -Counter "\GPU Engine(*)\Utilization Percentage" -ErrorAction Stop).CounterSamples
               $ByProcess = @{}
               foreach ($Sample in $Samples) {
-                if ($Sample.InstanceName -match "pid_(\d+)_" -and $Sample.CookedValue -gt 0) {
+                if ($Sample.CookedValue -gt 0.5 -and $Sample.InstanceName -match "pid_(\d+)_.*engtype_(.+)$") {
                   $ProcessId = [int]$Matches[1]
-                  $ByProcess[$ProcessId] = $ByProcess[$ProcessId] + $Sample.CookedValue
+                  $Engine = $Matches[2]
+                  if (-not $ByProcess.ContainsKey($ProcessId)) { $ByProcess[$ProcessId] = @{} }
+                  $ByProcess[$ProcessId][$Engine] = $ByProcess[$ProcessId][$Engine] + $Sample.CookedValue
                 }
               }
-              $Context.Processes3D = @($ByProcess.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8 | ForEach-Object {
-                $Process = Get-Process -Id $_.Key -ErrorAction SilentlyContinue
-                [ordered]@{ Process = $(if ($Process) { $Process.ProcessName } else { "pid $($_.Key)" }); GpuPercent = [Math]::Round($_.Value, 1) }
+              $Context.Processes = @($ByProcess.GetEnumerator() | Sort-Object { ($_.Value.Values | Measure-Object -Maximum).Maximum } -Descending | Select-Object -First 8 | ForEach-Object {
+                $Entry = $_
+                $Process = Get-Process -Id $Entry.Key -ErrorAction SilentlyContinue
+                $Engines = ($Entry.Value.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object { "$($_.Key) $([Math]::Round($_.Value, 1))%" }) -join ", "
+                [ordered]@{ Process = $(if ($Process) { $Process.ProcessName } else { "pid $($Entry.Key)" }); Engines = $Engines }
               })
             } catch {
-              $Context.Processes3D = @()
+              $Context.Processes = @()
               $Context.ProcessesError = $_.Exception.Message
             }
             return $Context
           }
           function Format-GpuContext($Context) {
-            $Top = ($Context.Processes3D | ForEach-Object { "$($_.Process) $($_.GpuPercent)%" }) -join ", "
-            return "$($Context.Gpu): $($Context.UtilizationPercent)% busy, $($Context.MemoryUsedMiB)/$($Context.MemoryTotalMiB) MiB, $($Context.TemperatureC) C, $($Context.PowerW) W; 3D use by process: $(if ($Top) { $Top } else { 'none' })"
+            $Top = ($Context.Processes | ForEach-Object { "$($_.Process) ($($_.Engines))" }) -join "; "
+            $Cuda = ($Context.ComputeApps -join "; ")
+            return "$($Context.Gpu): $($Context.UtilizationPercent)% busy (encoder $($Context.EncoderPercent)%, decoder $($Context.DecoderPercent)%), $($Context.MemoryUsedMiB)/$($Context.MemoryTotalMiB) MiB, $($Context.TemperatureC) C, $($Context.PowerW) W; engine use by process: $(if ($Top) { $Top } else { 'none' }); CUDA apps: $(if ($Cuda) { $Cuda } else { 'none' })"
           }
 
           $Before = Get-GpuContext
@@ -181,10 +189,10 @@ jobs:
 
           $Rows = @("| View | PNG | Resolution | GPU ms (mean / max) | Frame ms | Restarts |", "|---|---|---|---|---|---|")
           foreach ($View in $Index.Views) {
-            $Rows += "| $($View.View) | $(if ($View.Written) { $View.File } else { 'missing' }) | $($View.ResolutionX)x$($View.ResolutionY) | $($View.GpuMs) / $($View.GpuMsMax) | $($View.FrameMs) | $($View.Restarts) |"
+            $Rows += ("| $($View.View) | $(if ($View.Written) { $View.File } else { 'missing' }) | $($View.ResolutionX)x$($View.ResolutionY) | {0:N2} / {1:N2} | {2:N2} | $($View.Restarts) |" -f [double]$View.GpuMs, [double]$View.GpuMsMax, [double]$View.FrameMs)
           }
           $Summary = @("### Render capture", "",
-            "Commit $($Index.Commit) on $($Index.Rhi), $($Index.Adapter); $($Index.PlayersOnField) players on the field; match ready after $($Index.MatchReadySeconds) s, compilation done after $($Index.CompileDoneSeconds) s.", "",
+            ("Commit $($Index.Commit) on $($Index.Rhi), $($Index.Adapter); $($Index.PlayersOnField) players on the field; match ready after {0:N1} s, compilation done after {1:N1} s." -f [double]$Index.MatchReadySeconds, [double]$Index.CompileDoneSeconds), "",
             "GPU before: $(Format-GpuContext $Before)", "",
             "GPU after: $(Format-GpuContext $After)", "") + $Rows
           foreach ($Failure in $Index.Failures) { $Summary += "- $Failure"; Write-Host "::error::$Failure" }
