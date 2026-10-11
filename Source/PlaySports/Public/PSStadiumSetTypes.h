@@ -4,6 +4,57 @@
 #include "CoreMinimal.h"
 #include "PSStadiumSetTypes.generated.h"
 
+/** What a piece of the stadium is: each kind is one instanced mesh in one colour. */
+UENUM(BlueprintType)
+enum class EPSStadiumPieceKind : uint8
+{
+    GoalPost,
+    GoalPostPad,
+    Ribbon,
+    Bench,
+    /** Risers, slabs, walkways, the cross-aisles and the back wall. */
+    Concrete,
+    /** The aisles' steps. */
+    Stair,
+    Seat,
+    /** The padded field wall. */
+    Wall,
+    Rail,
+    Fascia,
+    RibbonBoard,
+    Glass,
+    /** A vomitory's tunnel mouth. */
+    Portal,
+    Roof,
+    LightFixture,
+    BoardFrame,
+    BoardScreen,
+    /** The ground around the stadium. */
+    Plaza,
+    Count UMETA(Hidden)
+};
+
+/**
+ * A material for one kind of piece (Data/stadium_set.json's KindMaterials): MaterialPath, with a
+ * vector parameter named the style's ColorParameter, in place of the style's MaterialPath; and a
+ * scalar Roughness parameter set to Roughness when that is 0 or more. A kind with none, or whose
+ * material can't be loaded, keeps the style's MaterialPath.
+ */
+USTRUCT(BlueprintType)
+struct FPSStadiumKindMaterial
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
+    EPSStadiumPieceKind Kind = EPSStadiumPieceKind::Concrete;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
+    FString MaterialPath;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
+    float Roughness = -1.f;
+};
+
 /**
  * One deck of the bowl (Data/stadium_set.json's Decks): rows of seats rising away from the field
  * all the way round it. Offsets are measured outward from the field wall, which stands at the
@@ -289,6 +340,37 @@ struct FPSStadiumSetStyle
 
     FPSStadiumSetStyle()
     {
+        // The content pipeline's stadium_look materials, kind by kind (Roughness below 0: the material's own).
+        const TCHAR* const Paint = TEXT("/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint");
+        const TCHAR* const Concrete = TEXT("/Game/Stadium/Materials/M_StadiumConcrete.M_StadiumConcrete");
+        const TCHAR* const Glass = TEXT("/Game/Stadium/Materials/M_StadiumGlass.M_StadiumGlass");
+        const TCHAR* const Screen = TEXT("/Game/Stadium/Materials/M_StadiumScreen.M_StadiumScreen");
+        auto AddKind = [this](EPSStadiumPieceKind InKind, const TCHAR* InPath, float InRoughness)
+        {
+            FPSStadiumKindMaterial& Entry = KindMaterials.AddDefaulted_GetRef();
+            Entry.Kind = InKind;
+            Entry.MaterialPath = InPath;
+            Entry.Roughness = InRoughness;
+        };
+        AddKind(EPSStadiumPieceKind::GoalPost, Paint, 0.30f);
+        AddKind(EPSStadiumPieceKind::GoalPostPad, Paint, 0.70f);
+        AddKind(EPSStadiumPieceKind::Ribbon, Paint, 0.80f);
+        AddKind(EPSStadiumPieceKind::Bench, Paint, 0.50f);
+        AddKind(EPSStadiumPieceKind::Concrete, Concrete, -1.00f);
+        AddKind(EPSStadiumPieceKind::Stair, Concrete, -1.00f);
+        AddKind(EPSStadiumPieceKind::Seat, Paint, 0.35f);
+        AddKind(EPSStadiumPieceKind::Wall, Paint, 0.70f);
+        AddKind(EPSStadiumPieceKind::Rail, Paint, 0.30f);
+        AddKind(EPSStadiumPieceKind::Fascia, Paint, 0.45f);
+        AddKind(EPSStadiumPieceKind::RibbonBoard, Screen, -1.00f);
+        AddKind(EPSStadiumPieceKind::Glass, Glass, -1.00f);
+        AddKind(EPSStadiumPieceKind::Portal, Paint, 0.90f);
+        AddKind(EPSStadiumPieceKind::Roof, Concrete, -1.00f);
+        AddKind(EPSStadiumPieceKind::LightFixture, Paint, 0.25f);
+        AddKind(EPSStadiumPieceKind::BoardFrame, Paint, 0.40f);
+        AddKind(EPSStadiumPieceKind::BoardScreen, Screen, -1.00f);
+        AddKind(EPSStadiumPieceKind::Plaza, Concrete, -1.00f);
+
         FPSStadiumDeck Lower;
         Lower.VomitoryEverySections = 3;
         Decks.Add(Lower);
@@ -321,6 +403,11 @@ struct FPSStadiumSetStyle
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
     FName ColorParameter = TEXT("Color");
+
+    /** The materials of the kinds that don't use MaterialPath (the content pipeline's stadium_look
+     *  step makes them). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
+    TArray<FPSStadiumKindMaterial> KindMaterials;
 
     /** The goal posts (NFL): the crossbar 10 ft up over the end line, uprights 18 ft 6 in apart
      *  rising 35 ft above it, on a base post set back behind the end line with a neck reaching
@@ -395,36 +482,6 @@ struct FPSStadiumSetStyle
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
     FPSStadiumStructures Structures;
-};
-
-/** What a piece of the stadium is: each kind is one instanced mesh in one colour. */
-UENUM(BlueprintType)
-enum class EPSStadiumPieceKind : uint8
-{
-    GoalPost,
-    GoalPostPad,
-    Ribbon,
-    Bench,
-    /** Risers, slabs, walkways, the cross-aisles and the back wall. */
-    Concrete,
-    /** The aisles' steps. */
-    Stair,
-    Seat,
-    /** The padded field wall. */
-    Wall,
-    Rail,
-    Fascia,
-    RibbonBoard,
-    Glass,
-    /** A vomitory's tunnel mouth. */
-    Portal,
-    Roof,
-    LightFixture,
-    BoardFrame,
-    BoardScreen,
-    /** The ground around the stadium. */
-    Plaza,
-    Count UMETA(Hidden)
 };
 
 /** One piece of the set: a box, or a cylinder along its local Z, placed and sized in world cm. */

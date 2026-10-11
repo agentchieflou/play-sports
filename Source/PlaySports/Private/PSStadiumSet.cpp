@@ -640,6 +640,20 @@ TArray<FString> APSStadiumSet::ValidateStyle(const FPSStadiumSetStyle& Style)
     {
         Problems.Add(TEXT("Decks must hold at least one deck"));
     }
+    TSet<uint8> Overridden;
+    for (int32 Index = 0; Index < Style.KindMaterials.Num(); ++Index)
+    {
+        const FPSStadiumKindMaterial& Override = Style.KindMaterials[Index];
+        if (!Override.MaterialPath.StartsWith(TEXT("/")) || Overridden.Contains(static_cast<uint8>(Override.Kind)) || Override.Kind == EPSStadiumPieceKind::Count)
+        {
+            Problems.Add(FString::Printf(TEXT("KindMaterials[%d]: a kind once, with an asset path"), Index));
+        }
+        if (Override.Roughness > 1.f)
+        {
+            Problems.Add(FString::Printf(TEXT("KindMaterials[%d]: Roughness must be 1 or less (below 0 leaves the material's own)"), Index));
+        }
+        Overridden.Add(static_cast<uint8>(Override.Kind));
+    }
     TSet<FName> DeckIds;
     for (int32 Index = 0; Index < Style.Decks.Num(); ++Index)
     {
@@ -931,8 +945,22 @@ bool APSStadiumSet::Build(const FPSFieldDimensions& Dimensions, const FPSStadium
         {
             UPSUITeamCatalog::ParseHexColor(*Colors[Index], Color);
         }
-        UMaterialInstanceDynamic* Instance = UMaterialInstanceDynamic::Create(Material, this);
+        // The kind's own material when the data names one that loads, else the style's.
+        UMaterialInterface* KindMaterial = Material;
+        const FPSStadiumKindMaterial* Override = Style.KindMaterials.FindByPredicate([Kind](const FPSStadiumKindMaterial& Entry) { return Entry.Kind == Kind; });
+        if (Override)
+        {
+            if (UMaterialInterface* Loaded = LoadAsset<UMaterialInterface>(Override->MaterialPath, TEXT("piece material")))
+            {
+                KindMaterial = Loaded;
+            }
+        }
+        UMaterialInstanceDynamic* Instance = UMaterialInstanceDynamic::Create(KindMaterial, this);
         Instance->SetVectorParameterValue(Style.ColorParameter, Color);
+        if (Override && KindMaterial != Material && Override->Roughness >= 0.f)
+        {
+            Instance->SetScalarParameterValue(TEXT("Roughness"), Override->Roughness);
+        }
         Materials.Add(Instance);
         Pieces->ClearInstances();
         Pieces->SetStaticMesh(bCylinder ? CylinderMesh : BoxMesh);

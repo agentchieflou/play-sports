@@ -1,0 +1,18 @@
+The stadium bowl's concrete (lane V3). Made by tools/assets/stadium/fetch_stadium_assets.py.
+
+T_Concrete_Color.jpg, T_Concrete_Normal.jpg and T_Concrete_ARM.jpg are from Poly Haven
+(polyhaven.com), released under CC0 1.0 Universal (creativecommons.org/publicdomain/zero/1.0/):
+dedicated to the public domain, free to use, change and redistribute for any purpose, with no
+attribution required. They are credited here anyway.
+
+File(s)                  Poly Haven asset           Author(s)                                     What was done
+T_Concrete_Color.jpg     Concrete Floor Worn 001    Dimitrios Savva (photography),                Kept byte for byte (concrete_floor_worn_001_diff_2k.jpg)
+                                                    Rico Cilliers (processing)
+T_Concrete_Normal.jpg    Concrete Floor Worn 001    the same                                      Kept byte for byte (_nor_dx_2k.jpg, DirectX convention)
+T_Concrete_ARM.jpg       Concrete Floor Worn 001    the same                                      Kept byte for byte (_arm_2k.jpg: R occlusion, G roughness, B metalness)
+
+The asset's page is polyhaven.com/a/concrete_floor_worn_001. Each file was checked against the md5
+Poly Haven's API published for it, pinned in the script.
+
+concrete.json is this repository's own (the colour map's mean linear colour and the texture's size
+in the world), under the repository's licence.

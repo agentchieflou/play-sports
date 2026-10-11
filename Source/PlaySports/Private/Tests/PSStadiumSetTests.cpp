@@ -140,6 +140,18 @@ bool FPSStadiumSetDataTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("BenchDepthYards"), Loaded.BenchDepthYards, Defaults.BenchDepthYards);
     TestEqual(TEXT("BenchHeightYards"), Loaded.BenchHeightYards, Defaults.BenchHeightYards);
 
+    if (TestEqual(TEXT("KindMaterials"), Loaded.KindMaterials.Num(), Defaults.KindMaterials.Num()))
+    {
+        for (int32 Index = 0; Index < Loaded.KindMaterials.Num(); ++Index)
+        {
+            const FPSStadiumKindMaterial& Entry = Loaded.KindMaterials[Index];
+            const FPSStadiumKindMaterial& DefaultEntry = Defaults.KindMaterials[Index];
+            TestTrue(*FString::Printf(TEXT("KindMaterials[%d].Kind"), Index), Entry.Kind == DefaultEntry.Kind);
+            TestEqual(*FString::Printf(TEXT("KindMaterials[%d].MaterialPath"), Index), Entry.MaterialPath, DefaultEntry.MaterialPath);
+            TestEqual(*FString::Printf(TEXT("KindMaterials[%d].Roughness"), Index), Entry.Roughness, DefaultEntry.Roughness);
+        }
+    }
+
     const FPSStadiumBowl& Bowl = Loaded.Bowl;
     const FPSStadiumBowl& DefaultBowl = Defaults.Bowl;
     TestEqual(TEXT("Bowl.WallOffsetCm"), Bowl.WallOffsetCm, DefaultBowl.WallOffsetCm);

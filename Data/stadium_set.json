@@ -4,6 +4,98 @@
     "MeshSizeCm": 100.0,
     "MaterialPath": "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
     "ColorParameter": "Color",
+    "KindMaterials": [
+        {
+            "Kind": "GoalPost",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.3
+        },
+        {
+            "Kind": "GoalPostPad",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.7
+        },
+        {
+            "Kind": "Ribbon",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.8
+        },
+        {
+            "Kind": "Bench",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.5
+        },
+        {
+            "Kind": "Concrete",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumConcrete.M_StadiumConcrete",
+            "Roughness": -1.0
+        },
+        {
+            "Kind": "Stair",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumConcrete.M_StadiumConcrete",
+            "Roughness": -1.0
+        },
+        {
+            "Kind": "Seat",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.35
+        },
+        {
+            "Kind": "Wall",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.7
+        },
+        {
+            "Kind": "Rail",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.3
+        },
+        {
+            "Kind": "Fascia",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.45
+        },
+        {
+            "Kind": "RibbonBoard",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumScreen.M_StadiumScreen",
+            "Roughness": -1.0
+        },
+        {
+            "Kind": "Glass",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumGlass.M_StadiumGlass",
+            "Roughness": -1.0
+        },
+        {
+            "Kind": "Portal",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.9
+        },
+        {
+            "Kind": "Roof",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumConcrete.M_StadiumConcrete",
+            "Roughness": -1.0
+        },
+        {
+            "Kind": "LightFixture",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.25
+        },
+        {
+            "Kind": "BoardFrame",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumPaint.M_StadiumPaint",
+            "Roughness": 0.4
+        },
+        {
+            "Kind": "BoardScreen",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumScreen.M_StadiumScreen",
+            "Roughness": -1.0
+        },
+        {
+            "Kind": "Plaza",
+            "MaterialPath": "/Game/Stadium/Materials/M_StadiumConcrete.M_StadiumConcrete",
+            "Roughness": -1.0
+        }
+    ],
     "GoalPostColor": "#F2C230",
     "CrossbarHeightYards": 3.3333,
     "CrossbarWidthYards": 6.1667,

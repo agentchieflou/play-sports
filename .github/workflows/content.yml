@@ -41,12 +41,14 @@ on:
       - .github/workflows/content.yml
       - tools/content_pipeline/**
       - Content/**
+      - RawAssets/stadium/**
   push:
     branches: [main]
     paths:
       - .github/workflows/content.yml
       - tools/content_pipeline/**
       - Content/**
+      - RawAssets/stadium/**
 
 concurrency:
   group: content-${{ github.ref }}

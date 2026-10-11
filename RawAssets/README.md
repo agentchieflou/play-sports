@@ -7,6 +7,7 @@ provenance-tracked input to it.
 
 | Folder | What | Licence |
 |---|---|---|
+| `stadium/` | the stadium bowl's CC0 concrete (Poly Haven, 2K), fetched by `tools/assets/stadium/fetch_stadium_assets.py` and imported by the content pipeline's `stadium_look` step | CC0, `stadium/concrete/LICENSE` |
 | `world/` | the "world kit" brought over from `agentchieflou/this-next-please` on 2026-10-08: CC0 Poly Haven materials, skies and props; a CC0 MakeHuman player character and crowd on the Unreal body skeleton; procedurally grown trees, cars and office furniture; and the browser reference implementation | per subfolder `LICENSE` (CC0, or this repository's MIT) |
 
 Rules:

@@ -12,6 +12,23 @@
             "Outputs": [
                 "Content/Maps/GameMap.umap"
             ]
+        },
+        {
+            "Id": "stadium_look",
+            "Description": "The stadium's look (lane V3): the CC0 concrete imported from RawAssets/stadium, and the world-aligned concrete (M_StadiumConcrete), paint (M_StadiumPaint), glass (M_StadiumGlass) and screen (M_StadiumScreen) materials that APSStadiumSet names per kind of piece in Data/stadium_set.json's KindMaterials.",
+            "Script": "tools/content_pipeline/steps/stadium_look.py",
+            "Inputs": [
+                "RawAssets/stadium"
+            ],
+            "Outputs": [
+                "Content/Stadium/Textures/T_Concrete_Color.uasset",
+                "Content/Stadium/Textures/T_Concrete_Normal.uasset",
+                "Content/Stadium/Textures/T_Concrete_ARM.uasset",
+                "Content/Stadium/Materials/M_StadiumConcrete.uasset",
+                "Content/Stadium/Materials/M_StadiumPaint.uasset",
+                "Content/Stadium/Materials/M_StadiumGlass.uasset",
+                "Content/Stadium/Materials/M_StadiumScreen.uasset"
+            ]
         }
     ]
 }

@@ -2311,6 +2311,10 @@ STADIUM_SET_POSITIVE = ("MeshSizeCm", "CrossbarHeightYards", "CrossbarWidthYards
                         "GoalPostPadDiameterYards", "RibbonLengthYards", "RibbonWidthYards", "BenchDepthYards",
                         "BenchHeightYards")
 STADIUM_SET_NON_NEGATIVE = ("BenchDistanceYards", "BenchFromYardLine", "BenchToYardLine")
+# EPSStadiumPieceKind: what a piece of the stadium is (KindMaterials names them).
+STADIUM_PIECE_KINDS = ("GoalPost", "GoalPostPad", "Ribbon", "Bench", "Concrete", "Stair", "Seat", "Wall", "Rail",
+                       "Fascia", "RibbonBoard", "Glass", "Portal", "Roof", "LightFixture", "BoardFrame", "BoardScreen",
+                       "Plaza")
 STADIUM_BOWL_COLORS = ("ConcreteColor", "StairColor", "SeatColor", "WallColor", "RailColor", "FasciaColor",
                        "RibbonBoardColor", "GlassColor", "PortalColor", "RoofColor", "FixtureColor",
                        "BoardFrameColor", "BoardScreenColor", "PlazaColor")
@@ -2356,10 +2360,30 @@ def validate_stadium_set(path, payload):
     if is_number(start) and is_number(end) and start >= end:
         err(path, f"BenchFromYardLine ({start}) must be before BenchToYardLine ({end})")
     known = set(STADIUM_SET_PATHS) | set(STADIUM_SET_COLORS) | set(STADIUM_SET_POSITIVE) \
-        | set(STADIUM_SET_NON_NEGATIVE) | {"ColorParameter", "Bowl", "Decks", "Structures"}
+        | set(STADIUM_SET_NON_NEGATIVE) | {"ColorParameter", "KindMaterials", "Bowl", "Decks", "Structures"}
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSStadiumSetStyle exactly")
+    kinds = set()
+    overrides = payload.get("KindMaterials")
+    if not isinstance(overrides, list):
+        err(path, "KindMaterials must be an array (FPSStadiumKindMaterial)")
+        overrides = []
+    for idx, entry in enumerate(overrides):
+        where = f"KindMaterials[{idx}]"
+        if not isinstance(entry, dict) or set(entry) - {"Kind", "MaterialPath", "Roughness"}:
+            err(path, f"{where}: must be an object with Kind, MaterialPath and Roughness")
+            continue
+        kind = entry.get("Kind")
+        if kind not in STADIUM_PIECE_KINDS or kind in kinds:
+            err(path, f"{where}.Kind: '{kind}' must be a piece kind ({', '.join(STADIUM_PIECE_KINDS)}), once")
+        kinds.add(kind)
+        material = entry.get("MaterialPath")
+        if not isinstance(material, str) or not material.startswith("/"):
+            err(path, f"{where}.MaterialPath: '{material}' must be an asset path")
+        roughness = entry.get("Roughness")
+        if not is_number(roughness) or roughness > 1:
+            err(path, f"{where}.Roughness: '{roughness}' must be a number, 1 or less (below 0 leaves the material's own)")
 
     bowl = payload.get("Bowl")
     if not isinstance(bowl, dict):

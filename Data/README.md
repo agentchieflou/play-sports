@@ -2160,6 +2160,11 @@ strip per run of seats with no shadows (`Reduced`).
 
 - `BoxMeshPath`, `CylinderMeshPath` (axis up), both `MeshSizeCm` across and tall at scale 1 and
   centred on their pivots; `MaterialPath` with a vector parameter `ColorParameter`.
+- `KindMaterials` (`FPSStadiumKindMaterial`): a material for a kind of piece (`Kind`, an
+  `EPSStadiumPieceKind` name, once each) in place of `MaterialPath`: `MaterialPath` (with the same
+  colour parameter) and, when `Roughness` is 0 or more (1 at most), its scalar `Roughness`. The
+  content pipeline's `stadium_look` step makes them under `/Game/Stadium/Materials`; a kind whose
+  material can't be loaded keeps `MaterialPath`.
 - Goal posts (`GoalPostColor`), one on each end line: the crossbar `CrossbarHeightYards` up and
   `CrossbarWidthYards` wide, uprights rising `UprightHeightYards` above it, all
   `PostDiameterYards` thick, on a base post `BasePostDiameterYards` thick set `BaseSetbackYards`
