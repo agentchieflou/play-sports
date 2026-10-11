@@ -79,6 +79,7 @@ namespace PSDataPathsPrivate
         TEXT("Data/player_progression.json"),
         TEXT("Data/pocket_tuning.json"),
         TEXT("Data/presnap_tuning.json"),
+        TEXT("Data/render_views.json"),
         TEXT("Data/replay.json"),
         TEXT("Data/route_running.json"),
         TEXT("Data/run_fits.json"),
