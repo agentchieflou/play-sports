@@ -40,9 +40,9 @@ established: `Specs/` job specs + escalation, code-side never stalls. Architectu
 **Goal:** Tens of thousands of visible spectators at acceptable cost — instanced, LOD'd, animated.
 **Depends on:** Core 2
 
-- [ ] Instanced crowd placement across seating geometry with density control
-- [ ] LOD ladder: animated near-field, impostor mid, texture far
-- [ ] Team-color outfitting distribution (home majority, away pockets)
+- [x] Instanced crowd placement across seating geometry with density control *(as built (lane V3): `UPSCrowdRenderComponent`, which `APSStadiumSet` owns, seats a fan in the tier's `CrowdDensity` of the bowl's seats (`Data/platform_tiers.json`: 0.93 on PC, 0.6 on iPhone), chosen by a fixed seed, as one instanced mesh per shirt colour and per skin tone: tens of thousands of fans in about fifteen draw calls. The seats are the stadium set's, computed from `Data/stadium_set.json`; the look is `Data/crowd_look.json`. Fans stand as `UPSCrowdExcitementSubsystem`'s excitement reaches each one's threshold, at the tier's `CrowdUpdateHz`. Tests: `PlaySports.Crowd.LookData`, `.FillsTheSeats`, `.StandsWithExcitement`)*
+- [ ] LOD ladder: animated near-field, impostor mid, texture far *(in part: the tier's `CrowdDetail` draws each fan as a torso and head (PC) or one card (phones). Open: animated near-field fans (the CC0 `standin_crowd.glb` once #203 imports it, baked with AnimToTexture), impostors)*
+- [x] Team-color outfitting distribution (home majority, away pockets) *(as built: the home share is the match's (`UPSCrowdExcitementSubsystem::GetHomeShare`); `AwayPocketShare` of the away fans fill whole sections nearest a spot in the data, the rest scatter; shirts are the team's primary, secondary, white or a neutral by data shares, in the team identity data's colours, recoloured when the match's teams are known. Test: `PlaySports.Crowd.TeamColors`)*
 - [ ] Performance budget validation at full occupancy
 
 ### Epic 49: Crowd Behavior & Emotion Model
@@ -84,7 +84,7 @@ established: `Specs/` job specs + escalation, code-side never stalls. Architectu
 **Goal:** A modular kit builds distinct venues — bowl shapes, deck configurations, open/closed corners, roofs — instead of one stadium.
 **Depends on:** Core 2, 46
 
-- [ ] Modular seating/deck/concourse component spec
+- [x] Modular seating/deck/concourse component spec *(as built (lane V3), as data rather than a document: `Data/stadium_set.json`'s `Bowl` (the plan, sections, aisles, seats, wall), `Decks` (rows, rake, slab or solid, fascia, vomitories) and `Structures` (cross-aisles, suites, press box, ribbon boards, back wall, canopy, light banks, video boards), which `APSStadiumSet` builds at runtime on the field's frame; per-tier detail in `platform_tiers.json`. Tests: `PlaySports.Field.StadiumSetData`, `.StadiumBowlLayout`, `.StadiumSetBuilds`)*
 - [ ] Three distinct assembled venues proving the kit's range (open-air, dome, historic bowl)
 - [ ] Venue data asset: capacity, orientation, surface, lighting rig, acoustics profile (Track H)
 - [ ] Skybox/surroundings treatment per venue (city skyline, parking sea, waterfront)
