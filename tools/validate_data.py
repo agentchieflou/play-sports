@@ -121,11 +121,14 @@ against FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): the field'
 material named, #RRGGBB colors, positive line sizes and spacings. "PressedOpacity" files against
 FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1, #RRGGBB
 colors, positive sizes. "CrossbarHeightYards" files against FPSStadiumSetStyle
-(Data/stadium_set.json, Epic 147.1): meshes and material named, #RRGGBB colors, positive sizes,
-a bench span that runs forward. "BallColor" files against FPSBallLookStyle (Data/ball_look.json,
+(Data/stadium_set.json, Epics 147.1 and 52): meshes and material named, #RRGGBB colors, positive
+sizes, a bench span that runs forward, and a bowl whose decks each hold a seat, stack above and
+behind one another and fit their vomitories. "BallColor" files against FPSBallLookStyle (Data/ball_look.json,
 Epic 147.4): mesh and material named, a #RRGGBB color, positive sizes. "FallbackMeshPath" files
 against FPSCharacterLookStyle (Data/character_look.json, Epic 147.2): the character mesh empty or
-an asset path, its colour slots named, the fallback body's assets, a #RRGGBB neutral color. Teams,
+an asset path, its colour slots named, the fallback body's assets, a #RRGGBB neutral color.
+"SkinTones" files against FPSCrowdLookStyle (Data/crowd_look.json, Epic 48): the fan mesh and
+material named, #RRGGBB palettes, positive sizes, shares from 0 to 1 that fit together. Teams,
 the league config, the playbook, player rating ranges and every reference between files are
 tools/content_contracts.py's (Epic 125), run from here.
 
@@ -702,6 +705,9 @@ def project_device_profiles():
 TIER_TELEMETRY_NUMBERS = ("TelemetrySampleRateHz", "TelemetrySampleBudgetMs")
 # EPSOverlayDetail: how much broadcast overlay a tier draws (Track A).
 OVERLAY_DETAILS = {"Full", "Simplified", "Minimal"}
+# EPSCrowdDetail and EPSStadiumDetail: how a tier draws the crowd and builds the stadium (lane V3).
+CROWD_DETAILS = {"Figures", "Cards", "None"}
+STADIUM_DETAILS = {"Full", "Reduced"}
 
 
 PERF_SYSTEMS = ("Simulation", "AI", "Telemetry", "Overlays", "UI", "Animation", "Crowd", "Audio")
@@ -784,10 +790,18 @@ def validate_platform_tiers(path, payload):
         voices = tier.get("AudioMaxVoices")
         if not isinstance(voices, int) or isinstance(voices, bool) or voices < 1:
             err(path, f"{where}.AudioMaxVoices: '{voices}' must be a whole number, 1 or more")
+        density = tier.get("CrowdDensity")
+        if not is_number(density) or not 0 <= density <= 1:
+            err(path, f"{where}.CrowdDensity: '{density}' must be a number from 0 to 1")
+        if tier.get("CrowdDetail") not in CROWD_DETAILS:
+            err(path, f"{where}.CrowdDetail: '{tier.get('CrowdDetail')}' must be one of {sorted(CROWD_DETAILS)}")
+        if tier.get("StadiumDetail") not in STADIUM_DETAILS:
+            err(path, f"{where}.StadiumDetail: '{tier.get('StadiumDetail')}' must be one of {sorted(STADIUM_DETAILS)}")
         validate_system_budgets(path, where, tier)
         extra = set(tier) - {"TierId", "Description", "DeviceProfile", "AIDecisionInterval", "OverlayDetail",
                              "ReplayPoseRateHz", "TargetFrameRate", "SystemBudgets", "PlayArtRefreshHz",
-                             "AudioUpdateHz", "AudioMaxVoices", "CrowdUpdateHz", *TIER_TELEMETRY_NUMBERS}
+                             "AudioUpdateHz", "AudioMaxVoices", "CrowdUpdateHz", "CrowdDensity", "CrowdDetail",
+                             "StadiumDetail", *TIER_TELEMETRY_NUMBERS}
         if extra:
             err(path, f"{where}: unknown field(s) {sorted(extra)}")
     if payload.get("DefaultTier") not in ids:
@@ -2202,16 +2216,36 @@ def validate_field_markings(path, payload):
 
 
 STADIUM_SET_PATHS = ("BoxMeshPath", "CylinderMeshPath", "MaterialPath")
-STADIUM_SET_COLORS = ("GoalPostColor", "BenchColor", "StandColor", "StandAltColor")
+STADIUM_SET_COLORS = ("GoalPostColor", "GoalPostPadColor", "RibbonColor", "BenchColor")
 STADIUM_SET_POSITIVE = ("MeshSizeCm", "CrossbarHeightYards", "CrossbarWidthYards", "UprightHeightYards",
-                        "PostDiameterYards", "BasePostDiameterYards", "BaseSetbackYards", "BenchDepthYards",
-                        "BenchHeightYards", "StandTierDepthYards", "StandTierRiseYards")
-STADIUM_SET_NON_NEGATIVE = ("BenchDistanceYards", "StandGapYards", "BenchFromYardLine", "BenchToYardLine")
+                        "PostDiameterYards", "BasePostDiameterYards", "BaseSetbackYards", "GoalPostPadHeightYards",
+                        "GoalPostPadDiameterYards", "RibbonLengthYards", "RibbonWidthYards", "BenchDepthYards",
+                        "BenchHeightYards")
+STADIUM_SET_NON_NEGATIVE = ("BenchDistanceYards", "BenchFromYardLine", "BenchToYardLine")
+STADIUM_BOWL_COLORS = ("ConcreteColor", "StairColor", "SeatColor", "WallColor", "RailColor", "FasciaColor",
+                       "RibbonBoardColor", "GlassColor", "PortalColor", "RoofColor", "FixtureColor",
+                       "BoardFrameColor", "BoardScreenColor")
+STADIUM_BOWL_POSITIVE = ("CornerRadiusCm", "SectionWidthCm", "AisleWidthCm", "MaxSegmentCm", "SeatPitchCm",
+                         "SeatWidthCm", "SeatDepthCm", "SeatHeightCm", "SeatBackHeightCm", "SeatSetbackCm",
+                         "WallHeightCm", "WallThicknessCm", "WalkwayHeightCm", "RailHeightCm")
+STADIUM_DECK_FIELDS = ("DeckId", "FrontOffsetCm", "FrontHeightCm", "Rows", "RowDepthCm", "RowRiseCm", "SlabCm",
+                       "FasciaHeightCm", "ParapetHeightCm", "VomitoryEverySections", "VomitoryFirstRow",
+                       "VomitoryRows", "VomitoryWidthCm")
+STADIUM_STRUCTURES_POSITIVE = ("BackWallHeightCm", "BackWallThicknessCm", "CanopyThicknessCm", "LightBankSpacingCm",
+                               "LightBankWidthCm", "LightBankHeightCm")
+STADIUM_STRUCTURES_NON_NEGATIVE = ("CrossAisleCm", "SuiteGlassHeightCm", "SuiteFloorCm", "RibbonHeightCm",
+                                   "CanopyDepthCm", "CanopyHeightCm", "LightBankTiltDegrees", "PressBoxLengthCm",
+                                   "PressBoxHeightCm", "PressBoxDepthCm", "VideoBoardWidthCm", "VideoBoardHeightCm",
+                                   "VideoBoardLiftCm", "VideoBoardBezelCm")
+
+
+def _whole(value, least):
+    return isinstance(value, int) and not isinstance(value, bool) and value >= least
 
 
 def validate_stadium_set(path, payload):
-    """FPSStadiumSetStyle (Data/stadium_set.json, Epic 147.1): how APSStadiumSet builds the goal
-    posts, benches and stands; mirrors APSStadiumSet::ValidateStyle."""
+    """FPSStadiumSetStyle (Data/stadium_set.json, Epics 147.1 and 52): how APSStadiumSet builds the
+    goal posts, benches and bowl; mirrors APSStadiumSet::ValidateStyle."""
     for field in STADIUM_SET_PATHS:
         value = payload.get(field)
         if not isinstance(value, str) or not value.startswith("/"):
@@ -2232,16 +2266,165 @@ def validate_stadium_set(path, payload):
     start, end = payload.get("BenchFromYardLine"), payload.get("BenchToYardLine")
     if is_number(start) and is_number(end) and start >= end:
         err(path, f"BenchFromYardLine ({start}) must be before BenchToYardLine ({end})")
-    tiers = payload.get("StandTiers")
-    if not isinstance(tiers, int) or isinstance(tiers, bool) or tiers < 0:
-        err(path, f"StandTiers: '{tiers}' must be a whole number, 0 or more")
-    if not isinstance(payload.get("bCastShadows"), bool):
-        err(path, "bCastShadows must be true or false")
     known = set(STADIUM_SET_PATHS) | set(STADIUM_SET_COLORS) | set(STADIUM_SET_POSITIVE) \
-        | set(STADIUM_SET_NON_NEGATIVE) | {"ColorParameter", "StandTiers", "bCastShadows"}
+        | set(STADIUM_SET_NON_NEGATIVE) | {"ColorParameter", "Bowl", "Decks", "Structures"}
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSStadiumSetStyle exactly")
+
+    bowl = payload.get("Bowl")
+    if not isinstance(bowl, dict):
+        err(path, "Bowl must be an object (FPSStadiumBowl)")
+        bowl = {}
+    for field in STADIUM_BOWL_COLORS:
+        if not isinstance(bowl.get(field), str) or not HEX_COLOR.match(bowl[field]):
+            err(path, f"Bowl.{field}: '{bowl.get(field)}' must be #RRGGBB")
+    for field in STADIUM_BOWL_POSITIVE:
+        value = bowl.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"Bowl.{field}: '{value}' must be a number above 0")
+    if not is_number(bowl.get("WallOffsetCm")) or bowl["WallOffsetCm"] < 0:
+        err(path, f"Bowl.WallOffsetCm: '{bowl.get('WallOffsetCm')}' must be a number, 0 or more")
+    if not _whole(bowl.get("CornerSections"), 1):
+        err(path, f"Bowl.CornerSections: '{bowl.get('CornerSections')}' must be a whole number, 1 or more")
+    if is_number(bowl.get("SeatWidthCm")) and is_number(bowl.get("SeatPitchCm")) and bowl["SeatWidthCm"] > bowl["SeatPitchCm"]:
+        err(path, "Bowl.SeatWidthCm must fit within Bowl.SeatPitchCm")
+    extra = set(bowl) - set(STADIUM_BOWL_COLORS) - set(STADIUM_BOWL_POSITIVE) - {"WallOffsetCm", "CornerSections"}
+    if extra:
+        err(path, f"Bowl: unknown field(s) {sorted(extra)} - names must match FPSStadiumBowl exactly")
+
+    decks = payload.get("Decks")
+    if not isinstance(decks, list) or not decks:
+        err(path, "Decks must be a non-empty array (FPSStadiumDeck)")
+        decks = []
+    numbers_ok = all(is_number(bowl.get(f)) for f in ("WallThicknessCm", "SeatSetbackCm", "SeatDepthCm", "AisleWidthCm", "SectionWidthCm"))
+    ids = set()
+    below = None
+    for idx, deck in enumerate(decks):
+        where = f"Decks[{idx}]"
+        if not isinstance(deck, dict):
+            err(path, f"{where}: must be an object")
+            below = None
+            continue
+        extra = set(deck) - set(STADIUM_DECK_FIELDS)
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSStadiumDeck exactly")
+        deck_id = deck.get("DeckId")
+        if not isinstance(deck_id, str) or not deck_id or deck_id in ids:
+            err(path, f"{where}.DeckId: empty or used twice")
+        ids.add(deck_id)
+        numbers = {f: deck.get(f) for f in STADIUM_DECK_FIELDS if f != "DeckId"}
+        if not all(is_number(v) for v in numbers.values()):
+            err(path, f"{where}: every field but DeckId must be a number")
+            below = None
+            continue
+        if not _whole(deck["Rows"], 1) or deck["RowDepthCm"] <= 0 or deck["RowRiseCm"] <= 0 or deck["FrontHeightCm"] <= 0:
+            err(path, f"{where}: Rows, RowDepthCm, RowRiseCm and FrontHeightCm must be above 0 (Rows a whole number)")
+        if numbers_ok and deck["RowDepthCm"] < bowl["SeatSetbackCm"] + bowl["SeatDepthCm"] * 0.5:
+            err(path, f"{where}.RowDepthCm must hold a seat at Bowl.SeatSetbackCm")
+        if (numbers_ok and deck["FrontOffsetCm"] < bowl["WallThicknessCm"]) or deck["SlabCm"] < 0 \
+                or deck["FasciaHeightCm"] < 0 or deck["ParapetHeightCm"] < 0:
+            err(path, f"{where}: FrontOffsetCm must clear the field wall; SlabCm, FasciaHeightCm and ParapetHeightCm must be 0 or more")
+        if idx == 0 and deck["SlabCm"] > 0:
+            err(path, "Decks[0]: the lower bowl stands on the ground: SlabCm must be 0")
+        if below is not None:
+            below_top = below["FrontHeightCm"] + (below["Rows"] - 1) * below["RowRiseCm"]
+            if not deck["FrontHeightCm"] - deck["RowRiseCm"] - deck["SlabCm"] - deck["FasciaHeightCm"] > below_top:
+                err(path, f"{where}: its fascia's bottom must clear the top row of the deck below")
+            if not deck["FrontOffsetCm"] > below["FrontOffsetCm"]:
+                err(path, f"{where}: it must start behind the deck below's front")
+        every, first, rows = deck["VomitoryEverySections"], deck["VomitoryFirstRow"], deck["VomitoryRows"]
+        if not (_whole(every, 0) and _whole(first, 0) and _whole(rows, 0)) or deck["VomitoryWidthCm"] < 0:
+            err(path, f"{where}: the vomitory numbers must be 0 or more (whole numbers but the width)")
+        elif every > 0 and (first + rows >= deck["Rows"] or (numbers_ok and deck["VomitoryWidthCm"] + bowl["AisleWidthCm"] >= bowl["SectionWidthCm"])):
+            err(path, f"{where}: a vomitory must end before the deck's last row and fit in a section")
+        below = deck
+
+    structures = payload.get("Structures")
+    if not isinstance(structures, dict):
+        err(path, "Structures must be an object (FPSStadiumStructures)")
+        structures = {}
+    for field in STADIUM_STRUCTURES_POSITIVE:
+        value = structures.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"Structures.{field}: '{value}' must be a number above 0")
+    for field in STADIUM_STRUCTURES_NON_NEGATIVE:
+        value = structures.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"Structures.{field}: '{value}' must be a number, 0 or more")
+    if not _whole(structures.get("SuiteLevels"), 0):
+        err(path, f"Structures.SuiteLevels: '{structures.get('SuiteLevels')}' must be a whole number, 0 or more")
+    if not isinstance(structures.get("bCanopySidelinesOnly"), bool):
+        err(path, "Structures.bCanopySidelinesOnly must be true or false")
+    extra = set(structures) - set(STADIUM_STRUCTURES_POSITIVE) - set(STADIUM_STRUCTURES_NON_NEGATIVE) \
+        - {"SuiteLevels", "bCanopySidelinesOnly"}
+    if extra:
+        err(path, f"Structures: unknown field(s) {sorted(extra)} - names must match FPSStadiumStructures exactly")
+
+
+CROWD_LOOK_COLORS = ("WhiteColor", "DefaultHomePrimary", "DefaultHomeSecondary", "DefaultAwayPrimary",
+                     "DefaultAwaySecondary")
+CROWD_LOOK_POSITIVE = ("MeshSizeCm", "TorsoWidthCm", "TorsoDepthCm", "TorsoHeightCm", "HeadSizeCm", "CardDepthCm")
+CROWD_LOOK_SHARES = ("PrimaryShare", "SecondaryShare", "WhiteShare", "AwayPocketShare", "AlwaysStandShare",
+                     "StandExcitementMin", "StandExcitementMax")
+CROWD_LOOK_OTHER = ("BodyMeshPath", "MaterialPath", "ColorParameter", "Seed", "SizeVariation", "YawJitterDegrees",
+                    "NeutralColors", "SkinTones", "AwayPocketYardLine", "AwayPocketLateralYards", "StandHysteresis",
+                    "StandRiseCm", "StandForwardCm", "MaxStandChangesPerUpdate")
+
+
+def validate_crowd_look(path, payload):
+    """FPSCrowdLookStyle (Data/crowd_look.json, Epic 48): what the fans in the stands look like and
+    when they stand; mirrors UPSCrowdRenderComponent::ValidateStyle."""
+    for field in ("BodyMeshPath", "MaterialPath"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.startswith("/"):
+            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Cube.Cube")
+    if not isinstance(payload.get("ColorParameter"), str) or not payload["ColorParameter"]:
+        err(path, "ColorParameter must name the material's color parameter")
+    for field in CROWD_LOOK_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in ("NeutralColors", "SkinTones"):
+        palette = payload.get(field)
+        if not isinstance(palette, list) or not all(isinstance(c, str) and HEX_COLOR.match(c) for c in palette):
+            err(path, f"{field} must be a list of #RRGGBB colours")
+    if not payload.get("SkinTones"):
+        err(path, "SkinTones must hold at least one colour")
+    for field in CROWD_LOOK_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in CROWD_LOOK_SHARES:
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    shares = [payload.get(f) for f in ("PrimaryShare", "SecondaryShare", "WhiteShare")]
+    if all(is_number(v) for v in shares) and sum(shares) > 1.0001:
+        err(path, "PrimaryShare, SecondaryShare and WhiteShare must add up to 1 or less")
+    low, high = payload.get("StandExcitementMin"), payload.get("StandExcitementMax")
+    if is_number(low) and is_number(high) and low > high:
+        err(path, "StandExcitementMin must not be above StandExcitementMax")
+    for field in ("SizeVariation", "StandHysteresis"):
+        value = payload.get(field)
+        if not is_number(value) or not 0 <= value <= 0.5:
+            err(path, f"{field}: '{value}' must be a number from 0 to 0.5")
+    jitter = payload.get("YawJitterDegrees")
+    if not is_number(jitter) or not 0 <= jitter <= 90:
+        err(path, f"YawJitterDegrees: '{jitter}' must be a number from 0 to 90")
+    for field in ("StandRiseCm", "StandForwardCm"):
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in ("AwayPocketYardLine", "AwayPocketLateralYards"):
+        if not is_number(payload.get(field)):
+            err(path, f"{field} must be a number")
+    if not _whole(payload.get("Seed"), 0):
+        err(path, f"Seed: '{payload.get('Seed')}' must be a whole number, 0 or more")
+    if not _whole(payload.get("MaxStandChangesPerUpdate"), 1):
+        err(path, f"MaxStandChangesPerUpdate: '{payload.get('MaxStandChangesPerUpdate')}' must be a whole number, 1 or more")
+    extra = set(payload) - set(CROWD_LOOK_COLORS) - set(CROWD_LOOK_POSITIVE) - set(CROWD_LOOK_SHARES) - set(CROWD_LOOK_OTHER)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCrowdLookStyle exactly")
 
 
 BALL_LOOK_FIELDS = ("MeshPath", "MeshSizeCm", "LengthCm", "WidthCm", "MaterialPath", "ColorParameter", "BallColor")
@@ -6194,6 +6377,8 @@ def main(root=None):
             validate_ball_look(path, payload)
         if isinstance(payload, dict) and "FallbackMeshPath" in payload:
             validate_character_look(path, payload)
+        if isinstance(payload, dict) and "SkinTones" in payload:
+            validate_crowd_look(path, payload)
         if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:

@@ -34,6 +34,7 @@ namespace PSDataPathsPrivate
         TEXT("Data/control_handoff.json"),
         TEXT("Data/coverage_matchups.json"),
         TEXT("Data/crowd.json"),
+        TEXT("Data/crowd_look.json"),
         TEXT("Data/deception.json"),
         TEXT("Data/defense_ai_tuning.json"),
         TEXT("Data/defensive_adjustments.json"),

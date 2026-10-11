@@ -17,6 +17,28 @@ enum class EPSOverlayDetail : uint8
     Minimal
 };
 
+/** How a tier draws the crowd in the stands (UPSCrowdRenderComponent, lane V3). */
+UENUM(BlueprintType)
+enum class EPSCrowdDetail : uint8
+{
+    /** Each fan a figure: a torso in his shirt's colour and a head in his skin tone. */
+    Figures,
+    /** Each fan one card in his shirt's colour: half the instances, no heads. */
+    Cards,
+    /** No crowd. */
+    None
+};
+
+/** How much of the stadium a tier builds (APSStadiumSet, lane V3). */
+UENUM(BlueprintType)
+enum class EPSStadiumDetail : uint8
+{
+    /** Every seat its own pan and back, and the bowl casts shadows. */
+    Full,
+    /** A seat row is one strip per section, and nothing in the bowl casts a shadow. */
+    Reduced
+};
+
 /**
  * One performance tier (Data/platform_tiers.json; Architecture rule 4). A tier pairs the
  * code-side budgets below with a device profile in Config/DefaultDeviceProfiles.ini, which
@@ -92,6 +114,19 @@ struct FPSPlatformTier
      *  toward its resting level and its level is re-rated; 0 is every frame. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
     float CrowdUpdateHz = 30.f;
+
+    /** 0-1: the share of the stadium's seats with a fan in them (UPSCrowdRenderComponent). Every
+     *  fan is an instance or two, so this is the crowd's main GPU knob. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    float CrowdDensity = 0.93f;
+
+    /** How each fan is drawn. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    EPSCrowdDetail CrowdDetail = EPSCrowdDetail::Figures;
+
+    /** How much of the stadium is built (APSStadiumSet). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Platform")
+    EPSStadiumDetail StadiumDetail = EPSStadiumDetail::Full;
 };
 
 /** Which tier a platform runs by default (platform names as UGameplayStatics::GetPlatformName

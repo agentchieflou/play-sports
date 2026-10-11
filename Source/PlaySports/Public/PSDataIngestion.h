@@ -85,6 +85,7 @@
 #include "PSStadiumSetTypes.h"
 #include "PSBallLook.h"
 #include "PSCharacterLook.h"
+#include "PSCrowdLookTypes.h"
 #include "PSFormations.h"
 #include "PSDataIngestion.generated.h"
 
@@ -523,6 +524,12 @@ public:
      *  UPSCharacterLookComponent::ValidateStyle checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCharacterLookStyleFromJson(const FString& JsonFilePath, FPSCharacterLookStyle& OutStyle);
+
+    /** Loads what the crowd in the stands looks like (Data/crowd_look.json, Epic 48): the fans'
+     *  shapes, shirts, skin tones, away pockets and when they stand. False on a missing file or
+     *  malformed JSON; UPSCrowdRenderComponent::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCrowdLookStyleFromJson(const FString& JsonFilePath, FPSCrowdLookStyle& OutStyle);
 
     /** Loads every formation, front and shell's alignment (Data/formations.json): where each
      *  player lines up for a call (PSFormations). False on a missing file or malformed JSON;
