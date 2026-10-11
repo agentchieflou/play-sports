@@ -839,13 +839,15 @@ FPSStadiumLayout APSStadiumSet::ComputeLayout(const FPSFieldDimensions& Dimensio
 bool APSStadiumSet::BuildFromData()
 {
     const FPSPlatformTier& Tier = PSPlatformTiers::GetActiveTier();
-    if (!Build(PSField::GetDimensions(), LoadStyle(GetDefaultStylePath()), Tier.StadiumDetail))
+    const FPSStadiumSetStyle Style = LoadStyle(GetDefaultStylePath());
+    if (!Build(PSField::GetDimensions(), Style, Tier.StadiumDetail))
     {
         return false;
     }
     if (Crowd)
     {
-        Crowd->PopulateFromData(GetSeats());
+        // The fans sit on the seats the style built: their height is the bowl's.
+        Crowd->PopulateFromData(GetSeats(), Style.Bowl.SeatHeightCm);
     }
     return true;
 }
