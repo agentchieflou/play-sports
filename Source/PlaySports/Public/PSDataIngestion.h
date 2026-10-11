@@ -84,6 +84,7 @@
 #include "PSFieldSurfaceTypes.h"
 #include "PSStadiumLightingTypes.h"
 #include "PSFormations.h"
+#include "PSRenderCaptureTypes.h"
 #include "PSDataIngestion.generated.h"
 
 /** JSON-to-engine-data ingestion (Epic 21: generalized beyond just players to
@@ -528,6 +529,12 @@ public:
      *  ValidateLibrary checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadCommentaryLibraryFromJson(const FString& JsonFilePath, FPSCommentaryLibrary& OutLibrary);
+
+    /** Loads the render capture's settings and views (Data/render_views.json, lane V1). False on
+     *  a missing file, malformed JSON or an unknown Anchor or PlayerRole; UPSRenderCapture::
+     *  ValidateSettings checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadRenderCaptureSettingsFromJson(const FString& JsonFilePath, FPSRenderCaptureSettings& OutSettings);
 
     /** Validates a Players JSON file's schema without loading it into a DataTable:
      *  missing PlayerId, unrecognized Role string, or out-of-range (negative)

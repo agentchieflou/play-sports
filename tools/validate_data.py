@@ -125,7 +125,11 @@ FPSStadiumLightingCatalog (Data/stadium_lighting.json, lane V2): unique presets,
 default preset one of them, sun, sky, fog, floodlight and broadcast-look values in range, floodlight
 banks whenever a preset lights them, and tier switches keyed by Data/platform_tiers.json's tiers. "PressedOpacity" files against
 FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1, #RRGGBB
-colors, positive sizes. Teams, the league config, the playbook, player rating ranges and every
+colors, positive sizes. "RenderViews" files against FPSRenderCaptureSettings (Data/render_views.json,
+lane V1): the render capture's whole-number frame counts and positive limits, MeasureFrames within
+SettleFrames, and each view's unique file-safe ViewId, Field or Player anchor (a player view's role an
+EPlayerRole), distinct camera and target points in yards and a 5-170 degree field of view. Teams, the
+league config, the playbook, player rating ranges and every
 reference between files are tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
@@ -2127,6 +2131,91 @@ def validate_field_dimensions(path, payload):
     extra = set(payload) - set(FIELD_DIMENSION_FIELDS)
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldDimensions exactly")
+
+
+RENDER_CAPTURE_INTS = {
+    "ResolutionX": 64, "ResolutionY": 64, "ExpectedPlayers": 0, "WarmupFrames": 0, "SettleFrames": 1,
+    "MeasureFrames": 1, "ScreenshotTimeoutFrames": 1,
+}
+RENDER_CAPTURE_POSITIVE = ("MatchTimeoutSeconds", "CompileTimeoutSeconds", "TotalTimeoutSeconds")
+RENDER_CAPTURE_NON_NEGATIVE = ("WarmupSeconds", "SettleSeconds", "StreamingWaitSeconds")
+RENDER_CAPTURE_BOOLS = ("bCaptureOnlyPreSnap",)
+RENDER_VIEW_FIELDS = {
+    "ViewId", "Description", "Anchor", "PlayerRole", "PlayerIndex", "CameraYards", "TargetYards", "FieldOfViewDegrees",
+}
+RENDER_VIEW_ANCHORS = {"Field", "Player"}
+VECTOR_FIELDS = ("X", "Y", "Z")
+
+
+def validate_render_views(path, payload):
+    """FPSRenderCaptureSettings (Data/render_views.json, lane V1): the render capture's limits and
+    its fixed views; mirrors UPSRenderCapture::ValidateSettings."""
+    for field, floor in RENDER_CAPTURE_INTS.items():
+        value = payload.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value < floor:
+            err(path, f"{field}: '{value}' must be a whole number, {floor} or more")
+    for field in RENDER_CAPTURE_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in RENDER_CAPTURE_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in RENDER_CAPTURE_BOOLS:
+        if field in payload and not isinstance(payload[field], bool):
+            err(path, f"{field}: '{payload[field]}' must be true or false")
+    measure, settle = payload.get("MeasureFrames"), payload.get("SettleFrames")
+    if isinstance(measure, int) and isinstance(settle, int) and measure > settle:
+        err(path, "MeasureFrames: must be no more than SettleFrames (it measures the end of each view's settle)")
+    extra = (set(payload) - set(RENDER_CAPTURE_INTS) - set(RENDER_CAPTURE_POSITIVE) - set(RENDER_CAPTURE_NON_NEGATIVE)
+             - set(RENDER_CAPTURE_BOOLS) - {"RenderViews"})
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSRenderCaptureSettings exactly")
+
+    views = payload.get("RenderViews")
+    if not isinstance(views, list) or not views:
+        err(path, "RenderViews: must be a non-empty list of views")
+        return
+    seen = set()
+    for index, view in enumerate(views):
+        where = f"RenderViews[{index}]"
+        if not isinstance(view, dict):
+            err(path, f"{where}: must be an object")
+            continue
+        view_id = view.get("ViewId")
+        if not isinstance(view_id, str) or not re.fullmatch(r"[A-Za-z0-9_]+", view_id or ""):
+            err(path, f"{where}.ViewId: '{view_id}' must be letters, digits and underscores (it names the PNG)")
+        elif view_id.lower() in seen:
+            err(path, f"{where}.ViewId: '{view_id}' is used twice")
+        else:
+            seen.add(view_id.lower())
+        anchor = view.get("Anchor", "Field")
+        if anchor not in RENDER_VIEW_ANCHORS:
+            err(path, f"{where}.Anchor: '{anchor}' must be one of {sorted(RENDER_VIEW_ANCHORS)}")
+        if anchor == "Player":
+            if view.get("PlayerRole") not in PLAYER_ROLES:
+                err(path, f"{where}.PlayerRole: '{view.get('PlayerRole')}' is not a valid EPlayerRole")
+            index_value = view.get("PlayerIndex", 0)
+            if not isinstance(index_value, int) or isinstance(index_value, bool) or index_value < 0:
+                err(path, f"{where}.PlayerIndex: '{index_value}' must be a whole number, 0 or more")
+        elif "PlayerRole" in view and view["PlayerRole"] not in PLAYER_ROLES:
+            err(path, f"{where}.PlayerRole: '{view['PlayerRole']}' is not a valid EPlayerRole")
+        points = []
+        for field in ("CameraYards", "TargetYards"):
+            point = view.get(field)
+            if not isinstance(point, dict) or set(point) != set(VECTOR_FIELDS) or not all(is_number(point[axis]) for axis in VECTOR_FIELDS):
+                err(path, f"{where}.{field}: must be an object of numbers X, Y and Z (yards)")
+            else:
+                points.append(tuple(point[axis] for axis in VECTOR_FIELDS))
+        if len(points) == 2 and all(abs(a - b) < 1e-4 for a, b in zip(*points)):
+            err(path, f"{where}: CameraYards and TargetYards must differ")
+        fov = view.get("FieldOfViewDegrees")
+        if not is_number(fov) or fov < 5 or fov > 170:
+            err(path, f"{where}.FieldOfViewDegrees: '{fov}' must be a number from 5 to 170")
+        extra = set(view) - RENDER_VIEW_FIELDS
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSRenderView exactly")
 
 
 TOUCH_HUD_SHARES = ("RestOpacity", "PressedOpacity", "StickIdleFade")
@@ -6300,6 +6389,8 @@ def main(root=None):
             validate_commentary_lines(path, payload)
         if isinstance(payload, dict) and "Techniques" in payload:
             validate_formations(path, payload)
+        if isinstance(payload, dict) and "RenderViews" in payload:
+            validate_render_views(path, payload)
     content_contracts.check_references(repo, parsed, err)
     if root is None:
         validate_ui_text()
