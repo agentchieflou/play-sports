@@ -8,6 +8,7 @@ provenance-tracked input to it.
 | Folder | What | Licence |
 |---|---|---|
 | `world/` | the "world kit" brought over from `agentchieflou/this-next-please` on 2026-10-08: CC0 Poly Haven materials, skies and props; a CC0 MakeHuman player character and crowd on the Unreal body skeleton; procedurally grown trees, cars and office furniture; and the browser reference implementation | per subfolder `LICENSE` (CC0, or this repository's MIT) |
+| `field/` | the field's look (lane V2): ambientCG's CC0 "Grass 005" turf at 2K (colour, DirectX normal, packed occlusion/roughness) plus a generated noise map, and two Poly Haven CC0 pure skies at 1k. Made by `tools/assets/field/fetch_field_assets.py` (checksums pinned); the content pipeline's `field_look` step imports them into `/Game/Field`. The `.jpg`/`.png` files are in Git LFS | per subfolder `LICENSE` (CC0, or this repository's MIT for the generated noise) |
 
 Rules:
 

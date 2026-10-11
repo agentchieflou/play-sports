@@ -1,0 +1,14 @@
+The skies the field's lighting uses as a sky-light cubemap (lane V2). Fetched by
+tools/assets/field/fetch_field_assets.py at Poly Haven's 1k resolution, each checked against the md5
+Poly Haven's API publishes, and kept byte for byte.
+
+Both are from Poly Haven (polyhaven.com), released under CC0 1.0 Universal
+(creativecommons.org/publicdomain/zero/1.0/): dedicated to the public domain, free to use, change
+and redistribute for any purpose, with no attribution required. They are credited here anyway.
+
+File                 Poly Haven asset                          Author(s)
+HDR_Sky_Day.hdr      Kloofendal 48d Partly Cloudy (Pure Sky)   Greg Zaal (original), Jarod Guest (sky edits)
+HDR_Sky_Night.hdr    Kloppenheim 02 (Pure Sky)                 Greg Zaal (original), Jarod Guest (sky edits)
+
+Each asset's page is polyhaven.com/a/<id>: kloofendal_48d_partly_cloudy_puresky and
+kloppenheim_02_puresky.

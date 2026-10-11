@@ -12,6 +12,26 @@
             "Outputs": [
                 "Content/Maps/GameMap.umap"
             ]
+        },
+        {
+            "Id": "field_look",
+            "Description": "The field's look (lane V2): the CC0 turf textures and the day and night skies imported from RawAssets/field, the MPC_Field collection, and the world-aligned turf (M_Turf, M_TurfLite) and painted-grass (M_FieldPaint) materials that APSFieldSurface and the stadium lighting name in Data/field_markings.json and Data/stadium_lighting.json.",
+            "Script": "tools/content_pipeline/steps/field_look.py",
+            "Inputs": [
+                "RawAssets/field"
+            ],
+            "Outputs": [
+                "Content/Field/Textures/T_Turf_Color.uasset",
+                "Content/Field/Textures/T_Turf_Normal.uasset",
+                "Content/Field/Textures/T_Turf_ORM.uasset",
+                "Content/Field/Textures/T_Turf_Noise.uasset",
+                "Content/Field/Skies/HDR_Sky_Day.uasset",
+                "Content/Field/Skies/HDR_Sky_Night.uasset",
+                "Content/Field/Materials/MPC_Field.uasset",
+                "Content/Field/Materials/M_Turf.uasset",
+                "Content/Field/Materials/M_TurfLite.uasset",
+                "Content/Field/Materials/M_FieldPaint.uasset"
+            ]
         }
     ]
 }
