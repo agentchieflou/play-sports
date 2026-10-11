@@ -188,10 +188,10 @@ struct FPSStadiumStructures
      *  then the suites' facade, SuiteLevels bands of glass SuiteGlassHeightCm tall over a floor
      *  SuiteFloorCm thick, and concrete up to the deck above. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
-    float CrossAisleCm = 300.f;
+    float CrossAisleCm = 600.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
-    int32 SuiteLevels = 2;
+    int32 SuiteLevels = 3;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
     float SuiteGlassHeightCm = 300.f;
@@ -286,9 +286,9 @@ struct FPSStadiumSetStyle
 
         FPSStadiumDeck Upper;
         Upper.DeckId = TEXT("Upper");
-        Upper.FrontOffsetCm = 2050.f;
-        Upper.FrontHeightCm = 2250.f;
-        Upper.Rows = 30;
+        Upper.FrontOffsetCm = 2600.f;
+        Upper.FrontHeightCm = 3000.f;
+        Upper.Rows = 28;
         Upper.RowRiseCm = 55.f;
         Upper.SlabCm = 60.f;
         Upper.FasciaHeightCm = 280.f;

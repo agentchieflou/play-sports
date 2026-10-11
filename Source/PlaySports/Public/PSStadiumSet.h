@@ -25,6 +25,10 @@ class UPSCrowdRenderComponent;
  * (Data/platform_tiers.json's StadiumDetail): every seat a pan and a back, with shadows, on a PC;
  * a strip per row and section, without shadows, on a phone.
  *
+ * The press level stays open: under the upper deck's overhang, in front of the suites, the
+ * broadcast position (70 m from the field's centre line, 25 m up) sees the whole field, as does the
+ * all-22 position high behind the end zone (PlaySports.Field.StadiumBowlLayout checks both).
+ *
  * Its seats are where the crowd sits: the set's UPSCrowdRenderComponent fills them once it is built.
  *
  * Nothing in the set collides; the field's ground is the only collision surface. That includes

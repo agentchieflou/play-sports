@@ -72,9 +72,9 @@
         },
         {
             "DeckId": "Upper",
-            "FrontOffsetCm": 2050.0,
-            "FrontHeightCm": 2250.0,
-            "Rows": 30,
+            "FrontOffsetCm": 2600.0,
+            "FrontHeightCm": 3000.0,
+            "Rows": 28,
             "RowDepthCm": 85.0,
             "RowRiseCm": 55.0,
             "SlabCm": 60.0,
@@ -87,8 +87,8 @@
         }
     ],
     "Structures": {
-        "CrossAisleCm": 300.0,
-        "SuiteLevels": 2,
+        "CrossAisleCm": 600.0,
+        "SuiteLevels": 3,
         "SuiteGlassHeightCm": 300.0,
         "SuiteFloorCm": 150.0,
         "RibbonHeightCm": 120.0,

@@ -60,6 +60,39 @@ namespace PSStadiumSetTests
         const double QY = FMath::Abs(Point.Y) - (HalfY - Radius);
         return FVector2D(FMath::Max(QX, 0.0), FMath::Max(QY, 0.0)).Size() + FMath::Min(FMath::Max(QX, QY), 0.0) - Radius;
     }
+
+    /** Whether Point is inside Piece's box (a cylinder counts as its box). */
+    static bool IsInside(const FPSStadiumPiece& Piece, const FVector& Point)
+    {
+        const FVector Local = Piece.Rotation.UnrotateVector(Point - Piece.Center);
+        return FMath::Abs(Local.X) <= Piece.Size.X * 0.5 && FMath::Abs(Local.Y) <= Piece.Size.Y * 0.5 && FMath::Abs(Local.Z) <= Piece.Size.Z * 0.5;
+    }
+
+    /** Whether nothing the stadium builds stands between From and To (sampled every few cm). */
+    static bool IsSightClear(const TArray<FPSStadiumPiece>& Pieces, const FVector& From, const FVector& To)
+    {
+        TArray<const FPSStadiumPiece*> Near;
+        for (const FPSStadiumPiece& Piece : Pieces)
+        {
+            if (FMath::PointDistToSegment(Piece.Center, From, To) <= Piece.Size.Size() * 0.5 + 1.0)
+            {
+                Near.Add(&Piece);
+            }
+        }
+        const int32 Steps = 2000;
+        for (int32 Step = 1; Step < Steps; ++Step)
+        {
+            const FVector Point = FMath::Lerp(From, To, Step / static_cast<double>(Steps));
+            for (const FPSStadiumPiece* Piece : Near)
+            {
+                if (IsInside(*Piece, Point))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +426,24 @@ bool FPSStadiumBowlLayoutTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("A light bank is above the top row"), Bank.GetLocation().Z > UpperBottom);
         TestTrue(TEXT("...aimed down"), Aim.Z < -0.1);
         TestTrue(TEXT("...at the field"), FVector::DotProduct(Aim.GetSafeNormal2D(), (FieldCentre - Bank.GetLocation()).GetSafeNormal2D()) > 0.5);
+    }
+
+    // The camera positions stay open: the broadcast position on the press level, at the 20 and 70 m
+    // from the field's centre line, 25 m up (under the upper deck's overhang, in front of the
+    // suites), and the all-22 high behind the end zone, both see the field past everything built.
+    const FVector Broadcast(2000.0, -7000.0, 2500.0);
+    const FVector EndZoneHigh(PSField::EndLineX(false) - 1500.0, 0.0, 3500.0);
+    const double Sideline = PSField::SidelineY();
+    for (const TPair<FVector, FVector>& Sight : {
+        TPair<FVector, FVector>(Broadcast, FVector(2000.0, 0.0, 0.0)),
+        TPair<FVector, FVector>(Broadcast, FVector(2000.0, -Sideline, 0.0)),
+        TPair<FVector, FVector>(Broadcast, FVector(PSField::EndLineX(false), Sideline, 0.0)),
+        TPair<FVector, FVector>(Broadcast, FVector(PSField::EndLineX(true), Sideline, 0.0)),
+        TPair<FVector, FVector>(EndZoneHigh, FVector(PSField::MidfieldX(), 0.0, 0.0)),
+        TPair<FVector, FVector>(EndZoneHigh, FVector(PSField::EndLineX(true), Sideline, 0.0)) })
+    {
+        TestTrue(*FString::Printf(TEXT("The camera at %s sees %s"), *Sight.Key.ToCompactString(), *Sight.Value.ToCompactString()),
+            IsSightClear(Full.Pieces, Sight.Key, Sight.Value));
     }
 
     // A phone's detail: the same seats, but a strip per run of them instead of a pan and back each.
