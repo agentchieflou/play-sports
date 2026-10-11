@@ -56,7 +56,7 @@ namespace PSStadiumSetPrivate
     {
         TEXT("GoalPosts"), TEXT("GoalPostPads"), TEXT("Ribbons"), TEXT("Benches"), TEXT("Concrete"), TEXT("Stairs"),
         TEXT("Seats"), TEXT("Wall"), TEXT("Rails"), TEXT("Fasciae"), TEXT("RibbonBoards"), TEXT("Glass"), TEXT("Portals"),
-        TEXT("Roof"), TEXT("LightFixtures"), TEXT("BoardFrames"), TEXT("BoardScreens")
+        TEXT("Roof"), TEXT("LightFixtures"), TEXT("BoardFrames"), TEXT("BoardScreens"), TEXT("Plaza")
     };
     static_assert(UE_ARRAY_COUNT(PieceKindNames) == static_cast<int32>(EPSStadiumPieceKind::Count), "A name for every piece kind");
 
@@ -550,7 +550,8 @@ TArray<FString> APSStadiumSet::ValidateStyle(const FPSStadiumSetStyle& Style)
         TPair<const TCHAR*, const FString*>(TEXT("Bowl.RoofColor"), &Bowl.RoofColor),
         TPair<const TCHAR*, const FString*>(TEXT("Bowl.FixtureColor"), &Bowl.FixtureColor),
         TPair<const TCHAR*, const FString*>(TEXT("Bowl.BoardFrameColor"), &Bowl.BoardFrameColor),
-        TPair<const TCHAR*, const FString*>(TEXT("Bowl.BoardScreenColor"), &Bowl.BoardScreenColor) })
+        TPair<const TCHAR*, const FString*>(TEXT("Bowl.BoardScreenColor"), &Bowl.BoardScreenColor),
+        TPair<const TCHAR*, const FString*>(TEXT("Bowl.PlazaColor"), &Bowl.PlazaColor) })
     {
         FLinearColor Parsed;
         if (!UPSUITeamCatalog::ParseHexColor(*Color.Value, Parsed))
@@ -615,7 +616,8 @@ TArray<FString> APSStadiumSet::ValidateStyle(const FPSStadiumSetStyle& Style)
         TPair<const TCHAR*, float>(TEXT("Structures.VideoBoardWidthCm"), Structures.VideoBoardWidthCm),
         TPair<const TCHAR*, float>(TEXT("Structures.VideoBoardHeightCm"), Structures.VideoBoardHeightCm),
         TPair<const TCHAR*, float>(TEXT("Structures.VideoBoardLiftCm"), Structures.VideoBoardLiftCm),
-        TPair<const TCHAR*, float>(TEXT("Structures.VideoBoardBezelCm"), Structures.VideoBoardBezelCm) })
+        TPair<const TCHAR*, float>(TEXT("Structures.VideoBoardBezelCm"), Structures.VideoBoardBezelCm),
+        TPair<const TCHAR*, float>(TEXT("Structures.PlazaMarginCm"), Structures.PlazaMarginCm) })
     {
         if (!(NonNegative.Value >= 0.f))
         {
@@ -832,6 +834,18 @@ FPSStadiumLayout APSStadiumSet::ComputeLayout(const FPSFieldDimensions& Dimensio
                 }
             }
         }
+
+        // The plaza: one slab under everything, reaching PlazaMarginCm past the back wall, its top
+        // just under the field's ground so the field and the bowl cover it.
+        if (Structures.PlazaMarginCm > 0.f)
+        {
+            const double Reach = BackRear + Structures.PlazaMarginCm;
+            const FPlanSpan& Sideline = Plan.Spans[0];
+            const double CentreX = Sideline.Origin.X + Sideline.Length * 0.5;
+            const double HalfX = Sideline.Length * 0.5 + Plan.Spans[1].Radius + Reach;
+            const double HalfY = -Sideline.Origin.Y + Reach;
+            Result.Pieces.Add(MakePiece(EPSStadiumPieceKind::Plaza, false, FVector(CentreX, 0.0, -12.0), FVector(2.0 * HalfX, 2.0 * HalfY, 20.0)));
+        }
     }
     return Result;
 }
@@ -890,6 +904,7 @@ bool APSStadiumSet::Build(const FPSFieldDimensions& Dimensions, const FPSStadium
     Colors[static_cast<int32>(EPSStadiumPieceKind::LightFixture)] = &Bowl.FixtureColor;
     Colors[static_cast<int32>(EPSStadiumPieceKind::BoardFrame)] = &Bowl.BoardFrameColor;
     Colors[static_cast<int32>(EPSStadiumPieceKind::BoardScreen)] = &Bowl.BoardScreenColor;
+    Colors[static_cast<int32>(EPSStadiumPieceKind::Plaza)] = &Bowl.PlazaColor;
 
     // Each kind's instances, in one batch per mesh.
     const float MeshSize = FMath::Max(Style.MeshSizeCm, 1.f);

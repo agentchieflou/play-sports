@@ -171,6 +171,7 @@ bool FPSStadiumSetDataTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Bowl.FixtureColor"), Bowl.FixtureColor, DefaultBowl.FixtureColor);
     TestEqual(TEXT("Bowl.BoardFrameColor"), Bowl.BoardFrameColor, DefaultBowl.BoardFrameColor);
     TestEqual(TEXT("Bowl.BoardScreenColor"), Bowl.BoardScreenColor, DefaultBowl.BoardScreenColor);
+    TestEqual(TEXT("Bowl.PlazaColor"), Bowl.PlazaColor, DefaultBowl.PlazaColor);
 
     if (TestEqual(TEXT("Two decks"), Loaded.Decks.Num(), Defaults.Decks.Num()))
     {
@@ -219,6 +220,7 @@ bool FPSStadiumSetDataTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Structures.VideoBoardHeightCm"), Structures.VideoBoardHeightCm, DefaultStructures.VideoBoardHeightCm);
     TestEqual(TEXT("Structures.VideoBoardLiftCm"), Structures.VideoBoardLiftCm, DefaultStructures.VideoBoardLiftCm);
     TestEqual(TEXT("Structures.VideoBoardBezelCm"), Structures.VideoBoardBezelCm, DefaultStructures.VideoBoardBezelCm);
+    TestEqual(TEXT("Structures.PlazaMarginCm"), Structures.PlazaMarginCm, DefaultStructures.PlazaMarginCm);
 
     FPSStadiumSetStyle Broken;
     Broken.GoalPostColor = TEXT("yellow");
@@ -405,7 +407,8 @@ bool FPSStadiumBowlLayoutTest::RunTest(const FString& Parameters)
     // Everything the bowl is made of is there.
     for (const EPSStadiumPieceKind Kind : { EPSStadiumPieceKind::Concrete, EPSStadiumPieceKind::Stair, EPSStadiumPieceKind::Wall,
         EPSStadiumPieceKind::Rail, EPSStadiumPieceKind::Fascia, EPSStadiumPieceKind::RibbonBoard, EPSStadiumPieceKind::Glass,
-        EPSStadiumPieceKind::Roof, EPSStadiumPieceKind::LightFixture, EPSStadiumPieceKind::BoardFrame, EPSStadiumPieceKind::BoardScreen })
+        EPSStadiumPieceKind::Roof, EPSStadiumPieceKind::LightFixture, EPSStadiumPieceKind::BoardFrame, EPSStadiumPieceKind::BoardScreen,
+        EPSStadiumPieceKind::Plaza })
     {
         TestTrue(*FString::Printf(TEXT("The bowl has its %s"), *StaticEnum<EPSStadiumPieceKind>()->GetNameStringByValue(static_cast<int64>(Kind))),
             PiecesOfKind(Full.Pieces, Kind).Num() > 0);
@@ -414,9 +417,20 @@ bool FPSStadiumBowlLayoutTest::RunTest(const FString& Parameters)
     int32 BelowField = 0;
     for (const FPSStadiumPiece& Piece : Full.Pieces)
     {
-        BelowField += Piece.Center.Z - Piece.Size.Z * 0.5 < -0.5 && Piece.Rotation.IsNearlyZero() ? 1 : 0;
+        BelowField += Piece.Kind != EPSStadiumPieceKind::Plaza && Piece.Center.Z - Piece.Size.Z * 0.5 < -0.5 && Piece.Rotation.IsNearlyZero() ? 1 : 0;
     }
-    TestEqual(TEXT("Nothing is built below the field"), BelowField, 0);
+    TestEqual(TEXT("Nothing but the plaza is built below the field"), BelowField, 0);
+    const TArray<FPSStadiumPiece> Plaza = PiecesOfKind(Full.Pieces, EPSStadiumPieceKind::Plaza);
+    if (TestEqual(TEXT("The stadium stands in a plaza"), Plaza.Num(), 1))
+    {
+        TestTrue(TEXT("...whose top is under the field's ground"), Plaza[0].Center.Z + Plaza[0].Size.Z * 0.5 < 0.0);
+        int32 OffPlaza = 0;
+        for (const FPSStadiumSeat& Seat : Seats)
+        {
+            OffPlaza += IsInside(Plaza[0], FVector(Seat.Location.X, Seat.Location.Y, Plaza[0].Center.Z)) ? 0 : 1;
+        }
+        TestEqual(TEXT("...and reaches past every seat"), OffPlaza, 0);
+    }
 
     // The light banks: over the sidelines, high, aimed down at the field.
     TestTrue(TEXT("Light banks along both sidelines"), Full.LightBanks.Num() >= 4);

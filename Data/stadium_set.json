@@ -52,7 +52,8 @@
         "RoofColor": "#C3C6CB",
         "FixtureColor": "#F1EFE7",
         "BoardFrameColor": "#121417",
-        "BoardScreenColor": "#1C3557"
+        "BoardScreenColor": "#1C3557",
+        "PlazaColor": "#6A6964"
     },
     "Decks": [
         {
@@ -108,6 +109,7 @@
         "VideoBoardWidthCm": 4000.0,
         "VideoBoardHeightCm": 1500.0,
         "VideoBoardLiftCm": 300.0,
-        "VideoBoardBezelCm": 60.0
+        "VideoBoardBezelCm": 60.0,
+        "PlazaMarginCm": 6000.0
     }
 }

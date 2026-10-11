@@ -2224,7 +2224,7 @@ STADIUM_SET_POSITIVE = ("MeshSizeCm", "CrossbarHeightYards", "CrossbarWidthYards
 STADIUM_SET_NON_NEGATIVE = ("BenchDistanceYards", "BenchFromYardLine", "BenchToYardLine")
 STADIUM_BOWL_COLORS = ("ConcreteColor", "StairColor", "SeatColor", "WallColor", "RailColor", "FasciaColor",
                        "RibbonBoardColor", "GlassColor", "PortalColor", "RoofColor", "FixtureColor",
-                       "BoardFrameColor", "BoardScreenColor")
+                       "BoardFrameColor", "BoardScreenColor", "PlazaColor")
 STADIUM_BOWL_POSITIVE = ("CornerRadiusCm", "SectionWidthCm", "AisleWidthCm", "MaxSegmentCm", "SeatPitchCm",
                          "SeatWidthCm", "SeatDepthCm", "SeatHeightCm", "SeatBackHeightCm", "SeatSetbackCm",
                          "WallHeightCm", "WallThicknessCm", "WalkwayHeightCm", "RailHeightCm")
@@ -2236,7 +2236,7 @@ STADIUM_STRUCTURES_POSITIVE = ("BackWallHeightCm", "BackWallThicknessCm", "Canop
 STADIUM_STRUCTURES_NON_NEGATIVE = ("CrossAisleCm", "SuiteGlassHeightCm", "SuiteFloorCm", "RibbonHeightCm",
                                    "CanopyDepthCm", "CanopyHeightCm", "LightBankTiltDegrees", "PressBoxLengthCm",
                                    "PressBoxHeightCm", "PressBoxDepthCm", "VideoBoardWidthCm", "VideoBoardHeightCm",
-                                   "VideoBoardLiftCm", "VideoBoardBezelCm")
+                                   "VideoBoardLiftCm", "VideoBoardBezelCm", "PlazaMarginCm")
 
 
 def _whole(value, least):

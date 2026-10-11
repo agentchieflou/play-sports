@@ -172,6 +172,10 @@ struct FPSStadiumBowl
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
     FString BoardScreenColor = TEXT("#1C3557");
+
+    /** The plaza the stadium stands in (Structures.PlazaMarginCm). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
+    FString PlazaColor = TEXT("#6A6964");
 };
 
 /**
@@ -265,6 +269,11 @@ struct FPSStadiumStructures
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
     float VideoBoardBezelCm = 60.f;
+
+    /** The plaza around the stadium: flat ground reaching PlazaMarginCm past the back wall (0: none),
+     *  just under the field's ground, so the stadium stands on something seen from the air. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stadium")
+    float PlazaMarginCm = 6000.f;
 };
 
 /**
@@ -413,6 +422,8 @@ enum class EPSStadiumPieceKind : uint8
     LightFixture,
     BoardFrame,
     BoardScreen,
+    /** The ground around the stadium. */
+    Plaza,
     Count UMETA(Hidden)
 };
 

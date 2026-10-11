@@ -2181,7 +2181,7 @@ strip per run of seats with no shadows (`Reduced`).
   the wall and the first deck. Colours (`#RRGGBB`): `ConcreteColor`, `StairColor`, `SeatColor`,
   `WallColor` (the padding), `RailColor`, `FasciaColor`, `RibbonBoardColor`, `GlassColor`,
   `PortalColor` (the tunnels), `RoofColor`, `FixtureColor` (the light banks), `BoardFrameColor`,
-  `BoardScreenColor`. Sizes are above 0, `WallOffsetCm` 0 or more, `CornerSections` 1 or more.
+  `BoardScreenColor`, `PlazaColor` (the ground around the stadium). Sizes are above 0, `WallOffsetCm` 0 or more, `CornerSections` 1 or more.
 - `Decks` (`FPSStadiumDeck`, at least one, from the field outward), each with a unique `DeckId`:
   `Rows` rows (1 or more) from `FrontOffsetCm` behind the field wall (clear of the wall), the front
   row's tread `FrontHeightCm` up, each row `RowDepthCm` deep (room for a seat at the setback) and
@@ -2206,7 +2206,8 @@ strip per run of seats with no shadows (`Reduced`).
   the -Y sideline on the first cross-aisle, `PressBoxLengthCm` long, `PressBoxHeightCm` tall,
   `PressBoxDepthCm` proud of the suites. A video board over each end on the back wall,
   `VideoBoardWidthCm` by `VideoBoardHeightCm` (0: none), `VideoBoardLiftCm` above the wall, in a
-  bezel `VideoBoardBezelCm` wide. Sizes 0 or more; the back wall, canopy thickness and light banks
+  bezel `VideoBoardBezelCm` wide. A plaza reaching `PlazaMarginCm` past the back wall (0: none), its
+  top just under the field's ground. Sizes 0 or more; the back wall, canopy thickness and light banks
   above 0; `SuiteLevels` a whole number, 0 or more.
 
 `APSStadiumSet::ValidateStyle` and `tools/validate_data.py` check it.
