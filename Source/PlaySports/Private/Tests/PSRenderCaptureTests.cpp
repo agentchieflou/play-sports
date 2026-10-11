@@ -211,8 +211,10 @@ bool FPSRenderValidationTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("No views"), HasProblemContaining(UPSRenderCapture::ValidateSettings(Broken), TEXT("at least one view")));
 
     Broken = MakeSettings();
-    Broken.RenderViews.Add(Broken.RenderViews[0]);
-    Broken.RenderViews[1].ViewId = TEXT("WIDE");
+    // A copy first: adding an array's own element to it asserts.
+    FPSRenderView Twin = Broken.RenderViews[0];
+    Twin.ViewId = TEXT("WIDE");
+    Broken.RenderViews.Add(Twin);
     TestTrue(TEXT("A ViewId used twice (names ignore case)"), HasProblemContaining(UPSRenderCapture::ValidateSettings(Broken), TEXT("used twice")));
 
     Broken = MakeSettings();
