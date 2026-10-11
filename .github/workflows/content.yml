@@ -41,12 +41,16 @@ on:
       - .github/workflows/content.yml
       - tools/content_pipeline/**
       - Content/**
+      # The field_look step's inputs (lane V2).
+      - RawAssets/field/**
   push:
     branches: [main]
     paths:
       - .github/workflows/content.yml
       - tools/content_pipeline/**
       - Content/**
+      # The field_look step's inputs (lane V2).
+      - RawAssets/field/**
 
 concurrency:
   group: content-${{ github.ref }}

@@ -1,0 +1,11 @@
+{
+    "Comment": "Written by tools/assets/field/fetch_field_assets.py. MeanLinearColor is T_Turf_Color.jpg's mean colour in linear terms; the turf material divides it out so FieldColor (Data/field_markings.json) is the field's average colour.",
+    "Source": "ambientCG Grass005 2K-JPG",
+    "SourceSha256": "89183d8dceabc3c23a26978f426e1662143dd2f84f1dc3586a1592d101e5234b",
+    "MeanLinearColor": [
+        0.13266,
+        0.23193,
+        0.02537
+    ],
+    "NoiseSeed": 146
+}

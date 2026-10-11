@@ -136,6 +136,7 @@ every CI build.
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
 | `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
 | `field_markings.json` | `FPSFieldMarkingsStyle` (single object) | `UPSDataIngestion::LoadFieldMarkingsStyleFromJson`, via `APSFieldSurface::LoadStyle` (`APSFieldGrid::SpawnFieldSurface`) |
+| `stadium_lighting.json` | `FPSStadiumLightingCatalog` (single object: `Banks`, `Presets`, `TierSettings`) | `UPSDataIngestion::LoadStadiumLightingFromJson`, via `UPSStadiumLightingSubsystem` (applied when a game world begins play) |
 | `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
@@ -2133,8 +2134,79 @@ at any `CentimetresPerYard`.
   `HashOffsetYards` (each row's distance from the middle of the field, 0 or more): a pair of hash
   marks every `HashSpacingYards` between the goal lines, except where a yard line crosses. All but
   the offset are above 0.
+- **The look (lane V2).** `TurfMaterialPath` draws the grass (the field and the ground around it), and
+  `PaintMaterialPath` draws the paint: the end zones, lines, border, numerals and arrows. Both come
+  from the content pipeline's `field_look` step, built from `RawAssets/field/`. Both are
+  world-aligned, so they tile in world centimetres. Where either can't be loaded, `MaterialPath` (the
+  flat fallback) stands in.
+  - Each piece's colour goes into `ColorParameter`; the turf treats it as the grass's average colour.
+  - `MaterialScalars` (`{name: number}`) is set on every turf and paint instance: tile size, stripe
+    and variation strengths, normal strength, how much grass shows through the paint.
+  - `StripeWidthYards`: the mowing stripes, changing at every yard line.
+  - `PaintCoverage` and `EndZonePaintCoverage` (0–1): how much of the grass the paint hides.
+  - `TierLooks[]` (`TierId` from `platform_tiers.json`, `TurfMaterialPath`): a tier's own turf.
+    `MobileLow` draws the one-sample `M_TurfLite`.
+- `BorderWidthYards` (0 or more; 0 draws none) and `BorderColor`: the white border outside the
+  sidelines and end lines.
+- The numerals, drawn when `bDrawNumerals` is set, in `NumeralColor`:
+  - One every `NumeralEveryYards`, counting to the nearer goal line (10 … 50 … 10), on both sides.
+  - Digits `NumeralWidthYards` × `NumeralHeightYards`, in block strokes `NumeralStrokeYards` wide
+    (under half the width and a third of the height).
+  - The digits sit `NumeralGapYards` either side of the yard line. Their bottoms are
+    `NumeralBottomFromSidelineYards` in from the sideline, and their tops point to the middle of
+    the field.
+- The arrows, drawn when `bDrawArrows` is set: one beside every numeral but the middle one, pointing
+  to the goal line it counts to. Each is `ArrowLengthYards` × `ArrowBaseYards`, sits `ArrowGapYards`
+  beyond the outer digit, and has its centre `ArrowCenterFromSidelineYards` in from the sideline.
 
 `APSFieldSurface::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Stadium lighting schema (`FPSStadiumLightingCatalog`)
+
+Single object: the stadium's light and broadcast look (lane V2, Epic 46). `UPSStadiumLightingSubsystem`
+applies it when a game world begins play. The default preset is used unless the command line says
+`-PSLighting=<PresetId>`. The level's own sun, sky light, atmosphere and fog are set where it has
+them, and anything missing is spawned. Every light is movable, so nothing needs a lighting build.
+
+- `DefaultPreset`: one of the presets.
+- `DewCollectionPath` and `DewParameter`: the field materials' collection (`MPC_Field`) and the
+  scalar each preset's `Dew` sets.
+- `Banks[]`: the floodlight banks, and the one place the stadium's lights are (the structure that
+  holds them reads this). Each is `BankId` (unique), `XYards`/`YYards` (the field's frame: X from
+  the near goal line, Y from the middle), `HeightYards` (above 0), and `AimXYards`/`AimYYards` (the
+  point on the field it aims at). One spot light stands for each bank.
+- `Presets[]`, each `PresetId` unique:
+  - **Sun or moon:** `SunElevationDeg` (above the horizon), `SunAzimuthDeg` (the way its light
+    travels: 0 along +X, 90 from the near sideline to the far), `SunIntensityLux`,
+    `SunTemperatureK`, `SunSourceAngleDeg` and `bSunCastsShadows`.
+  - **Sky:** `SkyLightIntensity`; `SkyCubemapPath`, the sky light's cubemap on tiers without a
+    real-time capture.
+  - **Clouds:** `bVolumetricClouds`, `CloudBottomAltitudeKm`, `CloudLayerHeightKm`.
+  - **Fog:** `FogDensity`, `FogHeightFalloff`, `bVolumetricFog`, `VolumetricFogExtinctionScale`.
+  - **Dew** (0–1): how glossy the grass is.
+  - **`Floodlights`**, every bank alike:
+    - `IntensityCandela` (0 turns them off), `TemperatureK`;
+    - `InnerConeDeg` (no more than `OuterConeDeg`), `OuterConeDeg`;
+    - `SourceRadiusCm` (bigger means softer shadows), `AttenuationRadiusYards`;
+    - `VolumetricScattering` (beams in the haze), `bCastShadows`.
+  - **`Look`**, the unbound post-process volume:
+    - exposure: `ExposureMinEV100` to `ExposureMaxEV100`, and `ExposureCompensation`;
+    - `BloomIntensity`, `VignetteIntensity`, `ChromaticAberration`, `LensFlareIntensity`,
+      `FilmGrainIntensity`, `MotionBlurAmount`;
+    - the grade: `WhiteTemp`, `Saturation`, `Contrast`, then a LUT at `ColorGradingLutIntensity`.
+      The LUT is the texture asset `ColorGradingLutPath` names. When that is empty, it is the table
+      `Grade` bakes at runtime: `bEnabled`, and `Lift`, `Gamma`, `Gain` (`{R, G, B[, A]}`; A is
+      unused) and `Saturation`. Each display-encoded channel c becomes c·Gain + Lift·(1 − c), raised
+      to 1/Gamma, then saturated about its luma. The identity grade gives the neutral table.
+- `TierSettings[]`: what each tier of `platform_tiers.json` can afford. A tier not listed gets
+  everything. The switches:
+  - `bLumen`: Lumen GI and reflections, set through the look's volume;
+  - `bRealTimeSkyCapture` (off: the preset's cubemap);
+  - `bVolumetricClouds`, `bVolumetricFog`;
+  - `MaxShadowedFloodlights` (-1 for all);
+  - `bLensEffects` (vignette, fringe, flares, grain), `bBloom`.
+
+`UPSStadiumLightingSubsystem::ValidateCatalog` and `tools/validate_data.py` check it.
 
 ## Formation schema (`FPSFormationCatalog`)
 

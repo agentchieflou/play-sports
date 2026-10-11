@@ -1,0 +1,159 @@
+{
+    "DefaultPreset": "Day",
+    "DewCollectionPath": "/Game/Field/Materials/MPC_Field.MPC_Field",
+    "DewParameter": "Dew",
+    "Banks": [
+        { "BankId": "NearRim0", "XYards": 0.0, "YYards": -60.0, "HeightYards": 45.0, "AimXYards": 0.0, "AimYYards": 8.0 },
+        { "BankId": "NearRim25", "XYards": 25.0, "YYards": -60.0, "HeightYards": 45.0, "AimXYards": 25.0, "AimYYards": 8.0 },
+        { "BankId": "NearRim50", "XYards": 50.0, "YYards": -60.0, "HeightYards": 45.0, "AimXYards": 50.0, "AimYYards": 8.0 },
+        { "BankId": "NearRim75", "XYards": 75.0, "YYards": -60.0, "HeightYards": 45.0, "AimXYards": 75.0, "AimYYards": 8.0 },
+        { "BankId": "NearRim100", "XYards": 100.0, "YYards": -60.0, "HeightYards": 45.0, "AimXYards": 100.0, "AimYYards": 8.0 },
+        { "BankId": "FarRim0", "XYards": 0.0, "YYards": 60.0, "HeightYards": 45.0, "AimXYards": 0.0, "AimYYards": -8.0 },
+        { "BankId": "FarRim25", "XYards": 25.0, "YYards": 60.0, "HeightYards": 45.0, "AimXYards": 25.0, "AimYYards": -8.0 },
+        { "BankId": "FarRim50", "XYards": 50.0, "YYards": 60.0, "HeightYards": 45.0, "AimXYards": 50.0, "AimYYards": -8.0 },
+        { "BankId": "FarRim75", "XYards": 75.0, "YYards": 60.0, "HeightYards": 45.0, "AimXYards": 75.0, "AimYYards": -8.0 },
+        { "BankId": "FarRim100", "XYards": 100.0, "YYards": 60.0, "HeightYards": 45.0, "AimXYards": 100.0, "AimYYards": -8.0 },
+        { "BankId": "NearEnd", "XYards": -40.0, "YYards": 0.0, "HeightYards": 40.0, "AimXYards": 12.0, "AimYYards": 0.0 },
+        { "BankId": "FarEnd", "XYards": 140.0, "YYards": 0.0, "HeightYards": 40.0, "AimXYards": 88.0, "AimYYards": 0.0 }
+    ],
+    "Presets": [
+        {
+            "PresetId": "Day",
+            "Description": "An afternoon kickoff: a high sun behind the near (broadcast) sideline, partly cloudy, crisp air.",
+            "SunElevationDeg": 48.0,
+            "SunAzimuthDeg": 65.0,
+            "SunIntensityLux": 90000.0,
+            "SunTemperatureK": 5800.0,
+            "SunSourceAngleDeg": 0.5357,
+            "bSunCastsShadows": true,
+            "SkyLightIntensity": 1.0,
+            "SkyCubemapPath": "/Game/Field/Skies/HDR_Sky_Day.HDR_Sky_Day",
+            "bVolumetricClouds": true,
+            "CloudBottomAltitudeKm": 5.0,
+            "CloudLayerHeightKm": 10.0,
+            "FogDensity": 0.008,
+            "FogHeightFalloff": 0.2,
+            "bVolumetricFog": false,
+            "VolumetricFogExtinctionScale": 1.0,
+            "Dew": 0.0,
+            "Floodlights": {
+                "IntensityCandela": 0.0,
+                "TemperatureK": 5700.0,
+                "InnerConeDeg": 15.0,
+                "OuterConeDeg": 35.0,
+                "SourceRadiusCm": 150.0,
+                "AttenuationRadiusYards": 160.0,
+                "VolumetricScattering": 1.0,
+                "bCastShadows": true
+            },
+            "Look": {
+                "ExposureMinEV100": 14.5,
+                "ExposureMaxEV100": 15.5,
+                "ExposureCompensation": 0.5,
+                "BloomIntensity": 0.3,
+                "VignetteIntensity": 0.2,
+                "ChromaticAberration": 0.0,
+                "LensFlareIntensity": 0.0,
+                "FilmGrainIntensity": 0.0,
+                "MotionBlurAmount": 0.2,
+                "WhiteTemp": 6500.0,
+                "Saturation": 1.06,
+                "Contrast": 1.05,
+                "ColorGradingLutPath": "",
+                "ColorGradingLutIntensity": 1.0,
+                "Grade": {
+                    "bEnabled": true,
+                    "Lift": { "R": 0.0, "G": 0.0, "B": 0.01, "A": 0.0 },
+                    "Gamma": { "R": 1.0, "G": 1.02, "B": 1.0, "A": 1.0 },
+                    "Gain": { "R": 1.02, "G": 1.0, "B": 0.97, "A": 1.0 },
+                    "Saturation": 1.0
+                }
+            }
+        },
+        {
+            "PresetId": "Night",
+            "Description": "Prime time: a dark sky with a faint moon, LED rim lights on both sidelines and behind each end zone, haze in the beams, dew on the grass.",
+            "SunElevationDeg": 35.0,
+            "SunAzimuthDeg": 200.0,
+            "SunIntensityLux": 0.3,
+            "SunTemperatureK": 7000.0,
+            "SunSourceAngleDeg": 0.5,
+            "bSunCastsShadows": false,
+            "SkyLightIntensity": 1.0,
+            "SkyCubemapPath": "/Game/Field/Skies/HDR_Sky_Night.HDR_Sky_Night",
+            "bVolumetricClouds": false,
+            "CloudBottomAltitudeKm": 5.0,
+            "CloudLayerHeightKm": 10.0,
+            "FogDensity": 0.02,
+            "FogHeightFalloff": 0.1,
+            "bVolumetricFog": true,
+            "VolumetricFogExtinctionScale": 1.0,
+            "Dew": 0.6,
+            "Floodlights": {
+                "IntensityCandela": 2500000.0,
+                "TemperatureK": 5700.0,
+                "InnerConeDeg": 15.0,
+                "OuterConeDeg": 35.0,
+                "SourceRadiusCm": 150.0,
+                "AttenuationRadiusYards": 160.0,
+                "VolumetricScattering": 1.0,
+                "bCastShadows": true
+            },
+            "Look": {
+                "ExposureMinEV100": 9.5,
+                "ExposureMaxEV100": 10.5,
+                "ExposureCompensation": 0.5,
+                "BloomIntensity": 0.6,
+                "VignetteIntensity": 0.25,
+                "ChromaticAberration": 0.0,
+                "LensFlareIntensity": 0.2,
+                "FilmGrainIntensity": 0.0,
+                "MotionBlurAmount": 0.2,
+                "WhiteTemp": 5900.0,
+                "Saturation": 1.08,
+                "Contrast": 1.08,
+                "ColorGradingLutPath": "",
+                "ColorGradingLutIntensity": 1.0,
+                "Grade": {
+                    "bEnabled": true,
+                    "Lift": { "R": 0.0, "G": 0.005, "B": 0.015, "A": 0.0 },
+                    "Gamma": { "R": 1.0, "G": 1.0, "B": 1.0, "A": 1.0 },
+                    "Gain": { "R": 1.0, "G": 1.0, "B": 1.02, "A": 1.0 },
+                    "Saturation": 1.0
+                }
+            }
+        }
+    ],
+    "TierSettings": [
+        {
+            "TierId": "DesktopHigh",
+            "bLumen": true,
+            "bRealTimeSkyCapture": true,
+            "bVolumetricClouds": true,
+            "bVolumetricFog": true,
+            "MaxShadowedFloodlights": -1,
+            "bLensEffects": true,
+            "bBloom": true
+        },
+        {
+            "TierId": "MobileBaseline",
+            "bLumen": false,
+            "bRealTimeSkyCapture": false,
+            "bVolumetricClouds": false,
+            "bVolumetricFog": false,
+            "MaxShadowedFloodlights": 2,
+            "bLensEffects": false,
+            "bBloom": true
+        },
+        {
+            "TierId": "MobileLow",
+            "bLumen": false,
+            "bRealTimeSkyCapture": false,
+            "bVolumetricClouds": false,
+            "bVolumetricFog": false,
+            "MaxShadowedFloodlights": 0,
+            "bLensEffects": false,
+            "bBloom": false
+        }
+    ]
+}

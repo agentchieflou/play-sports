@@ -82,6 +82,7 @@
 #include "PSCommentaryTypes.h"
 #include "PSFieldDimensions.h"
 #include "PSFieldSurfaceTypes.h"
+#include "PSStadiumLightingTypes.h"
 #include "PSFormations.h"
 #include "PSRenderCaptureTypes.h"
 #include "PSDataIngestion.generated.h"
@@ -504,6 +505,12 @@ public:
      *  APSFieldSurface::ValidateStyle checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadFieldMarkingsStyleFromJson(const FString& JsonFilePath, FPSFieldMarkingsStyle& OutStyle);
+
+    /** Loads the stadium's light (Data/stadium_lighting.json, lane V2): the day and night presets,
+     *  the floodlight banks and each tier's switches. False on a missing file or malformed JSON;
+     *  UPSStadiumLightingSubsystem::ValidateCatalog checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadStadiumLightingFromJson(const FString& JsonFilePath, FPSStadiumLightingCatalog& OutCatalog);
 
     /** Loads every formation, front and shell's alignment (Data/formations.json): where each
      *  player lines up for a call (PSFormations). False on a missing file or malformed JSON;

@@ -118,7 +118,12 @@ players and the QBAlignment, Backfield and Strength play_recognition.json reads 
 front and shell the plays, run_fits.json and coverage_matchups.json name, each defensive call's
 package placed, and each shell's deep safeties defensive_presnap.json's. "HashOffsetYards" files
 against FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): the field's meshes and
-material named, #RRGGBB colors, positive line sizes and spacings. "PressedOpacity" files against
+material named, #RRGGBB colors, positive line sizes and spacings, the turf and paint materials named,
+material scalars as numbers, paint coverages from 0 to 1, numerals whose strokes fit inside a digit,
+and per-tier turf materials keyed by Data/platform_tiers.json's tiers. "DewCollectionPath" files against
+FPSStadiumLightingCatalog (Data/stadium_lighting.json, lane V2): unique presets, banks and tiers, the
+default preset one of them, sun, sky, fog, floodlight and broadcast-look values in range, floodlight
+banks whenever a preset lights them, and tier switches keyed by Data/platform_tiers.json's tiers. "PressedOpacity" files against
 FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1, #RRGGBB
 colors, positive sizes. "RenderViews" files against FPSRenderCaptureSettings (Data/render_views.json,
 lane V1): the render capture's whole-number frame counts and positive limits, MeasureFrames within
@@ -2250,11 +2255,27 @@ def validate_touch_hud(path, payload):
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSTouchHudStyle exactly")
 
 
-FIELD_MARKING_PATHS = ("GroundMeshPath", "PlaneMeshPath", "MaterialPath")
-FIELD_MARKING_COLORS = ("FieldColor", "SurroundColor", "NearEndZoneColor", "FarEndZoneColor", "LineColor")
+FIELD_MARKING_PATHS = ("GroundMeshPath", "PlaneMeshPath", "MaterialPath", "TurfMaterialPath", "PaintMaterialPath")
+FIELD_MARKING_COLORS = ("FieldColor", "SurroundColor", "NearEndZoneColor", "FarEndZoneColor", "LineColor",
+                        "BorderColor", "NumeralColor")
 FIELD_MARKING_POSITIVE = ("MeshSizeCm", "GroundThicknessCm", "LineWidthYards", "YardLineSpacingYards",
-                          "HashSpacingYards", "HashLengthYards")
-FIELD_MARKING_NON_NEGATIVE = ("LayerLiftCm", "HashOffsetYards")
+                          "HashSpacingYards", "HashLengthYards", "StripeWidthYards", "NumeralEveryYards",
+                          "NumeralHeightYards", "NumeralWidthYards", "NumeralStrokeYards", "ArrowLengthYards",
+                          "ArrowBaseYards")
+FIELD_MARKING_NON_NEGATIVE = ("LayerLiftCm", "HashOffsetYards", "BorderWidthYards", "NumeralBottomFromSidelineYards",
+                              "NumeralGapYards", "ArrowGapYards", "ArrowCenterFromSidelineYards")
+FIELD_MARKING_FRACTIONS = ("PaintCoverage", "EndZonePaintCoverage")
+FIELD_MARKING_BOOLS = ("bDrawNumerals", "bDrawArrows")
+
+
+def load_platform_tier_list():
+    """The tiers of Data/platform_tiers.json (empty when it can't be read): what per-tier entries
+    in the visual data files are keyed by."""
+    try:
+        tiers = json.loads((DATA_DIR / "platform_tiers.json").read_text(encoding="utf-8")).get("Tiers") or []
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [t for t in tiers if isinstance(t, dict)]
 
 
 def validate_field_markings(path, payload):
@@ -2277,11 +2298,200 @@ def validate_field_markings(path, payload):
         value = payload.get(field)
         if not is_number(value) or value < 0:
             err(path, f"{field}: '{value}' must be a number, 0 or more")
+    for field in FIELD_MARKING_FRACTIONS:
+        value = payload.get(field)
+        if not is_number(value) or value < 0 or value > 1:
+            err(path, f"{field}: '{value}' must be a number from 0 to 1")
+    for field in FIELD_MARKING_BOOLS:
+        if not isinstance(payload.get(field), bool):
+            err(path, f"{field} must be true or false")
+    stroke, width, height = (payload.get(f) for f in ("NumeralStrokeYards", "NumeralWidthYards", "NumeralHeightYards"))
+    if is_number(stroke) and is_number(width) and is_number(height) and (stroke * 2 >= width or stroke * 3 >= height):
+        err(path, "NumeralStrokeYards must leave room inside a digit: under half its width and a third of its height")
+    scalars = payload.get("MaterialScalars")
+    if not isinstance(scalars, dict) or not all(isinstance(k, str) and k and is_number(v) for k, v in scalars.items()):
+        err(path, "MaterialScalars must map material parameter names to numbers")
+    tier_ids = {t.get("TierId") for t in load_platform_tier_list()}
+    seen_tiers = set()
+    for i, look in enumerate(payload.get("TierLooks") if isinstance(payload.get("TierLooks"), list) else [None]):
+        if not isinstance(look, dict) or set(look) != {"TierId", "TurfMaterialPath"}:
+            err(path, f"TierLooks[{i}] must be {{TierId, TurfMaterialPath}}")
+            continue
+        if tier_ids and look["TierId"] not in tier_ids:
+            err(path, f"TierLooks[{i}]: TierId '{look['TierId']}' is not a tier of Data/platform_tiers.json")
+        if look["TierId"] in seen_tiers:
+            err(path, f"TierLooks[{i}]: TierId '{look['TierId']}' is listed twice")
+        seen_tiers.add(look["TierId"])
+        if not isinstance(look["TurfMaterialPath"], str) or not look["TurfMaterialPath"].startswith("/"):
+            err(path, f"TierLooks[{i}]: TurfMaterialPath '{look['TurfMaterialPath']}' must be an asset path")
     known = set(FIELD_MARKING_PATHS) | set(FIELD_MARKING_COLORS) | set(FIELD_MARKING_POSITIVE) \
-        | set(FIELD_MARKING_NON_NEGATIVE) | {"ColorParameter"}
+        | set(FIELD_MARKING_NON_NEGATIVE) | set(FIELD_MARKING_FRACTIONS) | set(FIELD_MARKING_BOOLS) \
+        | {"ColorParameter", "MaterialScalars", "TierLooks"}
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldMarkingsStyle exactly")
+
+
+LIGHTING_BANK_FIELDS = {"BankId", "XYards", "YYards", "HeightYards", "AimXYards", "AimYYards"}
+LIGHTING_PRESET_RANGES = {
+    "SunElevationDeg": (-90, 90), "SunAzimuthDeg": (-360, 360), "SunIntensityLux": (0, 200000),
+    "SunTemperatureK": (1700, 12000), "SunSourceAngleDeg": (0, 10), "SkyLightIntensity": (0, 10),
+    "CloudBottomAltitudeKm": (0, 20), "CloudLayerHeightKm": (0.1, 20), "FogDensity": (0, 1),
+    "FogHeightFalloff": (0.001, 2), "VolumetricFogExtinctionScale": (0, 10), "Dew": (0, 1),
+}
+LIGHTING_PRESET_BOOLS = ("bSunCastsShadows", "bVolumetricClouds", "bVolumetricFog")
+LIGHTING_FLOOD_RANGES = {
+    "IntensityCandela": (0, 100000000), "TemperatureK": (1700, 12000), "OuterConeDeg": (1, 80),
+    "SourceRadiusCm": (0, 1000), "AttenuationRadiusYards": (1, 1000), "VolumetricScattering": (0, 10),
+}
+LIGHTING_LOOK_RANGES = {
+    "ExposureMinEV100": (-10, 20), "ExposureMaxEV100": (-10, 20), "ExposureCompensation": (-15, 15),
+    "BloomIntensity": (0, 8), "VignetteIntensity": (0, 1), "ChromaticAberration": (0, 5),
+    "LensFlareIntensity": (0, 16), "FilmGrainIntensity": (0, 1), "MotionBlurAmount": (0, 1),
+    "WhiteTemp": (1500, 15000), "Saturation": (0, 2), "Contrast": (0, 2), "ColorGradingLutIntensity": (0, 1),
+}
+LIGHTING_TIER_BOOLS = ("bLumen", "bRealTimeSkyCapture", "bVolumetricClouds", "bVolumetricFog", "bLensEffects", "bBloom")
+
+
+def _check_ranges(path, where, block, ranges):
+    for field, (low, high) in ranges.items():
+        value = block.get(field)
+        if not is_number(value) or value < low or value > high:
+            err(path, f"{where}: {field} '{value}' must be a number from {low} to {high}")
+
+
+def validate_stadium_lighting(path, payload):
+    """FPSStadiumLightingCatalog (Data/stadium_lighting.json, lane V2): the day and night presets,
+    the floodlight banks and each tier's switches; mirrors UPSStadiumLightingSubsystem::ValidateCatalog."""
+    presets = payload.get("Presets")
+    banks = payload.get("Banks")
+    tiers = payload.get("TierSettings")
+    if not isinstance(presets, list) or not presets:
+        err(path, "Presets must be a non-empty list")
+        presets = []
+    if not isinstance(banks, list):
+        err(path, "Banks must be a list")
+        banks = []
+    if not isinstance(tiers, list):
+        err(path, "TierSettings must be a list")
+        tiers = []
+    for field in ("DewCollectionPath",):
+        value = payload.get(field)
+        if not isinstance(value, str) or (value and not value.startswith("/")):
+            err(path, f"{field}: '{value}' must be an asset path or empty")
+    if not isinstance(payload.get("DewParameter"), str) or not payload.get("DewParameter"):
+        err(path, "DewParameter must name the collection's scalar parameter")
+
+    bank_ids = set()
+    for i, bank in enumerate(banks):
+        where = f"Banks[{i}]"
+        if not isinstance(bank, dict) or set(bank) != LIGHTING_BANK_FIELDS:
+            err(path, f"{where} must have exactly {sorted(LIGHTING_BANK_FIELDS)}")
+            continue
+        if not isinstance(bank["BankId"], str) or not bank["BankId"] or bank["BankId"] in bank_ids:
+            err(path, f"{where}: BankId must be set and unique")
+        bank_ids.add(bank["BankId"])
+        for field in ("XYards", "YYards", "AimXYards", "AimYYards"):
+            if not is_number(bank[field]):
+                err(path, f"{where}: {field} must be a number")
+        if not is_number(bank["HeightYards"]) or bank["HeightYards"] <= 0:
+            err(path, f"{where}: HeightYards must be above 0")
+
+    preset_ids = set()
+    any_floodlights = False
+    known_preset = set(LIGHTING_PRESET_RANGES) | set(LIGHTING_PRESET_BOOLS) | {
+        "PresetId", "Description", "SkyCubemapPath", "Floodlights", "Look"}
+    for i, preset in enumerate(presets):
+        if not isinstance(preset, dict):
+            err(path, f"Presets[{i}] must be an object")
+            continue
+        where = f"Presets[{i}] ({preset.get('PresetId')})"
+        if not isinstance(preset.get("PresetId"), str) or not preset["PresetId"] or preset["PresetId"] in preset_ids:
+            err(path, f"{where}: PresetId must be set and unique")
+        preset_ids.add(preset.get("PresetId"))
+        extra = set(preset) - known_preset
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSLightingPreset exactly")
+        _check_ranges(path, where, preset, LIGHTING_PRESET_RANGES)
+        for field in LIGHTING_PRESET_BOOLS:
+            if not isinstance(preset.get(field), bool):
+                err(path, f"{where}: {field} must be true or false")
+        cubemap = preset.get("SkyCubemapPath")
+        if not isinstance(cubemap, str) or (cubemap and not cubemap.startswith("/")):
+            err(path, f"{where}: SkyCubemapPath '{cubemap}' must be an asset path or empty")
+        flood = preset.get("Floodlights")
+        if not isinstance(flood, dict):
+            err(path, f"{where}: Floodlights must be an object")
+        else:
+            _check_ranges(path, f"{where} Floodlights", flood, LIGHTING_FLOOD_RANGES)
+            inner, outer = flood.get("InnerConeDeg"), flood.get("OuterConeDeg")
+            if not is_number(inner) or not is_number(outer) or inner < 0 or inner > outer:
+                err(path, f"{where} Floodlights: InnerConeDeg '{inner}' must be from 0 to OuterConeDeg")
+            if not isinstance(flood.get("bCastShadows"), bool):
+                err(path, f"{where} Floodlights: bCastShadows must be true or false")
+            extra = set(flood) - set(LIGHTING_FLOOD_RANGES) - {"InnerConeDeg", "bCastShadows"}
+            if extra:
+                err(path, f"{where} Floodlights: unknown field(s) {sorted(extra)} - names must match FPSFloodlightSettings exactly")
+            any_floodlights = any_floodlights or (is_number(flood.get("IntensityCandela")) and flood["IntensityCandela"] > 0)
+        look = preset.get("Look")
+        if not isinstance(look, dict):
+            err(path, f"{where}: Look must be an object")
+        else:
+            _check_ranges(path, f"{where} Look", look, LIGHTING_LOOK_RANGES)
+            low, high = look.get("ExposureMinEV100"), look.get("ExposureMaxEV100")
+            if is_number(low) and is_number(high) and low > high:
+                err(path, f"{where} Look: ExposureMinEV100 must not be above ExposureMaxEV100")
+            lut = look.get("ColorGradingLutPath")
+            if not isinstance(lut, str) or (lut and not lut.startswith("/")):
+                err(path, f"{where} Look: ColorGradingLutPath '{lut}' must be an asset path or empty")
+            grade = look.get("Grade")
+            if not isinstance(grade, dict) or not isinstance(grade.get("bEnabled"), bool):
+                err(path, f"{where} Look: Grade must be an object with bEnabled true or false")
+            else:
+                for field, (low, high) in (("Lift", (-0.5, 0.5)), ("Gamma", (0.2, 5)), ("Gain", (0, 4))):
+                    color = grade.get(field)
+                    if not isinstance(color, dict) or not {"R", "G", "B"} <= set(color) or set(color) - {"R", "G", "B", "A"} \
+                            or not all(is_number(color[c]) and low <= color[c] <= high for c in "RGB"):
+                        err(path, f"{where} Look.Grade: {field} must be {{R, G, B[, A]}} with R, G and B from {low} to {high}")
+                saturation = grade.get("Saturation")
+                if not is_number(saturation) or saturation < 0 or saturation > 2:
+                    err(path, f"{where} Look.Grade: Saturation '{saturation}' must be a number from 0 to 2")
+                extra = set(grade) - {"bEnabled", "Lift", "Gamma", "Gain", "Saturation"}
+                if extra:
+                    err(path, f"{where} Look.Grade: unknown field(s) {sorted(extra)} - names must match FPSLutGrade exactly")
+            extra = set(look) - set(LIGHTING_LOOK_RANGES) - {"ColorGradingLutPath", "Grade"}
+            if extra:
+                err(path, f"{where} Look: unknown field(s) {sorted(extra)} - names must match FPSBroadcastLook exactly")
+    if payload.get("DefaultPreset") not in preset_ids:
+        err(path, f"DefaultPreset '{payload.get('DefaultPreset')}' is not a preset")
+    if any_floodlights and not banks:
+        err(path, "Banks: a preset turns the floodlights on, so there must be at least one bank")
+
+    known_tiers = {t.get("TierId") for t in load_platform_tier_list()}
+    seen = set()
+    for i, tier in enumerate(tiers):
+        where = f"TierSettings[{i}]"
+        if not isinstance(tier, dict):
+            err(path, f"{where} must be an object")
+            continue
+        tier_id = tier.get("TierId")
+        if not isinstance(tier_id, str) or not tier_id or tier_id in seen:
+            err(path, f"{where}: TierId must be set and unique")
+        elif known_tiers and tier_id not in known_tiers:
+            err(path, f"{where}: TierId '{tier_id}' is not a tier of Data/platform_tiers.json")
+        seen.add(tier_id)
+        for field in LIGHTING_TIER_BOOLS:
+            if not isinstance(tier.get(field), bool):
+                err(path, f"{where}: {field} must be true or false")
+        shadows = tier.get("MaxShadowedFloodlights")
+        if not isinstance(shadows, int) or isinstance(shadows, bool) or shadows < -1:
+            err(path, f"{where}: MaxShadowedFloodlights must be a whole number, -1 (all) or more")
+        extra = set(tier) - set(LIGHTING_TIER_BOOLS) - {"TierId", "MaxShadowedFloodlights"}
+        if extra:
+            err(path, f"{where}: unknown field(s) {sorted(extra)} - names must match FPSLightingTierSettings exactly")
+    extra = set(payload) - {"DefaultPreset", "DewCollectionPath", "DewParameter", "Banks", "Presets", "TierSettings"}
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSStadiumLightingCatalog exactly")
 
 
 PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
@@ -6171,6 +6381,8 @@ def main(root=None):
             validate_touch_hud(path, payload)
         if isinstance(payload, dict) and "HashOffsetYards" in payload:
             validate_field_markings(path, payload)
+        if isinstance(payload, dict) and "DewCollectionPath" in payload:
+            validate_stadium_lighting(path, payload)
         if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:

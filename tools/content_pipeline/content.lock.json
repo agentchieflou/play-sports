@@ -1,6 +1,33 @@
 {
     "Comment": "Written by the content pipeline (tools/content_pipeline, Specs/ADR_Content_Pipeline.md). Never edit it by hand: run the Content workflow and commit its generated-content artifact.",
     "Steps": {
+        "field_look": {
+            "Outputs": {
+                "Content/Field/Materials/MPC_Field.uasset": "6936e8cd265146a46e4829f1729a7aaea5d79029818bf14693217cd3a18d806e",
+                "Content/Field/Materials/M_FieldPaint.uasset": "03f0ab5d7cac70df360833f4e471d408540a345ab77bfbf2e9f54fced15d5e55",
+                "Content/Field/Materials/M_Turf.uasset": "4b68685ca9b72dcdc7ccc43ace4089fde106f6d182512c6f1de3303bb6cd4280",
+                "Content/Field/Materials/M_TurfLite.uasset": "93053a7d4c59b3e2ab4510cadb2ff8d5cf87e23df167b835f2b54908a3550dee",
+                "Content/Field/Skies/HDR_Sky_Day.uasset": "3dca49d3aa2c5c275ac63f5431a0c2cb5443b1aea0a533c726997d7382f7aff7",
+                "Content/Field/Skies/HDR_Sky_Night.uasset": "166ae6b96d32129ee38499fb2e09e83061a3f0cdf71106788f62ec71e48718ff",
+                "Content/Field/Textures/T_Turf_Color.uasset": "7b69908ca52f5eac1edac6bf1f2edcf7e2aedec0eb72abf851c603632c0f8004",
+                "Content/Field/Textures/T_Turf_Noise.uasset": "8556728302ee1c045d4dd878d5c42c2b44e12b94d4e511d7beb19b1951fea960",
+                "Content/Field/Textures/T_Turf_Normal.uasset": "9b59c984bcc83ab50ed841568b4aa3542d8911143c462e4e8d6183f5b3a7c654",
+                "Content/Field/Textures/T_Turf_ORM.uasset": "ee066a56b443154075970278ea0257effcd52a2967d967018d6889a625f4f14a"
+            },
+            "Sources": {
+                "RawAssets/field/sky/HDR_Sky_Day.hdr": "fd94c84997b8a3c353b62c2125a9b44e19509956986a126e472684432a02d798",
+                "RawAssets/field/sky/HDR_Sky_Night.hdr": "2b94f1046750f91616b1442236edd233142608c8452f76b4c427a4c2901b352b",
+                "RawAssets/field/sky/LICENSE": "7c719b276431e1e696b73a4bf5fe88318605faf53538df2655dcc96741957575",
+                "RawAssets/field/turf/LICENSE": "3fbe8659af5bf10a7f99bce3cd48283f6dc1436ad2767ae8ba8c5ae8ad1fb937",
+                "RawAssets/field/turf/T_Turf_Color.jpg": "2acdf15d09e790a114743f21bc0332a86e386cb77c54507323d626f67f0f2e10",
+                "RawAssets/field/turf/T_Turf_Noise.png": "7530558ef9469ea838002a7a1d5bad2a26bb01fa328a8930748c01c50d5f3b89",
+                "RawAssets/field/turf/T_Turf_Normal.jpg": "d3b852042a4b314dbefc2d1738d10d2573fc54c10c93ba98a8bbc8fa5432405e",
+                "RawAssets/field/turf/T_Turf_ORM.png": "83943b94d521dfe829ab618ec3a2cc4397a2b59f886c9d7fb69c35d48e1e9e4d",
+                "RawAssets/field/turf/turf.json": "365d7dcb03a22210b2eddea523b0a78ccdf0979e1969c73f85c17b3d3c3bb449",
+                "tools/content_pipeline/steps/field_look.py": "8d2b4b06cbdfd0b44b7c9b1c412efb70e7d0e96146703163d2a0a5a44bd4a57f",
+                "tools/content_pipeline/ue_content.py": "a615429c9939a634b8c15828cacb26b126f9fe969190b1e5bfc185cda8a38451"
+            }
+        },
         "game_map": {
             "Outputs": {
                 "Content/Maps/GameMap.umap": "0ae93bef7f98857d3f8d15c285581718578c5b6169c89963ed49074f29af6221"

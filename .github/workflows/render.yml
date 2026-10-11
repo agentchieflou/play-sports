@@ -31,6 +31,10 @@ on:
         description: "ViewIds to render, joined with + (empty: every view in Data/render_views.json)"
         type: string
         default: ""
+      lighting:
+        description: "A lighting preset from Data/stadium_lighting.json, e.g. Night (empty: its DefaultPreset)"
+        type: string
+        default: ""
   pull_request:
     branches: [main]
     paths:
@@ -40,6 +44,7 @@ on:
       - "Data/render_views.json"
       - "Data/field_dimensions.json"
       - "Data/field_markings.json"
+      - "Data/stadium_lighting.json"
       - "Data/platform_tiers.json"
       - "Source/PlaySports/**/PSRenderCapture*"
       - "Source/PlaySports/**/PSFieldSurface*"
@@ -62,6 +67,7 @@ jobs:
     timeout-minutes: 120
     env:
       PS_RENDER_VIEWS: ${{ inputs.views }}
+      PS_RENDER_LIGHTING: ${{ inputs.lighting }}
       PS_RENDER_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Checkout
@@ -148,6 +154,8 @@ jobs:
             "-PSRenderCapture", "-PSRenderCaptureOut=`"$OutDir`"", "-PSRenderCaptureCommit=$env:PS_RENDER_COMMIT",
             "-nosound", "-unattended", "-nosplash", "-nop4", "-abslog=`"$Log`"")
           if ($env:PS_RENDER_VIEWS) { $GameArgs += "-PSRenderCaptureOnly=$env:PS_RENDER_VIEWS" }
+          # UPSStadiumLightingSubsystem's preset (lane V2): the night look is rendered on demand.
+          if ($env:PS_RENDER_LIGHTING) { $GameArgs += "-PSLighting=$env:PS_RENDER_LIGHTING" }
           Write-Host "$Editor $($GameArgs -join ' ')"
           $Started = Get-Date
           $Proc = Start-Process -FilePath $Editor -ArgumentList $GameArgs -PassThru

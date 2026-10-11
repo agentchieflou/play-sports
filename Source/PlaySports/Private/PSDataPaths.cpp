@@ -93,6 +93,7 @@ namespace PSDataPathsPrivate
         TEXT("Data/situational_tuning.json"),
         TEXT("Data/skill_ai_tuning.json"),
         TEXT("Data/special_teams.json"),
+        TEXT("Data/stadium_lighting.json"),
         TEXT("Data/telemetry_sampling.json"),
         TEXT("Data/telestrator.json"),
         TEXT("Data/touch_controls.json"),

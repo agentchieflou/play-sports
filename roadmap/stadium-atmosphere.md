@@ -17,7 +17,7 @@ established: `Specs/` job specs + escalation, code-side never stalls. Architectu
 **Goal:** Stadium floodlight lighting that reads like a prime-time broadcast — multi-source shadows, grass sheen, lit-bowl falloff.
 **Depends on:** Core 2
 
-- [ ] Floodlight bank placement spec (positions, intensities, color temperature) as data
+- [x] Floodlight bank placement spec (positions, intensities, color temperature) as data *(lane V2: `Data/stadium_lighting.json`'s `Banks` (12 rim and end banks in the field's frame, each aimed at a point on the field) and each preset's `Floodlights` (candela, Kelvin, cones, source radius, haze scattering, shadows). `UPSStadiumLightingSubsystem` spawns a movable spot light per bank for the `Night` preset; each tier caps the shadowed ones. Tests `PlaySports.Lighting.*`. How it looks: lane V1's renders)*
 - [ ] Multi-shadow tuning on players (the four-shadow prime-time look)
 - [ ] Field material response pass (dewy grass sheen under lights)
 - [ ] Exposure/bloom calibration against overlay legibility (Track A must stay readable)
