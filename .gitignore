@@ -89,3 +89,6 @@ __pycache__/
 # Playbook extraction (Track O): raw page cache and crawl state stay local
 tools/playbook_scraper/.cache/
 tools/playbook_scraper/.state/
+
+# Node tools (tools/assets/world: npm ci) install here
+node_modules/

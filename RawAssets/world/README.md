@@ -38,8 +38,12 @@ knowledge is in `Specs/Browser_World_Lessons.md`, `Specs/Character_Customization
 
 ## Importing into Unreal
 
-Nothing here has been imported yet (`Content/` is empty). An editor session does it; agent sessions
-have no editor (`AGENTS.md`). The steps, when someone takes Epic 142:
+**The content pipeline does it now (Epics 142, 146.5).** `tools/assets/world/unreal.mjs` makes these
+files engine-ready (PNG textures, dequantised geometry). The pipeline's `world_kit` step then
+imports them through Interchange, headlessly on the CI runner, into `Content/Characters/Standin/`,
+`Content/Stadium/Kit/` and `Content/Office/`, with each folder's `LICENSE` beside its assets.
+`Specs/World_Kit_Import_Spec.md` is the plan. Change a file here and the Content workflow
+re-imports it. The notes below are the background the plan was made from:
 
 1. **GLB models** import through Interchange (File → Import, or the `InterchangeImport` commandlet).
    Skinned meshes (`people/*.glb`) come in as Skeletal Mesh + Skeleton; the morph targets import as

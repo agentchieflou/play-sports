@@ -140,10 +140,20 @@ def source_digests(repo, config, step):
 
 
 def output_digests(repo, step):
-    """{path: digest} over a step's outputs; a missing output digests as "missing"."""
+    """{path: digest} over a step's outputs; a missing output digests as "missing". An output
+    ending in "/" is a folder the step owns whole: every file in it, and "missing" for the folder
+    when it has none."""
+    repo = Path(repo)
     digests = {}
     for relative in step.get("Outputs", []):
-        path = Path(repo) / relative
+        if relative.endswith("/"):
+            files = expand_paths(repo, [relative.rstrip("/")]) if (repo / relative).is_dir() else []
+            for file in files:
+                digests[file] = file_digest(repo / file)
+            if not files:
+                digests[relative] = "missing"
+            continue
+        path = repo / relative
         digests[relative] = file_digest(path) if path.is_file() else "missing"
     return digests
 
@@ -153,6 +163,31 @@ def lock_entry(repo, config, step):
     return {"Sources": source_digests(repo, config, step), "Outputs": output_digests(repo, step)}
 
 
+def step_problems(repo, config, lock, step):
+    """One step's drift: a list of problems, empty when its content is current."""
+    step_id = step["Id"]
+    recorded = lock["Steps"].get(step_id)
+    if recorded is None:
+        return [f"{step_id}: never generated (no entry in {LOCK_FILE})"]
+    problems = []
+    current = source_digests(repo, config, step)
+    before = recorded.get("Sources", {})
+    changed = sorted(path for path in set(current) | set(before) if current.get(path) != before.get(path))
+    if changed:
+        problems.append(f"{step_id}: sources changed since its content was generated: {', '.join(changed)}")
+    outputs = output_digests(repo, step)
+    wrote = recorded.get("Outputs", {})
+    for path, digest in sorted(outputs.items()):
+        if digest == "missing":
+            problems.append(f"{step_id}: output {path} is missing")
+        elif wrote.get(path) != digest:
+            problems.append(f"{step_id}: output {path} is not what the pipeline wrote "
+                            "(edited by hand, or committed without its lock)")
+    for path in sorted(set(wrote) - set(outputs)):
+        problems.append(f"{step_id}: output {path} is missing")
+    return problems
+
+
 def check(repo):
     """The fast drift check: a list of problems, empty when every step's content is current."""
     repo = Path(repo)
@@ -160,24 +195,7 @@ def check(repo):
     lock = load_lock(repo)
     problems = []
     for step in config.get("Steps", []):
-        step_id = step["Id"]
-        recorded = lock["Steps"].get(step_id)
-        if recorded is None:
-            problems.append(f"{step_id}: never generated (no entry in {LOCK_FILE})")
-            continue
-        current = source_digests(repo, config, step)
-        before = recorded.get("Sources", {})
-        changed = sorted(path for path in set(current) | set(before) if current.get(path) != before.get(path))
-        if changed:
-            problems.append(f"{step_id}: sources changed since its content was generated: {', '.join(changed)}")
-        outputs = output_digests(repo, step)
-        for path, digest in sorted(outputs.items()):
-            wrote = recorded.get("Outputs", {}).get(path)
-            if digest == "missing":
-                problems.append(f"{step_id}: output {path} is missing")
-            elif wrote != digest:
-                problems.append(f"{step_id}: output {path} is not what the pipeline wrote "
-                                "(edited by hand, or committed without its lock)")
+        problems.extend(step_problems(repo, config, lock, step))
     for step_id in sorted(set(lock["Steps"]) - {step["Id"] for step in config.get("Steps", [])}):
         problems.append(f"{step_id}: in the lock but no longer a step in {PIPELINE_FILE}")
     return problems

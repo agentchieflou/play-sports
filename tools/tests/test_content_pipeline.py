@@ -136,6 +136,47 @@ class DriftCheckTests(unittest.TestCase):
         pipeline.write_lock(self.repo.root, lock)
         self.assertIn("gone: in the lock but no longer a step", " ".join(pipeline.check(self.repo.root)))
 
+    def owned_folder(self):
+        """Makes the step own a folder of two assets instead of one level; returns the config."""
+        config = json.loads(json.dumps(CONFIG))
+        config["Steps"][0]["Outputs"] = ["Content/Kit/"]
+        self.repo.write(pipeline.PIPELINE_FILE, json.dumps(config))
+        self.repo.write_bytes("Content/Kit/a.uasset", b"\0a")
+        self.repo.write_bytes("Content/Kit/Sub/b.uasset", b"\0b")
+        lock = pipeline.load_lock(self.repo.root)
+        lock["Steps"]["level"] = pipeline.lock_entry(self.repo.root, config, config["Steps"][0])
+        pipeline.write_lock(self.repo.root, lock)
+        return config
+
+    def test_a_folder_output_records_every_file_in_it(self):
+        config = self.owned_folder()
+        self.assertEqual(sorted(pipeline.output_digests(self.repo.root, config["Steps"][0])),
+                         ["Content/Kit/Sub/b.uasset", "Content/Kit/a.uasset"])
+        self.assertEqual(pipeline.check(self.repo.root), [])
+
+    def test_a_file_added_to_an_owned_folder_is_drift(self):
+        self.owned_folder()
+        self.repo.write_bytes("Content/Kit/c.uasset", b"\0c")
+        self.assertIn("Content/Kit/c.uasset is not what the pipeline wrote", " ".join(pipeline.check(self.repo.root)))
+
+    def test_a_file_gone_from_an_owned_folder_is_drift(self):
+        self.owned_folder()
+        (self.repo.root / "Content/Kit/Sub/b.uasset").unlink()
+        self.assertIn("Content/Kit/Sub/b.uasset is missing", " ".join(pipeline.check(self.repo.root)))
+
+    def test_an_empty_owned_folder_is_missing(self):
+        self.owned_folder()
+        for name in ("Content/Kit/a.uasset", "Content/Kit/Sub/b.uasset"):
+            (self.repo.root / name).unlink()
+        self.assertIn("output Content/Kit/ is missing", " ".join(pipeline.check(self.repo.root)))
+
+    def test_step_problems_are_one_steps_drift(self):
+        config = pipeline.load_pipeline(self.repo.root)
+        lock = pipeline.load_lock(self.repo.root)
+        self.assertEqual(pipeline.step_problems(self.repo.root, config, lock, config["Steps"][0]), [])
+        self.repo.write("Data/level.json", '{"Size": 4}\n')
+        self.assertEqual(len(pipeline.step_problems(self.repo.root, config, lock, config["Steps"][0])), 1)
+
     def test_writing_an_unchanged_lock_changes_nothing(self):
         self.assertFalse(pipeline.write_lock(self.repo.root, pipeline.load_lock(self.repo.root)))
 
@@ -263,10 +304,13 @@ class RepoPipelineTests(unittest.TestCase):
             for relative in step.get("Inputs", []):
                 self.assertTrue((repo / relative).exists(), f"{step['Id']} reads {relative}, which doesn't exist")
             for relative in step["Outputs"]:
-                self.assertTrue(relative.startswith("Content/") and relative.endswith((".umap", ".uasset")),
-                                f"{step['Id']} output {relative} must be an asset under Content/")
+                self.assertTrue(relative.startswith("Content/") and relative.endswith((".umap", ".uasset", "/")),
+                                f"{step['Id']} output {relative} must be an asset or a folder under Content/")
                 owned.append(relative)
         self.assertEqual(len(owned), len(set(owned)), "an asset has one writer: no two steps own it")
+        for folder in (path for path in owned if path.endswith("/")):
+            nested = [path for path in owned if path != folder and path.startswith(folder)]
+            self.assertEqual(nested, [], f"{folder} is owned whole, so nothing in it has another owner")
 
 
 if __name__ == "__main__":

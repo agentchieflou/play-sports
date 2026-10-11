@@ -21,11 +21,20 @@ FLOAT_TOLERANCE = 1e-4
 
 
 class StepContext:
-    """One step's run: whether it may change anything, and what it changed (or would)."""
+    """One step's run: whether it may change anything, and what it changed (or would).
 
-    def __init__(self, step_id, dry_run):
+    repo is the repository's root. drift is the fast drift check's problems for this step
+    (pipeline.step_problems: empty when its sources and outputs match the lock), and
+    recorded_outputs the output files the lock lists for it. An import step, whose result can't
+    be compared piece by piece, re-imports only when drift is not empty.
+    """
+
+    def __init__(self, step_id, dry_run, repo="", drift=None, recorded_outputs=None):
         self.step_id = step_id
         self.dry_run = dry_run
+        self.repo = repo
+        self.drift = list(drift or [])
+        self.recorded_outputs = list(recorded_outputs or [])
         self.changes = []
         self.saved = []
 
@@ -281,3 +290,48 @@ def load_class(path):
     if cls is None:
         raise RuntimeError(f"The class {path} doesn't exist (renamed, or its module isn't built).")
     return cls
+
+
+# --- Imports (Epic 146.5) ---------------------------------------------------------------------
+
+def import_file(ctx, filename, destination):
+    """Imports filename into the /Game folder destination through the editor's importer
+    (Interchange for glTF, textures and HDR skies), automated and saved. Returns the imported
+    objects' paths; fails when it made none."""
+    task = unreal.AssetImportTask()
+    task.set_editor_property("filename", filename)
+    task.set_editor_property("destination_path", destination)
+    task.set_editor_property("automated", True)
+    task.set_editor_property("save", True)
+    task.set_editor_property("replace_existing", True)
+    unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    imported = [str(path) for path in task.get_editor_property("imported_object_paths")]
+    if not imported:
+        raise RuntimeError(f"Importing {filename} into {destination} made no assets (the editor log says why).")
+    ctx.saved.extend(imported)
+    return imported
+
+
+def delete_folder(ctx, folder):
+    """Deletes the /Game folder and every asset in it, if it exists."""
+    if not unreal.EditorAssetLibrary.does_directory_exist(folder):
+        return
+    ctx.change(f"remove {folder} (re-imported whole)")
+    if not ctx.dry_run and not unreal.EditorAssetLibrary.delete_directory(folder):
+        raise RuntimeError(f"Couldn't delete {folder}.")
+
+
+def asset_path_for_file(relative):
+    """The package path (/Game/...) of a repo-relative Content/ file, or None for a file that
+    isn't an asset."""
+    if not relative.startswith("Content/") or not relative.endswith((".uasset", ".umap")):
+        return None
+    return "/Game/" + relative[len("Content/"):].rsplit(".", 1)[0]
+
+
+def check_assets_load(ctx, relative_files):
+    """Records a change for every asset among relative_files (repo-relative) that won't load."""
+    for relative in relative_files:
+        package = asset_path_for_file(relative)
+        if package and unreal.EditorAssetLibrary.load_asset(package) is None:
+            ctx.change(f"{package} doesn't load")

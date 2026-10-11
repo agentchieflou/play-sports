@@ -19,6 +19,27 @@ Needs Node 22 or later. Install the pinned tools once, here:
 `@gltf-transform/*` (MIT), `meshoptimizer` (MIT) and `sharp` (Apache-2.0) are development tools
 only; the package has no runtime dependency on them.
 
+## For Unreal (`unreal.mjs`)
+
+The `--unreal` output (Epic 142.2): it makes the committed files under `RawAssets/world/`
+engine-ready for Interchange, which decodes neither WebP nor quantised geometry. Run from
+`tools/assets/world`:
+
+    node unreal.mjs ../../RawAssets/world <out-dir>
+
+- **`.glb` files:** textures are re-encoded as PNG and `EXT_texture_webp` is dropped. Geometry is
+  dequantised (`KHR_mesh_quantization` dropped) and any meshopt-compressed buffer is decoded.
+  Nodes, names, skins, morph targets and materials are unchanged.
+- **`.webp` files** are written as `.png`. **`.hdr` skies** and each folder's **`LICENSE`** are
+  copied as they are.
+- **Folders:** `cars`, `cc0`, `office`, `people` and `trees`. `reference/` is code, not assets.
+
+The Content workflow runs it into `Saved/WorldKit` before the content pipeline's `world_kit`
+step imports from there (`Specs/World_Kit_Import_Spec.md`). Its output is not committed. It works
+from the browser-sized files, so textures stay 512–1024 px. For full resolution, re-pack from the
+raw sources (the Poly Haven originals, the Blender outputs) with the steps below; the import then
+takes those instead.
+
 ## Poly Haven, CC0 (`cc0/`)
 
 What `RawAssets/world/cc0/` holds, and how it was made. Its `LICENSE` names every asset

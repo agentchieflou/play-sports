@@ -1,5 +1,5 @@
 {
-    "Comment": "The content pipeline's steps (Epic 146, Specs/ADR_Content_Pipeline.md). Each step's Script runs in the editor (run_in_editor.py) and owns its Outputs; its Inputs are the files it reads. Library counts as a source of every step. Paths are relative to the repo root; a directory stands for every file in it.",
+    "Comment": "The content pipeline's steps (Epic 146, Specs/ADR_Content_Pipeline.md). Each step's Script runs in the editor (run_in_editor.py) and owns its Outputs; an output ending in / is a folder the step owns whole. Its Inputs are the files it reads. Library counts as a source of every step. Paths are relative to the repo root; a directory stands for every file in it.",
     "Library": [
         "tools/content_pipeline/ue_content.py"
     ],
@@ -11,6 +11,25 @@
             "Inputs": [],
             "Outputs": [
                 "Content/Maps/GameMap.umap"
+            ]
+        },
+        {
+            "Id": "world_kit",
+            "Description": "The world kit (RawAssets/world) imported through Interchange, after tools/assets/world/unreal.mjs makes it engine-ready (Specs/World_Kit_Import_Spec.md).",
+            "Script": "tools/content_pipeline/steps/world_kit.py",
+            "Inputs": [
+                "RawAssets/world/cars",
+                "RawAssets/world/cc0",
+                "RawAssets/world/office",
+                "RawAssets/world/people",
+                "RawAssets/world/trees",
+                "tools/assets/world/unreal.mjs",
+                "tools/assets/world/package-lock.json"
+            ],
+            "Outputs": [
+                "Content/Characters/Standin/",
+                "Content/Stadium/Kit/",
+                "Content/Office/"
             ]
         }
     ]
