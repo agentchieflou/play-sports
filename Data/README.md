@@ -143,6 +143,7 @@ every CI build.
 | `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
+| `render_views.json` | `FPSRenderCaptureSettings` (single object: the capture's limits and its `RenderViews`) | `UPSDataIngestion::LoadRenderCaptureSettingsFromJson`, via `UPSRenderCapture` (`-PSRenderCapture`, run by `.github/workflows/render.yml`) |
 
 ## Player schema (`FPlayerAttributes`)
 
@@ -2377,3 +2378,37 @@ Every moment has at least one `PlayByPlay` line. A line's text is `Data/ui_text.
 names are `Commentary.Voice.PlayByPlay` and `Commentary.Voice.Color`. The update rate is the
 platform tier's `AudioUpdateHz`. `UPSCommentaryEngine::ValidateLibrary` and `tools/validate_data.py`
 check it.
+
+## Render views schema (`FPSRenderCaptureSettings`)
+
+`render_views.json` drives the render capture (lane V1): with `-PSRenderCapture`, the game renders
+the scene with the GPU from each view and saves `<ViewId>.png` plus `index.json`
+(`.github/workflows/render.yml` runs it on the CI runner and uploads the `renders` artifact).
+
+- `ResolutionX`, `ResolutionY` (64 or more): the resolution the game renders at.
+- `ExpectedPlayers` (0 or more): players on the field before the capture starts (Play Now: 22).
+- `MatchTimeoutSeconds`, `CompileTimeoutSeconds`, `TotalTimeoutSeconds` (above 0): how long to
+  wait for the match, for shaders and assets still compiling, and for the whole run. Past any of
+  them the views are still rendered where possible and the run exits 1.
+- `WarmupFrames` and `WarmupSeconds` (0 or more): rendered before the first view, so exposure,
+  Lumen, virtual shadow maps and streaming settle. `SettleFrames` (1 or more) and `SettleSeconds`
+  (0 or more): rendered at each view before its PNG (a camera cut resets TSR's history).
+- `MeasureFrames` (1 to `SettleFrames`): the last frames of each view's settle, whose GPU and frame
+  times `index.json` reports.
+- `ScreenshotTimeoutFrames` (1 or more): frames to wait for a PNG to reach the disk.
+- `bCaptureOnlyPreSnap`: the match plays on while the capture runs; when true, a view is taken
+  only while the play is pre-snap (both elevens lined up), and a snap during a view (the bus's
+  `PhaseChange`) starts it again at the next pre-snap. `index.json` counts each view's `Restarts`.
+- `StreamingWaitSeconds` (0 or more): how long each view may spend streaming in what it sees
+  before it settles, within the engine's texture pool (0 leaves streaming to the engine).
+- `RenderViews[]`, each with:
+  - a unique `ViewId` of letters, digits and underscores (it names the PNG) and a `Description`;
+  - an `Anchor`: `Field` (PSField's frame: `X` the yard line from the offense's own goal line,
+    `Y` yards from the middle of the field, `Z` yards up) or `Player` (yards from the ground
+    under one player, on the same axes: `+X` is downfield), with that player's `PlayerRole` (an
+    `EPlayerRole`) and `PlayerIndex` (0 or more; counted from the `-Y` sideline);
+  - `CameraYards` and `TargetYards` (`X`, `Y`, `Z`; distinct): where the camera is and what it
+    looks at;
+  - `FieldOfViewDegrees` (5-170, horizontal).
+
+`UPSRenderCapture::ValidateSettings` and `tools/validate_data.py` check it.

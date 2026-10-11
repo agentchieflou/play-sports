@@ -1238,6 +1238,17 @@ bool UPSDataIngestion::LoadCommentaryLibraryFromJson(const FString& JsonFilePath
     return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutLibrary, 0, 0);
 }
 
+bool UPSDataIngestion::LoadRenderCaptureSettingsFromJson(const FString& JsonFilePath, FPSRenderCaptureSettings& OutSettings)
+{
+    const TSharedPtr<FJsonObject> ParsedJson = PSDataIngestionAudio::ReadObject(JsonFilePath);
+    if (!ParsedJson.IsValid())
+    {
+        return false;
+    }
+    OutSettings.RenderViews.Reset();
+    return FJsonObjectConverter::JsonObjectToUStruct(ParsedJson.ToSharedRef(), &OutSettings, 0, 0);
+}
+
 bool UPSDataIngestion::LoadTelestratorTuningFromJson(const FString& JsonFilePath, FPSTelestratorTuning& OutTuning)
 {
     FString JsonString;

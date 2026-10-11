@@ -23,14 +23,16 @@ public class PlaySports : ModuleRules
 
         // Slate's input pre-processor and the platform device mapper feed active-device
         // tracking (Epic 127, UPSInputDeviceComponent); EngineSettings gives the front end
-        // the default map to travel to and MoviePlayer the loading screen (Epic 101).
+        // the default map to travel to and MoviePlayer the loading screen (Epic 101). RHI gives
+        // the render capture (-PSRenderCapture) the GPU's frame time and the adapter's name.
         PrivateDependencyModuleNames.AddRange(new string[]
         {
             "Slate",
             "SlateCore",
             "ApplicationCore",
             "EngineSettings",
-            "MoviePlayer"
+            "MoviePlayer",
+            "RHI"
         });
 
         PublicIncludePaths.AddRange(new string[] { });

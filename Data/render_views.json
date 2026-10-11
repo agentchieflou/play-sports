@@ -1,0 +1,78 @@
+{
+    "ResolutionX": 1920,
+    "ResolutionY": 1080,
+    "ExpectedPlayers": 22,
+    "MatchTimeoutSeconds": 300.0,
+    "CompileTimeoutSeconds": 2400.0,
+    "WarmupFrames": 600,
+    "WarmupSeconds": 10.0,
+    "SettleFrames": 180,
+    "SettleSeconds": 3.0,
+    "MeasureFrames": 90,
+    "ScreenshotTimeoutFrames": 120,
+    "bCaptureOnlyPreSnap": true,
+    "StreamingWaitSeconds": 5.0,
+    "TotalTimeoutSeconds": 3600.0,
+    "RenderViews": [
+        {
+            "ViewId": "broadcast_wide",
+            "Description": "Broadcast wide: high on the -Y sideline, level with the line of scrimmage (the 20), both elevens in frame",
+            "Anchor": "Field",
+            "CameraYards": { "X": 20.0, "Y": -70.0, "Z": 25.0 },
+            "TargetYards": { "X": 20.0, "Y": 0.0, "Z": 0.0 },
+            "FieldOfViewDegrees": 40.0
+        },
+        {
+            "ViewId": "all22_endzone",
+            "Description": "All-22 from high behind the offense's end zone, the whole width of the field",
+            "Anchor": "Field",
+            "CameraYards": { "X": -25.0, "Y": 0.0, "Z": 35.0 },
+            "TargetYards": { "X": 25.0, "Y": 0.0, "Z": 0.0 },
+            "FieldOfViewDegrees": 60.0
+        },
+        {
+            "ViewId": "sideline_field_level",
+            "Description": "Field level on the -Y sideline, a photographer's angle on the line of scrimmage",
+            "Anchor": "Field",
+            "CameraYards": { "X": 16.0, "Y": -30.0, "Z": 1.2 },
+            "TargetYards": { "X": 20.0, "Y": 0.0, "Z": 1.0 },
+            "FieldOfViewDegrees": 45.0
+        },
+        {
+            "ViewId": "player_closeup",
+            "Description": "One player head to waist: the receiver nearest the -Y sideline, from 3.5 yards in front of him",
+            "Anchor": "Player",
+            "PlayerRole": "WideReceiver",
+            "PlayerIndex": 0,
+            "CameraYards": { "X": 3.5, "Y": 0.0, "Z": 1.45 },
+            "TargetYards": { "X": 0.0, "Y": 0.0, "Z": 1.4 },
+            "FieldOfViewDegrees": 25.0
+        },
+        {
+            "ViewId": "helmet_closeup",
+            "Description": "Helmet and face: the same receiver from in front and to his left",
+            "Anchor": "Player",
+            "PlayerRole": "WideReceiver",
+            "PlayerIndex": 0,
+            "CameraYards": { "X": 1.4, "Y": -1.2, "Z": 1.75 },
+            "TargetYards": { "X": 0.0, "Y": 0.0, "Z": 1.65 },
+            "FieldOfViewDegrees": 25.0
+        },
+        {
+            "ViewId": "stadium_aerial",
+            "Description": "Aerial over the stadium from high above the -Y side, the whole field and its surroundings",
+            "Anchor": "Field",
+            "CameraYards": { "X": 50.0, "Y": -110.0, "Z": 90.0 },
+            "TargetYards": { "X": 50.0, "Y": 0.0, "Z": 0.0 },
+            "FieldOfViewDegrees": 60.0
+        },
+        {
+            "ViewId": "turf_low",
+            "Description": "Low turf angle: a hand's height off the grass, across the yard lines toward the line of scrimmage",
+            "Anchor": "Field",
+            "CameraYards": { "X": 8.0, "Y": -12.0, "Z": 0.15 },
+            "TargetYards": { "X": 20.0, "Y": 4.0, "Z": 0.4 },
+            "FieldOfViewDegrees": 60.0
+        }
+    ]
+}
