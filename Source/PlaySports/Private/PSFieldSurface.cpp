@@ -64,7 +64,7 @@ namespace PSFieldSurfacePrivate
 FPSFieldMarkingsStyle::FPSFieldMarkingsStyle()
 {
     MaterialScalars.Add(TEXT("TileSizeCm"), 150.f);
-    MaterialScalars.Add(TEXT("StripeContrast"), 0.06f);
+    MaterialScalars.Add(TEXT("StripeContrast"), 0.08f);
     MaterialScalars.Add(TEXT("StripeViewContrast"), 0.08f);
     MaterialScalars.Add(TEXT("MacroStrength"), 0.12f);
     MaterialScalars.Add(TEXT("DryAmount"), 0.2f);

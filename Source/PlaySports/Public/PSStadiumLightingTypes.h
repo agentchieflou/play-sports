@@ -71,9 +71,37 @@ struct FPSFloodlightSettings
 };
 
 /**
+ * A colour grade baked into a lookup table at runtime (the engine's 256 x 16 unwrapped 16^3 LUT):
+ * on each display-encoded channel c, c * Gain + Lift * (1 - c), then the 1 / Gamma power, then
+ * Saturation about the Rec. 709 luma. The identity grade (Lift 0, Gamma 1, Gain 1, Saturation 1)
+ * is the neutral table. Only R, G and B of the colours are used.
+ */
+USTRUCT(BlueprintType)
+struct FPSLutGrade
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    bool bEnabled = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    FLinearColor Lift = FLinearColor(0.f, 0.f, 0.f, 0.f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    FLinearColor Gamma = FLinearColor(1.f, 1.f, 1.f, 1.f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    FLinearColor Gain = FLinearColor(1.f, 1.f, 1.f, 1.f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    float Saturation = 1.f;
+};
+
+/**
  * The broadcast look: the unbound post-process volume's settings for a preset. Exposure is in EV100
  * (converted for the project's luminance-range setting); colour grading is the engine's white
- * balance, saturation and contrast, plus an optional LUT texture.
+ * balance, saturation and contrast, then a LUT: a LUT texture asset when ColorGradingLutPath names
+ * one, else the table Grade bakes when it is enabled.
  */
 USTRUCT(BlueprintType)
 struct FPSBroadcastLook
@@ -119,12 +147,16 @@ struct FPSBroadcastLook
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
     float Contrast = 1.05f;
 
-    /** A colour-grading LUT texture; empty for none. */
+    /** A colour-grading LUT texture asset; empty to use Grade. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
     FString ColorGradingLutPath;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
     float ColorGradingLutIntensity = 1.f;
+
+    /** The grade baked into a LUT at runtime when ColorGradingLutPath is empty. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
+    FPSLutGrade Grade;
 };
 
 /** A lighting preset: day or night (Data/stadium_lighting.json's Presets). */

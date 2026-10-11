@@ -2355,7 +2355,22 @@ def validate_stadium_lighting(path, payload):
             lut = look.get("ColorGradingLutPath")
             if not isinstance(lut, str) or (lut and not lut.startswith("/")):
                 err(path, f"{where} Look: ColorGradingLutPath '{lut}' must be an asset path or empty")
-            extra = set(look) - set(LIGHTING_LOOK_RANGES) - {"ColorGradingLutPath"}
+            grade = look.get("Grade")
+            if not isinstance(grade, dict) or not isinstance(grade.get("bEnabled"), bool):
+                err(path, f"{where} Look: Grade must be an object with bEnabled true or false")
+            else:
+                for field, (low, high) in (("Lift", (-0.5, 0.5)), ("Gamma", (0.2, 5)), ("Gain", (0, 4))):
+                    color = grade.get(field)
+                    if not isinstance(color, dict) or not {"R", "G", "B"} <= set(color) or set(color) - {"R", "G", "B", "A"} \
+                            or not all(is_number(color[c]) and low <= color[c] <= high for c in "RGB"):
+                        err(path, f"{where} Look.Grade: {field} must be {{R, G, B[, A]}} with R, G and B from {low} to {high}")
+                saturation = grade.get("Saturation")
+                if not is_number(saturation) or saturation < 0 or saturation > 2:
+                    err(path, f"{where} Look.Grade: Saturation '{saturation}' must be a number from 0 to 2")
+                extra = set(grade) - {"bEnabled", "Lift", "Gamma", "Gain", "Saturation"}
+                if extra:
+                    err(path, f"{where} Look.Grade: unknown field(s) {sorted(extra)} - names must match FPSLutGrade exactly")
+            extra = set(look) - set(LIGHTING_LOOK_RANGES) - {"ColorGradingLutPath", "Grade"}
             if extra:
                 err(path, f"{where} Look: unknown field(s) {sorted(extra)} - names must match FPSBroadcastLook exactly")
     if payload.get("DefaultPreset") not in preset_ids:

@@ -15,6 +15,7 @@
 #include "Engine/SkyLight.h"
 #include "Engine/SpotLight.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -89,6 +90,36 @@ namespace PSStadiumLightingPrivate
         {
             Problems.Add(FString::Printf(TEXT("%s: %s %g must be from %g to %g"), *Where, Field, Value, Min, Max));
         }
+    }
+
+    /** A LUT texture holding Texels (the engine's 256 x 16 layout): display-encoded, unfiltered
+     *  across slices by the engine's own sampling, never streamed. */
+    UTexture2D* BakeLutTexture(const TArray<FColor>& Texels, int32 Size)
+    {
+        UTexture2D* Lut = UTexture2D::CreateTransient(Size * Size, Size, PF_B8G8R8A8, TEXT("PSBroadcastGradeLut"));
+        if (!Lut || !Lut->GetPlatformData() || Lut->GetPlatformData()->Mips.Num() == 0 || Texels.Num() != Size * Size * Size)
+        {
+            return nullptr;
+        }
+        Lut->SRGB = true;
+        Lut->LODGroup = TEXTUREGROUP_ColorLookupTable;
+        Lut->Filter = TF_Bilinear;
+        Lut->AddressX = TA_Clamp;
+        Lut->AddressY = TA_Clamp;
+        Lut->NeverStream = true;
+        FTexture2DMipMap& Mip = Lut->GetPlatformData()->Mips[0];
+        void* Pixels = Mip.BulkData.Lock(LOCK_READ_WRITE);
+        FMemory::Memcpy(Pixels, Texels.GetData(), Texels.Num() * sizeof(FColor));
+        Mip.BulkData.Unlock();
+        Lut->UpdateResource();
+        return Lut;
+    }
+
+    void AddColorProblem(TArray<FString>& Problems, const FString& Where, const TCHAR* Field, const FLinearColor& Color, float Min, float Max)
+    {
+        AddRangeProblem(Problems, Where, *FString::Printf(TEXT("%s.R"), Field), Color.R, Min, Max);
+        AddRangeProblem(Problems, Where, *FString::Printf(TEXT("%s.G"), Field), Color.G, Min, Max);
+        AddRangeProblem(Problems, Where, *FString::Printf(TEXT("%s.B"), Field), Color.B, Min, Max);
     }
 }
 
@@ -223,6 +254,10 @@ TArray<FString> UPSStadiumLightingSubsystem::ValidateCatalog(const FPSStadiumLig
         AddRangeProblem(Problems, Where, TEXT("Look.Saturation"), Look.Saturation, 0.f, 2.f);
         AddRangeProblem(Problems, Where, TEXT("Look.Contrast"), Look.Contrast, 0.f, 2.f);
         AddRangeProblem(Problems, Where, TEXT("Look.ColorGradingLutIntensity"), Look.ColorGradingLutIntensity, 0.f, 1.f);
+        AddColorProblem(Problems, Where, TEXT("Look.Grade.Lift"), Look.Grade.Lift, -0.5f, 0.5f);
+        AddColorProblem(Problems, Where, TEXT("Look.Grade.Gamma"), Look.Grade.Gamma, 0.2f, 5.f);
+        AddColorProblem(Problems, Where, TEXT("Look.Grade.Gain"), Look.Grade.Gain, 0.f, 4.f);
+        AddRangeProblem(Problems, Where, TEXT("Look.Grade.Saturation"), Look.Grade.Saturation, 0.f, 2.f);
     }
     if (bAnyFloodlights && Catalog.Banks.Num() == 0)
     {
@@ -296,6 +331,37 @@ float UPSStadiumLightingSubsystem::ExposureToBrightnessSetting(float EV100, bool
     // Without the extended range the volume's brightness is a luminance: the engine's
     // EV100ToLuminance, 1.2 * 2^EV100 (its lens calibration).
     return bExtendedLuminanceRange ? EV100 : 1.2f * FMath::Pow(2.f, EV100);
+}
+
+TArray<FColor> UPSStadiumLightingSubsystem::ComputeGradeLut(const FPSLutGrade& Grade)
+{
+    const float Steps = static_cast<float>(LutSize - 1);
+    const FLinearColor Luma(0.2126f, 0.7152f, 0.0722f, 0.f);
+    TArray<FColor> Texels;
+    Texels.Reserve(LutSize * LutSize * LutSize);
+    for (int32 Y = 0; Y < LutSize; ++Y)
+    {
+        for (int32 X = 0; X < LutSize * LutSize; ++X)
+        {
+            const float In[3] = { (X % LutSize) / Steps, Y / Steps, (X / LutSize) / Steps };
+            const float Lift[3] = { Grade.Lift.R, Grade.Lift.G, Grade.Lift.B };
+            const float Gamma[3] = { Grade.Gamma.R, Grade.Gamma.G, Grade.Gamma.B };
+            const float Gain[3] = { Grade.Gain.R, Grade.Gain.G, Grade.Gain.B };
+            float Out[3];
+            for (int32 Channel = 0; Channel < 3; ++Channel)
+            {
+                const float Lifted = FMath::Max(In[Channel] * Gain[Channel] + Lift[Channel] * (1.f - In[Channel]), 0.f);
+                Out[Channel] = FMath::Pow(Lifted, 1.f / FMath::Max(Gamma[Channel], KINDA_SMALL_NUMBER));
+            }
+            const float Grey = Out[0] * Luma.R + Out[1] * Luma.G + Out[2] * Luma.B;
+            FColor& Texel = Texels.AddDefaulted_GetRef();
+            Texel.R = static_cast<uint8>(FMath::RoundToInt(FMath::Clamp(FMath::Lerp(Grey, Out[0], Grade.Saturation), 0.f, 1.f) * 255.f));
+            Texel.G = static_cast<uint8>(FMath::RoundToInt(FMath::Clamp(FMath::Lerp(Grey, Out[1], Grade.Saturation), 0.f, 1.f) * 255.f));
+            Texel.B = static_cast<uint8>(FMath::RoundToInt(FMath::Clamp(FMath::Lerp(Grey, Out[2], Grade.Saturation), 0.f, 1.f) * 255.f));
+            Texel.A = 255;
+        }
+    }
+    return Texels;
 }
 
 bool UPSStadiumLightingSubsystem::ApplyPreset(FName PresetId)
@@ -567,7 +633,14 @@ void UPSStadiumLightingSubsystem::ApplyLook(const FPSLightingPreset& Preset, con
     Settings.ColorSaturation = FVector4(Look.Saturation, Look.Saturation, Look.Saturation, 1.0);
     Settings.bOverride_ColorContrast = true;
     Settings.ColorContrast = FVector4(Look.Contrast, Look.Contrast, Look.Contrast, 1.0);
+    // A LUT asset when the look names one, else the grade baked at runtime.
     UTexture* Lut = LoadOptional<UTexture>(Look.ColorGradingLutPath);
+    GradeLut = nullptr;
+    if (!Lut && Look.Grade.bEnabled)
+    {
+        GradeLut = BakeLutTexture(ComputeGradeLut(Look.Grade), LutSize);
+        Lut = GradeLut;
+    }
     Settings.bOverride_ColorGradingLUT = Lut != nullptr;
     Settings.ColorGradingLUT = Lut;
     Settings.bOverride_ColorGradingIntensity = Lut != nullptr;

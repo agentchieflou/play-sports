@@ -6,7 +6,8 @@
 //      catalogs are caught.
 //   2. Placement: the sun pitched down by its elevation; each floodlight at its bank's place above
 //      the field, aimed at its aim point; -PSLighting picks a preset the catalog has; exposure in
-//      EV100 becomes the volume's brightness setting either way the project's luminance range is.
+//      EV100 becomes the volume's brightness setting either way the project's luminance range is;
+//      the grade bakes into the engine's LUT layout, the identity grade into the neutral table.
 //   3. The tiers: the mobile tiers turn off Lumen, the real-time sky capture, volumetric clouds and
 //      fog and lens effects, and cap the shadowed floodlights; a tier not listed gets everything.
 //   4. In a world: Day uses the level's own sun (no second one) and adds the sky light, atmosphere,
@@ -212,6 +213,30 @@ bool FPSStadiumLightingPlacementTest::RunTest(const FString& Parameters)
 
     TestEqual(TEXT("With the extended luminance range the setting is EV100"), UPSStadiumLightingSubsystem::ExposureToBrightnessSetting(10.f, true), 10.f);
     TestEqual(TEXT("...without it, the luminance EV100 stands for"), UPSStadiumLightingSubsystem::ExposureToBrightnessSetting(10.f, false), 1.2f * 1024.f, 0.01f);
+
+    // The grade's LUT: the identity grade is the engine's neutral table (red along each slice,
+    // green down the rows, blue across the slices), and a gain brightens.
+    const int32 Size = UPSStadiumLightingSubsystem::LutSize;
+    const TArray<FColor> Neutral = UPSStadiumLightingSubsystem::ComputeGradeLut(FPSLutGrade());
+    if (TestEqual(TEXT("The LUT is 256 x 16"), Neutral.Num(), Size * Size * Size))
+    {
+        const int32 Step = 255 / (Size - 1);
+        bool bIdentity = true;
+        for (int32 Y = 0; Y < Size; ++Y)
+        {
+            for (int32 X = 0; X < Size * Size; ++X)
+            {
+                const FColor& Texel = Neutral[Y * Size * Size + X];
+                bIdentity &= Texel.R == (X % Size) * Step && Texel.G == Y * Step && Texel.B == (X / Size) * Step;
+            }
+        }
+        TestTrue(TEXT("...and the identity grade is the neutral table"), bIdentity);
+    }
+    FPSLutGrade Brighter;
+    Brighter.Gain = FLinearColor(1.2f, 1.2f, 1.2f, 1.f);
+    const TArray<FColor> Graded = UPSStadiumLightingSubsystem::ComputeGradeLut(Brighter);
+    const int32 MidGrey = 7 * Size * Size + 7 * Size + 7;
+    TestTrue(TEXT("A gain above 1 brightens the middle grey"), Graded.IsValidIndex(MidGrey) && Neutral.IsValidIndex(MidGrey) && Graded[MidGrey].G > Neutral[MidGrey].G);
     return true;
 }
 
@@ -318,6 +343,10 @@ bool FPSStadiumLightingWorldTest::RunTest(const FString& Parameters)
         {
             TestEqual(TEXT("...the preset's bloom"), Look->Settings.BloomIntensity, Day->Look.BloomIntensity);
             TestEqual(TEXT("...and white balance"), Look->Settings.WhiteTemp, Day->Look.WhiteTemp);
+            if (Day->Look.ColorGradingLutPath.IsEmpty() && Day->Look.Grade.bEnabled)
+            {
+                TestTrue(TEXT("...and the grade's LUT"), Look->Settings.bOverride_ColorGradingLUT != 0 && Look->Settings.ColorGradingLUT != nullptr);
+            }
         }
     }
 

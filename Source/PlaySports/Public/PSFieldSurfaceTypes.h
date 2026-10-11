@@ -114,7 +114,7 @@ struct FPSFieldMarkingsStyle
 
     /** Every line and hash mark. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
-    FString LineColor = TEXT("#FFFFFF");
+    FString LineColor = TEXT("#EDEDED");
 
     /** The ground slab's thickness, in cm; its top is at Z = 0. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
@@ -153,7 +153,7 @@ struct FPSFieldMarkingsStyle
     float BorderWidthYards = 2.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
-    FString BorderColor = TEXT("#FFFFFF");
+    FString BorderColor = TEXT("#EDEDED");
 
     /** The yard numerals: 10, 20, 30, 40, 50, 40, 30, 20, 10 on both sides, one every
      *  NumeralEveryYards from the near goal line, each counting to the nearer goal line. A
@@ -166,7 +166,7 @@ struct FPSFieldMarkingsStyle
     bool bDrawNumerals = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
-    FString NumeralColor = TEXT("#FFFFFF");
+    FString NumeralColor = TEXT("#EDEDED");
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
     float NumeralEveryYards = 10.f;

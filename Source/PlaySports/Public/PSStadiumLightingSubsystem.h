@@ -14,6 +14,7 @@ class ASkyAtmosphere;
 class ASkyLight;
 class ASpotLight;
 class AVolumetricCloud;
+class UTexture2D;
 
 /**
  * The stadium's light, from Data/stadium_lighting.json (Architecture rule 4): a preset (Day, Night)
@@ -67,6 +68,13 @@ public:
     /** An exposure in EV100 as the post-process volume's brightness setting: EV100 itself when the
      *  project extends the default luminance range, else the luminance it stands for. */
     static float ExposureToBrightnessSetting(float EV100, bool bExtendedLuminanceRange);
+
+    /** The engine's LUT layout: 16 slices of 16 x 16 side by side, 256 x 16 texels. */
+    static constexpr int32 LutSize = 16;
+
+    /** Grade baked into the engine's LUT layout, row by row from the top: texel (X, Y) is the
+     *  input (X % 16, Y, X / 16) / 15 as red, green and blue, display-encoded, graded. */
+    static TArray<FColor> ComputeGradeLut(const FPSLutGrade& Grade);
 
     /** Applies PresetId from the default catalog (loaded once) for the run's tier. False when the
      *  catalog or the preset isn't there. */
@@ -122,4 +130,8 @@ private:
 
     UPROPERTY(Transient)
     TArray<TObjectPtr<ASpotLight>> Floodlights;
+
+    /** The LUT the active preset's Grade baked, when it has no LUT asset. */
+    UPROPERTY(Transient)
+    TObjectPtr<UTexture2D> GradeLut;
 };

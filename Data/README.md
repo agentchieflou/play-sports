@@ -2192,8 +2192,11 @@ them, and anything missing is spawned. Every light is movable, so nothing needs 
     - exposure: `ExposureMinEV100` to `ExposureMaxEV100`, and `ExposureCompensation`;
     - `BloomIntensity`, `VignetteIntensity`, `ChromaticAberration`, `LensFlareIntensity`,
       `FilmGrainIntensity`, `MotionBlurAmount`;
-    - the grade: `WhiteTemp`, `Saturation`, `Contrast`, and `ColorGradingLutPath` (empty for none)
-      with `ColorGradingLutIntensity`.
+    - the grade: `WhiteTemp`, `Saturation`, `Contrast`, then a LUT at `ColorGradingLutIntensity`.
+      The LUT is the texture asset `ColorGradingLutPath` names. When that is empty, it is the table
+      `Grade` bakes at runtime: `bEnabled`, and `Lift`, `Gamma`, `Gain` (`{R, G, B[, A]}`; A is
+      unused) and `Saturation`. Each display-encoded channel c becomes c·Gain + Lift·(1 − c), raised
+      to 1/Gamma, then saturated about its luma. The identity grade gives the neutral table.
 - `TierSettings[]`: what each tier of `platform_tiers.json` can afford. A tier not listed gets
   everything. The switches:
   - `bLumen`: Lumen GI and reflections, set through the look's volume;
