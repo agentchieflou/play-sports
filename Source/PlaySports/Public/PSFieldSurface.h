@@ -1,4 +1,4 @@
-// PSFieldSurface.h - Epic 146.3: the field you see, built at runtime from data
+// PSFieldSurface.h - Epic 146.3: the field you see, built at runtime from data (look: lane V2)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -46,8 +46,18 @@ public:
      *  (out to the out-of-bounds depth), the field (end line to end line, sideline to sideline),
      *  the near and far end zones, then the lines: sidelines, end lines, a yard line every
      *  YardLineSpacingYards from the near goal line (goal lines included), and a pair of hash
-     *  marks every HashSpacingYards between the goal lines where no yard line crosses. */
+     *  marks every HashSpacingYards between the goal lines where no yard line crosses. Then the
+     *  paint around and on them: the border outside the boundary (four bands), each numeral's
+     *  digit strokes, and an arrow beside each numeral but the middle one. */
     static TArray<FPSFieldMark> ComputeMarks(const FPSFieldDimensions& Dimensions, const FPSFieldMarkingsStyle& Style);
+
+    /** A digit's block strokes, as rectangles (min X, min Y, max X, max Y) in a Width x Height cell
+     *  with its origin at the digit's bottom left, X to the reader's right and Y up: a seven-segment
+     *  block face, Stroke thick, with a single centred bar for 1. Empty for anything but 0-9. */
+    static TArray<FBox2D> GetDigitStrokes(int32 Digit, float Width, float Height, float Stroke);
+
+    /** The turf material TierId draws: its TierLooks entry, else TurfMaterialPath. */
+    static FString ResolveTurfMaterialPath(const FPSFieldMarkingsStyle& Style, FName TierId);
 
     /** Problems with Style, one line each (empty when sound); mirrors tools/validate_data.py. */
     static TArray<FString> ValidateStyle(const FPSFieldMarkingsStyle& Style);
@@ -62,6 +72,17 @@ public:
     UStaticMeshComponent* GetFieldPlane() const { return FieldPlane; }
     UStaticMeshComponent* GetEndZone(bool bFar) const { return bFar ? FarEndZone : NearEndZone; }
     UInstancedStaticMeshComponent* GetLines() const { return Lines; }
+    UInstancedStaticMeshComponent* GetBorder() const { return Border; }
+    UInstancedStaticMeshComponent* GetNumerals() const { return Numerals; }
+    UInstancedStaticMeshComponent* GetArrows() const { return Arrows; }
+
+    /** Whether the last Build drew the grass and the paint with the field's own materials (the
+     *  content pipeline's), rather than the flat fallback. */
+    bool UsesFieldMaterials() const { return bUsesFieldMaterials; }
+
+    /** How many floats of per-instance data each arrow carries for the paint material: its
+     *  direction, centre X and Y, length and base (M_FieldPaint reads them). */
+    static constexpr int32 ArrowCustomDataFloats = 5;
 
 protected:
     virtual void BeginPlay() override;
@@ -81,9 +102,20 @@ protected:
     UPROPERTY(VisibleAnywhere, Category = "Field")
     UInstancedStaticMeshComponent* Lines;
 
+    UPROPERTY(VisibleAnywhere, Category = "Field")
+    UInstancedStaticMeshComponent* Border;
+
+    UPROPERTY(VisibleAnywhere, Category = "Field")
+    UInstancedStaticMeshComponent* Numerals;
+
+    UPROPERTY(VisibleAnywhere, Category = "Field")
+    UInstancedStaticMeshComponent* Arrows;
+
     /** One dynamic material instance per piece colour. */
     UPROPERTY(Transient)
     TArray<UMaterialInstanceDynamic*> Materials;
 
     bool bBuilt = false;
+
+    bool bUsesFieldMaterials = false;
 };

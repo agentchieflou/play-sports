@@ -4,6 +4,26 @@
 #include "CoreMinimal.h"
 #include "PSFieldSurfaceTypes.generated.h"
 
+/** A tier's own turf material (Data/field_markings.json's TierLooks), keyed by the tier's id in
+ *  Data/platform_tiers.json: the low mobile tier draws a lighter turf. */
+USTRUCT(BlueprintType)
+struct FPSFieldTierLook
+{
+    GENERATED_BODY()
+
+    FPSFieldTierLook() = default;
+    FPSFieldTierLook(FName InTierId, const FString& InTurfMaterialPath)
+        : TierId(InTierId), TurfMaterialPath(InTurfMaterialPath)
+    {
+    }
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    FName TierId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    FString TurfMaterialPath;
+};
+
 /**
  * How the field's surface and markings look (Data/field_markings.json; Architecture rule 4).
  * Where they go comes from the field's one frame (PSField, Data/field_dimensions.json), so the
@@ -14,6 +34,45 @@ USTRUCT(BlueprintType)
 struct FPSFieldMarkingsStyle
 {
     GENERATED_BODY()
+
+    /** The file's MaterialScalars and TierLooks (the other defaults are below). */
+    FPSFieldMarkingsStyle();
+
+    /** The grass (the field and the ground around it): a world-aligned turf material made by the
+     *  content pipeline's field_look step. Each piece gets a dynamic instance with ColorParameter
+     *  set to its colour, which the material treats as the grass's average colour. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    FString TurfMaterialPath = TEXT("/Game/Field/Materials/M_Turf.M_Turf");
+
+    /** The paint (end zones, lines, numerals, arrows, the border): painted grass, masked, with a
+     *  scalar parameter Coverage (how much of the grass the paint hides) and ShapeTriangle (1 cuts
+     *  an arrow from the piece). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    FString PaintMaterialPath = TEXT("/Game/Field/Materials/M_FieldPaint.M_FieldPaint");
+
+    /** Scalar parameters set on every turf and paint instance (a parameter a material lacks is
+     *  ignored): tiling, stripes, variation, roughness. The materials' own defaults apply to any
+     *  not listed. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    TMap<FName, float> MaterialScalars;
+
+    /** The mowing stripes: a band this many yards wide along the field, starting at the near goal
+     *  line, so the bands change at every yard line. Sets the materials' StripeWidthCm and
+     *  StripeOriginCm. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float StripeWidthYards = 5.f;
+
+    /** How much of the grass the paint hides, 0-1: the lines, numerals, arrows and border, and the
+     *  end zones (painted solid, so more). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float PaintCoverage = 0.93f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float EndZonePaintCoverage = 0.97f;
+
+    /** Per-tier turf materials; a tier not listed draws TurfMaterialPath. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    TArray<FPSFieldTierLook> TierLooks;
 
     /** The ground slab: a box mesh, MeshSizeCm on a side at scale 1, centered on its pivot. It
      *  has collision, so the ball lands on it. */
@@ -29,8 +88,9 @@ struct FPSFieldMarkingsStyle
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
     float MeshSizeCm = 100.f;
 
-    /** A material with a vector parameter named ColorParameter; each piece gets a dynamic
-     *  instance in its color. */
+    /** The fallback for both: a material with a vector parameter named ColorParameter, used where
+     *  the turf or paint material can't be loaded (a checkout without the field's content). Each
+     *  piece gets a dynamic instance in its color. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
     FString MaterialPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
 
@@ -39,11 +99,11 @@ struct FPSFieldMarkingsStyle
 
     /** The grass between the end lines and sidelines. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
-    FString FieldColor = TEXT("#2E7D32");
+    FString FieldColor = TEXT("#3B6E2A");
 
     /** The ground out of bounds, out to the out-of-bounds volumes' depth. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
-    FString SurroundColor = TEXT("#1E5B24");
+    FString SurroundColor = TEXT("#335F27");
 
     /** The end zone behind the near goal line (X = 0) and the one behind the far goal line. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
@@ -86,6 +146,63 @@ struct FPSFieldMarkingsStyle
      *  apart). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
     float HashOffsetYards = 3.0833f;
+
+    /** The white border around the field, outside the sidelines and end lines (6 ft); 0 draws
+     *  none. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float BorderWidthYards = 2.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    FString BorderColor = TEXT("#FFFFFF");
+
+    /** The yard numerals: 10, 20, 30, 40, 50, 40, 30, 20, 10 on both sides, one every
+     *  NumeralEveryYards from the near goal line, each counting to the nearer goal line. A
+     *  numeral's two digits sit either side of its yard line, NumeralGapYards from it, their bottoms
+     *  NumeralBottomFromSidelineYards in from the sideline and their tops toward the middle of the
+     *  field (so the far side's read upside down from the near sideline, as on television).
+     *  Digits are NumeralWidthYards by NumeralHeightYards (4 ft by 6 ft), drawn in block strokes
+     *  NumeralStrokeYards wide. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    bool bDrawNumerals = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    FString NumeralColor = TEXT("#FFFFFF");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float NumeralEveryYards = 10.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float NumeralHeightYards = 2.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float NumeralWidthYards = 1.3333f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float NumeralStrokeYards = 0.3333f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float NumeralBottomFromSidelineYards = 7.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float NumeralGapYards = 0.3333f;
+
+    /** An arrow beside every numeral but the middle one, pointing to the goal line it counts to:
+     *  ArrowLengthYards long (36 in), ArrowBaseYards across (18 in), ArrowGapYards beyond the
+     *  outer digit, its centre ArrowCenterFromSidelineYards in from the sideline. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    bool bDrawArrows = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float ArrowLengthYards = 1.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float ArrowBaseYards = 0.5f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float ArrowGapYards = 0.3333f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float ArrowCenterFromSidelineYards = 8.5f;
 };
 
 /** What a piece of the field is. */
@@ -96,7 +213,13 @@ enum class EPSFieldMarkKind : uint8
     Field,
     NearEndZone,
     FarEndZone,
-    Line
+    Line,
+    /** The white border outside the boundary. */
+    Border,
+    /** One block stroke of a yard numeral's digit. */
+    Numeral,
+    /** A triangle beside a numeral; the mark's Direction is the way it points along X. */
+    Arrow
 };
 
 /** One flat rectangle of the field, on the ground: its center and size in world cm. */
@@ -114,4 +237,9 @@ struct FPSFieldMark
     /** X along the field, Y across it. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
     FVector2D Size = FVector2D::ZeroVector;
+
+    /** An arrow's direction along X, +1 or -1 (its tip at Center.X + Direction * Size.X / 2);
+     *  0 for every other mark. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field|Markings")
+    float Direction = 0.f;
 };
