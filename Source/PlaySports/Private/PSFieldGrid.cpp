@@ -9,6 +9,7 @@
 #include "Components/BoxComponent.h"
 #include "EngineUtils.h"
 #include "PSFieldSurface.h"
+#include "PSStadiumSet.h"
 
 APSFieldGrid::APSFieldGrid()
 {
@@ -20,6 +21,33 @@ void APSFieldGrid::BeginPlay()
     Super::BeginPlay();
     SpawnBoundaryVolumes();
     SpawnFieldSurface();
+    SpawnStadiumSet();
+}
+
+APSStadiumSet* APSFieldGrid::SpawnStadiumSet()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return nullptr;
+    }
+    APSStadiumSet* Set = nullptr;
+    for (TActorIterator<APSStadiumSet> It(World); It; ++It)
+    {
+        Set = *It;
+        break;
+    }
+    if (!Set)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        Set = World->SpawnActor<APSStadiumSet>(APSStadiumSet::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+    }
+    if (Set && !Set->IsBuilt())
+    {
+        Set->BuildFromData();
+    }
+    return Set;
 }
 
 APSFieldSurface* APSFieldGrid::SpawnFieldSurface()

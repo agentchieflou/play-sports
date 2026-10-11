@@ -136,6 +136,9 @@ every CI build.
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
 | `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
 | `field_markings.json` | `FPSFieldMarkingsStyle` (single object) | `UPSDataIngestion::LoadFieldMarkingsStyleFromJson`, via `APSFieldSurface::LoadStyle` (`APSFieldGrid::SpawnFieldSurface`) |
+| `stadium_set.json` | `FPSStadiumSetStyle` (single object) | `UPSDataIngestion::LoadStadiumSetStyleFromJson`, via `APSStadiumSet::LoadStyle` (`APSFieldGrid::SpawnStadiumSet`) |
+| `ball_look.json` | `FPSBallLookStyle` (single object) | `UPSDataIngestion::LoadBallLookStyleFromJson`, via `PSBallLook::LoadStyle` (`APSBall::BeginPlay`) |
+| `character_look.json` | `FPSCharacterLookStyle` (single object) | `UPSDataIngestion::LoadCharacterLookStyleFromJson`, via `UPSCharacterLookComponent::LoadStyle` (each `APSPlayerPawn`) |
 | `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
@@ -2134,6 +2137,56 @@ at any `CentimetresPerYard`.
   the offset are above 0.
 
 `APSFieldSurface::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Stadium set schema (`FPSStadiumSetStyle`)
+
+Single object: the goal posts, team benches and stands that `APSStadiumSet` builds around the field
+at runtime (Epic 147.1), from engine basic shapes and dynamic material instances, like the field.
+Where each piece stands is the field's frame; lengths are yards of that frame. Nothing in the set
+collides: the field's ground is the only collision surface, and whether a kick is good is
+`UPSSpecialTeamsModel`'s to decide, not the posts'.
+
+- `BoxMeshPath`, `CylinderMeshPath` (axis up), both `MeshSizeCm` across and tall at scale 1 and
+  centred on their pivots; `MaterialPath` with a vector parameter `ColorParameter`.
+- Goal posts (`GoalPostColor`), one on each end line: the crossbar `CrossbarHeightYards` up and
+  `CrossbarWidthYards` wide, uprights rising `UprightHeightYards` above it, all
+  `PostDiameterYards` thick, on a base post `BasePostDiameterYards` thick set `BaseSetbackYards`
+  behind the end line, with a neck forward to the crossbar. The defaults are the NFL's: 10 ft,
+  18 ft 6 in, 35 ft.
+- A bench (`BenchColor`) past each sideline from `BenchFromYardLine` to `BenchToYardLine` (yard lines
+  from the near goal line, the first before the second), `BenchDistanceYards` past the sideline,
+  `BenchDepthYards` deep and `BenchHeightYards` high.
+- Stands: `StandTiers` rows (a whole number, 0 for none) on all four sides, `StandGapYards` past
+  the ground's edge, each `StandTierDepthYards` deep and `StandTierRiseYards` higher than the one in
+  front, alternating `StandColor` and `StandAltColor`. The corners are open.
+- `bCastShadows`: whether the set casts dynamic shadows (off: they cost every frame on a phone).
+
+`APSStadiumSet::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Ball look schema (`FPSBallLookStyle`)
+
+Single object: what the ball looks like (Epic 147.4). `APSBall` puts it on its mesh at BeginPlay:
+`MeshPath` (`MeshSizeCm` across at scale 1, centred) stretched to `LengthCm` tip to tip along the
+ball's X and `WidthCm` across, in `BallColor` (`#RRGGBB`) through a dynamic instance of `MaterialPath`
+(with a vector parameter `ColorParameter`). The look never changes how the ball flies or lands: its
+collision is the ball's own sphere. Every size is above 0. `PSBallLook::ValidateStyle` and
+`tools/validate_data.py` check it.
+
+## Character look schema (`FPSCharacterLookStyle`)
+
+Single object: what a player looks like (Epic 147.2; `UPSCharacterLookComponent`, the one look
+authority that Epic 143's inclusive looks extend). Team colours are not here: they are each team's
+`PrimaryColor` and `SecondaryColor` in the team identity data (`sample_teams.json`).
+
+- `SkeletalMeshPath`: the character (the world kit's stand-in on the engine's body bones), turned
+  `MeshYawDegrees` to face +X, its feet on the capsule's bottom. Its `PrimarySlots` (the jersey) and
+  `SecondarySlots` (the pants) are material slot names, tinted through `TeamColorParameter`. Empty
+  means the fallback body, which is the look until the import's asset and parameter are confirmed.
+- `FallbackMeshPath` (`FallbackMeshSizeCm` across and tall at scale 1, centred) sized to the pawn's
+  capsule, in the team's primary colour through `FallbackMaterialPath`'s `FallbackColorParameter`.
+- `NeutralColor` (`#RRGGBB`): before the match's teams are known.
+
+`UPSCharacterLookComponent::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Formation schema (`FPSFormationCatalog`)
 

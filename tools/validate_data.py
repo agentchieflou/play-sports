@@ -120,8 +120,14 @@ package placed, and each shell's deep safeties defensive_presnap.json's. "HashOf
 against FPSFieldMarkingsStyle (Data/field_markings.json, Epic 146.3): the field's meshes and
 material named, #RRGGBB colors, positive line sizes and spacings. "PressedOpacity" files against
 FPSTouchHudStyle (Data/touch_hud.json, Epic 146.4): opacities and fractions from 0 to 1, #RRGGBB
-colors, positive sizes. Teams, the league config, the playbook, player rating ranges and every
-reference between files are tools/content_contracts.py's (Epic 125), run from here.
+colors, positive sizes. "CrossbarHeightYards" files against FPSStadiumSetStyle
+(Data/stadium_set.json, Epic 147.1): meshes and material named, #RRGGBB colors, positive sizes,
+a bench span that runs forward. "BallColor" files against FPSBallLookStyle (Data/ball_look.json,
+Epic 147.4): mesh and material named, a #RRGGBB color, positive sizes. "FallbackMeshPath" files
+against FPSCharacterLookStyle (Data/character_look.json, Epic 147.2): the character mesh empty or
+an asset path, its colour slots named, the fallback body's assets, a #RRGGBB neutral color. Teams,
+the league config, the playbook, player rating ranges and every reference between files are
+tools/content_contracts.py's (Epic 125), run from here.
 
 Exit 0 when clean, exit 1 with actionable errors (file / row / field).
 Run from the repo root:  python tools/validate_data.py
@@ -2193,6 +2199,106 @@ def validate_field_markings(path, payload):
     extra = set(payload) - known
     if extra:
         err(path, f"unknown field(s) {sorted(extra)} - names must match FPSFieldMarkingsStyle exactly")
+
+
+STADIUM_SET_PATHS = ("BoxMeshPath", "CylinderMeshPath", "MaterialPath")
+STADIUM_SET_COLORS = ("GoalPostColor", "BenchColor", "StandColor", "StandAltColor")
+STADIUM_SET_POSITIVE = ("MeshSizeCm", "CrossbarHeightYards", "CrossbarWidthYards", "UprightHeightYards",
+                        "PostDiameterYards", "BasePostDiameterYards", "BaseSetbackYards", "BenchDepthYards",
+                        "BenchHeightYards", "StandTierDepthYards", "StandTierRiseYards")
+STADIUM_SET_NON_NEGATIVE = ("BenchDistanceYards", "StandGapYards", "BenchFromYardLine", "BenchToYardLine")
+
+
+def validate_stadium_set(path, payload):
+    """FPSStadiumSetStyle (Data/stadium_set.json, Epic 147.1): how APSStadiumSet builds the goal
+    posts, benches and stands; mirrors APSStadiumSet::ValidateStyle."""
+    for field in STADIUM_SET_PATHS:
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.startswith("/"):
+            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Cube.Cube")
+    if not isinstance(payload.get("ColorParameter"), str) or not payload["ColorParameter"]:
+        err(path, "ColorParameter must name the material's color parameter")
+    for field in STADIUM_SET_COLORS:
+        if not isinstance(payload.get(field), str) or not HEX_COLOR.match(payload[field]):
+            err(path, f"{field}: '{payload.get(field)}' must be #RRGGBB")
+    for field in STADIUM_SET_POSITIVE:
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    for field in STADIUM_SET_NON_NEGATIVE:
+        value = payload.get(field)
+        if not is_number(value) or value < 0:
+            err(path, f"{field}: '{value}' must be a number, 0 or more")
+    start, end = payload.get("BenchFromYardLine"), payload.get("BenchToYardLine")
+    if is_number(start) and is_number(end) and start >= end:
+        err(path, f"BenchFromYardLine ({start}) must be before BenchToYardLine ({end})")
+    tiers = payload.get("StandTiers")
+    if not isinstance(tiers, int) or isinstance(tiers, bool) or tiers < 0:
+        err(path, f"StandTiers: '{tiers}' must be a whole number, 0 or more")
+    if not isinstance(payload.get("bCastShadows"), bool):
+        err(path, "bCastShadows must be true or false")
+    known = set(STADIUM_SET_PATHS) | set(STADIUM_SET_COLORS) | set(STADIUM_SET_POSITIVE) \
+        | set(STADIUM_SET_NON_NEGATIVE) | {"ColorParameter", "StandTiers", "bCastShadows"}
+    extra = set(payload) - known
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSStadiumSetStyle exactly")
+
+
+BALL_LOOK_FIELDS = ("MeshPath", "MeshSizeCm", "LengthCm", "WidthCm", "MaterialPath", "ColorParameter", "BallColor")
+
+
+def validate_ball_look(path, payload):
+    """FPSBallLookStyle (Data/ball_look.json, Epic 147.4): the ball's mesh, size and colour; mirrors
+    PSBallLook::ValidateStyle."""
+    for field in ("MeshPath", "MaterialPath"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.startswith("/"):
+            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Sphere.Sphere")
+    if not isinstance(payload.get("ColorParameter"), str) or not payload["ColorParameter"]:
+        err(path, "ColorParameter must name the material's color parameter")
+    if not isinstance(payload.get("BallColor"), str) or not HEX_COLOR.match(payload["BallColor"]):
+        err(path, f"BallColor: '{payload.get('BallColor')}' must be #RRGGBB")
+    for field in ("MeshSizeCm", "LengthCm", "WidthCm"):
+        value = payload.get(field)
+        if not is_number(value) or value <= 0:
+            err(path, f"{field}: '{value}' must be a number above 0")
+    extra = set(payload) - set(BALL_LOOK_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSBallLookStyle exactly")
+
+
+CHARACTER_LOOK_FIELDS = ("SkeletalMeshPath", "MeshYawDegrees", "TeamColorParameter", "PrimarySlots", "SecondarySlots",
+                         "FallbackMeshPath", "FallbackMeshSizeCm", "FallbackMaterialPath", "FallbackColorParameter",
+                         "NeutralColor")
+
+
+def validate_character_look(path, payload):
+    """FPSCharacterLookStyle (Data/character_look.json, Epic 147.2): what a player looks like;
+    mirrors UPSCharacterLookComponent::ValidateStyle."""
+    mesh = payload.get("SkeletalMeshPath")
+    if not isinstance(mesh, str) or (mesh and not mesh.startswith("/")):
+        err(path, f"SkeletalMeshPath: '{mesh}' must be empty (the fallback body) or an asset path")
+    for field in ("FallbackMeshPath", "FallbackMaterialPath"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.startswith("/"):
+            err(path, f"{field}: '{value}' must be an asset path such as /Engine/BasicShapes/Cylinder.Cylinder")
+    for field in ("TeamColorParameter", "FallbackColorParameter"):
+        if not isinstance(payload.get(field), str) or not payload[field]:
+            err(path, f"{field} must name a colour parameter")
+    for field in ("PrimarySlots", "SecondarySlots"):
+        slots = payload.get(field)
+        if not isinstance(slots, list) or not all(isinstance(slot, str) and slot for slot in slots):
+            err(path, f"{field} must be a list of material slot names")
+    if not is_number(payload.get("MeshYawDegrees")):
+        err(path, "MeshYawDegrees must be a number")
+    size = payload.get("FallbackMeshSizeCm")
+    if not is_number(size) or size <= 0:
+        err(path, f"FallbackMeshSizeCm: '{size}' must be a number above 0")
+    if not isinstance(payload.get("NeutralColor"), str) or not HEX_COLOR.match(payload["NeutralColor"]):
+        err(path, f"NeutralColor: '{payload.get('NeutralColor')}' must be #RRGGBB")
+    extra = set(payload) - set(CHARACTER_LOOK_FIELDS)
+    if extra:
+        err(path, f"unknown field(s) {sorted(extra)} - names must match FPSCharacterLookStyle exactly")
 
 
 PENALTY_FIELDS = ("HoldingChancePerPlay", "OffsidesChancePerSnap")
@@ -6082,6 +6188,12 @@ def main(root=None):
             validate_touch_hud(path, payload)
         if isinstance(payload, dict) and "HashOffsetYards" in payload:
             validate_field_markings(path, payload)
+        if isinstance(payload, dict) and "CrossbarHeightYards" in payload:
+            validate_stadium_set(path, payload)
+        if isinstance(payload, dict) and "BallColor" in payload:
+            validate_ball_look(path, payload)
+        if isinstance(payload, dict) and "FallbackMeshPath" in payload:
+            validate_character_look(path, payload)
         if isinstance(payload, dict) and "SkillWindowGrowthPerSecond" in payload:
             validate_session_matchmaking(path, payload)
         if isinstance(payload, dict) and "InterruptMargin" in payload:
