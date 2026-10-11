@@ -115,6 +115,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Moves")
     class UPSDefenderTechniqueComponent* GetDefenderTechniqueComponent() const { return DefenderTechniqueComponent; }
 
+    /** What he looks like, in the colours of the team he plays for (Epic 147.2). */
+    UFUNCTION(BlueprintPure, Category = "Look")
+    class UPSCharacterLookComponent* GetCharacterLookComponent() const { return CharacterLookComponent; }
+
+    /** The placeholder body mesh the look dresses when there is no character mesh. */
+    UStaticMeshComponent* GetBodyMesh() const { return MeshComponent; }
+
     /** True while a human player controller controls this pawn (Epic 127). HUD and camera
      *  read this rather than asking the controller. */
     UFUNCTION(BlueprintPure, Category = "Player")
@@ -187,6 +194,10 @@ protected:
     /** Get-off and strip (Epic 104.5). */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     class UPSDefenderTechniqueComponent* DefenderTechniqueComponent;
+
+    /** His look (Epic 147.2). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    class UPSCharacterLookComponent* CharacterLookComponent;
 
 
     const FPlayerAttributes* AttributesPtr = nullptr;

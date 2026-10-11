@@ -1,0 +1,9 @@
+{
+    "MeshPath": "/Engine/BasicShapes/Sphere.Sphere",
+    "MeshSizeCm": 100.0,
+    "LengthCm": 28.0,
+    "WidthCm": 17.0,
+    "MaterialPath": "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
+    "ColorParameter": "Color",
+    "BallColor": "#6B3A1E"
+}

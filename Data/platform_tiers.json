@@ -20,6 +20,9 @@
             "AudioUpdateHz": 0,
             "AudioMaxVoices": 32,
             "CrowdUpdateHz": 30,
+            "CrowdDensity": 0.93,
+            "CrowdDetail": "Figures",
+            "StadiumDetail": "Full",
             "TargetFrameRate": 60,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 1.0 },
@@ -45,6 +48,9 @@
             "AudioUpdateHz": 30,
             "AudioMaxVoices": 16,
             "CrowdUpdateHz": 15,
+            "CrowdDensity": 0.6,
+            "CrowdDetail": "Cards",
+            "StadiumDetail": "Reduced",
             "TargetFrameRate": 60,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 0.75 },
@@ -70,6 +76,9 @@
             "AudioUpdateHz": 15,
             "AudioMaxVoices": 12,
             "CrowdUpdateHz": 10,
+            "CrowdDensity": 0.35,
+            "CrowdDetail": "Cards",
+            "StadiumDetail": "Reduced",
             "TargetFrameRate": 30,
             "SystemBudgets": [
                 { "System": "Simulation", "BudgetMs": 1.0 },

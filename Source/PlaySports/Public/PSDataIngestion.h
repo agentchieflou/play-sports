@@ -82,6 +82,10 @@
 #include "PSCommentaryTypes.h"
 #include "PSFieldDimensions.h"
 #include "PSFieldSurfaceTypes.h"
+#include "PSStadiumSetTypes.h"
+#include "PSBallLook.h"
+#include "PSCharacterLook.h"
+#include "PSCrowdLookTypes.h"
 #include "PSFormations.h"
 #include "PSRenderCaptureTypes.h"
 #include "PSDataIngestion.generated.h"
@@ -504,6 +508,29 @@ public:
      *  APSFieldSurface::ValidateStyle checks the rest. */
     UFUNCTION(BlueprintCallable, Category = "Data")
     bool LoadFieldMarkingsStyleFromJson(const FString& JsonFilePath, FPSFieldMarkingsStyle& OutStyle);
+
+    /** Loads the stadium set around the field (Data/stadium_set.json, Epic 147.1): APSStadiumSet's
+     *  goal posts, benches and stands. False on a missing file or malformed JSON;
+     *  APSStadiumSet::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadStadiumSetStyleFromJson(const FString& JsonFilePath, FPSStadiumSetStyle& OutStyle);
+
+    /** Loads the ball's look (Data/ball_look.json, Epic 147.4): its mesh, size and colour. False on
+     *  a missing file or malformed JSON; PSBallLook::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadBallLookStyleFromJson(const FString& JsonFilePath, FPSBallLookStyle& OutStyle);
+
+    /** Loads what a player looks like (Data/character_look.json, Epic 147.2): the character mesh,
+     *  its team-colour slots and the fallback body. False on a missing file or malformed JSON;
+     *  UPSCharacterLookComponent::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCharacterLookStyleFromJson(const FString& JsonFilePath, FPSCharacterLookStyle& OutStyle);
+
+    /** Loads what the crowd in the stands looks like (Data/crowd_look.json, Epic 48): the fans'
+     *  shapes, shirts, skin tones, away pockets and when they stand. False on a missing file or
+     *  malformed JSON; UPSCrowdRenderComponent::ValidateStyle checks the rest. */
+    UFUNCTION(BlueprintCallable, Category = "Data")
+    bool LoadCrowdLookStyleFromJson(const FString& JsonFilePath, FPSCrowdLookStyle& OutStyle);
 
     /** Loads every formation, front and shell's alignment (Data/formations.json): where each
      *  player lines up for a call (PSFormations). False on a missing file or malformed JSON;

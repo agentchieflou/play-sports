@@ -53,6 +53,10 @@ TArray<FString> PSPlatformTiers::ValidateCatalog(const FPSPlatformTierCatalog& C
         {
             Problems.Add(FString::Printf(TEXT("Tiers[%d]: AudioMaxVoices must be 1 or more"), Index));
         }
+        if (!(Tier.CrowdDensity >= 0.f && Tier.CrowdDensity <= 1.f))
+        {
+            Problems.Add(FString::Printf(TEXT("Tiers[%d]: CrowdDensity must be from 0 to 1"), Index));
+        }
     }
     if (!FindTier(Catalog, Catalog.DefaultTier))
     {

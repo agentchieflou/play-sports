@@ -136,6 +136,10 @@ every CI build.
 | `commentary_hooks.json` | `FPSCommentaryHookTuning` (single object) | `UPSDataIngestion::LoadCommentaryHookTuningFromJson`, via `UPSCommentaryEventModel`; its task is checked against `tools/orchestrator/routing.json` |
 | `field_dimensions.json` | `FPSFieldDimensions` (single object) | `UPSDataIngestion::LoadFieldDimensionsFromJson`, via `PSField::GetDimensions` |
 | `field_markings.json` | `FPSFieldMarkingsStyle` (single object) | `UPSDataIngestion::LoadFieldMarkingsStyleFromJson`, via `APSFieldSurface::LoadStyle` (`APSFieldGrid::SpawnFieldSurface`) |
+| `stadium_set.json` | `FPSStadiumSetStyle` (single object: the goal posts, benches, `Bowl`, `Decks` and `Structures`) | `UPSDataIngestion::LoadStadiumSetStyleFromJson`, via `APSStadiumSet::LoadStyle` (`APSFieldGrid::SpawnStadiumSet`) |
+| `crowd_look.json` | `FPSCrowdLookStyle` (single object) | `UPSDataIngestion::LoadCrowdLookStyleFromJson`, via `UPSCrowdRenderComponent::LoadStyle` (the stadium set's crowd) |
+| `ball_look.json` | `FPSBallLookStyle` (single object) | `UPSDataIngestion::LoadBallLookStyleFromJson`, via `PSBallLook::LoadStyle` (`APSBall::BeginPlay`) |
+| `character_look.json` | `FPSCharacterLookStyle` (single object) | `UPSDataIngestion::LoadCharacterLookStyleFromJson`, via `UPSCharacterLookComponent::LoadStyle` (each `APSPlayerPawn`) |
 | `formations.json` | `FPSFormationCatalog` (single object: the line, `Techniques`, `OffenseFormations`, `FrontAlignments`, `ShellAlignments`) | `UPSDataIngestion::LoadFormationCatalogFromJson`, via `PSFormations::GetCatalog` (`APSFieldGrid::ComputeLineup`) |
 | `session_matchmaking.json` | `FPSSessionMatchmakingTuning` (single object) | `UPSDataIngestion::LoadSessionMatchmakingFromJson`, via `UPSSessionService` (and `UPSLocalSessionRegistry`) |
 | `commentary_lines.json` | `FPSCommentaryLibrary` (single object: the booth's pacing and its `Lines`) | `UPSDataIngestion::LoadCommentaryLibraryFromJson`, via `UPSCommentaryEngine`; each line's text is `Data/ui_text.csv`'s `Commentary.Line.<LineId>` |
@@ -686,7 +690,14 @@ Single object (Epic 129; `Specs/Platform_Audit.md`):
   - `AudioMaxVoices` (1 or more): one-shot sounds that may play at once; past it a cue takes a
     lower-priority one's voice or gives way.
   - `CrowdUpdateHz` (0 or more): how often a second the crowd's excitement (Epic 23.2,
-    `UPSCrowdExcitementSubsystem`) settles and is re-rated; 0 is every frame.
+    `UPSCrowdExcitementSubsystem`) settles and is re-rated, and the fans in the stands
+    (`UPSCrowdRenderComponent`) stand or sit with it; 0 is every frame.
+  - `CrowdDensity` (0-1): the share of the stadium's seats with a fan in them; every fan is an
+    instance or two, so it is the crowd's main GPU knob.
+  - `CrowdDetail` (`Figures`, `Cards` or `None`): each fan a torso and a head, one card (half the
+    instances), or no crowd.
+  - `StadiumDetail` (`Full` or `Reduced`): every seat its own pan and back with the bowl casting
+    shadows, or a strip per run of seats and no shadows (`APSStadiumSet`).
 - `Platforms[]`: `Platform` (as `UGameplayStatics::GetPlatformName` reports it: `Windows`,
   `Mac`, `IOS`, `Android`) to `Tier`.
 - `DefaultTier`: the tier for a platform with no mapping.
@@ -2135,6 +2146,130 @@ at any `CentimetresPerYard`.
   the offset are above 0.
 
 `APSFieldSurface::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Stadium set schema (`FPSStadiumSetStyle`)
+
+Single object: the stadium that `APSStadiumSet` builds around the field at runtime (Epics 147.1
+and 52), from engine basic shapes and dynamic material instances, like the field: each kind of
+piece is one instanced mesh in one colour. Where it stands is the field's frame. The goal posts and
+benches are field furniture, in yards of that frame; the bowl is built for people, in cm. Nothing in
+the set collides: the field's ground is the only collision surface, and whether a kick is good is
+`UPSSpecialTeamsModel`'s to decide, not the posts'. How much is built is the platform tier's
+`StadiumDetail` (`platform_tiers.json`): every seat a pan and a back, with shadows (`Full`), or a
+strip per run of seats with no shadows (`Reduced`).
+
+- `BoxMeshPath`, `CylinderMeshPath` (axis up), both `MeshSizeCm` across and tall at scale 1 and
+  centred on their pivots; `MaterialPath` with a vector parameter `ColorParameter`.
+- Goal posts (`GoalPostColor`), one on each end line: the crossbar `CrossbarHeightYards` up and
+  `CrossbarWidthYards` wide, uprights rising `UprightHeightYards` above it, all
+  `PostDiameterYards` thick, on a base post `BasePostDiameterYards` thick set `BaseSetbackYards`
+  behind the end line, with a neck forward to the crossbar. The defaults are the NFL's: 10 ft,
+  18 ft 6 in, 35 ft. The base post is padded (`GoalPostPadColor`) `GoalPostPadHeightYards` up,
+  `GoalPostPadDiameterYards` across, and a wind ribbon (`RibbonColor`, `RibbonLengthYards` by
+  `RibbonWidthYards`: 42 in by 4 in) hangs from each upright's top.
+- A bench (`BenchColor`) past each sideline from `BenchFromYardLine` to `BenchToYardLine` (yard lines
+  from the near goal line, the first before the second), `BenchDistanceYards` past the sideline,
+  `BenchDepthYards` deep and `BenchHeightYards` high.
+- `Bowl` (`FPSStadiumBowl`): the plan is a rounded rectangle, the padded field wall standing
+  `WallOffsetCm` past the ground's edge (the out-of-bounds depth past the end lines and sidelines),
+  corners rounded to `CornerRadiusCm`; every row runs parallel to it. Aisles `AisleWidthCm` wide
+  split each straight into sections about `SectionWidthCm` wide and each corner into
+  `CornerSections`; no straight piece of a curved row is longer than `MaxSegmentCm`. A seat every
+  `SeatPitchCm`: a pan `SeatWidthCm` (no wider than the pitch) by `SeatDepthCm`, `SeatHeightCm` above
+  its tread, a back `SeatBackHeightCm` above the pan, its centre `SeatSetbackCm` behind the row's
+  front. The field wall is `WallHeightCm` tall; walls, fasciae and parapets are `WallThicknessCm`
+  thick and capped with a rail `RailHeightCm` thick; a walkway `WalkwayHeightCm` high runs between
+  the wall and the first deck. Colours (`#RRGGBB`): `ConcreteColor`, `StairColor`, `SeatColor`,
+  `WallColor` (the padding), `RailColor`, `FasciaColor`, `RibbonBoardColor`, `GlassColor`,
+  `PortalColor` (the tunnels), `RoofColor`, `FixtureColor` (the light banks), `BoardFrameColor`,
+  `BoardScreenColor`, `PlazaColor` (the ground around the stadium). Sizes are above 0, `WallOffsetCm` 0 or more, `CornerSections` 1 or more.
+- `Decks` (`FPSStadiumDeck`, at least one, from the field outward), each with a unique `DeckId`:
+  `Rows` rows (1 or more) from `FrontOffsetCm` behind the field wall (clear of the wall), the front
+  row's tread `FrontHeightCm` up, each row `RowDepthCm` deep (room for a seat at the setback) and
+  `RowRiseCm` higher than the one in front. `SlabCm` 0 fills the deck down to the ground (the first
+  deck must); above 0, each row is a slab that much deeper than its riser, so the deck hangs over
+  what is below it. `FasciaHeightCm` of solid band under its front row (with the ribbon board on it)
+  and a parapet `ParapetHeightCm` above the front row's tread; a deck's fascia must clear the top row
+  of the deck below, and it must start behind that deck's front. Every `VomitoryEverySections`-th
+  section of a straight (0: none) has a tunnel `VomitoryWidthCm` wide where rows
+  `VomitoryFirstRow` to `VomitoryFirstRow + VomitoryRows - 1` drop to the tunnel's floor; it must end
+  before the deck's last row and fit in a section with its aisles.
+- `Structures` (`FPSStadiumStructures`): behind each deck but the last, a cross-aisle
+  `CrossAisleCm` deep, then the suites' facade, `SuiteLevels` bands of glass `SuiteGlassHeightCm`
+  tall over floors `SuiteFloorCm` thick, and concrete up to the deck above; a ribbon board
+  `RibbonHeightCm` tall on each fascia that can hold it (0: none). Behind the last deck a back wall
+  `BackWallThicknessCm` thick rising `BackWallHeightCm` above its top row, and a canopy
+  `CanopyDepthCm` deep (0: none), `CanopyThicknessCm` thick, its underside `CanopyHeightCm` above
+  the top row, along the sidelines only when `bCanopySidelinesOnly`. Light banks along the sidelines
+  under the canopy's front edge (on the back wall without one), one every `LightBankSpacingCm`,
+  `LightBankWidthCm` by `LightBankHeightCm`, aimed `LightBankTiltDegrees` down at the field: the
+  set's `GetLightBanks()` gives each face's transform for the lighting. The press box at the 50 of
+  the -Y sideline on the first cross-aisle, `PressBoxLengthCm` long, `PressBoxHeightCm` tall,
+  `PressBoxDepthCm` proud of the suites. A video board over each end on the back wall,
+  `VideoBoardWidthCm` by `VideoBoardHeightCm` (0: none), `VideoBoardLiftCm` above the wall, in a
+  bezel `VideoBoardBezelCm` wide. A plaza reaching `PlazaMarginCm` past the back wall (0: none), its
+  top just under the field's ground. Sizes 0 or more; the back wall, canopy thickness and light banks
+  above 0; `SuiteLevels` a whole number, 0 or more.
+
+`APSStadiumSet::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Crowd look schema (`FPSCrowdLookStyle`)
+
+Single object: what the fans in the stands look like and when they stand (Epic 48).
+`UPSCrowdRenderComponent`, which the stadium set owns, seats them in the set's seats once it is
+built. How many is the platform tier's `CrowdDensity` (0-1 of the seats) and how each is drawn its
+`CrowdDetail` (`Figures`: a torso and a head; `Cards`: one slab; `None`), in `platform_tiers.json`;
+the home crowd's share of the stadium and the teams are the match's (`UPSCrowdExcitementSubsystem`),
+and so is the excitement that stands them up.
+
+- The fan: `BodyMeshPath` (a box `MeshSizeCm` across at scale 1, centred) in one colour through a
+  dynamic instance of `MaterialPath` (with a vector parameter `ColorParameter`). A figure is a torso
+  `TorsoWidthCm` by `TorsoDepthCm` by `TorsoHeightCm` on the seat and a head `HeadSizeCm` across; a
+  card is one slab `CardDepthCm` thick, as tall as both. Each fan is up to `SizeVariation` (0-0.5)
+  bigger or smaller and turned up to `YawJitterDegrees` (0-90) off his seat's facing. Sizes are
+  above 0.
+- Shirts: the fan's team's primary colour (`PrimaryShare` of fans), its secondary
+  (`SecondaryShare`), `WhiteColor` (`WhiteShare`), or else one of `NeutralColors`; the three shares
+  are each 0-1 and add up to 1 or less. Skin: one of `SkinTones` (at least one). Until the match's
+  teams are known (or for a team with no colours in the team identity data), the teams wear
+  `DefaultHomePrimary`, `DefaultHomeSecondary`, `DefaultAwayPrimary` and `DefaultAwaySecondary`.
+  Every colour is `#RRGGBB`.
+- Away fans: `AwayPocketShare` (0-1) of them sit together in whole sections, nearest the spot
+  `AwayPocketYardLine`, `AwayPocketLateralYards` on the field's frame first; the rest are scattered.
+- Standing: `AlwaysStandShare` (0-1) of the fans stand all game; every other one stands when the
+  crowd's excitement reaches his own threshold, between `StandExcitementMin` and
+  `StandExcitementMax` (0-1, the first not above the second), and sits `StandHysteresis` (0-0.5)
+  under it. Standing lifts him `StandRiseCm` and moves him `StandForwardCm` forward (both 0 or
+  more). At most `MaxStandChangesPerUpdate` (1 or more) fans move per update, the tier's
+  `CrowdUpdateHz` times a second.
+- `Seed` (0 or more) makes the crowd the same every time.
+
+`UPSCrowdRenderComponent::ValidateStyle` and `tools/validate_data.py` check it.
+
+## Ball look schema (`FPSBallLookStyle`)
+
+Single object: what the ball looks like (Epic 147.4). `APSBall` puts it on its mesh at BeginPlay:
+`MeshPath` (`MeshSizeCm` across at scale 1, centred) stretched to `LengthCm` tip to tip along the
+ball's X and `WidthCm` across, in `BallColor` (`#RRGGBB`) through a dynamic instance of `MaterialPath`
+(with a vector parameter `ColorParameter`). The look never changes how the ball flies or lands: its
+collision is the ball's own sphere. Every size is above 0. `PSBallLook::ValidateStyle` and
+`tools/validate_data.py` check it.
+
+## Character look schema (`FPSCharacterLookStyle`)
+
+Single object: what a player looks like (Epic 147.2; `UPSCharacterLookComponent`, the one look
+authority that Epic 143's inclusive looks extend). Team colours are not here: they are each team's
+`PrimaryColor` and `SecondaryColor` in the team identity data (`sample_teams.json`).
+
+- `SkeletalMeshPath`: the character (the world kit's stand-in on the engine's body bones), turned
+  `MeshYawDegrees` to face +X, its feet on the capsule's bottom. Its `PrimarySlots` (the jersey) and
+  `SecondarySlots` (the pants) are material slot names, tinted through `TeamColorParameter`. Empty
+  means the fallback body, which is the look until the import's asset and parameter are confirmed.
+- `FallbackMeshPath` (`FallbackMeshSizeCm` across and tall at scale 1, centred) sized to the pawn's
+  capsule, in the team's primary colour through `FallbackMaterialPath`'s `FallbackColorParameter`.
+- `NeutralColor` (`#RRGGBB`): before the match's teams are known.
+
+`UPSCharacterLookComponent::ValidateStyle` and `tools/validate_data.py` check it.
 
 ## Formation schema (`FPSFormationCatalog`)
 

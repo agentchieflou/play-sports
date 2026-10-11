@@ -1,0 +1,12 @@
+{
+    "SkeletalMeshPath": "",
+    "MeshYawDegrees": -90.0,
+    "TeamColorParameter": "BaseColorFactor",
+    "PrimarySlots": ["top"],
+    "SecondarySlots": ["bottom"],
+    "FallbackMeshPath": "/Engine/BasicShapes/Cylinder.Cylinder",
+    "FallbackMeshSizeCm": 100.0,
+    "FallbackMaterialPath": "/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial",
+    "FallbackColorParameter": "Color",
+    "NeutralColor": "#9AA0A6"
+}
