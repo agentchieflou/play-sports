@@ -1,0 +1,170 @@
+name: Render
+
+# Lane V1: renders the real game scene with the GPU on the self-hosted runner and uploads PNGs, so
+# visual changes are judged on images the engine drew.
+#
+# This first version is the GPU probe: before any capture code exists, it proves the runner can
+# render offscreen at all. It runs the game (the editor binary with -game) on /Game/Maps/GameMap
+# with -RenderOffscreen at 640x360, has the engine save every frame (-dumpmovie, throttled with
+# t.MaxFPS) plus one HighResShot, keeps a sample of the frames and uploads them as `renders`.
+#
+# Runs by hand (workflow_dispatch) and on a pull request that changes what the renders show
+# (the paths below). The runner is shared, so other PRs don't run it.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/render.yml"
+      - "Content/**"
+      - "Config/**"
+      - "Data/render_views.json"
+      - "Data/field_dimensions.json"
+      - "Data/field_markings.json"
+      - "Source/PlaySports/**/PSRenderCapture*"
+      - "Source/PlaySports/**/PSFieldSurface*"
+      - "Source/PlaySports/**/PSFieldGrid*"
+      - "Source/PlaySports/**/*Stadium*"
+      - "Source/PlaySports/**/*Lighting*"
+      - "Source/PlaySports/**/*Look*"
+
+concurrency:
+  group: render-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Render the game scene (GPU, offscreen)
+    runs-on: [self-hosted, windows, unreal]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # /Game/Maps/GameMap is in Git LFS: without it the game would load a pointer file.
+          lfs: true
+
+      - name: Runner session and GPUs
+        # Rendering needs a GPU the runner's session can reach. A runner installed as a Windows
+        # service runs in session 0, which may have none.
+        shell: powershell
+        run: |
+          if (-not $env:UE_ROOT) { throw "UE_ROOT is not set on this runner." }
+          $Identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+          $Session = (Get-Process -Id $PID).SessionId
+          Write-Host "Runner account: $Identity"
+          Write-Host "Session id: $Session (0 is the services session)"
+          Write-Host "Interactive: $([Environment]::UserInteractive)"
+          Get-Service -Name "actions.runner.*" -ErrorAction SilentlyContinue | Format-Table Name, Status, StartType -AutoSize | Out-String | Write-Host
+          Get-CimInstance Win32_VideoController | Format-Table Name, DriverVersion, Status, CurrentHorizontalResolution, CurrentVerticalResolution -AutoSize | Out-String -Width 200 | Write-Host
+          if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { nvidia-smi }
+
+      - name: Build PlaySportsEditor
+        shell: powershell
+        run: |
+          & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" PlaySportsEditor Win64 Development -project="$env:GITHUB_WORKSPACE\play-sports.uproject" -WaitMutex
+          if ($LASTEXITCODE -ne 0) { throw "UnrealBuildTool failed with exit code $LASTEXITCODE" }
+
+      - name: GPU probe (offscreen frames of GameMap)
+        shell: powershell
+        run: |
+          $Project = Join-Path $env:GITHUB_WORKSPACE "play-sports.uproject"
+          $Editor = Join-Path $env:UE_ROOT "Engine\Binaries\Win64\UnrealEditor.exe"
+          $OutDir = Join-Path $env:GITHUB_WORKSPACE "Saved\Renders"
+          $Shots = Join-Path $env:GITHUB_WORKSPACE "Saved\Screenshots"
+          foreach ($Dir in @($OutDir, $Shots)) { if (Test-Path $Dir) { Remove-Item -Recurse -Force $Dir } }
+          New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+          $Log = Join-Path $OutDir "probe.log"
+
+          $GameArgs = @("`"$Project`"", "/Game/Maps/GameMap", "-game", "-RenderOffscreen", "-windowed", "-ResX=640", "-ResY=360",
+            "-dumpmovie", "-ExecCmds=`"t.MaxFPS 5, HighResShot 1`"", "-nosound", "-unattended", "-nosplash", "-nop4", "-abslog=`"$Log`"")
+          Write-Host "$Editor $($GameArgs -join ' ')"
+          $Started = Get-Date
+          $Proc = Start-Process -FilePath $Editor -ArgumentList $GameArgs -PassThru
+          $null = $Proc.Handle
+
+          # Shaders may compile cold on the first run: allow 45 minutes for the first frame, then
+          # let it run 4 minutes so the later frames show the scene settled.
+          $Deadline = $Started.AddMinutes(45)
+          $FirstFrameAt = $null
+          $LastReport = $Started
+          while (-not $Proc.HasExited) {
+            Start-Sleep -Seconds 5
+            $Now = Get-Date
+            $Count = @(Get-ChildItem -Path $Shots -Recurse -Filter *.png -ErrorAction SilentlyContinue).Count
+            if ($Count -gt 0 -and -not $FirstFrameAt) {
+              $FirstFrameAt = $Now
+              Write-Host ("First frame on disk {0:N0} s after launch" -f ($Now - $Started).TotalSeconds)
+            }
+            if (($Now - $LastReport).TotalSeconds -ge 60) {
+              $LastReport = $Now
+              Write-Host ("{0:N0} s: {1} frame(s) on disk" -f ($Now - $Started).TotalSeconds, $Count)
+            }
+            if ($FirstFrameAt -and ($Now - $FirstFrameAt).TotalSeconds -ge 240) { break }
+            if (-not $FirstFrameAt -and $Now -gt $Deadline) { break }
+          }
+          $Exited = $Proc.HasExited
+          if (-not $Exited) { Stop-Process -Id $Proc.Id -Force; Start-Sleep -Seconds 3 }
+          Write-Host ("Game ran {0:N0} s; it {1}" -f ((Get-Date) - $Started).TotalSeconds, $(if ($Exited) { "exited by itself with code $($Proc.ExitCode)" } else { "was stopped by the probe" }))
+
+          if (Test-Path $Log) {
+            Write-Host "--- RHI and GPU lines from the game's log ---"
+            Select-String -Path $Log -Pattern "LogRHI|LogD3D12|LogD3D11|LogVulkan|Adapter|NullRHI|RenderOffscreen|FeatureLevel|Feature Level|Lumen|Nanite|Fatal|Error:|Critical|Screenshot|MovieFrame" |
+              Select-Object -First 150 | ForEach-Object { Write-Host $_.Line }
+          } else {
+            Write-Host "::warning::The game wrote no log at $Log"
+          }
+
+          $Frames = @(Get-ChildItem -Path $Shots -Recurse -Filter *.png -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)
+          Write-Host "$($Frames.Count) PNG file(s) under Saved\Screenshots"
+          if ($Frames.Count -eq 0) { throw "The game rendered no frame to disk: offscreen GPU rendering failed on this runner (see the log above)" }
+
+          # Keep the HighResShot, the first frame, nine frames spread over the run and the last.
+          $Keep = New-Object System.Collections.Generic.List[System.IO.FileInfo]
+          $Frames | Where-Object { $_.Name -like "Highres*" } | ForEach-Object { $Keep.Add($_) }
+          $Movie = @($Frames | Where-Object { $_.Name -notlike "Highres*" })
+          if ($Movie.Count -gt 0) {
+            for ($i = 0; $i -le 10; $i++) {
+              $Index = [Math]::Min($Movie.Count - 1, [int][Math]::Floor($i * ($Movie.Count - 1) / 10))
+              if (-not $Keep.Contains($Movie[$Index])) { $Keep.Add($Movie[$Index]) }
+            }
+          }
+
+          Add-Type -AssemblyName System.Drawing
+          $Distinct = 0
+          foreach ($Frame in $Keep) {
+            Copy-Item $Frame.FullName -Destination (Join-Path $OutDir $Frame.Name)
+            $Image = [System.Drawing.Bitmap]::FromFile($Frame.FullName)
+            $Colors = New-Object System.Collections.Generic.HashSet[int]
+            $Lum = 0.0
+            for ($y = 0; $y -lt 18; $y++) {
+              for ($x = 0; $x -lt 32; $x++) {
+                $Pixel = $Image.GetPixel([int](($x + 0.5) * $Image.Width / 32), [int](($y + 0.5) * $Image.Height / 18))
+                $null = $Colors.Add($Pixel.ToArgb())
+                $Lum += 0.2126 * $Pixel.R + 0.7152 * $Pixel.G + 0.0722 * $Pixel.B
+              }
+            }
+            Write-Host ("{0}: {1}x{2}, {3} distinct colors in 576 samples, mean luminance {4:N1}" -f $Frame.Name, $Image.Width, $Image.Height, $Colors.Count, ($Lum / 576))
+            $Distinct = [Math]::Max($Distinct, $Colors.Count)
+            $Image.Dispose()
+          }
+          "### Render probe`n`n$($Frames.Count) frame(s) rendered offscreen; the richest kept frame has $Distinct distinct colors in 576 samples." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if ($Distinct -lt 8) { throw "Every kept frame is flat (at most $Distinct colors): the GPU drew nothing of the scene" }
+
+      - name: Upload renders
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: renders
+          path: Saved/Renders/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Summarize crash reports
+        if: ${{ !cancelled() }}
+        shell: powershell
+        run: python tools/crash_report.py summarize
