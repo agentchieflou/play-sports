@@ -64,9 +64,14 @@ lets you test a phone tier on the desktop.
 
 | Tier | Runs on | AI decides | Frame cap | Rendering (scalability groups; 0 low – 3 epic) |
 |---|---|---|---|---|
-| `DesktopHigh` | Windows, Mac | every frame | none | Engine defaults (`Windows` profile, untouched) |
+| `DesktopHigh` | Windows, Mac | every frame | none | Engine defaults (`Windows` profile, untouched), on the desktop renderer's look-dev baseline: D3D12 at SM6, Lumen GI and reflections, virtual shadow maps, TSR (`Config/DefaultEngine.ini`) |
 | `MobileBaseline` | iOS | every 33 ms (30 Hz) | 60 fps | `IOS` profile: view distance 2, shadows 1, post 1, textures 2, effects 1, foliage 1 |
 | `MobileLow` | Android, older or hot iPhones | every 66 ms (15 Hz) | 30 fps | `PSMobileLow` profile: resolution 75%, view distance 1, shadows/post/effects/foliage 0, textures 1 |
+
+The desktop baseline's Lumen, virtual shadow maps and SM6 are desktop-renderer settings: the
+phone's mobile renderer reads none of them, so the mobile tiers are unchanged. Their cost on the
+desktop is measured per view by the render capture (`.github/workflows/render.yml`, `index.json`'s
+`GpuMs`).
 
 `MobileBaseline`'s settings sit on the engine's own `IOS` profile, so every iPhone inherits them
 through the engine's per-model profiles. To put a phone on `MobileLow`, make `PSMobileLow` the
